@@ -485,7 +485,7 @@ impl Agent {
         }
         let auth = match self.issue_sink_capability(name, args, call_id).await {
             Ok(auth) => auth,
-            Err(outcome) => return outcome,
+            Err(outcome) => return *outcome,
         };
         self.run_tool_execute(name, args, auth.as_ref()).await
     }
@@ -526,13 +526,12 @@ impl Agent {
         }
     }
 
-    #[allow(clippy::result_large_err)]
     async fn issue_sink_capability(
         &self,
         name: &str,
         args: &Value,
         call_id: &str,
-    ) -> Result<Option<AuthorizedAction>, ToolOutcome> {
+    ) -> Result<Option<AuthorizedAction>, Box<ToolOutcome>> {
         let Some(proposal) = self.tools.propose(name, args) else {
             return Ok(None);
         };
@@ -556,23 +555,23 @@ impl Agent {
                 .as_ref()
                 .or(workspace_root.as_ref());
             let Some(dir) = candidate else {
-                return Err(ToolOutcome {
+                return Err(Box::new(ToolOutcome {
                     ok: false,
                     summary: format!("{name} denied"),
                     content: "ERROR: process working directory is missing".into(),
                     error_kind: Some("denied".into()),
                     change: None,
-                });
+                }));
             };
             if dir.as_os_str().is_empty() || !dir.is_absolute() {
-                return Err(ToolOutcome {
+                return Err(Box::new(ToolOutcome {
                     ok: false,
                     summary: format!("{name} denied"),
                     content: "ERROR: process working directory must be a non-empty absolute path"
                         .into(),
                     error_kind: Some("denied".into()),
                     change: None,
-                });
+                }));
             }
             Some(dir.display().to_string())
         } else {
@@ -633,12 +632,14 @@ impl Agent {
             .collect();
         let workspace_version = match &workspace_root {
             Some(root) => match &self.capture_workspace_version {
-                Some(hook) => Some(hook(root, &relevant).map_err(|e| ToolOutcome {
-                    ok: false,
-                    summary: format!("{name} denied"),
-                    content: format!("ERROR: workspace version: {e}"),
-                    error_kind: Some("denied".into()),
-                    change: None,
+                Some(hook) => Some(hook(root, &relevant).map_err(|e| {
+                    Box::new(ToolOutcome {
+                        ok: false,
+                        summary: format!("{name} denied"),
+                        content: format!("ERROR: workspace version: {e}"),
+                        error_kind: Some("denied".into()),
+                        change: None,
+                    })
                 })?),
                 None => None,
             },
@@ -673,16 +674,15 @@ impl Agent {
             trace_context: Default::default(),
         });
 
-        let capability = broker
-            .evaluate_and_issue(&action)
-            .await
-            .map_err(|e| ToolOutcome {
+        let capability = broker.evaluate_and_issue(&action).await.map_err(|e| {
+            Box::new(ToolOutcome {
                 ok: false,
                 summary: format!("{name} denied"),
                 content: format!("ERROR: {e}"),
                 error_kind: Some("denied".into()),
                 change: None,
-            })?;
+            })
+        })?;
         Ok(Some(AuthorizedAction { capability, action }))
     }
 
