@@ -375,14 +375,25 @@ mod tests {
             ..Default::default()
         };
         attach_shell_confinement(&mut req, Path::new("."));
-        assert!(
-            req.missing_controls
-                .iter()
-                .any(|c| c.control == "network_denial" && c.risk_level == "high"),
-            "preview must list network_denial as high: {:?}",
-            req.missing_controls
-        );
-        assert!(req.user_approval_required);
+        let caps = lokai_sandbox::platform_backend().capabilities();
+        if !caps.network_denial {
+            assert!(
+                req.missing_controls
+                    .iter()
+                    .any(|c| c.control == "network_denial" && c.risk_level == "high"),
+                "preview must list network_denial as high: {:?}",
+                req.missing_controls
+            );
+            assert!(req.user_approval_required);
+        } else {
+            assert!(
+                req.missing_controls
+                    .iter()
+                    .all(|c| c.control != "network_denial"),
+                "preview must not list network_denial when available: {:?}",
+                req.missing_controls
+            );
+        }
     }
 
     #[test]

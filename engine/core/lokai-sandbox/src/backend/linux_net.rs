@@ -9,16 +9,39 @@ use std::io::Write;
 
 use crate::types::NetworkPolicy;
 
+static NETWORK_DENIAL_AVAILABLE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+
 /// True when this process can create an unprivileged user+net namespace.
 pub fn network_denial_available() -> bool {
-    if let Ok(v) = fs::read_to_string("/proc/sys/kernel/unprivileged_userns_clone") {
-        if v.trim() == "0" {
-            return false;
+    *NETWORK_DENIAL_AVAILABLE.get_or_init(|| {
+        if let Ok(v) = fs::read_to_string("/proc/sys/kernel/unprivileged_userns_clone") {
+            if v.trim() == "0" {
+                return false;
+            }
         }
-    }
-    // Probe: fork+unshare is heavy for every caps() call; assume available unless
-    // the sysctl explicitly disables it (common enterprise lockdown).
-    true
+        if let Ok(v) = fs::read_to_string("/proc/sys/kernel/apparmor_restrict_unprivileged_userns")
+        {
+            if v.trim() == "1" {
+                return false;
+            }
+        }
+        // Live probe: fork a minimal child to verify that unshare is genuinely permitted.
+        unsafe {
+            let pid = libc::fork();
+            if pid < 0 {
+                return false;
+            }
+            if pid == 0 {
+                let res = nix::sched::unshare(
+                    nix::sched::CloneFlags::CLONE_NEWUSER | nix::sched::CloneFlags::CLONE_NEWNET,
+                );
+                libc::_exit(if res.is_ok() { 0 } else { 1 });
+            }
+            let mut status = 0;
+            libc::waitpid(pid, &mut status, 0);
+            libc::WIFEXITED(status) && libc::WEXITSTATUS(status) == 0
+        }
+    })
 }
 
 /// Apply DenyAll / AllowLoopback isolation in the child after fork, before exec.
