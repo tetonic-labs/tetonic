@@ -31,13 +31,13 @@ lokai-app = { path = "../../litho/lokai-app" }
 lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
 lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
-lokai-broker = { path = "../../mantle/lokai-broker" }
+lokai-broker = { package = "tetonic-broker", path = "../../mantle/tetonic-broker" }
 lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
 lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
 lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
-lokai-orchestrator = { path = "../../mantle/lokai-orchestrator" }
+lokai-orchestrator = { package = "tetonic-orchestrator", path = "../../mantle/tetonic-orchestrator" }
 lokai-artifact = { package = "tetonic-artifact", path = "../../strata/tetonic-artifact" }
 sha2 = "0.10"
 hex = "0.4"

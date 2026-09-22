@@ -11,7 +11,7 @@ name = "tetonic_fabric_client"
 tetonic-domain = { path = "../../core/tetonic-domain" }
 tetonic-fabric-protocol = { path = "../../atmos/tetonic-fabric-protocol" }
 tetonic-egress = { path = "../../atmos/tetonic-egress" }
-lokai-enroll = { path = "../../mantle/lokai-enroll" }
+tetonic-enroll = { path = "../../mantle/tetonic-enroll" }
 tetonic-inference = { path = "../../atmos/tetonic-inference" }
 tetonic-transaction = { path = "../../core/tetonic-transaction" }
 tetonic-artifact = { path = "../../strata/tetonic-artifact" }
@@ -36,7 +36,7 @@ sha2 = "0.10"
 hex = "0.4"
 
 [dev-dependencies]
-lokai-run = { path = "../../mantle/lokai-run" }
+tetonic-run = { path = "../../mantle/tetonic-run" }
 tempfile = "3"
 rand = "0.8"
 ed25519-dalek = { version = "2", features = ["zeroize", "rand_core"] }

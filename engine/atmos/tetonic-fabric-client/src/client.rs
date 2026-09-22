@@ -11,12 +11,12 @@ use crate::tls_handshake::{
 };
 use ed25519_dalek::pkcs8::EncodePrivateKey;
 use ed25519_dalek::SigningKey;
-use lokai_enroll::KeyPair;
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair as RcgenKeyPair};
 use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, ServerCertVerifier};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer, ServerName};
 use rustls::{DigitallySignedStruct, Error as RustlsError, SignatureScheme};
 use tetonic_egress::EgressGuard;
+use tetonic_enroll::KeyPair;
 use thiserror::Error;
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWriteExt};
 use tokio::net::TcpStream;

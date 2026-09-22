@@ -59,9 +59,9 @@ pub fn supported_ed25519_schemes() -> Vec<SignatureScheme> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_enroll::KeyPair;
     use rustls::DigitallySignedStruct;
     use rustls::SignatureScheme;
+    use tetonic_enroll::KeyPair;
 
     use crate::client_cert_from_keypair;
 

@@ -1827,13 +1827,7 @@ dependencies = [
  "directories",
  "futures",
  "hex",
- "lokai-broker",
- "lokai-capacity",
- "lokai-enroll",
  "lokai-lsp",
- "lokai-node",
- "lokai-orchestrator",
- "lokai-run",
  "lokai-tools",
  "regex",
  "rusqlite",
@@ -1842,17 +1836,23 @@ dependencies = [
  "sha2",
  "tempfile",
  "tetonic-artifact",
+ "tetonic-broker",
+ "tetonic-capacity",
  "tetonic-context",
  "tetonic-core",
  "tetonic-domain",
  "tetonic-egress",
+ "tetonic-enroll",
  "tetonic-eval",
  "tetonic-fabric-client",
  "tetonic-fabric-protocol",
  "tetonic-index",
  "tetonic-inference",
  "tetonic-memory",
+ "tetonic-node",
+ "tetonic-orchestrator",
  "tetonic-policy",
+ "tetonic-run",
  "tetonic-runtime",
  "tetonic-sandbox",
  "tetonic-secrets",
@@ -1863,46 +1863,6 @@ dependencies = [
  "tracing",
  "tracing-subscriber",
  "uuid",
-]
-
-[[package]]
-name = "lokai-broker"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "lokai-run",
- "serde",
- "serde_json",
- "tempfile",
- "tetonic-domain",
- "tetonic-fabric-protocol",
- "tetonic-inference",
- "tetonic-memory",
- "tetonic-secrets",
- "tetonic-telemetry",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-capacity"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "directories",
- "schemars",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "tetonic-inference",
- "tetonic-memory",
- "thiserror 2.0.18",
- "tokio",
 ]
 
 [[package]]
@@ -1925,31 +1885,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lokai-enroll"
-version = "0.0.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "ed25519-dalek",
- "hmac",
- "lokai-node",
- "rand 0.8.6",
- "reqwest",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "tetonic-egress",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "zeroize",
-]
-
-[[package]]
 name = "lokai-lsp"
 version = "0.0.0"
 dependencies = [
@@ -1960,90 +1895,6 @@ dependencies = [
  "thiserror 2.0.18",
  "tracing",
  "url",
-]
-
-[[package]]
-name = "lokai-node"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "ed25519-dalek",
- "futures-util",
- "hex",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "lokai-capacity",
- "lokai-enroll",
- "rand 0.8.6",
- "rcgen",
- "rusqlite",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "tempfile",
- "tetonic-domain",
- "tetonic-egress",
- "tetonic-fabric-client",
- "tetonic-fabric-protocol",
- "tetonic-inference",
- "tetonic-memory",
- "tetonic-sandbox",
- "tetonic-secrets",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "x509-parser",
-]
-
-[[package]]
-name = "lokai-orchestrator"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "lokai-tools",
- "serde",
- "serde_json",
- "tempfile",
- "tetonic-context",
- "tetonic-core",
- "tetonic-domain",
- "tetonic-index",
- "tetonic-inference",
- "tetonic-memory",
- "tetonic-policy",
- "tetonic-runtime",
- "tetonic-transaction",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lokai-run"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tetonic-artifact",
- "tetonic-core",
- "tetonic-domain",
- "tetonic-memory",
- "tetonic-policy",
- "tetonic-runtime",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
 ]
 
 [[package]]
@@ -3758,6 +3609,46 @@ dependencies = [
 ]
 
 [[package]]
+name = "tetonic-broker"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-domain",
+ "tetonic-fabric-protocol",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-run",
+ "tetonic-secrets",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-capacity"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "directories",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "tetonic-inference",
+ "tetonic-memory",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
 name = "tetonic-context"
 version = "0.1.0"
 dependencies = [
@@ -3835,6 +3726,31 @@ dependencies = [
 ]
 
 [[package]]
+name = "tetonic-enroll"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "ed25519-dalek",
+ "hmac",
+ "rand 0.8.6",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "tetonic-egress",
+ "tetonic-node",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
 name = "tetonic-eval"
 version = "0.1.0"
 dependencies = [
@@ -3844,17 +3760,17 @@ dependencies = [
  "clap",
  "hex",
  "lokai-app",
- "lokai-broker",
- "lokai-orchestrator",
  "serde",
  "serde_json",
  "sha2",
  "tempfile",
  "tetonic-artifact",
+ "tetonic-broker",
  "tetonic-core",
  "tetonic-domain",
  "tetonic-inference",
  "tetonic-memory",
+ "tetonic-orchestrator",
  "tetonic-policy",
  "tetonic-runtime",
  "tetonic-sandbox",
@@ -3876,8 +3792,6 @@ dependencies = [
  "chrono",
  "ed25519-dalek",
  "hex",
- "lokai-enroll",
- "lokai-run",
  "rand 0.8.6",
  "rcgen",
  "reqwest",
@@ -3890,9 +3804,11 @@ dependencies = [
  "tetonic-artifact",
  "tetonic-domain",
  "tetonic-egress",
+ "tetonic-enroll",
  "tetonic-fabric-protocol",
  "tetonic-inference",
  "tetonic-memory",
+ "tetonic-run",
  "tetonic-telemetry",
  "tetonic-transaction",
  "thiserror 2.0.18",
@@ -3978,6 +3894,67 @@ dependencies = [
 ]
 
 [[package]]
+name = "tetonic-node"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "ed25519-dalek",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "rand 0.8.6",
+ "rcgen",
+ "rusqlite",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-capacity",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-enroll",
+ "tetonic-fabric-client",
+ "tetonic-fabric-protocol",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-sandbox",
+ "tetonic-secrets",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "x509-parser",
+]
+
+[[package]]
+name = "tetonic-orchestrator"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "lokai-tools",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-context",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-index",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-runtime",
+ "tetonic-transaction",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "tetonic-policy"
 version = "0.0.0"
 dependencies = [
@@ -3997,6 +3974,29 @@ dependencies = [
  "serde_json",
  "tetonic-telemetry",
  "tokio",
+]
+
+[[package]]
+name = "tetonic-run"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-runtime",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
 ]
 
 [[package]]

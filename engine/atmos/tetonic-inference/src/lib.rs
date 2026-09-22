@@ -547,7 +547,7 @@ fn gpu_residency_pct(size: u64, size_vram: u64) -> Option<f32> {
     }
 }
 
-/// Fail threshold aligned with `lokai_capacity::GatePolicy::default().gpu_pct_fail`.
+/// Fail threshold aligned with `tetonic_capacity::GatePolicy::default().gpu_pct_fail`.
 const GPU_SPILL_FAIL_PCT: f32 = 100.0;
 
 /// Returns GPU residency when it falls below the spill threshold.

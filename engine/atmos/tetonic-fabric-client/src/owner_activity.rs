@@ -3,9 +3,9 @@
 use std::net::IpAddr;
 use std::sync::Arc;
 
-use lokai_enroll::KeyPair;
 use serde::{Deserialize, Serialize};
 use tetonic_egress::EgressGuard;
+use tetonic_enroll::KeyPair;
 
 use crate::client::{fabric_request, FabricClientError};
 

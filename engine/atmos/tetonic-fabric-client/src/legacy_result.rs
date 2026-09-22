@@ -504,8 +504,8 @@ mod r2_tests {
     use crate::result_sign::{build_signed_chat_result, key_id_from_public};
     use crate::run_bridge::RemoteResultRunBridge;
     use crate::DispositionPersistence;
-    use lokai_enroll::KeyPair;
     use tetonic_egress::EgressGuard;
+    use tetonic_enroll::KeyPair;
     use tetonic_fabric_protocol::ResultDispositionRecord;
 
     struct MemPersist {
@@ -763,7 +763,7 @@ mod r2_tests {
             self.looked_up.lock().unwrap().push(attempt_id.to_string());
             Ok(Some((
                 self.proof.clone(),
-                lokai_run::command_envelope("t", Some(1), "test"),
+                tetonic_run::command_envelope("t", Some(1), "test"),
             )))
         }
     }

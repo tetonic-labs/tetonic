@@ -14,20 +14,20 @@ lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtim
 lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
-lokai-orchestrator = { path = "../../mantle/lokai-orchestrator" }
-lokai-run = { path = "../../mantle/lokai-run" }
+lokai-orchestrator = { package = "tetonic-orchestrator", path = "../../mantle/tetonic-orchestrator" }
+lokai-run = { package = "tetonic-run", path = "../../mantle/tetonic-run" }
 lokai-context = { package = "tetonic-context", path = "../../strata/tetonic-context" }
 lokai-tools = { path = "../../litho/lokai-tools" }
 lokai-transaction = { package = "tetonic-transaction", path = "../../core/tetonic-transaction" }
 lokai-index = { package = "tetonic-index", path = "../../strata/tetonic-index" }
 lokai-lsp = { path = "../../litho/lokai-lsp" }
 lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
-lokai-capacity = { path = "../../mantle/lokai-capacity" }
-lokai-enroll = { path = "../../mantle/lokai-enroll" }
+lokai-capacity = { package = "tetonic-capacity", path = "../../mantle/tetonic-capacity" }
+lokai-enroll = { package = "tetonic-enroll", path = "../../mantle/tetonic-enroll" }
 lokai-egress = { package = "tetonic-egress", path = "../../atmos/tetonic-egress" }
-lokai-node = { path = "../../mantle/lokai-node" }
+lokai-node = { package = "tetonic-node", path = "../../mantle/tetonic-node" }
 lokai-fabric-client = { package = "tetonic-fabric-client", path = "../../atmos/tetonic-fabric-client" }
-lokai-broker = { path = "../../mantle/lokai-broker" }
+lokai-broker = { package = "tetonic-broker", path = "../../mantle/tetonic-broker" }
 lokai-fabric-protocol = { package = "tetonic-fabric-protocol", path = "../../atmos/tetonic-fabric-protocol" }
 chrono = { workspace = true }
 base64 = "0.22"

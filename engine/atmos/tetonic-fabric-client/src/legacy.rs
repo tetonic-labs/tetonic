@@ -7,12 +7,12 @@ use std::sync::{Arc, RwLock};
 
 use async_trait::async_trait;
 use chrono::Utc;
-use lokai_enroll::KeyPair;
 use serde::Deserialize;
 use tetonic_domain::result_integrity::WorkerBehaviorSignals;
 use tetonic_domain::ResultVerificationRequirement;
 use tetonic_domain::{artifact::ArtifactStore, ids::WorkerId, WorkerTrust};
 use tetonic_egress::EgressGuard;
+use tetonic_enroll::KeyPair;
 use tetonic_fabric_protocol::{
     default_message_limits, ArtifactReference, CancellationRequest, DispositionStore,
     FabricTraceContext, IdempotencyKey, JobRequirements, LeaseRenewalRequest, LifecycleContext,
