@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::thread::{self, JoinHandle};
 use std::time::Duration;
 
-use notify_debouncer_full::{new_debouncer, DebounceEventResult, Debouncer, FileIdMap};
+use notify_debouncer_full::{new_debouncer, DebounceEventResult};
 
 use crate::{Index, IndexError, Result};
 
@@ -158,7 +158,7 @@ fn run_watcher(index_db: PathBuf, workspace: PathBuf, stop: Arc<AtomicBool>) -> 
     let pending = Arc::new(Mutex::new(PendingUpdates::default()));
     let pending_cb = pending.clone();
     let ws_root = workspace.clone();
-    let mut debouncer: Debouncer<notify::RecommendedWatcher, FileIdMap> = new_debouncer(
+    let mut debouncer = new_debouncer(
         Duration::from_millis(300),
         None,
         move |mut res: DebounceEventResult| {
