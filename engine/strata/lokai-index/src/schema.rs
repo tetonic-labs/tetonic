@@ -547,7 +547,7 @@ impl Index {
         }
 
         // Files that vanished since last pass: drop them (cascades symbols/etc).
-        for (path, _) in known.iter() {
+        for path in known.keys() {
             if !seen.contains(path) {
                 purge_file_at_path(&tx, path)?;
                 stats.deleted += 1;
