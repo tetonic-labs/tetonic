@@ -526,6 +526,7 @@ impl Agent {
         }
     }
 
+    #[allow(clippy::result_large_err)]
     async fn issue_sink_capability(
         &self,
         name: &str,
