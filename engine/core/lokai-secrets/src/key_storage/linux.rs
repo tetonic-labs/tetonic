@@ -11,7 +11,7 @@ fn collection(service: &SecretService) -> Result<Collection<'_>, KeyStorageError
     let collection = service
         .get_default_collection()
         .map_err(|_| KeyStorageError::Unavailable)?;
-    if collection.path.to_string() == "/org/freedesktop/secrets/collection/session"
+    if collection.path == "/org/freedesktop/secrets/collection/session"
         || collection
             .is_locked()
             .map_err(|_| KeyStorageError::Unavailable)?
