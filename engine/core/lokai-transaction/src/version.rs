@@ -220,9 +220,28 @@ fn walk_manifest(
     for entry in std::fs::read_dir(dir).map_err(|e| TransactionError::Io(e.to_string()))? {
         let entry = entry.map_err(|e| TransactionError::Io(e.to_string()))?;
         let path = entry.path();
-        if path.is_dir() {
+        let file_type = entry
+            .file_type()
+            .map_err(|e| TransactionError::Io(e.to_string()))?;
+        if file_type.is_dir()
+            && !file_type.is_symlink()
+            && !crate::fs_ops::is_symlink_or_reparse(&path)
+        {
             walk_manifest(root, &path, out)?;
-        } else if path.is_file() {
+        } else if file_type.is_symlink() || crate::fs_ops::is_symlink_or_reparse(&path) {
+            let rel = path
+                .strip_prefix(root)
+                .map_err(|_| TransactionError::OutsideWorkspace(path.display().to_string()))?;
+            let rel_str = rel.to_string_lossy().replace('\\', "/");
+            if is_excluded_artifact(&rel_str) {
+                continue;
+            }
+            let target_str = std::fs::read_link(&path)
+                .map(|t| t.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let d = digest_bytes(target_str.as_bytes());
+            out.insert(rel_str, d.0);
+        } else if file_type.is_file() {
             let rel = rel_path(root, &path)?;
             if is_excluded_artifact(&rel.0) {
                 continue;
@@ -239,18 +258,23 @@ pub fn path_state(
     rel: &WorkspacePath,
 ) -> Result<(bool, Option<ContentDigest>, Option<u32>), TransactionError> {
     let abs = resolve_safe(root, rel)?;
-    if !abs.exists() {
+    let meta = std::fs::symlink_metadata(&abs);
+    let Ok(meta) = meta else {
         return Ok((false, None, None));
+    };
+    let mode = crate::fs_ops::file_mode(&abs);
+    if meta.is_symlink() || crate::fs_ops::is_symlink_or_reparse(&abs) {
+        let target_str = std::fs::read_link(&abs)
+            .map(|t| t.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let d = digest_bytes(target_str.as_bytes());
+        return Ok((true, Some(d), mode));
     }
-    if abs.is_symlink() || abs.is_file() {
-        let mode = crate::fs_ops::file_mode(&abs);
-        if abs.is_symlink() {
-            return Ok((true, None, mode));
-        }
+    if meta.is_file() {
         let d = digest_file(&abs)?;
         return Ok((true, Some(d), mode));
     }
-    Ok((abs.exists(), None, crate::fs_ops::file_mode(&abs)))
+    Ok((true, None, mode))
 }
 
 pub fn resolve_safe(root: &Path, rel: &WorkspacePath) -> Result<PathBuf, TransactionError> {
