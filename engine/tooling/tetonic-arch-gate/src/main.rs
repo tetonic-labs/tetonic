@@ -1,13 +1,13 @@
 //! Architecture + engineering quality gate CLI.
 
 use clap::{Parser, Subcommand, ValueEnum};
-use lokai_arch_gate::report::Finding;
-use lokai_arch_gate::verify::{print_report, verify, VerifyOpts, VerifyTier};
-use lokai_arch_gate::{engine_root, run_all};
+use tetonic_arch_gate::report::Finding;
+use tetonic_arch_gate::verify::{print_report, verify, VerifyOpts, VerifyTier};
+use tetonic_arch_gate::{engine_root, run_all};
 
 #[derive(Parser)]
-#[command(name = "lokai-arch-gate")]
-#[command(about = "Lokai architecture and engineering quality gate")]
+#[command(name = "tetonic-arch-gate")]
+#[command(about = "Tetonic architecture and engineering quality gate")]
 struct Cli {
     #[command(subcommand)]
     command: Option<Command>,
@@ -52,7 +52,7 @@ fn main() {
             print_findings(&findings, &root);
         }
         Some(Command::Quality) => {
-            let findings = lokai_arch_gate::quality::run_quality(&root);
+            let findings = tetonic_arch_gate::quality::run_quality(&root);
             print_findings(&findings, &root);
         }
         Some(Command::Verify {

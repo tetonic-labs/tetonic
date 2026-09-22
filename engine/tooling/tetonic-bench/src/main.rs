@@ -1,15 +1,15 @@
-//! `lokai-bench` — a repeatable micro-benchmark of the CPU-bound hot paths that
+//! `tetonic-bench`: a repeatable micro-benchmark of the CPU-bound hot paths that
 //! govern *editor responsiveness* (indexing on save, retrieval latency, context
 //! assembly, semantic search). It deliberately does NOT touch the model: the LLM
 //! round-trip dominates end-to-end agent latency but is Ollama's cost, not ours.
 //!
-//! Usage: `lokai-bench [num_files] [embed_dim]`  (defaults: 1500 files, 768 dims)
+//! Usage: `tetonic-bench [num_files] [embed_dim]`  (defaults: 1500 files, 768 dims)
 //!
 //! Everything runs against a generated synthetic repo in a temp dir, so numbers
 //! are comparable across runs and machines. Run under different profiles to
 //! compare codegen settings, e.g.:
-//!   cargo run -p lokai-bench --release            # shipped profile (opt-level "z")
-//!   cargo run -p lokai-bench --profile perf       # opt-level 3
+//!   cargo run -p tetonic-bench --release          # shipped profile (opt-level "z")
+//!   cargo run -p tetonic-bench --profile perf     # opt-level 3
 
 use std::path::{Path, PathBuf};
 use std::time::Instant;
@@ -29,12 +29,12 @@ fn main() -> anyhow::Result<()> {
         .and_then(|s| s.parse().ok())
         .unwrap_or(768);
 
-    let root = std::env::temp_dir().join(format!("lokai-bench-{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("tetonic-bench-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&root);
-    let db = std::env::temp_dir().join(format!("lokai-bench-{}.db", std::process::id()));
+    let db = std::env::temp_dir().join(format!("tetonic-bench-{}.db", std::process::id()));
     let _ = std::fs::remove_file(&db);
 
-    println!("lokai-bench — synthetic repo: {n_files} files, embed dim {dim}");
+    println!("tetonic-bench: synthetic repo: {n_files} files, embed dim {dim}");
     println!("{}", "=".repeat(64));
 
     // ---- corpus generation (not counted) -----------------------------------

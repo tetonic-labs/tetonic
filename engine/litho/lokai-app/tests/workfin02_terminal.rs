@@ -394,7 +394,7 @@ fn workfin02_fin002_not_established_run_turn_and_leftover_turn_remain() {
 #[test]
 fn workfin02_cmp001_not_established_until_gate() {
     let fix = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
     assert!(fix.exists(), "ARCH-V4-CMP-001.v4fix must stay planted");
     let text = fs::read_to_string(&fix).unwrap();
     assert!(text.contains("production-failing detector live"));
@@ -410,9 +410,9 @@ fn workfin02_id001_not_established_session_chat_remains() {
 #[test]
 fn workfin02_arch_fin_002_still_planted() {
     let fix = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-FIN-002.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-FIN-002.v4fix");
     assert!(fix.exists(), "ARCH-V4-FIN-002.v4fix must stay planted");
-    let corpus = crate_src("../../tooling/lokai-arch-gate/src/v4_corpus.rs");
+    let corpus = crate_src("../../tooling/tetonic-arch-gate/src/v4_corpus.rs");
     assert!(corpus.contains("ARCH-V4-FIN-002.v4fix"));
 }
 

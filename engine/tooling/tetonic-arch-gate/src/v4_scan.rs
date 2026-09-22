@@ -38,13 +38,17 @@ pub fn check_v4_promoted(root: &Path) -> Vec<Violation> {
 }
 
 fn check_sub_002(root: &Path) -> Vec<Violation> {
-    let path = root.join("core/lokai-core/Cargo.toml");
+    let path = crate::resolve_path(
+        root,
+        &["core/tetonic-core/Cargo.toml", "core/lokai-core/Cargo.toml"],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
-    if cargo_prod_deps(&text).contains("lokai-tools") {
+    let deps = cargo_prod_deps(&text);
+    if deps.contains("lokai-tools") || deps.contains("tetonic-tools") {
         vec![Violation {
             rule: "ARCH-V4-SUB-002",
             path,
-            detail: "lokai-core [dependencies] must not list lokai-tools".into(),
+            detail: "core [dependencies] must not list tools crate".into(),
         }]
     } else {
         vec![]
@@ -52,7 +56,13 @@ fn check_sub_002(root: &Path) -> Vec<Violation> {
 }
 
 fn check_tool_001(root: &Path) -> Vec<Violation> {
-    let path = root.join("core/lokai-domain/src/tool_host.rs");
+    let path = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-domain/src/tool_host.rs",
+            "core/lokai-domain/src/tool_host.rs",
+        ],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let prod = production_prefix(&text);
     let mut out = Vec::new();
@@ -70,21 +80,27 @@ fn check_tool_001(root: &Path) -> Vec<Violation> {
 
 fn check_dep_001(root: &Path) -> Vec<Violation> {
     let mut out = check_sub_002(root);
-    let path = root.join("core/lokai-runtime/Cargo.toml");
+    let path = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-runtime/Cargo.toml",
+            "core/lokai-runtime/Cargo.toml",
+        ],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let deps = cargo_prod_deps(&text);
-    if deps.contains("lokai-tools") {
+    if deps.contains("lokai-tools") || deps.contains("tetonic-tools") {
         out.push(Violation {
             rule: "ARCH-V4-DEP-001",
             path: path.clone(),
-            detail: "lokai-runtime [dependencies] must not list lokai-tools".into(),
+            detail: "runtime [dependencies] must not list tools crate".into(),
         });
     }
-    if deps.contains("lokai-transaction") {
+    if deps.contains("lokai-transaction") || deps.contains("tetonic-transaction") {
         out.push(Violation {
             rule: "ARCH-V4-DEP-001",
             path,
-            detail: "lokai-runtime [dependencies] must not list lokai-transaction".into(),
+            detail: "runtime [dependencies] must not list transaction crate".into(),
         });
     }
     out
@@ -103,8 +119,13 @@ fn check_iface_001(root: &Path) -> Vec<Violation> {
         "litho/lokai-cli/src",
         "litho/lokaid/src",
         "tooling/lokai-eval/src",
+        "tooling/tetonic-eval/src",
     ] {
-        for path in collect_rs_files(&root.join(rel)) {
+        let p = root.join(rel);
+        if !p.exists() {
+            continue;
+        }
+        for path in collect_rs_files(&p) {
             if skip_cfg_test_path(&path) {
                 continue;
             }
@@ -131,7 +152,14 @@ fn check_cmp_001(root: &Path) -> Vec<Violation> {
         "pub fn apply_authorized_remote_patch",
     ];
     let mut out = Vec::new();
-    for path in collect_rs_files(&root.join("atmos/lokai-fabric-client/src")) {
+    let client_src = crate::resolve_path(
+        root,
+        &[
+            "atmos/tetonic-fabric-client/src",
+            "atmos/lokai-fabric-client/src",
+        ],
+    );
+    for path in collect_rs_files(&client_src) {
         if skip_cfg_test_path(&path) {
             continue;
         }
@@ -153,8 +181,20 @@ fn check_cmp_001(root: &Path) -> Vec<Violation> {
 fn check_iface_002(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     let paths = [
-        root.join("core/lokai-runtime/src/assembly.rs"),
-        root.join("core/lokai-runtime/src/action_broker.rs"),
+        crate::resolve_path(
+            root,
+            &[
+                "core/tetonic-runtime/src/assembly.rs",
+                "core/lokai-runtime/src/assembly.rs",
+            ],
+        ),
+        crate::resolve_path(
+            root,
+            &[
+                "core/tetonic-runtime/src/action_broker.rs",
+                "core/lokai-runtime/src/action_broker.rs",
+            ],
+        ),
         root.join("litho/lokai-app/src/turn_execution.rs"),
     ];
     for path in paths {
@@ -219,35 +259,52 @@ fn check_obs_001(root: &Path) -> Vec<Violation> {
 
 fn check_cap_001(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let assembly_path = root.join("core/lokai-runtime/src/assembly.rs");
+    let assembly_path = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-runtime/src/assembly.rs",
+            "core/lokai-runtime/src/assembly.rs",
+        ],
+    );
     let assembly_text = std::fs::read_to_string(&assembly_path).unwrap_or_default();
     let assembly_prod = production_prefix(&assembly_text);
     if assembly_prod.contains("build_production_context_compiler") {
         out.push(Violation {
             rule: "ARCH-V4-CAP-001",
             path: assembly_path.clone(),
-            detail: "core/lokai-runtime/src/assembly.rs must not contain `build_production_context_compiler`".into(),
+            detail: "runtime assembly.rs must not contain `build_production_context_compiler`"
+                .into(),
         });
     }
     if assembly_prod.contains("current_dir()") {
         out.push(Violation {
             rule: "ARCH-V4-CAP-001",
             path: assembly_path,
-            detail: "core/lokai-runtime/src/assembly.rs must not contain `current_dir()`".into(),
+            detail: "runtime assembly.rs must not contain `current_dir()`".into(),
         });
     }
 
-    let toml_path = root.join("core/lokai-runtime/Cargo.toml");
+    let toml_path = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-runtime/Cargo.toml",
+            "core/lokai-runtime/Cargo.toml",
+        ],
+    );
     let toml_text = std::fs::read_to_string(&toml_path).unwrap_or_default();
     if cargo_prod_deps(&toml_text).contains("ignore") {
         out.push(Violation {
             rule: "ARCH-V4-CAP-001",
             path: toml_path,
-            detail: "core/lokai-runtime [dependencies] must not list `ignore`".into(),
+            detail: "runtime [dependencies] must not list `ignore`".into(),
         });
     }
 
-    for path in collect_rs_files(&root.join("core/lokai-runtime/src")) {
+    let runtime_src = crate::resolve_path(
+        root,
+        &["core/tetonic-runtime/src", "core/lokai-runtime/src"],
+    );
+    for path in collect_rs_files(&runtime_src) {
         if skip_cfg_test_path(&path) {
             continue;
         }

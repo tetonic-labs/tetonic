@@ -112,7 +112,7 @@ fn portal01_arm_turn_join_before_submit() {
     let cli = crate_src("../../litho/lokai-cli/src/chat.rs");
     let one_shot = fn_body(&cli, "pub async fn run_one_shot(");
     source_order(one_shot, "arm_turn_join", "submit_chat_turn");
-    let eval = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let eval = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     let eval_body = fn_body(&eval, "async fn run_kernel_turn(");
     source_order(eval_body, "arm_turn_join", "submit_chat_turn");
 }
@@ -355,34 +355,34 @@ fn portal01_step_to_events_remains() {
 
 #[test]
 fn portal01_eval_kernel_no_take_restore() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(!src.contains("take_conversation"));
     assert!(!src.contains("restore_conversation"));
 }
 
 #[test]
 fn portal01_eval_kernel_no_run_turn_call() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(!src.contains("runs.run_turn"));
     assert!(src.contains("submit_chat_turn"));
 }
 
 #[test]
 fn portal01_eval_verify_cmd_none_untouched() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
 }
 
 #[test]
 fn portal01_eval_kernel_no_admit() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(!src.contains("admit_chat_turn"));
     assert!(!src.contains("end_turn"));
 }
 
 #[test]
 fn portal01_eval_kernel_no_autogrant() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(!src.contains("AutoGrant"));
     assert!(!src.contains("TurnExecutionHost {"));
     assert!(src.contains("auto_grant_approvals: Some(true)"));
@@ -390,20 +390,20 @@ fn portal01_eval_kernel_no_autogrant() {
 
 #[test]
 fn portal01_eval_timeout_uses_cancel_session() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("cancel_session"));
     assert!(src.contains("wall_clock_limit"));
 }
 
 #[test]
 fn portal01_eval_timeout_does_not_call_cancel_run() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(!src.contains("cancel_run"));
 }
 
 #[test]
 fn portal01_eval_timeout_does_not_drop_future() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("submit_chat_turn"));
     assert!(!src.contains("timeout(\n        wall,\n        app.runs.run_turn"));
 }
@@ -441,14 +441,14 @@ fn portal01_bh_id_session_still_defect() {
 #[test]
 fn portal01_iface001_not_established() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
     assert!(fixture.is_file());
 }
 
 #[test]
 fn portal01_arch_iface_001_still_planted() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
     let body = fs::read_to_string(&fixture).expect("iface fixture");
     assert!(fixture.is_file());
     assert!(body.contains("production-failing detector live"));

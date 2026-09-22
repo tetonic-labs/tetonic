@@ -1,4 +1,4 @@
-# lokai-arch-gate
+# tetonic-arch-gate
 
 Architecture invariant checker (`ARCH-*`) and engineering quality gate (`QG-*`). P0 failure-injection suite (AC2-9). Not a runtime.
 
@@ -6,7 +6,7 @@ Quality lives in this binary (modules `quality`, `verify`) rather than a second 
 
 ## Role in the stack
 
-`verify package` is the Linux CI engineering gate (`engine-ci.yml`). Architecture-only `cargo run -p lokai-arch-gate` remains for local ARCH debugging.
+`verify package` is the Linux CI engineering gate (`engine-ci.yml`). Architecture-only `cargo run -p tetonic-arch-gate` remains for local ARCH debugging.
 
 Policy: `docs/engineering/QUALITY-GATE.md`. Debt: `docs/engineering/QUALITY-DEBT.md`.
 
@@ -24,7 +24,7 @@ Policy: `docs/engineering/QUALITY-GATE.md`. Debt: `docs/engineering/QUALITY-DEBT
 | ARCH-READ-001 | core_raw_read_new | No raw FS reads in `lokai-core` (`tokio::fs` / `std::fs::read`) |
 | ARCH-EGRESS-001 | egress_hygiene_new | No empty worker Infer/capacity `EgressGuard::new()`; no `LOKAI_FABRIC_LEGACY_CHAT_ONLY` production read |
 | ARCH-APP-014 | app_door_new | No production `lokaid` `turn_execution::execute_turn`; no production token-prefix eprintln |
-| ARCH-APP-015 | inspect_door_new | No `.supervisor.snapshot` / `.supervisor.resume_from_sequence` in `lokaid` `handlers/run.rs` or `lokai-eval` `recovery.rs` |
+| ARCH-APP-015 | inspect_door_new | No `.supervisor.snapshot` / `.supervisor.resume_from_sequence` in `lokaid` `handlers/run.rs` or `tetonic-eval` `recovery.rs` |
 | ARCH-PROD-001 | product_boundary_new | No `lokai-index` / `lokai-lsp` in `lokai-core` / `lokai-runtime` src or Cargo.toml; no `SpecialistRole` orchestrator identity |
 | ARCH-NET-001 | reqwest_boundary | No `reqwest` outside `lokai-egress` |
 | ARCH-RT-001 | engine_runtime | Production bins must not construct `Agent` directly |
@@ -42,7 +42,7 @@ Policy: `docs/engineering/QUALITY-GATE.md`. Debt: `docs/engineering/QUALITY-DEBT
 
 Additional APP/DEP/FS/RUN/CTX/FAB IDs: see `src/ids.rs` and `docs/engineering/QUALITY-GATE.md`.
 
-Quality static (`QG-ANYHOW-001`, `QG-MODEL-001`, `QG-DOCS-001`) is `cargo run -p lokai-arch-gate -- quality`. Formatting and Clippy are `verify` tiers, not this table.
+Quality static (`QG-ANYHOW-001`, `QG-MODEL-001`, `QG-DOCS-001`) is `cargo run -p tetonic-arch-gate -- quality`. Formatting and Clippy are `verify` tiers, not this table.
 
 ## P0 regression tests (`p0.rs`)
 
@@ -56,12 +56,12 @@ Quality static (`QG-ANYHOW-001`, `QG-MODEL-001`, `QG-DOCS-001`) is `cargo run -p
 
 ```bash
 cd engine
-cargo run -p lokai-arch-gate                    # architecture static (default)
-cargo run -p lokai-arch-gate -- quality         # QG-* static only
-cargo run -p lokai-arch-gate -- verify fast     # fmt + arch + quality [+ check -p]
-cargo run -p lokai-arch-gate -- verify package  # + clippy -D warnings (CI)
-cargo run -p lokai-arch-gate -- verify full     # + cargo test --workspace
-cargo test -p lokai-arch-gate                   # fixtures + P0 suite
+cargo run -p tetonic-arch-gate                    # architecture static (default)
+cargo run -p tetonic-arch-gate -- quality         # QG-* static only
+cargo run -p tetonic-arch-gate -- verify fast     # fmt + arch + quality [+ check -p]
+cargo run -p tetonic-arch-gate -- verify package  # + clippy -D warnings (CI)
+cargo run -p tetonic-arch-gate -- verify full     # + cargo test --workspace
+cargo test -p tetonic-arch-gate                   # fixtures + P0 suite
 ```
 
 Policy: `docs/engineering/QUALITY-GATE.md`. Debt: `docs/engineering/QUALITY-DEBT.md`.

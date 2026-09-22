@@ -277,28 +277,28 @@ fn code03_work001_not_established_portals_remain() {
     let product = crate_src("src/turn_execution.rs");
     assert!(product.contains("async fn execute_spawn("));
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
     assert!(fixture.is_file());
 }
 
 #[test]
 fn code03_cmp001_not_established() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
     assert!(fixture.is_file());
 }
 
 #[test]
 fn code03_arch_work_001_still_planted() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
     assert!(fixture.is_file());
 }
 
 #[test]
 fn code03_arch_cmp_001_still_planted() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
     assert!(fixture.is_file());
 }
 
@@ -323,7 +323,7 @@ fn code03_orchestrator_cargo_still_lists_tools() {
 
 #[test]
 fn code03_eval_kernel_untouched() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
     assert!(!src.contains("struct StoreAudit"));
     assert!(!src.contains("struct AutoGrant"));

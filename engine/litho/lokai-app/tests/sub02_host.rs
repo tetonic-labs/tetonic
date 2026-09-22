@@ -176,7 +176,7 @@ fn sub02_toolhost_trait_has_no_workspace_verify_commit() {
 #[test]
 fn sub02_arch_v4_tool_001_fixture_planted() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-TOOL-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-TOOL-001.v4fix");
     let text = read(fixture);
     assert!(text.contains("SUB-02"));
     assert!(text.contains("production-failing detector live"));

@@ -86,7 +86,7 @@ fn sub03_production_agent_rs_has_no_tools_or_transaction_imports() {
 #[test]
 fn sub03_arch_v4_sub_002_fixture_planted() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-SUB-002.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-SUB-002.v4fix");
     let text = read(fixture);
     assert!(text.contains("SUB-03"));
     assert!(text.contains("production-failing detector live"));

@@ -1,16 +1,16 @@
 [package]
-name = "lokai-eval"
+name = "tetonic-eval"
 version = "0.1.0"
 edition = "2021"
-description = "Lokai Evaluation Harness for deterministic and statistical evaluation."
+description = "Tetonic Evaluation Harness for deterministic and statistical evaluation."
 publish = false
 
 [[bin]]
-name = "lokai-eval"
+name = "tetonic-eval"
 path = "src/main.rs"
 
 [lib]
-name = "lokai_eval"
+name = "tetonic_eval"
 path = "src/lib.rs"
 
 [dependencies]

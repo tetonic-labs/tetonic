@@ -52,4 +52,4 @@ hex = "0.4"
 sha2 = "0.10"
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-lokai-eval = { path = "../../tooling/lokai-eval" }
+tetonic-eval = { path = "../../tooling/tetonic-eval" }

@@ -1,16 +1,16 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-use lokai_eval::{
+use tetonic_eval::{
     compare, corpus, deterministic, gate, kernel, manifest, statistical, suite, traits,
 };
 
 #[derive(Parser)]
 #[command(
-    name = "lokai-eval",
+    name = "tetonic-eval",
     version = "0.1.0",
     author,
-    about = "Lokai Evaluation Harness"
+    about = "Tetonic Evaluation Harness"
 )]
 struct Cli {
     #[command(subcommand)]

@@ -67,7 +67,13 @@ pub fn check_no_gates_ok_turn_abort(root: &Path) -> Vec<Violation> {
 /// R4-1 / CAP-01: product composition must wire ContextCompiler; context provider attaches secret scanner.
 pub fn check_context_compiler_wired(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let assembly = root.join("core/lokai-runtime/src/assembly.rs");
+    let assembly = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-runtime/src/assembly.rs",
+            "core/lokai-runtime/src/assembly.rs",
+        ],
+    );
     let text = std::fs::read_to_string(&assembly).unwrap_or_default();
     if !text.contains("with_context_compiler") {
         out.push(Violation {
@@ -88,7 +94,13 @@ pub fn check_context_compiler_wired(root: &Path) -> Vec<Violation> {
                 .into(),
         });
     }
-    let provider = root.join("strata/lokai-context/src/workspace.rs");
+    let provider = crate::resolve_path(
+        root,
+        &[
+            "strata/tetonic-context/src/workspace.rs",
+            "strata/lokai-context/src/workspace.rs",
+        ],
+    );
     let provider_text = std::fs::read_to_string(&provider).unwrap_or_default();
     if !provider_text.contains("with_secret_scanner") {
         out.push(Violation {
@@ -106,13 +118,19 @@ pub fn check_context_compiler_wired(root: &Path) -> Vec<Violation> {
 /// must not depend on the unwired ContextCompiler crate.
 pub fn check_outbound_secret_scanner(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let secrets_cargo = root.join("core/lokai-secrets/Cargo.toml");
+    let secrets_cargo = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-secrets/Cargo.toml",
+            "core/lokai-secrets/Cargo.toml",
+        ],
+    );
     let secrets_text = std::fs::read_to_string(&secrets_cargo).unwrap_or_default();
-    if secrets_text.contains("lokai-context") {
+    if secrets_text.contains("lokai-context") || secrets_text.contains("tetonic-context") {
         out.push(Violation {
             rule: "outbound_secret_scanner",
             path: secrets_cargo,
-            detail: "lokai-secrets must not path-depend on lokai-context".into(),
+            detail: "secrets crate must not path-depend on context crate".into(),
         });
     }
     let plane = root.join("litho/lokai-app/src/compute_plane.rs");
@@ -125,7 +143,13 @@ pub fn check_outbound_secret_scanner(root: &Path) -> Vec<Violation> {
                 .into(),
         });
     }
-    let adapter = root.join("mantle/lokai-broker/src/adapters/inference.rs");
+    let adapter = crate::resolve_path(
+        root,
+        &[
+            "mantle/tetonic-broker/src/adapters/inference.rs",
+            "mantle/lokai-broker/src/adapters/inference.rs",
+        ],
+    );
     let adapter_text = std::fs::read_to_string(&adapter).unwrap_or_default();
     if !adapter_text.contains("fn redact_outbound") || !adapter_text.contains("scan_outbound") {
         out.push(Violation {
@@ -186,11 +210,11 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     let cargo = root.join("litho/lokai-app/Cargo.toml");
     let cargo_text = std::fs::read_to_string(&cargo).unwrap_or_default();
-    if !cargo_text.contains("lokai-broker") {
+    if !cargo_text.contains("lokai-broker") && !cargo_text.contains("tetonic-broker") {
         out.push(Violation {
             rule: "compute_broker_wiring",
             path: cargo,
-            detail: "lokai-app must depend on lokai-broker".into(),
+            detail: "lokai-app must depend on broker crate".into(),
         });
     }
     let plane = root.join("litho/lokai-app/src/compute_plane.rs");
@@ -239,12 +263,18 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "CLI TurnExecutionHost must not hard-code compute_broker: None".into(),
         });
     }
-    let broker_lib = root.join("mantle/lokai-broker/src/lib.rs");
+    let broker_lib = crate::resolve_path(
+        root,
+        &[
+            "mantle/tetonic-broker/src/lib.rs",
+            "mantle/lokai-broker/src/lib.rs",
+        ],
+    );
     if !broker_lib.is_file() {
         out.push(Violation {
             rule: "compute_broker_wiring",
             path: broker_lib,
-            detail: "lokai-broker crate missing".into(),
+            detail: "broker crate missing".into(),
         });
     }
     out
@@ -285,21 +315,32 @@ pub fn check_cli_inspector_no_command(root: &Path) -> Vec<Violation> {
 /// R29: production LSP must not keep a raw Command allowlist escape in lokai-lsp.
 pub fn check_lsp_via_process_broker(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let launcher = root.join("litho/lokai-lsp/src/launcher.rs");
+    let launcher = crate::resolve_path(
+        root,
+        &[
+            "litho/lokai-lsp/src/launcher.rs",
+            "litho/tetonic-lsp/src/launcher.rs",
+        ],
+    );
     let text = std::fs::read_to_string(&launcher).unwrap_or_default();
     if text.contains("Command::new") {
         out.push(Violation {
             rule: "lsp_via_process_broker",
             path: launcher,
-            detail: "lokai-lsp launcher must not spawn via Command::new (use SandboxLspLauncher)"
-                .into(),
+            detail: "lsp launcher must not spawn via Command::new (use SandboxLspLauncher)".into(),
         });
     }
     if is_allowed_subprocess("litho/lokai-lsp/src/launcher.rs") {
         out.push(Violation {
             rule: "lsp_via_process_broker",
-            path: root.join("tooling/lokai-arch-gate/src/lib.rs"),
-            detail: "lokai-lsp/src/launcher.rs must not be on subprocess allowlist (R29)".into(),
+            path: crate::resolve_path(
+                root,
+                &[
+                    "tooling/tetonic-arch-gate/src/lib.rs",
+                    "tooling/lokai-arch-gate/src/lib.rs",
+                ],
+            ),
+            detail: "lsp launcher must not be on subprocess allowlist (R29)".into(),
         });
     }
     let tools_lsp = root.join("litho/lokai-app/src/lsp_launcher.rs");
@@ -318,7 +359,13 @@ pub fn check_lsp_via_process_broker(root: &Path) -> Vec<Violation> {
 /// R09: agent/tool git must not use raw `Command::new("git")` (sandbox/broker only).
 pub fn check_git_via_process_broker(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let pe = root.join("litho/lokai-tools/src/process_executor.rs");
+    let pe = crate::resolve_path(
+        root,
+        &[
+            "litho/lokai-tools/src/process_executor.rs",
+            "litho/tetonic-tools/src/process_executor.rs",
+        ],
+    );
     let text = std::fs::read_to_string(&pe).unwrap_or_default();
     if text.contains("Command::new(\"git\")") || text.contains("Command::new('git')") {
         out.push(Violation {
@@ -328,7 +375,13 @@ pub fn check_git_via_process_broker(root: &Path) -> Vec<Violation> {
                 .into(),
         });
     }
-    let wt = root.join("litho/lokai-tools/src/worktree.rs");
+    let wt = crate::resolve_path(
+        root,
+        &[
+            "litho/lokai-tools/src/worktree.rs",
+            "litho/tetonic-tools/src/worktree.rs",
+        ],
+    );
     let wt_text = std::fs::read_to_string(&wt).unwrap_or_default();
     if wt_text.contains("Command::new") {
         out.push(Violation {
@@ -343,21 +396,29 @@ pub fn check_git_via_process_broker(root: &Path) -> Vec<Violation> {
 /// R6-2: production Tools / worktree must use OS sandbox, not Constrained raw Command.
 pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let assembly = root.join("core/lokai-runtime/src/assembly.rs");
+    let assembly = crate::resolve_path(
+        root,
+        &[
+            "core/tetonic-runtime/src/assembly.rs",
+            "core/lokai-runtime/src/assembly.rs",
+        ],
+    );
     let assembly_text = std::fs::read_to_string(&assembly).unwrap_or_default();
-    if assembly_text.contains("lokai_tools::") || assembly_text.contains("EnforcementLevel") {
+    if assembly_text.contains("lokai_tools::")
+        || assembly_text.contains("tetonic_tools::")
+        || assembly_text.contains("EnforcementLevel")
+    {
         out.push(Violation {
             rule: "production_tools_sandboxed",
             path: assembly.clone(),
-            detail: "production lokai-runtime must not name lokai_tools:: / EnforcementLevel"
-                .into(),
+            detail: "production runtime must not name tools / EnforcementLevel".into(),
         });
     }
     if assembly_text.contains("EnforcementLevel::Constrained") {
         out.push(Violation {
             rule: "production_tools_sandboxed",
             path: assembly,
-            detail: "lokai-runtime assembly must not select Constrained".into(),
+            detail: "runtime assembly must not select Constrained".into(),
         });
     }
     let turn = root.join("litho/lokai-app/src/turn_execution.rs");
@@ -369,7 +430,13 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
             detail: "app Tools builder must select EnforcementLevel::Sandboxed".into(),
         });
     }
-    let tools_lib = root.join("litho/lokai-tools/src/lib.rs");
+    let tools_lib = crate::resolve_path(
+        root,
+        &[
+            "litho/lokai-tools/src/lib.rs",
+            "litho/tetonic-tools/src/lib.rs",
+        ],
+    );
     let tools_text = std::fs::read_to_string(&tools_lib).unwrap_or_default();
     if tools_text.contains("EnforcementLevel::Constrained") {
         out.push(Violation {
@@ -378,7 +445,13 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
             detail: "Tools::new must default to Sandboxed (R6-2); Constrained is test-only via with_enforcement_level".into(),
         });
     }
-    let worktree = root.join("litho/lokai-tools/src/worktree.rs");
+    let worktree = crate::resolve_path(
+        root,
+        &[
+            "litho/lokai-tools/src/worktree.rs",
+            "litho/tetonic-tools/src/worktree.rs",
+        ],
+    );
     let wt_text = std::fs::read_to_string(&worktree).unwrap_or_default();
     if wt_text.contains("EnforcementLevel::Constrained") {
         out.push(Violation {
@@ -392,12 +465,21 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
 
 /// M5-1: fabric protocol crate must stay transport/enrollment/persistence free.
 pub fn check_fabric_protocol_isolation(root: &Path) -> Vec<Violation> {
-    let path = root.join("atmos/lokai-fabric-protocol/Cargo.toml");
+    let path = crate::resolve_path(
+        root,
+        &[
+            "atmos/tetonic-fabric-protocol/Cargo.toml",
+            "atmos/lokai-fabric-protocol/Cargo.toml",
+        ],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     let forbidden = [
         "lokai-enroll",
+        "tetonic-enroll",
         "lokai-memory",
+        "tetonic-memory",
         "lokai-egress",
+        "tetonic-egress",
         "tokio",
         "reqwest",
         "hyper",
@@ -410,7 +492,7 @@ pub fn check_fabric_protocol_isolation(root: &Path) -> Vec<Violation> {
             out.push(Violation {
                 rule: "fabric_protocol_isolation",
                 path: path.clone(),
-                detail: format!("lokai-fabric-protocol must not depend on {dep}"),
+                detail: format!("fabric-protocol must not depend on {dep}"),
             });
         }
     }
@@ -419,13 +501,19 @@ pub fn check_fabric_protocol_isolation(root: &Path) -> Vec<Violation> {
 
 /// M5-1: inference/scheduling must not depend on enrollment implementation.
 pub fn check_inference_no_enroll(root: &Path) -> Vec<Violation> {
-    let path = root.join("atmos/lokai-inference/Cargo.toml");
+    let path = crate::resolve_path(
+        root,
+        &[
+            "atmos/tetonic-inference/Cargo.toml",
+            "atmos/lokai-inference/Cargo.toml",
+        ],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
-    if text.contains("lokai-enroll") {
+    if text.contains("lokai-enroll") || text.contains("tetonic-enroll") {
         vec![Violation {
             rule: "inference_no_enroll",
             path,
-            detail: "lokai-inference must not depend on lokai-enroll".into(),
+            detail: "inference must not depend on enroll".into(),
         }]
     } else {
         vec![]
@@ -434,23 +522,37 @@ pub fn check_inference_no_enroll(root: &Path) -> Vec<Violation> {
 
 /// M5-1: fabric client must use extracted protocol types.
 pub fn check_fabric_client_uses_protocol(root: &Path) -> Vec<Violation> {
-    let lib = root.join("atmos/lokai-fabric-client/src/lib.rs");
-    let protocol = root.join("atmos/lokai-fabric-client/src/protocol.rs");
+    let lib = crate::resolve_path(
+        root,
+        &[
+            "atmos/tetonic-fabric-client/src/lib.rs",
+            "atmos/lokai-fabric-client/src/lib.rs",
+        ],
+    );
+    let protocol = crate::resolve_path(
+        root,
+        &[
+            "atmos/tetonic-fabric-client/src/protocol.rs",
+            "atmos/lokai-fabric-client/src/protocol.rs",
+        ],
+    );
     let mut out = Vec::new();
     let lib_text = std::fs::read_to_string(&lib).unwrap_or_default();
     if !lib_text.contains("mod protocol") {
         out.push(Violation {
             rule: "fabric_client_protocol",
             path: lib.clone(),
-            detail: "lokai-fabric-client must expose protocol module".into(),
+            detail: "fabric-client must expose protocol module".into(),
         });
     }
     let proto_text = std::fs::read_to_string(&protocol).unwrap_or_default();
-    if !proto_text.contains("lokai_fabric_protocol") {
+    if !proto_text.contains("lokai_fabric_protocol")
+        && !proto_text.contains("tetonic_fabric_protocol")
+    {
         out.push(Violation {
             rule: "fabric_client_protocol",
             path: protocol,
-            detail: "lokai-fabric-client protocol module must use lokai-fabric-protocol".into(),
+            detail: "fabric-client protocol module must use fabric-protocol".into(),
         });
     }
     out
@@ -465,8 +567,11 @@ pub fn check_run_state_mutations(root: &Path) -> Vec<Violation> {
     ];
     let allow = [
         "mantle/lokai-run/",
+        "mantle/tetonic-run/",
         "strata/lokai-memory/src/run_store.rs",
+        "strata/tetonic-memory/src/run_store.rs",
         "tooling/lokai-arch-gate/",
+        "tooling/tetonic-arch-gate/",
         "/tests/",
         "_tests.rs",
     ];
@@ -483,7 +588,7 @@ pub fn check_run_state_mutations(root: &Path) -> Vec<Violation> {
                     rule: "run_state_mutation_bypass",
                     path: path.clone(),
                     detail: format!(
-                        "direct run state mutation `{pat}` must route through lokai-run RunSupervisor"
+                        "direct run state mutation `{pat}` must route through RunSupervisor"
                     ),
                 });
             }
@@ -507,6 +612,7 @@ pub fn check_async_sync_calls(root: &Path) -> Vec<Violation> {
             || rel_path.contains("lokai-cli")
             || rel_path.contains("lokai-tools")
             || rel_path.contains("lokai-arch-gate")
+            || rel_path.contains("tetonic-arch-gate")
         {
             continue;
         }
@@ -554,13 +660,15 @@ pub fn check_async_sync_calls(root: &Path) -> Vec<Violation> {
 /// H2-2: do not reintroduce `Mutex<Store>` / `Arc<Mutex<Store>>` as the shared
 /// store handle. The read pool may still use `Mutex<Vec<Store>>`.
 pub fn check_no_mutex_store(root: &Path) -> Vec<Violation> {
-    let re = regex::Regex::new(r"Mutex\s*<\s*(?:lokai_memory::)?Store\s*>").expect("regex");
+    let re = regex::Regex::new(r"Mutex\s*<\s*(?:(?:lokai_memory|tetonic_memory)::)?Store\s*>")
+        .expect("regex");
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
         let rel_path = rel(root, &path);
         if rel_path.contains("/tests/")
             || rel_path.ends_with("_tests.rs")
             || rel_path.contains("lokai-arch-gate")
+            || rel_path.contains("tetonic-arch-gate")
         {
             continue;
         }
@@ -586,34 +694,56 @@ pub fn check_no_mutex_store(root: &Path) -> Vec<Violation> {
 }
 
 /// ARCH-V4-PORTAL-001: Portals (lokai-cli and lokaid) must depend only on lokai-app
-/// (and lokai-rpc for lokaid stdio IPC). Direct imports and dependencies on core crates
-/// (substrate, compute, capabilities, infrastructure, manager, or mantle/lokai-orchestrator)
+/// (and rpc for lokaid stdio IPC). Direct imports and dependencies on core crates
+/// (substrate, compute, capabilities, infrastructure, manager, or mantle/orchestrator)
 /// are strictly forbidden.
 pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     let forbidden_crates = [
         ("lokai-core", "lokai_core"),
+        ("tetonic-core", "tetonic_core"),
         ("lokai-runtime", "lokai_runtime"),
+        ("tetonic-runtime", "tetonic_runtime"),
         ("lokai-inference", "lokai_inference"),
+        ("tetonic-inference", "tetonic_inference"),
         ("lokai-capacity", "lokai_capacity"),
+        ("tetonic-capacity", "tetonic_capacity"),
         ("lokai-broker", "lokai_broker"),
+        ("tetonic-broker", "tetonic_broker"),
         ("lokai-fabric-protocol", "lokai_fabric_protocol"),
+        ("tetonic-fabric-protocol", "tetonic_fabric_protocol"),
         ("lokai-fabric-client", "lokai_fabric_client"),
+        ("tetonic-fabric-client", "tetonic_fabric_client"),
         ("lokai-memory", "lokai_memory"),
+        ("tetonic-memory", "tetonic_memory"),
         ("lokai-index", "lokai_index"),
+        ("tetonic-index", "tetonic_index"),
         ("lokai-tools", "lokai_tools"),
+        ("tetonic-tools", "tetonic_tools"),
         ("lokai-artifact", "lokai_artifact"),
+        ("tetonic-artifact", "tetonic_artifact"),
         ("lokai-sandbox", "lokai_sandbox"),
+        ("tetonic-sandbox", "tetonic_sandbox"),
         ("lokai-context", "lokai_context"),
+        ("tetonic-context", "tetonic_context"),
         ("lokai-transaction", "lokai_transaction"),
+        ("tetonic-transaction", "tetonic_transaction"),
         ("lokai-policy", "lokai_policy"),
+        ("tetonic-policy", "tetonic_policy"),
         ("lokai-egress", "lokai_egress"),
+        ("tetonic-egress", "tetonic_egress"),
         ("lokai-secrets", "lokai_secrets"),
+        ("tetonic-secrets", "tetonic_secrets"),
         ("lokai-enroll", "lokai_enroll"),
+        ("tetonic-enroll", "tetonic_enroll"),
         ("lokai-node", "lokai_node"),
+        ("tetonic-node", "tetonic_node"),
         ("lokai-domain", "lokai_domain"),
+        ("tetonic-domain", "tetonic_domain"),
         ("lokai-orchestrator", "lokai_orchestrator"),
+        ("tetonic-orchestrator", "tetonic_orchestrator"),
         ("lokai-eval", "lokai_eval"),
+        ("tetonic-eval", "tetonic_eval"),
     ];
 
     let portals = [("litho/lokai-cli", false), ("litho/lokaid", true)];
@@ -638,14 +768,15 @@ pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
         }
 
         if !allows_rpc
-            && (cargo_text.contains("lokai-rpc =") || cargo_text.contains("\"lokai-rpc\""))
+            && (cargo_text.contains("lokai-rpc =")
+                || cargo_text.contains("\"lokai-rpc\"")
+                || cargo_text.contains("tetonic-rpc =")
+                || cargo_text.contains("\"tetonic-rpc\""))
         {
             out.push(Violation {
                 rule: "ARCH-V4-PORTAL-001",
                 path: cargo_toml.clone(),
-                detail: format!(
-                    "Portal `{portal_rel}` must not depend on `lokai-rpc` in Cargo.toml"
-                ),
+                detail: format!("Portal `{portal_rel}` must not depend on RPC crate in Cargo.toml"),
             });
         }
 
@@ -683,13 +814,16 @@ pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
                     if trimmed.starts_with("//") {
                         return false;
                     }
-                    line.contains("use lokai_rpc::") || line.contains("lokai_rpc::")
+                    line.contains("use lokai_rpc::")
+                        || line.contains("lokai_rpc::")
+                        || line.contains("use tetonic_rpc::")
+                        || line.contains("tetonic_rpc::")
                 });
                 if has_rpc {
                     out.push(Violation {
                         rule: "ARCH-V4-PORTAL-001",
                         path: path.clone(),
-                        detail: format!("Portal source `{rel_path}` must not import `lokai_rpc`"),
+                        detail: format!("Portal source `{rel_path}` must not import RPC crate"),
                     });
                 }
             }

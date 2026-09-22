@@ -7,6 +7,7 @@ use std::path::{Path, PathBuf};
 use crate::{collect_rs_files, rel, Violation};
 
 const SECRETS_REDACT_DEF: &str = "core/lokai-secrets/src/lib.rs";
+const TETONIC_SECRETS_REDACT_DEF: &str = "core/tetonic-secrets/src/lib.rs";
 
 /// Concatenated so freeze source is not a production hit if skip ever regresses.
 fn old_verify_needle() -> String {
@@ -20,6 +21,7 @@ fn norm(rel_path: &str) -> String {
 fn skip_freeze_rel(rel_path: &str) -> bool {
     let n = norm(rel_path);
     n.contains("tooling/lokai-arch-gate/")
+        || n.contains("tooling/tetonic-arch-gate/")
         || n.contains("/tests/")
         || n.ends_with("_tests.rs")
         || n.contains("/benches/")
@@ -167,14 +169,14 @@ pub fn fail_open_redact_new(root: &Path) -> Vec<Violation> {
         if skip_freeze_rel(&rel_path) {
             continue;
         }
-        let def_ok = ends_with_norm(&rel_path, SECRETS_REDACT_DEF);
+        let def_ok = ends_with_norm(&rel_path, SECRETS_REDACT_DEF)
+            || ends_with_norm(&rel_path, TETONIC_SECRETS_REDACT_DEF);
         let text = production_text(&std::fs::read_to_string(&path).unwrap_or_default());
         if defn.is_match(&text) && !def_ok {
             out.push(Violation {
                 rule: "fail_open_redact_new",
                 path: path.clone(),
-                detail: "fn redact_text_sync may be defined only in lokai-secrets/src/lib.rs"
-                    .into(),
+                detail: "fn redact_text_sync may be defined only in secrets lib.rs".into(),
             });
         }
         if arm_tuple.is_match(&text)
@@ -199,7 +201,7 @@ pub fn core_raw_read_new(root: &Path) -> Vec<Violation> {
     let std_rts = regex::Regex::new(r"std::fs::read_to_string\s*\(").expect("regex");
     let std_rte = regex::Regex::new(r"std::fs::read_to_end\s*\(").expect("regex");
     let mut out = Vec::new();
-    let core_src = root.join("core/lokai-core/src");
+    let core_src = crate::resolve_path(root, &["core/tetonic-core/src", "core/lokai-core/src"]);
     for path in collect_rs_files(&core_src) {
         let rel_path = rel(root, &path);
         if skip_freeze_rel(&rel_path) {
@@ -214,7 +216,7 @@ pub fn core_raw_read_new(root: &Path) -> Vec<Violation> {
             out.push(Violation {
                 rule: "core_raw_read_new",
                 path: path.clone(),
-                detail: "raw FS read in lokai-core bypasses jailed read_file (DEL-005 / M3)".into(),
+                detail: "raw FS read in core bypasses jailed read_file (DEL-005 / M3)".into(),
             });
         }
     }
@@ -256,7 +258,9 @@ fn legacy_chat_env_needle() -> String {
 
 fn is_worker_infer_assembly(rel_path: &str) -> bool {
     let n = norm(rel_path);
-    n.ends_with("mantle/lokai-node/src/fabric.rs") || n.ends_with("litho/lokaid/src/node.rs")
+    n.ends_with("mantle/lokai-node/src/fabric.rs")
+        || n.ends_with("mantle/tetonic-node/src/fabric.rs")
+        || n.ends_with("litho/lokaid/src/node.rs")
 }
 
 /// M7: no empty worker Infer/capacity `EgressGuard::new()`, no legacy chat env.
@@ -337,11 +341,15 @@ fn toml_has_crate_dep(text: &str, name: &str) -> bool {
 
 fn is_core_or_runtime_src(rel_path: &str) -> bool {
     let n = norm(rel_path);
-    n.contains("core/lokai-core/src/") || n.contains("core/lokai-runtime/src/")
+    n.contains("core/lokai-core/src/")
+        || n.contains("core/tetonic-core/src/")
+        || n.contains("core/lokai-runtime/src/")
+        || n.contains("core/tetonic-runtime/src/")
 }
 
 fn is_orchestrator_src(rel_path: &str) -> bool {
-    norm(rel_path).contains("mantle/lokai-orchestrator/src/")
+    let n = norm(rel_path);
+    n.contains("mantle/lokai-orchestrator/src/") || n.contains("mantle/tetonic-orchestrator/src/")
 }
 
 /// M9: generic loop must not name coding crates; coder/critic is not orchestrator identity.
@@ -354,14 +362,15 @@ pub fn product_boundary_new(root: &Path) -> Vec<Violation> {
         }
         let text = production_text(&std::fs::read_to_string(&path).unwrap_or_default());
         if is_core_or_runtime_src(&rel_path)
-            && (text.contains("lokai_index::") || text.contains("lokai_lsp::"))
+            && (text.contains("lokai_index::")
+                || text.contains("tetonic_index::")
+                || text.contains("lokai_lsp::")
+                || text.contains("tetonic_lsp::"))
         {
             out.push(Violation {
                 rule: "product_boundary_new",
                 path: path.clone(),
-                detail:
-                    "lokai-core / lokai-runtime must not name lokai_index:: or lokai_lsp:: (M9 I11)"
-                        .into(),
+                detail: "core / runtime must not name index or lsp (M9 I11)".into(),
             });
         }
         if is_orchestrator_src(&rel_path) && text.contains("SpecialistRole") {
@@ -375,16 +384,24 @@ pub fn product_boundary_new(root: &Path) -> Vec<Violation> {
     }
     for rel_toml in [
         "core/lokai-core/Cargo.toml",
+        "core/tetonic-core/Cargo.toml",
         "core/lokai-runtime/Cargo.toml",
+        "core/tetonic-runtime/Cargo.toml",
     ] {
         let path = root.join(rel_toml);
+        if !path.exists() {
+            continue;
+        }
         let text = std::fs::read_to_string(&path).unwrap_or_default();
-        if toml_has_crate_dep(&text, "lokai-index") || toml_has_crate_dep(&text, "lokai-lsp") {
+        if toml_has_crate_dep(&text, "lokai-index")
+            || toml_has_crate_dep(&text, "tetonic-index")
+            || toml_has_crate_dep(&text, "lokai-lsp")
+            || toml_has_crate_dep(&text, "tetonic-lsp")
+        {
             out.push(Violation {
                 rule: "product_boundary_new",
                 path,
-                detail: "lokai-core / lokai-runtime Cargo.toml must not depend on lokai-index or lokai-lsp (M9)"
-                    .into(),
+                detail: "core / runtime Cargo.toml must not depend on index or lsp (M9)".into(),
             });
         }
     }
@@ -393,13 +410,16 @@ pub fn product_boundary_new(root: &Path) -> Vec<Violation> {
 
 const INSPECT_RUN_HANDLER: &str = "litho/lokaid/src/daemon/handlers/run.rs";
 const INSPECT_EVAL_RECOVERY: &str = "tooling/lokai-eval/src/recovery.rs";
+const INSPECT_EVAL_RECOVERY_TETONIC: &str = "tooling/tetonic-eval/src/recovery.rs";
 
 fn is_inspect_client_file(rel_path: &str) -> bool {
-    ends_with_norm(rel_path, INSPECT_RUN_HANDLER) || ends_with_norm(rel_path, INSPECT_EVAL_RECOVERY)
+    ends_with_norm(rel_path, INSPECT_RUN_HANDLER)
+        || ends_with_norm(rel_path, INSPECT_EVAL_RECOVERY)
+        || ends_with_norm(rel_path, INSPECT_EVAL_RECOVERY_TETONIC)
 }
 
 /// M10: daemon run handlers and eval recovery inspect via Application, not pub supervisor.
-/// Do not scan workspace-wide — FSM / fabric_run_bridge still call snapshot.
+/// Do not scan workspace-wide: FSM / fabric_run_bridge still call snapshot.
 pub fn inspect_door_new(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     for path in collect_rs_files(root) {

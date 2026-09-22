@@ -66,7 +66,7 @@ fn gate01_portals_submit_only() {
     let cli = crate_src("../../litho/lokai-cli/src/chat.rs");
     let daemon_chat = crate_src("../../litho/lokaid/src/daemon/handlers/chat.rs");
     let daemon_agent = crate_src("../../litho/lokaid/src/daemon/handlers/agent.rs");
-    let eval = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let eval = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(cli.contains("submit_chat_turn"));
     assert!(daemon_chat.contains("submit_chat_turn"));
     assert!(daemon_agent.contains("submit_spawn"));
@@ -92,7 +92,7 @@ fn gate01_portals_submit_only() {
 
 #[test]
 fn gate01_eval_verify_cmd_none() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
 }
 
@@ -118,7 +118,7 @@ fn gate01_bh_id_session_stays_defect() {
 
 #[test]
 fn gate01_no_invariant_established() {
-    let corpus = crate_src("../../tooling/lokai-arch-gate/src/v4_corpus.rs");
+    let corpus = crate_src("../../tooling/tetonic-arch-gate/src/v4_corpus.rs");
     assert!(corpus.contains("not ARCH-V4-GATE-001 satisfied"));
     assert!(!corpus.contains("INV-V4-ID-001 ESTABLISHED"));
     assert!(!corpus.contains("INV-V4-APP-002 ESTABLISHED"));
@@ -154,15 +154,15 @@ fn gate01_patch_pipeline_not_in_src() {
 
 #[test]
 fn gate01_eval_cargo_has_no_lokai_tools() {
-    let toml = crate_src("../../tooling/lokai-eval/Cargo.toml");
+    let toml = crate_src("../../tooling/tetonic-eval/Cargo.toml");
     assert!(!cargo_prod_deps(&toml).contains("lokai-tools"));
 }
 
 #[test]
 fn gate01_promoted_detectors_live() {
-    let lib = crate_src("../../tooling/lokai-arch-gate/src/lib.rs");
+    let lib = crate_src("../../tooling/tetonic-arch-gate/src/lib.rs");
     assert!(lib.contains("v4_scan::check_v4_promoted"));
-    let scan = crate_src("../../tooling/lokai-arch-gate/src/v4_scan.rs");
+    let scan = crate_src("../../tooling/tetonic-arch-gate/src/v4_scan.rs");
     for rule in [
         "ARCH-V4-SUB-002",
         "ARCH-V4-TOOL-001",
@@ -176,20 +176,23 @@ fn gate01_promoted_detectors_live() {
 
 #[test]
 fn gate01_sub001_fin_work_gate001_still_inventory() {
-    let corpus = crate_src("../../tooling/lokai-arch-gate/src/v4_corpus.rs");
+    let corpus = crate_src("../../tooling/tetonic-arch-gate/src/v4_corpus.rs");
     assert!(corpus.contains("Other ARCH-V4-* stay"));
     for name in [
         "ARCH-V4-SUB-001.v4fix",
         "ARCH-V4-FIN-001.v4fix",
         "ARCH-V4-WORK-001.v4fix",
     ] {
-        let fix = crate_src(&format!("../../tooling/lokai-arch-gate/fixtures/v4/{name}"));
+        let fix = crate_src(&format!(
+            "../../tooling/tetonic-arch-gate/fixtures/v4/{name}"
+        ));
         assert!(
             fix.contains("not scanned as production"),
             "{name} must stay planted inventory"
         );
     }
-    let gate = crate_src("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-GATE-001-coding.v4fix");
+    let gate =
+        crate_src("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-GATE-001-coding.v4fix");
     assert!(gate.contains("not satisfied"));
     assert!(gate.contains("must not mark ARCH-V4-GATE-001 satisfied"));
 }
@@ -220,7 +223,7 @@ fn gate01_create_run_still_persist_only() {
 
 #[test]
 fn gate01_eval_kernel_untouched() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
     assert!(src.contains("submit_chat_turn"));
 }

@@ -1835,7 +1835,6 @@ dependencies = [
  "lokai-domain",
  "lokai-egress",
  "lokai-enroll",
- "lokai-eval",
  "lokai-fabric-client",
  "lokai-fabric-protocol",
  "lokai-index",
@@ -1858,35 +1857,12 @@ dependencies = [
  "serde_json",
  "sha2",
  "tempfile",
+ "tetonic-eval",
  "thiserror 2.0.18",
  "tokio",
  "tracing",
  "tracing-subscriber",
  "uuid",
-]
-
-[[package]]
-name = "lokai-arch-gate"
-version = "0.0.0"
-dependencies = [
- "clap",
- "lokai-artifact",
- "lokai-core",
- "lokai-domain",
- "lokai-egress",
- "lokai-inference",
- "lokai-memory",
- "lokai-policy",
- "lokai-rpc",
- "lokai-runtime",
- "lokai-tools",
- "lokai-transaction",
- "proc-macro2",
- "regex",
- "serde_json",
- "syn 2.0.118",
- "tempfile",
- "tokio",
 ]
 
 [[package]]
@@ -1907,17 +1883,6 @@ dependencies = [
  "tokio",
  "tracing",
  "uuid",
-]
-
-[[package]]
-name = "lokai-bench"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "lokai-core",
- "lokai-index",
- "lokai-tools",
- "serde_json",
 ]
 
 [[package]]
@@ -2079,40 +2044,6 @@ dependencies = [
  "tokio-rustls",
  "tracing",
  "zeroize",
-]
-
-[[package]]
-name = "lokai-eval"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "hex",
- "lokai-app",
- "lokai-artifact",
- "lokai-broker",
- "lokai-core",
- "lokai-domain",
- "lokai-inference",
- "lokai-memory",
- "lokai-orchestrator",
- "lokai-policy",
- "lokai-runtime",
- "lokai-sandbox",
- "lokai-secrets",
- "lokai-telemetry",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
 ]
 
 [[package]]
@@ -4093,6 +4024,75 @@ dependencies = [
  "wezterm-dynamic",
  "wezterm-input-types",
  "winapi",
+]
+
+[[package]]
+name = "tetonic-arch-gate"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "lokai-artifact",
+ "lokai-core",
+ "lokai-domain",
+ "lokai-egress",
+ "lokai-inference",
+ "lokai-memory",
+ "lokai-policy",
+ "lokai-rpc",
+ "lokai-runtime",
+ "lokai-tools",
+ "lokai-transaction",
+ "proc-macro2",
+ "regex",
+ "serde_json",
+ "syn 2.0.118",
+ "tempfile",
+ "tokio",
+]
+
+[[package]]
+name = "tetonic-bench"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "lokai-core",
+ "lokai-index",
+ "lokai-tools",
+ "serde_json",
+]
+
+[[package]]
+name = "tetonic-eval"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "hex",
+ "lokai-app",
+ "lokai-artifact",
+ "lokai-broker",
+ "lokai-core",
+ "lokai-domain",
+ "lokai-inference",
+ "lokai-memory",
+ "lokai-orchestrator",
+ "lokai-policy",
+ "lokai-runtime",
+ "lokai-sandbox",
+ "lokai-secrets",
+ "lokai-telemetry",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
 ]
 
 [[package]]

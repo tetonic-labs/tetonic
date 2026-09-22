@@ -1,16 +1,16 @@
 [package]
-name = "lokai-arch-gate"
+name = "tetonic-arch-gate"
 version = "0.0.0"
 edition.workspace = true
 license.workspace = true
 publish = false
 
 [lib]
-name = "lokai_arch_gate"
+name = "tetonic_arch_gate"
 path = "src/lib.rs"
 
 [[bin]]
-name = "lokai-arch-gate"
+name = "tetonic-arch-gate"
 path = "src/main.rs"
 
 [dependencies]

@@ -30,7 +30,7 @@ jobs:
           workspaces: engine
 
       - name: Engineering gate (formatting, clippy, architecture, quality)
-        run: cargo run -p lokai-arch-gate -- verify package
+        run: cargo run -p tetonic-arch-gate -- verify package
 
   test:
     name: Core Test Suite

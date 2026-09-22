@@ -530,7 +530,7 @@ fn work03_work001_not_established_leftover_turn_remains() {
     let run = crate_src("src/run_service.rs");
     assert!(run.contains("async fn run_turn("));
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
     assert!(fixture.is_file(), "WORK-001 remains planted inventory");
 }
 

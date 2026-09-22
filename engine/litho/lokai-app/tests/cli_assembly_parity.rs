@@ -5,11 +5,11 @@ use std::sync::Arc;
 use lokai_app::events::RecordingEventSink;
 use lokai_app::{build_compute_plane, Application, ApplicationDependencies, ComputePlaneRequest};
 use lokai_egress::EgressGuard;
-use lokai_eval::parity::{
-    compare_sequences, normalize_application_events, run_kernel_lifecycle_scenario,
-};
 use lokai_policy::PolicyEngine;
 use lokai_runtime::EngineRuntime;
+use tetonic_eval::parity::{
+    compare_sequences, normalize_application_events, run_kernel_lifecycle_scenario,
+};
 
 #[test]
 fn runtime_default_policy_allows_mutations() {
@@ -109,10 +109,10 @@ async fn cli_kernel_lifecycle_semantic_effects() {
 
     let effects = normalize_application_events(&events.lock().unwrap());
     let expected = vec![
-        lokai_eval::parity::SemanticEffect::SessionInitialization,
-        lokai_eval::parity::SemanticEffect::ModelRequest,
-        lokai_eval::parity::SemanticEffect::TerminalOutcome,
-        lokai_eval::parity::SemanticEffect::PersistenceWrite,
+        tetonic_eval::parity::SemanticEffect::SessionInitialization,
+        tetonic_eval::parity::SemanticEffect::ModelRequest,
+        tetonic_eval::parity::SemanticEffect::TerminalOutcome,
+        tetonic_eval::parity::SemanticEffect::PersistenceWrite,
     ];
     compare_sequences(&expected, &effects).expect("cli lifecycle semantic effects");
 }

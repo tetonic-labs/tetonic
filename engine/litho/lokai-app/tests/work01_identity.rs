@@ -347,7 +347,7 @@ fn work01_app001_identity_inventory_not_established() {
         .expect("identity.rs");
     assert!(domain.contains("struct AgentIdentity"));
     assert!(domain.contains("struct AgentJobSpec"));
-    let fixture = engine_root.join("tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
+    let fixture = engine_root.join("tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
     assert!(fixture.is_file(), "WORK-001 remains planted inventory");
     let _types: Option<(AgentIdentity, AgentJobSpec)> = None;
 }

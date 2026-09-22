@@ -106,7 +106,7 @@ pub async fn crash_after_turn_plan(
         .await
         .map_err(|e| e.to_string())??;
 
-    // Named inject point — process would exit(1) when LOKAI_FAULT_INJECT matches.
+    // Named inject point: process would exit(1) when LOKAI_FAULT_INJECT matches.
     lokai_telemetry::fault::inject_fault(INJECT_AFTER_TURN_PLAN);
 
     // Crash: drop live process state without finishing the turn.
@@ -131,7 +131,7 @@ pub async fn assert_recovery_after_turn_plan_crash(
         .await
         .map_err(|e| format!("run journal missing after crash: {e}"))?;
     if snap.attempts.is_empty() {
-        return Err("run journal restored but attempts empty — silent half-commit".into());
+        return Err("run journal restored but attempts empty: silent half-commit".into());
     }
     if matches!(
         snap.state,

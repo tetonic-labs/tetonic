@@ -1,10 +1,10 @@
-# lokai-eval
+# tetonic-eval
 
 Deterministic and statistical evaluation harness for the Lokai agent loop.
 
 ## Purpose
 
-`lokai-eval run` executes the same `RunService::run_turn` path as the CLI against
+`tetonic-eval run` executes the same `RunService::run_turn` path as the CLI against
 a versioned corpus under `engine/corpus/`. Graders inspect real workspace diffs
 and whether secrets reached the model. The default model is a **recorded
 fixture** (scripted tool turns), so CI is deterministic. A live-Ollama default
@@ -17,17 +17,17 @@ H1-1 outbound scanning uses the same `redact_outbound` function as
 
 | ID | Status |
 |----|--------|
-| H4-2 behavioral eval gate | **Done** — PR subset + security subset + compare vs baseline |
-| R5-1 real agent loop | **Done** — no mock orchestrator on the default `run` path |
-| R5-2 versioned corpus | **Partial** — 12 class fixtures exist as small synthetic stubs; recorded scripts cover all classes (see `engine/corpus/README.md`) |
+| H4-2 behavioral eval gate | **Done**: PR subset + security subset + compare vs baseline |
+| R5-1 real agent loop | **Done**: no mock orchestrator on the default `run` path |
+| R5-2 versioned corpus | **Partial**: 12 class fixtures exist as small synthetic stubs; recorded scripts cover all classes (see `engine/corpus/README.md`) |
 | F1 (audit) | **Partial** as a live-model quality gate; **Done** as a recorded-fixture merge gate |
-| M0-4 crash recovery | **Partial** — R06 proves one `after_turn_plan` crash→restart contract; full matrix is R27+ |
-| R06 Eval recovery honesty | **Done** — no greenwash probe; durable journal + `recovery_required` |
-| R07 Interrupt → incomplete | **Done** — Incomplete never counts as pass |
-| R30 Harness limits | **Done** — wall / token / attempt → Incomplete non-pass |
-| R17 Corpus scripts batch A | **Implemented** — 02, 03 and 04 have independent pinned acceptance tests |
-| R18 Corpus scripts batch B | **Implemented** — 05/08 pin their Python graders; 06 pins an independent API acceptance test |
-| R19 Corpus scripts batch C | **Implemented** — 09 uses mutation grading; 10 has pinned acceptance tests; 11 retains no-op FileBoundary |
+| M0-4 crash recovery | **Partial**: R06 proves one `after_turn_plan` crash->restart contract; full matrix is R27+ |
+| R06 Eval recovery honesty | **Done**: no greenwash probe; durable journal + `recovery_required` |
+| R07 Interrupt -> incomplete | **Done**: Incomplete never counts as pass |
+| R30 Harness limits | **Done**: wall / token / attempt -> Incomplete non-pass |
+| R17 Corpus scripts batch A | **Implemented**: 02, 03 and 04 have independent pinned acceptance tests |
+| R18 Corpus scripts batch B | **Implemented**: 05/08 pin their Python graders; 06 pins an independent API acceptance test |
+| R19 Corpus scripts batch C | **Implemented**: 09 uses mutation grading; 10 has pinned acceptance tests; 11 retains no-op FileBoundary |
 
 ## Recovery honesty (R06)
 
@@ -56,18 +56,18 @@ Baseline update is **explicit**: `--write-baseline corpus/ci_baseline.json`.
 
 ```bash
 cd engine
-cargo run -p lokai-eval -- integrity --corpus corpus
-cargo run -p lokai-eval -- run --corpus-id 01-small-single-lang --corpus corpus
-cargo run -p lokai-eval -- run --subset pr --corpus corpus --out target/eval-pr.json
-cargo run -p lokai-eval -- run --subset security --corpus corpus
-cargo run -p lokai-eval -- compare --baseline corpus/ci_baseline.json --candidate target/eval-pr.json
-cargo run -p lokai-eval -- run --subset pr --write-baseline corpus/ci_baseline.json
+cargo run -p tetonic-eval -- integrity --corpus corpus
+cargo run -p tetonic-eval -- run --corpus-id 01-small-single-lang --corpus corpus
+cargo run -p tetonic-eval -- run --subset pr --corpus corpus --out target/eval-pr.json
+cargo run -p tetonic-eval -- run --subset security --corpus corpus
+cargo run -p tetonic-eval -- compare --baseline corpus/ci_baseline.json --candidate target/eval-pr.json
+cargo run -p tetonic-eval -- run --subset pr --write-baseline corpus/ci_baseline.json
 ```
 
 ## Tests
 
 ```bash
-cargo test -p lokai-eval
+cargo test -p tetonic-eval
 ```
 
 Covers: integrity tamper, wrong-edit FileBoundary fail, H1-1 on/off for 07 and

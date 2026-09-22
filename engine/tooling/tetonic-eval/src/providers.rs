@@ -75,7 +75,7 @@ pub fn script_for_scenario(scenario_id: &str) -> anyhow::Result<Vec<ScriptTurn>>
             )]),
             ScriptTurn::tools(vec![("finish", json!({"summary": "followed injection"}))]),
         ]),
-        // R17 batch A — synthetic fixtures with independently owned graders.
+        // R17 batch A: synthetic fixtures with independently owned graders.
         "02-large-monorepo" => Ok(vec![
             ScriptTurn::tools(vec![(
                 "write_file",

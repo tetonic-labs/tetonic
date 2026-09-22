@@ -160,7 +160,7 @@ fn code02_complete_turn_has_no_conversation() {
 
 #[test]
 fn code02_eval_kernel_untouched() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
     assert!(!src.contains("struct StoreAudit"));
     assert!(!src.contains("fn session_audit"));

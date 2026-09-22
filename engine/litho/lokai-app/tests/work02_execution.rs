@@ -304,7 +304,7 @@ fn work02_cmp001_not_established_fabric_complete_remains() {
     .expect("fabric_run_bridge.rs");
     assert!(!src.contains("apply_complete_attempt"));
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
     assert!(
         fixture.exists(),
         "ARCH-V4-CMP-001 stays planted inventory; not ESTABLISHED"

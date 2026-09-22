@@ -30,6 +30,16 @@ pub fn engine_root() -> PathBuf {
         .expect("engine root")
 }
 
+pub fn resolve_path(root: &Path, candidates: &[&str]) -> PathBuf {
+    for c in candidates {
+        let p = root.join(c);
+        if p.exists() {
+            return p;
+        }
+    }
+    root.join(candidates[0])
+}
+
 pub fn collect_rs_files(root: &Path) -> Vec<PathBuf> {
     let mut out = Vec::new();
     walk_rs(root, &mut out);
@@ -63,7 +73,7 @@ fn rel(root: &Path, path: &Path) -> String {
 }
 
 fn is_allowed_subprocess(rel_path: &str) -> bool {
-    // Listing process_executor.rs is not “process is sandboxed”.
+    // Listing process_executor.rs is not "process is sandboxed".
     // Constrained / shell_command Command::new residual remains (M2 leftover; DEL-001 DELETED).
     const ALLOW: &[&str] = &[
         "lokai-tools/src/process_executor.rs",
@@ -71,22 +81,39 @@ fn is_allowed_subprocess(rel_path: &str) -> bool {
         "lokai-sandbox/src/process_executor.rs",
         "lokai-sandbox/src/exec.rs",
         "core/lokai-sandbox/src/backend/windows.rs",
+        "core/tetonic-sandbox/src/backend/windows.rs",
         "core/lokai-sandbox/src/backend/windows_net.rs",
+        "core/tetonic-sandbox/src/backend/windows_net.rs",
         "core/lokai-sandbox/src/backend/linux.rs",
+        "core/tetonic-sandbox/src/backend/linux.rs",
         "core/lokai-sandbox/src/backend/linux_net.rs",
+        "core/tetonic-sandbox/src/backend/linux_net.rs",
         "core/lokai-sandbox/src/backend/macos.rs",
+        "core/tetonic-sandbox/src/backend/macos.rs",
         "core/lokai-sandbox/src/backend/unix_common.rs",
+        "core/tetonic-sandbox/src/backend/unix_common.rs",
         "core/lokai-sandbox/src/sync_service.rs",
+        "core/tetonic-sandbox/src/sync_service.rs",
         "core/lokai-sandbox/bins/",
+        "core/tetonic-sandbox/bins/",
         "mantle/lokai-capacity/src/detect.rs",
+        "mantle/tetonic-capacity/src/detect.rs",
         "core/lokai-transaction/src/version.rs",
+        "core/tetonic-transaction/src/version.rs",
         "core/lokai-transaction/src/lock.rs",
+        "core/tetonic-transaction/src/lock.rs",
         "mantle/lokai-enroll/src/server.rs",
+        "mantle/tetonic-enroll/src/server.rs",
         "tooling/lokai-arch-gate/",
+        "tooling/tetonic-arch-gate/",
         "tooling/lokai-eval/",
+        "tooling/tetonic-eval/",
         "litho/lokaid/src/supervise.rs",
     ];
-    ALLOW.iter().any(|a| rel_path.contains(a))
+    let norm = rel_path.replace("tetonic-", "lokai-");
+    ALLOW
+        .iter()
+        .any(|a| rel_path.contains(a) || norm.contains(a))
 }
 
 pub fn check_subprocess_spawn(root: &Path) -> Vec<Violation> {
@@ -121,21 +148,24 @@ pub fn check_reqwest(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
         let rel_path = rel(root, &path);
-        if rel_path.contains("atmos/lokai-egress/") {
+        if rel_path.contains("atmos/lokai-egress/") || rel_path.contains("atmos/tetonic-egress/") {
             continue;
         }
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         if !re.is_match(&text) {
             continue;
         }
-        // lokai-enroll integration tests use reqwest inside #[cfg(test)] modules only.
-        if rel_path.contains("mantle/lokai-enroll/") && text.contains("#[cfg(test)]") {
+        // enroll integration tests use reqwest inside #[cfg(test)] modules only.
+        if (rel_path.contains("mantle/lokai-enroll/")
+            || rel_path.contains("mantle/tetonic-enroll/"))
+            && text.contains("#[cfg(test)]")
+        {
             continue;
         }
         out.push(Violation {
             rule: "reqwest_boundary",
             path: path.clone(),
-            detail: "reqwest used outside lokai-egress".into(),
+            detail: "reqwest used outside egress crate".into(),
         });
     }
     out
@@ -153,7 +183,7 @@ pub fn check_production_runtime(root: &Path) -> Vec<Violation> {
             }
             let text = std::fs::read_to_string(&path).unwrap_or_default();
             if text.contains("MockProvider") || text.contains("mod tests") {
-                // skip test helpers in same file — only flag if outside #[cfg(test)] blocks is hard;
+                // skip test helpers in same file: only flag if outside #[cfg(test)] blocks is hard;
                 // lokaid production paths use assemble_agent only today.
             }
             if re.is_match(&text) && !text.contains("#[cfg(test)]") {
@@ -172,13 +202,19 @@ pub fn check_production_runtime(root: &Path) -> Vec<Violation> {
 }
 
 pub fn check_policy_deps(root: &Path) -> Vec<Violation> {
-    let path = root.join("core/lokai-policy/Cargo.toml");
+    let path = resolve_path(
+        root,
+        &[
+            "core/tetonic-policy/Cargo.toml",
+            "core/lokai-policy/Cargo.toml",
+        ],
+    );
     let text = std::fs::read_to_string(&path).unwrap_or_default();
-    if text.contains("lokai-inference") {
+    if text.contains("lokai-inference") || text.contains("tetonic-inference") {
         vec![Violation {
             rule: "dependency_direction",
             path,
-            detail: "lokai-policy must not depend on lokai-inference".into(),
+            detail: "policy crate must not depend on inference crate".into(),
         }]
     } else {
         vec![]
@@ -224,26 +260,34 @@ pub const MAX_RS_FILE_LINES: usize = 900;
 /// Allowlist entries require: named owner, documented reason, removal ticket.\
 const FILE_SIZE_ALLOWLIST: &[&str] = &[
     "strata/lokai-memory/src/lib.rs",
+    "strata/tetonic-memory/src/lib.rs",
     "atmos/lokai-inference/src/lib.rs",
+    "atmos/tetonic-inference/src/lib.rs",
     "litho/lokai-cli/src/main.rs",
     "core/lokai-core/src/agent.rs",
+    "core/tetonic-core/src/agent.rs",
     // Owner: M5-3. Reason: pooled dispatch tests cover trust downgrade,
     // revocation, failover, and capability freshness alongside private helpers.
     // Removal: extract pooled tests before M6-1 admission-control work.
     "atmos/lokai-inference/src/pooled.rs",
+    "atmos/tetonic-inference/src/pooled.rs",
     // Owner: M5-3. Reason: additive worker-trust RPC schema pushed this legacy
     // protocol aggregate just over the limit.
     // Removal: extract fabric trust protocol types before M5-4.
     "atmos/lokai-rpc/src/protocol.rs",
+    "atmos/tetonic-rpc/src/protocol.rs",
     // M2-1 adversarial tests added 5 large test functions inline.
     // Owner: M2-1. Reason: adversarial test suite required by ticket AC lives alongside the impl.
     // Removal: extract to litho/lokai-tools/tests/process_broker_adversarial.rs in M2-2 cleanup.
     "litho/lokai-tools/src/process_executor.rs",
     // Owner: M5-4 (R13). Reason: typed placement and redundant verification policy evaluation with inline tests.
     "atmos/lokai-inference/src/placement_engine.rs",
+    "atmos/tetonic-inference/src/placement_engine.rs",
     // Owner: M5-1. Reason: fabric /v1/chat ingress handler with full streaming and cancellation state machine.
     "mantle/lokai-node/src/fabric_chat.rs",
+    "mantle/tetonic-node/src/fabric_chat.rs",
     "atmos/lokai-fabric-client/src/legacy.rs",
+    "atmos/tetonic-fabric-client/src/legacy.rs",
     // Owner: app turn path (pre-existing WIP). Reason: rustfmt expansion during M0 VERIFY
     // pushed this file over 900. Not an M0 freeze split.
     // Removal: extract event/redact helpers; delete this row.
@@ -251,16 +295,20 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     // Owner: lokai-context. Reason: `src/tests.rs` is not skipped by `_tests.rs`/`/tests/`.
     // Removal: move to strata/lokai-context/tests/ or rename to *_tests.rs.
     "strata/lokai-context/src/tests.rs",
+    "strata/tetonic-context/src/tests.rs",
 ];
 
 pub fn check_file_sizes(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
         let rel_path = rel(root, &path);
+        let norm_path = rel_path.replace("tetonic-", "lokai-");
         if rel_path.contains("/tests/")
             || rel_path.ends_with("_tests.rs")
             || rel_path.contains("/benches/")
-            || FILE_SIZE_ALLOWLIST.iter().any(|a| rel_path.contains(a))
+            || FILE_SIZE_ALLOWLIST
+                .iter()
+                .any(|a| rel_path.contains(a) || norm_path.contains(a))
         {
             continue;
         }
@@ -285,28 +333,29 @@ pub fn check_app_layer_deps(root: &Path) -> Vec<Violation> {
     let cargo_path = root.join("litho/lokai-app/Cargo.toml");
     let cargo_text = std::fs::read_to_string(&cargo_path).unwrap_or_default();
     if cargo_text.contains("lokai-rpc")
+        || cargo_text.contains("tetonic-rpc")
         || cargo_text.contains("lokaid")
         || cargo_text.contains("lokai-cli")
     {
         out.push(Violation {
             rule: "app_layer_deps",
             path: cargo_path,
-            detail: "lokai-app must not depend on lokai-rpc or binary crates".into(),
+            detail: "lokai-app must not depend on rpc or binary crates".into(),
         });
     }
 
-    // Check lokai-app source files for print, eprint, lokai_rpc::
+    // Check lokai-app source files for print, eprint, rpc
     let app_root = root.join("litho/lokai-app/src");
     let print_re = regex::Regex::new(r"print(ln)?!\s*\(").unwrap();
     let eprint_re = regex::Regex::new(r"eprint(ln)?!\s*\(").unwrap();
 
     for path in collect_rs_files(&app_root) {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
-        if text.contains("lokai_rpc::") {
+        if text.contains("lokai_rpc::") || text.contains("tetonic_rpc::") {
             out.push(Violation {
                 rule: "app_layer_isolation",
                 path: path.clone(),
-                detail: "lokai-rpc types must not appear in application service interfaces".into(),
+                detail: "rpc types must not appear in application service interfaces".into(),
             });
         }
         if print_re.is_match(&text) || eprint_re.is_match(&text) {
@@ -401,8 +450,10 @@ pub fn check_lokaid_no_direct_orchestration(root: &Path) -> Vec<Violation> {
 }
 
 pub fn check_lokaid_handlers_no_profile_store(root: &Path) -> Vec<Violation> {
-    let re =
-        regex::Regex::new(r"ProfileStore::new|lokai_capacity::run_optimize\s*\(").expect("regex");
+    let re = regex::Regex::new(
+        r"ProfileStore::new|(?:lokai_capacity|tetonic_capacity)::run_optimize\s*\(",
+    )
+    .expect("regex");
     let mut out = Vec::new();
     let dir = root.join("litho/lokaid/src/daemon/handlers");
     for path in collect_rs_files(&dir) {
@@ -448,6 +499,7 @@ pub fn check_unguarded_remote_dispatch(root: &Path) -> Vec<Violation> {
         "litho/lokai-app/src/compute_plane.rs",
         "litho/lokaid/src/daemon/compute.rs",
         "atmos/lokai-inference/src/pooled.rs",
+        "atmos/tetonic-inference/src/pooled.rs",
     ];
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
@@ -498,6 +550,7 @@ pub fn check_workspace_mutations(root: &Path) -> Vec<Violation> {
     ];
     let allow = [
         "core/lokai-transaction/",
+        "core/tetonic-transaction/",
         "litho/lokai-tools/src/workspace.rs",
         "litho/lokai-tools/src/mutation.rs",
         "/tests/",

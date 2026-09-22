@@ -266,9 +266,9 @@ fn workfin01_fin_skip_not_inverted() {
 #[test]
 fn workfin01_arch_fin_001_still_planted() {
     let fix = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-FIN-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-FIN-001.v4fix");
     assert!(fix.exists(), "ARCH-V4-FIN-001.v4fix must stay planted");
-    let corpus = crate_src("../../tooling/lokai-arch-gate/src/v4_corpus.rs");
+    let corpus = crate_src("../../tooling/tetonic-arch-gate/src/v4_corpus.rs");
     assert!(corpus.contains("ARCH-V4-FIN-001.v4fix"));
 }
 

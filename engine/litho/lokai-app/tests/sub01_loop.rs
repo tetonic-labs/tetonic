@@ -461,7 +461,7 @@ fn sub01_arch_v4_sub_001_inventory_not_established() {
     assert!(!agent.contains("fn system_prompt"));
     assert!(!agent.contains("run_verify_authorized"));
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-SUB-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-SUB-001.v4fix");
     let note = read(fixture);
     assert!(note.contains("SUB-01"));
     assert!(note.contains("not scanned as production"));

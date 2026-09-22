@@ -33,6 +33,9 @@ FORBIDDEN_CRATES = {
     "lokai-arch-gate",
     "lokai-eval",
     "lokai-bench",
+    "tetonic-arch-gate",
+    "tetonic-eval",
+    "tetonic-bench",
 }
 
 ALLOWED_PACKAGES = {

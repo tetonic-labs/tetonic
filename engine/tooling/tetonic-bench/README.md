@@ -1,6 +1,6 @@
-# lokai-bench
+# tetonic-bench
 
-Repeatable **CPU** micro-benchmark of hot paths — no LLM, no network.
+Repeatable **CPU** micro-benchmark of hot paths: no LLM, no network.
 
 For end-to-end **agentic** graded tasks (live model), see [../../bench/README.md](../../bench/README.md).
 
@@ -11,7 +11,7 @@ Measure indexing, retrieval, grep, semantic search, and tokenizer throughput on 
 ## Usage
 
 ```bash
-cargo run -p lokai-bench --release -- [num_files] [embed_dim]
+cargo run -p tetonic-bench --release -- [num_files] [embed_dim]
 ```
 
 Defaults: 1500 files, 768-dim embeddings.
@@ -30,7 +30,7 @@ Defaults: 1500 files, 768-dim embeddings.
 
 ## Tests
 
-None — benchmark binary only. Results may be saved under `engine/bench/results_*.json`.
+None: benchmark binary only. Results may be saved under `engine/bench/results_*.json`.
 
 ## Related docs
 

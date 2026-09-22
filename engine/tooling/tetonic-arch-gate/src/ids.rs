@@ -86,7 +86,7 @@ pub fn arch_why(rule: &str) -> &'static str {
             "HTTP clients must use lokai-egress so default-deny and allowlists stay one authority."
         }
         "file_size" => {
-            "900-line limit is a maintainability guardrail so files stay reviewable. It is not proof of good architecture — do not split modules only to beat the counter."
+            "900-line limit is a maintainability guardrail so files stay reviewable. It is not proof of good architecture: do not split modules only to beat the counter."
         }
         "dependency_direction" | "app_layer_deps" | "inference_no_enroll" => {
             "Forbidden Cargo edges invert the intended layering (contracts vs inference vs app)."

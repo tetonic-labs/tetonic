@@ -4,18 +4,35 @@ use std::path::{Path, PathBuf};
 
 use crate::report::Finding;
 
-/// Library crates that currently declare `anyhow` in `[dependencies]` — debt, not a license to add more.
-pub const GRANDFATHER_ANYHOW: &[&str] =
-    &["lokai-core", "lokai-app", "lokai-artifact", "lokai-node"];
+/// Library crates that currently declare `anyhow` in `[dependencies]`: debt, not a license to add more.
+pub const GRANDFATHER_ANYHOW: &[&str] = &[
+    "lokai-core",
+    "tetonic-core",
+    "lokai-app",
+    "lokai-artifact",
+    "tetonic-artifact",
+    "lokai-node",
+    "tetonic-node",
+];
 
 /// Bins (and only these) may take a direct `anyhow` dependency.
-pub const ALLOW_ANYHOW: &[&str] = &["lokai-cli", "lokaid", "lokai-eval", "lokai-bench"];
+pub const ALLOW_ANYHOW: &[&str] = &[
+    "lokai-cli",
+    "lokaid",
+    "lokai-eval",
+    "tetonic-eval",
+    "lokai-bench",
+    "tetonic-bench",
+];
 
 /// Crates whose *production* sources must not embed model product identifiers.
 const MODEL_FORBIDDEN_PREFIXES: &[&str] = &[
     "core/lokai-core/src/",
+    "core/tetonic-core/src/",
     "core/lokai-runtime/src/",
+    "core/tetonic-runtime/src/",
     "mantle/lokai-orchestrator/src/",
+    "mantle/tetonic-orchestrator/src/",
     "litho/lokai-app/src/",
 ];
 
@@ -94,7 +111,7 @@ pub fn check_anyhow_direct(engine_root: &Path) -> Vec<Finding> {
                 cargo,
                 format!("package `{name}` declares a direct `anyhow` dependency"),
                 "Library/runtime crates must use typed errors (`thiserror`). `anyhow` is for binary top-level context only.",
-                "Remove `anyhow` from this Cargo.toml. Convert call sites to `thiserror`. Bins lokai-cli, lokaid, lokai-eval, lokai-bench may keep anyhow. Existing grandfathered crates are listed in docs/engineering/QUALITY-DEBT.md — do not copy that pattern.",
+                "Remove `anyhow` from this Cargo.toml. Convert call sites to `thiserror`. Bins lokai-cli, lokaid, lokai-eval, tetonic-eval, lokai-bench, tetonic-bench may keep anyhow. Existing grandfathered crates are listed in docs/engineering/QUALITY-DEBT.md: do not copy that pattern.",
             ));
         }
     }
@@ -132,7 +149,7 @@ pub fn check_hardcoded_models(engine_root: &Path) -> Vec<Finding> {
                 "QG-MODEL-001",
                 path,
                 "production source contains a literal model product identifier",
-                "Model selection must come from RuntimeProfile, InferenceDefaults, recipes, or request input — not hardcoded in core/runtime/orchestrator/app routing.",
+                "Model selection must come from RuntimeProfile, InferenceDefaults, recipes, or request input: not hardcoded in core/runtime/orchestrator/app routing.",
                 "Take the model id from config or the request. Fixtures belong under #[cfg(test)]. Capacity recipes and eval corpus are allowed data layers (this rule does not scan them).",
             ));
         }

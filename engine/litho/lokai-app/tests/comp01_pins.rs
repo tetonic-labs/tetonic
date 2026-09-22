@@ -164,7 +164,7 @@ fn comp01_cli_lokaid_eval_have_no_turn_execution_host() {
     for rel in [
         "../../litho/lokai-cli/src/main.rs",
         "../../litho/lokaid/src/daemon/handlers/initialize.rs",
-        "../../tooling/lokai-eval/src/kernel.rs",
+        "../../tooling/tetonic-eval/src/kernel.rs",
     ] {
         let src = crate_src(rel);
         assert!(
@@ -286,14 +286,14 @@ fn comp01_live_session_and_catalogue_remain() {
 
 #[test]
 fn comp01_kernel_unread() {
-    let src = crate_src("../../tooling/lokai-eval/src/kernel.rs");
+    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(src.contains("verify_cmd: None"));
 }
 
 #[test]
 fn comp01_bh_id_session_stays_defect() {
     let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/lokai-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
+        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-IFACE-001.v4fix");
     assert!(fixture.is_file(), "ARCH-V4-IFACE-001 stays planted");
 }
 
