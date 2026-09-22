@@ -14,12 +14,11 @@ on:
 permissions:
   contents: write
 
-defaults:
-  run:
-    working-directory: engine
-
 jobs:
   build:
+    defaults:
+      run:
+        working-directory: engine
     strategy:
       fail-fast: false
       matrix:
@@ -141,23 +140,23 @@ jobs:
           cat << 'EOF' > lokai.rb
           class Lokai < Formula
             desc "Sovereign AI coding assistant and digital autonomous organization engine"
-            homepage "https://github.com/tetonic/tetonic"
+            homepage "https://github.com/tetonic-labs/tetonic"
             version "${VERSION_CLEAN}"
             license "BUSL-1.1"
 
             on_macos do
               on_arm do
-                url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-darwin-arm64.tar.gz"
+                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-darwin-arm64.tar.gz"
                 sha256 "${SHA_DARWIN_ARM64}"
               end
               on_intel do
-                url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-darwin-x64.tar.gz"
+                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-darwin-x64.tar.gz"
                 sha256 "${SHA_DARWIN_X64}"
               end
             end
 
             on_linux do
-              url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-linux-x64.tar.gz"
+              url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-linux-x64.tar.gz"
               sha256 "${SHA_LINUX_X64}"
             end
 
