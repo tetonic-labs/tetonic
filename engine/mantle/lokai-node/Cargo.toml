@@ -8,9 +8,9 @@ license.workspace = true
 [dependencies]
 lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 lokai-enroll = { path = "../../mantle/lokai-enroll" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
-lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-egress = { path = "../../atmos/lokai-egress" }
+lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
+lokai-egress = { package = "tetonic-egress", path = "../../atmos/tetonic-egress" }
 lokai-capacity = { path = "../../mantle/lokai-capacity" }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -32,8 +32,8 @@ hyper-util = { version = "0.1", features = ["tokio"] }
 http-body-util = "0.1"
 http = "1"
 futures-util = { workspace = true }
-lokai-fabric-client = { path = "../../atmos/lokai-fabric-client" }
-lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
+lokai-fabric-client = { package = "tetonic-fabric-client", path = "../../atmos/tetonic-fabric-client" }
+lokai-fabric-protocol = { package = "tetonic-fabric-protocol", path = "../../atmos/tetonic-fabric-protocol" }
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
 

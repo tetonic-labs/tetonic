@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use lokai_memory::Store;
+use tetonic_memory::Store;
 use tetonic_policy::{PolicyEngine, PolicyMode, PolicySettings};
 
 /// Load persisted policy settings or default to homelab estate stub.
@@ -31,7 +31,7 @@ fn load_policy_settings(store: &Store) -> PolicySettings {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_memory::Store;
+    use tetonic_memory::Store;
 
     #[test]
     fn loads_persisted_toggles() {

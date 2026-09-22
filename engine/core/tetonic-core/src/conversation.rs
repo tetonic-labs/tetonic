@@ -5,7 +5,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use lokai_inference::Message;
+use tetonic_inference::Message;
 
 /// The evolving state of one chat session: the running message history, how much
 /// of the front is protected from trimming (system prompt, +running summary after

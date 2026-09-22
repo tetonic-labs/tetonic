@@ -17,15 +17,15 @@ path = "src/main.rs"
 syn = { version = "2", features = ["full", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 regex = { workspace = true }
-lokai-rpc = { path = "../../atmos/lokai-rpc" }
+lokai-rpc = { package = "tetonic-rpc", path = "../../atmos/tetonic-rpc" }
 clap = { workspace = true }
 
 [dev-dependencies]
 lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
-lokai-egress = { path = "../../atmos/lokai-egress" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
-lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-egress = { package = "tetonic-egress", path = "../../atmos/tetonic-egress" }
+lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
 lokai-tools = { path = "../../litho/lokai-tools" }
 lokai-transaction = { package = "tetonic-transaction", path = "../../core/tetonic-transaction" }
@@ -33,4 +33,4 @@ lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" 
 serde_json = { workspace = true }
 tempfile = "3"
 tokio = { workspace = true, features = ["rt", "macros"] }
-lokai-artifact = { path = "../../strata/lokai-artifact" }
+lokai-artifact = { package = "tetonic-artifact", path = "../../strata/tetonic-artifact" }

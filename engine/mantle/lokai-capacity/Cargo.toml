@@ -15,8 +15,8 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true, features = ["chrono"] }
 chrono = { workspace = true, features = ["serde"] }
-lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
+lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 directories = "5"

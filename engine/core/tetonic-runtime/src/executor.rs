@@ -61,15 +61,15 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_inference::{
-        ChatRequest, ChatResponse, InferenceError, InferenceProvider, Message, TokenSink,
-    };
     use serde_json::Value;
     use std::sync::Arc;
     use tetonic_core::AgentConfig;
     use tetonic_domain::{
         ActionKind, AttemptId, AuthorizedAction, ToolAdvertisement, ToolHost, ToolOutcome,
         ToolProposal,
+    };
+    use tetonic_inference::{
+        ChatRequest, ChatResponse, InferenceError, InferenceProvider, Message, TokenSink,
     };
 
     struct DummyHost;

@@ -12,23 +12,23 @@ lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" 
 lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
 lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
-lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
+lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
 lokai-orchestrator = { path = "../../mantle/lokai-orchestrator" }
 lokai-run = { path = "../../mantle/lokai-run" }
-lokai-context = { path = "../../strata/lokai-context" }
+lokai-context = { package = "tetonic-context", path = "../../strata/tetonic-context" }
 lokai-tools = { path = "../../litho/lokai-tools" }
 lokai-transaction = { package = "tetonic-transaction", path = "../../core/tetonic-transaction" }
-lokai-index = { path = "../../strata/lokai-index" }
+lokai-index = { package = "tetonic-index", path = "../../strata/tetonic-index" }
 lokai-lsp = { path = "../../litho/lokai-lsp" }
 lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
 lokai-capacity = { path = "../../mantle/lokai-capacity" }
 lokai-enroll = { path = "../../mantle/lokai-enroll" }
-lokai-egress = { path = "../../atmos/lokai-egress" }
+lokai-egress = { package = "tetonic-egress", path = "../../atmos/tetonic-egress" }
 lokai-node = { path = "../../mantle/lokai-node" }
-lokai-fabric-client = { path = "../../atmos/lokai-fabric-client" }
+lokai-fabric-client = { package = "tetonic-fabric-client", path = "../../atmos/tetonic-fabric-client" }
 lokai-broker = { path = "../../mantle/lokai-broker" }
-lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
+lokai-fabric-protocol = { package = "tetonic-fabric-protocol", path = "../../atmos/tetonic-fabric-protocol" }
 chrono = { workspace = true }
 base64 = "0.22"
 async-trait = { workspace = true }
@@ -41,7 +41,7 @@ tokio = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 uuid = { workspace = true }
-lokai-artifact = { version = "0.0.0", path = "../../strata/lokai-artifact" }
+lokai-artifact = { package = "tetonic-artifact", version = "0.0.0", path = "../../strata/tetonic-artifact" }
 futures = "0.3.32"
 directories = { workspace = true }
 

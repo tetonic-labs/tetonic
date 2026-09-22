@@ -1,16 +1,16 @@
 use std::sync::Arc;
 
-use lokai_inference::OllamaProvider;
 use lokai_tools::{Tools, Workspace};
 use tetonic_core::{Agent, AgentConfig, HeuristicTokenizer};
+use tetonic_inference::OllamaProvider;
 use tetonic_policy::PolicyEngine;
 
 use super::{AgentAssemblyParts, AssemblyMode, EngineRuntime};
 use crate::approval::ProductionApproval;
 use crate::NullAudit;
 
-fn test_fs_hooks() -> lokai_context::workspace::ContextFsHooks {
-    lokai_context::workspace::ContextFsHooks {
+fn test_fs_hooks() -> tetonic_context::workspace::ContextFsHooks {
+    tetonic_context::workspace::ContextFsHooks {
         skip_symlink: Arc::new(tetonic_transaction::fs_ops::is_symlink_or_reparse),
         jailed_read: Arc::new(|root, rel| {
             let ws = lokai_tools::Workspace::new(root).map_err(|e| e.to_string())?;
@@ -63,16 +63,16 @@ fn sample_parts(
     let fixture = tempfile::tempdir().unwrap();
     let ws = Workspace::new(fixture.path()).unwrap();
     let _artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             fixture.path().join("artifacts_sample"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );
 
     let tools = Tools::new(ws, false);
     let process_broker = Arc::new(tools.executor().clone());
-    let guard = Arc::new(lokai_egress::EgressGuard::new());
+    let guard = Arc::new(tetonic_egress::EgressGuard::new());
     let provider = Arc::new(OllamaProvider::new("http://127.0.0.1:11434", guard));
     let config = AgentConfig::default();
     let agent = Agent::with_tokenizer(provider, tools, config, Box::new(HeuristicTokenizer));
@@ -98,9 +98,9 @@ fn sample_parts(
 fn production_assembly_wires_policy_and_hooks() {
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             std::env::temp_dir().join("artifacts"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );
@@ -130,9 +130,9 @@ fn production_assembly_attaches_supplied_context_compiler() {
 
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             std::env::temp_dir().join("artifacts_mock"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );
@@ -150,7 +150,7 @@ fn production_assembly_attaches_supplied_context_compiler() {
 
 #[tokio::test]
 async fn production_compiler_compile_uses_workspace_inputs() {
-    use lokai_context::types::{ContextRequest, PathPolicy, RetrievalProfile, TokenBudget};
+    use tetonic_context::types::{ContextRequest, PathPolicy, RetrievalProfile, TokenBudget};
     use tetonic_domain::classify::DataClass;
     use tetonic_domain::ids::{RunId, SessionId, TaskId};
 
@@ -161,13 +161,13 @@ async fn production_compiler_compile_uses_workspace_inputs() {
 
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             dir.join("artifacts"),
-            lokai_artifact::ScanPolicy::Scan(Arc::new(|_| false)),
+            tetonic_artifact::ScanPolicy::Scan(Arc::new(|_| false)),
         )
         .unwrap(),
     );
-    let compiler = lokai_context::workspace::build_production_context_compiler(
+    let compiler = tetonic_context::workspace::build_production_context_compiler(
         &dir,
         artifact_store,
         None,
@@ -222,9 +222,9 @@ async fn production_compiler_compile_uses_workspace_inputs() {
 fn session_mode_rejects_null_audit() {
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             std::env::temp_dir().join("artifacts"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );
@@ -240,9 +240,9 @@ fn session_mode_rejects_null_audit() {
 fn session_mode_rejects_allow_all_approval() {
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             std::env::temp_dir().join("artifacts"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );
@@ -259,9 +259,9 @@ fn session_mode_rejects_allow_all_approval() {
 fn cli_ephemeral_allows_null_audit() {
     let pe = Arc::new(PolicyEngine::default());
     let artifact_store = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             std::env::temp_dir().join("artifacts"),
-            lokai_artifact::ScanPolicy::Refuse,
+            tetonic_artifact::ScanPolicy::Refuse,
         )
         .unwrap(),
     );

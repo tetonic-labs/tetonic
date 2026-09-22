@@ -14,7 +14,7 @@ ignore = { workspace = true }
 globset = { workspace = true }
 regex = { workspace = true }
 lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
-lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }

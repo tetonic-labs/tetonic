@@ -72,7 +72,7 @@ impl EngineRuntime {
         policy: Arc<PolicyEngine>,
         _approval_hook: Option<tetonic_core::ApprovalHook>,
         artifact_store: Arc<dyn tetonic_domain::artifact::ArtifactStore>,
-        capability_db: Option<Arc<lokai_memory::SharedStore>>,
+        capability_db: Option<Arc<tetonic_memory::SharedStore>>,
     ) -> Result<Self, CapabilityError> {
         let capability_store = Arc::new(match capability_db {
             Some(store) => InMemoryCapabilityStore::with_durable(store)?,

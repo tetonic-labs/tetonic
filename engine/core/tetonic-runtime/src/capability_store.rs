@@ -5,12 +5,12 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use lokai_memory::{RecoverMutex, SharedStore};
 use tetonic_domain::ids::CapabilityId;
 use tetonic_domain::{
     validate_authorized_action, AuthorizedAction, CapabilityConsumer, CapabilityError,
     IssuedCapability,
 };
+use tetonic_memory::{RecoverMutex, SharedStore};
 
 /// Process-local registry; when `durable` is set, rows persist in `lokai.db` and
 /// all live capabilities are revoked when this store is constructed (restart).
@@ -68,7 +68,7 @@ impl InMemoryCapabilityStore {
 
     fn durable_write<F>(&self, f: F) -> Result<(), CapabilityError>
     where
-        F: FnOnce(&mut lokai_memory::Store) -> lokai_memory::Result<()> + Send + 'static,
+        F: FnOnce(&mut tetonic_memory::Store) -> tetonic_memory::Result<()> + Send + 'static,
     {
         if self.fail_durable.swap(false, Ordering::SeqCst) {
             return Err(CapabilityError::PersistFailed);
@@ -79,9 +79,9 @@ impl InMemoryCapabilityStore {
         match store.write_sync(f) {
             Ok(Ok(())) => Ok(()),
             Ok(Err(e)) => match e {
-                lokai_memory::StoreError::CapabilityRevoked => Err(CapabilityError::Revoked),
-                lokai_memory::StoreError::CapabilityExpired => Err(CapabilityError::Expired),
-                lokai_memory::StoreError::CapabilityAlreadyConsumed => {
+                tetonic_memory::StoreError::CapabilityRevoked => Err(CapabilityError::Revoked),
+                tetonic_memory::StoreError::CapabilityExpired => Err(CapabilityError::Expired),
+                tetonic_memory::StoreError::CapabilityAlreadyConsumed => {
                     Err(CapabilityError::AlreadyConsumed)
                 }
                 _ => Err(CapabilityError::PersistFailed),

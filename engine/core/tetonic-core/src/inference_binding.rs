@@ -1,6 +1,6 @@
 use crate::Tokenizer;
-use lokai_inference::InferenceProvider;
 use std::sync::Arc;
+use tetonic_inference::InferenceProvider;
 
 /// A complete inference dependency replacement supplied by the owning runtime.
 /// It carries no credentials, endpoint selection, or routing policy.

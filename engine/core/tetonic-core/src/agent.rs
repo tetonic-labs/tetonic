@@ -2,13 +2,13 @@
 
 use std::sync::Arc;
 
-use lokai_inference::{ChatRequest, FabricCallMeta, InferenceProvider, Message, ToolSchema};
 use serde_json::Value;
 use tetonic_domain::{
     finalize_parameters, prepare_proposed_action, ActionId, ActionKind, AgentInvocation,
     AuthorizedAction, CandidateOutcome, CompletionKind, ContextCompileRequest, ContextCompiler,
     LimitKind, ProposedAction, ToolHost, ToolOutcome,
 };
+use tetonic_inference::{ChatRequest, FabricCallMeta, InferenceProvider, Message, ToolSchema};
 use tetonic_policy::PolicyEngine;
 
 use crate::config::AgentConfig;
@@ -199,9 +199,9 @@ impl InferenceProvider for NoopInferenceProvider {
     async fn chat(
         &self,
         _req: ChatRequest,
-        _on_token: &mut lokai_inference::TokenSink<'_>,
-    ) -> Result<lokai_inference::ChatResponse, lokai_inference::InferenceError> {
-        Err(lokai_inference::InferenceError::Provider(
+        _on_token: &mut tetonic_inference::TokenSink<'_>,
+    ) -> Result<tetonic_inference::ChatResponse, tetonic_inference::InferenceError> {
+        Err(tetonic_inference::InferenceError::Provider(
             "noop provider".into(),
         ))
     }
@@ -1221,7 +1221,7 @@ impl Agent {
                 response_format: None,
                 outbound_scan: Default::default(),
             };
-            lokai_inference::stamp_request_classification(&mut req);
+            tetonic_inference::stamp_request_classification(&mut req);
             step_index = step_index.saturating_add(1);
             let _infer_stage = tetonic_telemetry::enter_stage_child("infer");
             let resp = {
@@ -1275,7 +1275,7 @@ impl Agent {
             }
 
             let mut msg = resp.message;
-            lokai_inference::recover_message_tool_calls(&mut msg);
+            tetonic_inference::recover_message_tool_calls(&mut msg);
             let tool_calls = msg.tool_calls.clone().unwrap_or_default();
             if let Some(a) = self.audit() {
                 let tcj = msg
@@ -2013,9 +2013,9 @@ fn content_looks_like_tool_json(content: &str) -> bool {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use lokai_inference::{ChatRequest, ChatResponse, FabricSnapshot, InferenceError, TokenSink};
     use lokai_tools::Tools;
     use tetonic_domain::{ActionKind, CapabilityError, ToolAdvertisement, ToolProposal};
+    use tetonic_inference::{ChatRequest, ChatResponse, FabricSnapshot, InferenceError, TokenSink};
 
     fn test_inv(user: &str) -> AgentInvocation {
         test_inv_explain(user, false)
@@ -2089,8 +2089,8 @@ mod tests {
                     message: Message::assistant("").with_tool_calls(
                         calls
                             .into_iter()
-                            .map(|(name, arguments)| lokai_inference::ToolCall {
-                                function: lokai_inference::FunctionCall {
+                            .map(|(name, arguments)| tetonic_inference::ToolCall {
+                                function: tetonic_inference::FunctionCall {
                                     name: name.into(),
                                     arguments,
                                 },
@@ -2154,12 +2154,14 @@ mod tests {
         ) -> Result<ChatResponse, InferenceError> {
             self.requests.lock().unwrap().push(req);
             Ok(ChatResponse {
-                message: Message::assistant("").with_tool_calls(vec![lokai_inference::ToolCall {
-                    function: lokai_inference::FunctionCall {
-                        name: "finish".into(),
-                        arguments: serde_json::json!({"summary": "done"}),
+                message: Message::assistant("").with_tool_calls(vec![
+                    tetonic_inference::ToolCall {
+                        function: tetonic_inference::FunctionCall {
+                            name: "finish".into(),
+                            arguments: serde_json::json!({"summary": "done"}),
+                        },
                     },
-                }]),
+                ]),
                 usage: Default::default(),
                 provenance: Default::default(),
             })
@@ -2307,16 +2309,16 @@ mod tests {
             if t == 0 {
                 let mut calls = Vec::new();
                 if self.write_first {
-                    calls.push(lokai_inference::ToolCall {
-                        function: lokai_inference::FunctionCall {
+                    calls.push(tetonic_inference::ToolCall {
+                        function: tetonic_inference::FunctionCall {
                             name: "update".into(),
                             arguments: serde_json::json!({}),
                         },
                     });
                 }
                 calls.extend(
-                    ["a.txt", "b.txt", "c.txt"].map(|path| lokai_inference::ToolCall {
-                        function: lokai_inference::FunctionCall {
+                    ["a.txt", "b.txt", "c.txt"].map(|path| tetonic_inference::ToolCall {
+                        function: tetonic_inference::FunctionCall {
                             name: "read_file".into(),
                             arguments: serde_json::json!({"path": path}),
                         },
@@ -2330,8 +2332,8 @@ mod tests {
             } else {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "finish".into(),
                                 arguments: serde_json::json!({"summary": "inspected 3 files"}),
                             },
@@ -2362,8 +2364,8 @@ mod tests {
                 );
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "read_file".into(),
                                 arguments: serde_json::json!({"path": "speculative.txt"}),
                             },
@@ -2375,8 +2377,8 @@ mod tests {
             } else {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "finish".into(),
                                 arguments: serde_json::json!({"summary": "read speculative"}),
                             },
@@ -2477,8 +2479,8 @@ mod tests {
                 on_token("{\"name\": \"read_file\", \"arguments\": {\"path\": \"../secret.txt\"}}");
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "read_file".into(),
                                 arguments: serde_json::json!({"path": "../secret.txt"}),
                             },
@@ -2490,8 +2492,8 @@ mod tests {
             } else {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "finish".into(),
                                 arguments: serde_json::json!({"summary": "done"}),
                             },
@@ -2561,8 +2563,8 @@ mod tests {
             if t == 0 {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "read_file".into(),
                                 arguments: serde_json::json!({
                                     "path": "large_file.rs",
@@ -2578,8 +2580,8 @@ mod tests {
             } else {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "finish".into(),
                                 arguments: serde_json::json!({
                                     "summary": "The large file slice has line 100 to 110 explained in detail."
@@ -2919,8 +2921,8 @@ mod tests {
             if t == 0 {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "read_file".into(),
                                 arguments: serde_json::json!({"path": "a.txt"}),
                             },
@@ -2932,8 +2934,8 @@ mod tests {
             } else {
                 Ok(ChatResponse {
                     message: Message::assistant("").with_tool_calls(vec![
-                        lokai_inference::ToolCall {
-                            function: lokai_inference::FunctionCall {
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
                                 name: "finish".into(),
                                 arguments: serde_json::json!({"summary": "done"}),
                             },

@@ -8,7 +8,7 @@ license.workspace = true
 name = "tetonic_core"
 
 [dependencies]
-lokai-inference = { path = "../../atmos/lokai-inference" }
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
 tetonic-policy = { path = "../tetonic-policy" }
 tetonic-telemetry = { path = "../tetonic-telemetry" }
 tetonic-domain = { path = "../tetonic-domain" }

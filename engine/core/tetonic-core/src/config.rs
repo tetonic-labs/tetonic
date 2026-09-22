@@ -88,7 +88,7 @@ fn default_agent_id() -> String {
 impl Default for AgentConfig {
     fn default() -> Self {
         Self {
-            model: lokai_inference::DEFAULT_MODEL.to_string(),
+            model: tetonic_inference::DEFAULT_MODEL.to_string(),
             // Raised from 12: the no-progress guard in `turn` now stops stuck
             // loops early, so a higher cap helps genuinely multi-step work
             // (multi-file edits, refactors) finish without burning out.

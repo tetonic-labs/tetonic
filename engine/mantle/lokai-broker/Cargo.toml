@@ -12,10 +12,10 @@ description = "ComputeBroker and hierarchical admission control (M6-1)"
 # Does not open sockets; remote work goes through lokai-inference / fabric-client.
 [dependencies]
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
-lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
+lokai-inference = { package = "tetonic-inference", path = "../../atmos/tetonic-inference" }
+lokai-fabric-protocol = { package = "tetonic-fabric-protocol", path = "../../atmos/tetonic-fabric-protocol" }
 lokai-run = { path = "../../mantle/lokai-run" }
-lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 async-trait.workspace = true
 chrono = { workspace = true, features = ["serde"] }

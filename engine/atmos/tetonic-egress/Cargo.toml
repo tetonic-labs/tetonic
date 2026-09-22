@@ -1,0 +1,27 @@
+[package]
+name = "tetonic-egress"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+# IMPORTANT (Charter Right 1 — sanctuary): this is the ONLY crate permitted to
+# depend on an HTTP/socket client. Every outbound byte in the daemon flows
+# through here, default-deny. See docs/implementation/contracts/egress-guard-v1.md.
+[lib]
+name = "tetonic_egress"
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+reqwest = { workspace = true }
+url = { workspace = true }
+chrono = { workspace = true }
+tracing = { workspace = true }
+futures-util = { workspace = true }
+async-stream = { workspace = true }
+tokio = { workspace = true, features = ["rt", "net", "macros", "io-util"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+rustls-pki-types = "1"
+x509-parser = "0.16"

@@ -11,8 +11,8 @@ name = "tetonic_runtime"
 [dependencies]
 tetonic-core = { path = "../tetonic-core" }
 tetonic-domain = { path = "../tetonic-domain" }
-lokai-inference = { path = "../../atmos/lokai-inference" }
-lokai-memory = { path = "../../strata/lokai-memory" }
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-memory = { path = "../../strata/tetonic-memory" }
 tetonic-policy = { path = "../tetonic-policy" }
 async-trait = { workspace = true }
 thiserror = { workspace = true }
@@ -22,9 +22,9 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-lokai-context = { path = "../../strata/lokai-context" }
-lokai-artifact = { version = "0.0.0", path = "../../strata/lokai-artifact" }
-lokai-egress = { path = "../../atmos/lokai-egress" }
+tetonic-context = { path = "../../strata/tetonic-context" }
+tetonic-artifact = { version = "0.0.0", path = "../../strata/tetonic-artifact" }
+tetonic-egress = { path = "../../atmos/tetonic-egress" }
 lokai-tools = { path = "../../litho/lokai-tools" }
 tetonic-transaction = { path = "../tetonic-transaction" }
 tempfile = "3"

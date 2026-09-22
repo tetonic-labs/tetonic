@@ -23,7 +23,7 @@ ed25519-dalek = { version = "2", features = ["zeroize", "rand_core"] }
 rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
 tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
 rustls-pki-types = "1"
-lokai-egress = { path = "../../atmos/lokai-egress" }
+lokai-egress = { package = "tetonic-egress", path = "../../atmos/tetonic-egress" }
 
 [dev-dependencies]
 tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }

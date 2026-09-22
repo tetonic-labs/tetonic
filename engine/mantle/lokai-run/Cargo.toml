@@ -7,13 +7,13 @@ publish = false
 description = "Durable run supervisor and task state machine (M3-1)"
 
 [dependencies]
-lokai-artifact = { path = "../../strata/lokai-artifact" }
+lokai-artifact = { package = "tetonic-artifact", path = "../../strata/tetonic-artifact" }
 lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
 lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
 lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
 async-trait = { workspace = true }
 lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
-lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-memory = { package = "tetonic-memory", path = "../../strata/tetonic-memory" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }

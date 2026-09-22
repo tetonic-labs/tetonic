@@ -1,5 +1,5 @@
-use lokai_inference::GenUsage;
 use serde_json::Value;
+use tetonic_inference::GenUsage;
 
 use crate::context::ContextReport;
 
