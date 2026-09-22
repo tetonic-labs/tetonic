@@ -247,26 +247,54 @@ fn revalidate_precondition(root: &Path, entry: &JournalOperation) -> Result<(), 
         }]));
     }
     let abs = resolve_safe(root, &entry.operation.path)?;
-    if abs.is_symlink() {
-        let canon = std::fs::canonicalize(&abs).map_err(|e| TransactionError::Io(e.to_string()))?;
-        if !canon.starts_with(root) {
-            return Err(TransactionError::Conflict(vec![WorkspaceConflict {
-                path: entry.operation.path.clone(),
-                expected: ExpectedState {
-                    digest: entry.expected_digest.clone(),
-                    exists: true,
-                    mode,
-                },
-                actual: ActualState {
-                    digest: digest_file(&abs).ok(),
-                    exists: true,
-                    mode,
-                },
-                conflict_kind: ConflictKind::SymlinkRetargeted,
-            }]));
-        }
+    if abs.is_symlink() && symlink_target_escapes_workspace(root, &abs) {
+        return Err(TransactionError::Conflict(vec![WorkspaceConflict {
+            path: entry.operation.path.clone(),
+            expected: ExpectedState {
+                digest: entry.expected_digest.clone(),
+                exists: true,
+                mode,
+            },
+            actual: ActualState {
+                digest: digest_file(&abs).ok(),
+                exists: true,
+                mode,
+            },
+            conflict_kind: ConflictKind::SymlinkRetargeted,
+        }]));
     }
     Ok(())
+}
+
+fn symlink_target_escapes_workspace(root: &Path, abs: &Path) -> bool {
+    if let Ok(canon) = std::fs::canonicalize(abs) {
+        !canon.starts_with(root)
+    } else if let Ok(target) = std::fs::read_link(abs) {
+        let mut depth: isize = 0;
+        if let Ok(rel_to_root) = abs.parent().unwrap_or(root).strip_prefix(root) {
+            depth = rel_to_root.components().count() as isize;
+        }
+        for comp in target.components() {
+            match comp {
+                std::path::Component::ParentDir => {
+                    depth -= 1;
+                    if depth < 0 {
+                        return true;
+                    }
+                }
+                std::path::Component::Normal(_) => {
+                    depth += 1;
+                }
+                std::path::Component::RootDir | std::path::Component::Prefix(_) => {
+                    return true;
+                }
+                _ => {}
+            }
+        }
+        false
+    } else {
+        true
+    }
 }
 
 /// Resolve a durable intent against the actual filesystem before rollback.
@@ -454,6 +482,24 @@ pub fn detect_conflicts(
     let mut conflicts = Vec::new();
     for op in sets.writes.values() {
         let (exists, digest, mode) = path_state(root, &op.path)?;
+        if let Ok(abs) = resolve_safe(root, &op.path) {
+            if abs.is_symlink() && symlink_target_escapes_workspace(root, &abs) {
+                conflicts.push(WorkspaceConflict {
+                    path: op.path.clone(),
+                    expected: ExpectedState {
+                        digest: op.base_digest.clone(),
+                        exists: true,
+                        mode,
+                    },
+                    actual: ActualState {
+                        digest: digest_file(&abs).ok(),
+                        exists: true,
+                        mode,
+                    },
+                    conflict_kind: ConflictKind::SymlinkRetargeted,
+                });
+            }
+        }
         if let Some(base_d) = op
             .base_digest
             .as_ref()

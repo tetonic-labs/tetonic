@@ -420,15 +420,19 @@ fn concurrent_commit_threads() {
     let service = Arc::new(svc(&root));
     let svc1 = service.clone();
     let svc2 = service.clone();
+    let (tx, rx) = std::sync::mpsc::channel();
     let t1 = thread::spawn(move || {
         let mut txn = svc1.begin().unwrap();
         txn.stage_write_file("a.txt", "from1", false).unwrap();
-        txn.commit("t1", DataClass::RepositorySource)
+        let res = txn.commit("t1", DataClass::RepositorySource);
+        let _ = tx.send(());
+        thread::sleep(std::time::Duration::from_millis(150));
+        res
     });
     let t2 = thread::spawn(move || {
-        thread::sleep(std::time::Duration::from_millis(20));
         let mut txn = svc2.begin().unwrap();
         txn.stage_write_file("b.txt", "from2", false).unwrap();
+        let _ = rx.recv();
         txn.commit("t2", DataClass::RepositorySource)
     });
     let r1 = t1.join().unwrap();

@@ -38,9 +38,11 @@ fn refuse_symlink_chain(root: &Path, path: &Path) -> Result<(), TransactionError
         .strip_prefix(root)
         .map_err(|_| TransactionError::OutsideWorkspace(path.display().to_string()))?;
     let mut current = root.to_path_buf();
-    for comp in rel.components() {
+    let components: Vec<_> = rel.components().collect();
+    for (i, comp) in components.iter().enumerate() {
+        let is_last = i + 1 == components.len();
         current.push(comp);
-        if is_symlink_or_reparse(&current) {
+        if !is_last && is_symlink_or_reparse(&current) {
             return Err(TransactionError::OutsideWorkspace(
                 path.display().to_string(),
             ));
@@ -93,12 +95,14 @@ pub fn resolve_under_root(root: &Path, rel: &str) -> Result<PathBuf, Transaction
         return Err(TransactionError::OutsideWorkspace(rel.to_string()));
     }
     let mut current = root.to_path_buf();
-    for comp in Path::new(rel).components() {
+    let components: Vec<_> = Path::new(rel).components().collect();
+    for (i, comp) in components.iter().enumerate() {
+        let is_last = i + 1 == components.len();
         match comp {
             Component::CurDir => {}
             Component::Normal(name) => {
                 current.push(name);
-                if is_symlink_or_reparse(&current) {
+                if !is_last && is_symlink_or_reparse(&current) {
                     return Err(TransactionError::OutsideWorkspace(rel.to_string()));
                 }
             }

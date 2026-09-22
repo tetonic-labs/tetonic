@@ -112,17 +112,28 @@ impl StagingArea {
             )));
         }
         let abs = resolve_under_root(root, &rel.0)?;
-        let base = if base_digest.is_none()
-            && abs.is_file()
-            && !crate::fs_ops::is_symlink_or_reparse(&abs)
-        {
-            Some(digest_file(&abs)?)
+        let base = if base_digest.is_none() {
+            let meta = std::fs::symlink_metadata(&abs);
+            if let Ok(meta) = meta {
+                if meta.is_symlink() || crate::fs_ops::is_symlink_or_reparse(&abs) {
+                    let target_str = std::fs::read_link(&abs)
+                        .map(|t| t.to_string_lossy().to_string())
+                        .unwrap_or_default();
+                    Some(digest_bytes(target_str.as_bytes()))
+                } else if meta.is_file() {
+                    Some(digest_file(&abs)?)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
         } else {
             base_digest
         };
         let content_path = self.store_content(rel, content)?;
         let new_digest = digest_bytes(content);
-        let kind = if abs.exists() {
+        let kind = if std::fs::symlink_metadata(&abs).is_ok() {
             StagedOperationKind::Replace
         } else {
             StagedOperationKind::Create
