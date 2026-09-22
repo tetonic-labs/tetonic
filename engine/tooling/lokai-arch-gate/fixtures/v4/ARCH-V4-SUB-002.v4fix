@@ -1,0 +1,4 @@
+rule: ARCH-V4-SUB-002
+establishing: SUB-03
+status: production-failing detector live
+kind: coding corpus candidate

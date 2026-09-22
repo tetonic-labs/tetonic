@@ -1,0 +1,33 @@
+[package]
+name = "lokaid"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lokaid"
+path = "src/main.rs"
+
+# The daemon the editor spawns. It owns the request/dispatch loop and wires the
+# engine (egress guard, Ollama, tools, agent, store) behind the stdio JSON-RPC
+# contract defined in `lokai-rpc`. Privacy: the contract travels over a pipe,
+# never a socket.
+[dependencies]
+lokai-rpc = { path = "../../atmos/lokai-rpc" }
+lokai-app = { path = "../../litho/lokai-app" }
+async-trait = { workspace = true }
+regex = { workspace = true }
+uuid = { workspace = true }
+tokio = { workspace = true }
+anyhow = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+directories = { workspace = true }
+chrono = { workspace = true }
+subtle = "2"
+
+[dev-dependencies]
+async-trait = { workspace = true }
+chrono = { workspace = true }

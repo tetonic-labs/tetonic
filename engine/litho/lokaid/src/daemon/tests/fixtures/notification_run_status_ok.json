@@ -1,0 +1,10 @@
+{
+  "jsonrpc": "2.0",
+  "method": "event/run_status",
+  "params": {
+    "session_id": "s_golden_001",
+    "agent_id": "a0",
+    "seq": 3,
+    "status": "ok"
+  }
+}

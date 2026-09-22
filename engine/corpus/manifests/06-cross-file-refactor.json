@@ -1,0 +1,86 @@
+{
+  "scenario_id": "06-cross-file-refactor",
+  "scenario_version": "1.1.0",
+  "mode": "deterministic",
+  "repository_snapshot_id": "snap-06",
+  "git_commit": "abcdef",
+  "is_dirty_fixture": false,
+  "task_prompt": "Rename the User struct to Account and update the references in src/models.rs and src/api.rs.",
+  "task_prompt_digest": "sha256:7366f519a8b5e4966d4369be80514a28f4b3f0aadd51b29eeed86c83ed343fd1",
+  "system_prompt_version": "1.0",
+  "system_prompt_digest": "sha256:efgh",
+  "tool_schema_version": "1.0",
+  "tool_schema_digest": "sha256:ijkl",
+  "model_name": "qwen",
+  "model_digest": "sha256:mnop",
+  "quantization": "int8",
+  "tokenizer_digest": "sha256:qrst",
+  "sampling_parameters": {
+    "temperature": 0.0,
+    "seed": 42,
+    "context_window_size": 4096,
+    "context_reserve": 1024,
+    "compaction_settings": null
+  },
+  "feature_flags": [],
+  "orchestration_mode": "local",
+  "limits": {
+    "max_turns": 10,
+    "max_attempts": 1,
+    "max_tokens": 16000,
+    "max_wall_clock_duration_secs": 120
+  },
+  "environment": {
+    "os": "linux",
+    "cpu": "x86_64",
+    "ram_gb": 16,
+    "gpu": null,
+    "vram_gb": null,
+    "lokai_commit": "latest",
+    "build_profile": "release"
+  },
+  "expected_pass_threshold": 1.0,
+  "graders": [
+    {
+      "type": "ProtectedFiles",
+      "sha256": {
+        "Cargo.toml": "sha256:1720269a8e1b5d1ece937860972d25bb92c476c5441302d382b2ed7ba2e85fbc",
+        "src/lib.rs": "sha256:f44e452d7d0390ec4a38c3fb47a20109dc6611a83b105774af2f1baecbe99764",
+        "tests/acceptance.rs": "sha256:b3951f850dad4d6f1f62dc59e44e9f91a9c07046040f94b8946b08f5583152ab"
+      }
+    },
+    {
+      "type": "FileBoundary",
+      "allowed_paths": [
+        "src/models.rs",
+        "src/api.rs"
+      ],
+      "prohibited_paths": []
+    },
+    {
+      "type": "TestExecution",
+      "command": "cargo test --test acceptance",
+      "require_success": true,
+      "fail_if_skipped": true,
+      "expected_pass_count": 1
+    }
+  ],
+  "source_and_license_metadata": "Synthetic test repository",
+  "setup_procedure": "Extract fixture using setup.py",
+  "cleanup_procedure": "Reset using reset.py",
+  "expected_behavioral_outcome": "Agent completes the task without regressions.",
+  "security_classification": "internal",
+  "expected_redactions": [],
+  "required_capabilities": [],
+  "known_nondeterministic_elements": [],
+  "patch_correctness": {
+    "files_may_change": null,
+    "files_must_not_change": null,
+    "required_functional_behavior": "Passes graders",
+    "required_tests": null,
+    "formatting_constraints": null,
+    "prohibited_shortcuts": null,
+    "expected_handling_pre_existing_failures": null,
+    "partial_credit_allowed": false
+  }
+}

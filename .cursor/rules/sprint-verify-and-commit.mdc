@@ -1,0 +1,25 @@
+---
+description: Verify each sprint with tests, then commit once green - one commit per sprint chunk
+alwaysApply: true
+---
+
+# Sprint Verify and Commit
+
+When you finish a sprint or feature chunk, verify it and ensure git working state is clean before handoff.
+
+## Order of Operations
+
+1. **Test**: Run the narrowest command that proves correctness, then widen if needed:
+   - Engineering gate: `cargo run -p lokai-arch-gate -- verify package`
+   - Focused tests: `cargo test -p <package>`
+   - Full workspace tests: `cargo test --workspace` (from `engine/`)
+2. **Document**: Update relevant documentation per `sprint-documentation.mdc`.
+3. **Commit**: Clean commit once tests pass and documentation is aligned.
+
+## Commit Rules
+
+- **One sprint or feature chunk per commit**: Do not batch unrelated tasks; do not leave verified work uncommitted.
+- **When not to commit**: Mid-sprint WIP, failing tests, or when explicit user instruction requests holding.
+- **Author integrity**: Commit messages should be concise, descriptive, and accurately describe the changes made.
+- **Exclude from commits**: `engine/target/`, log files, `__pycache__/`, `.lokai/`, and local test artifacts.
+- After commit: Run `git status` to confirm a clean tree.

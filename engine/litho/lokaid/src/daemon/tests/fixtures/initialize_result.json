@@ -1,0 +1,13 @@
+{
+  "protocol_version": 1,
+  "daemon_info": {
+    "name": "lokaid",
+    "version": "0.0.0"
+  },
+  "capabilities": {
+    "streaming": true,
+    "approvals": true,
+    "tools": ["list_dir", "read_file"],
+    "orchestration_tools": ["spawn_agent"]
+  }
+}

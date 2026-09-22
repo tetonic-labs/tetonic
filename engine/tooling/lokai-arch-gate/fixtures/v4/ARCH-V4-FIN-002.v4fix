@@ -1,0 +1,4 @@
+rule: ARCH-V4-FIN-002
+establishing: WORK-FIN-02
+status: planted mutant; not scanned as production
+kind: coding corpus candidate

@@ -1,0 +1,9 @@
+{
+  "protocol_version": 1,
+  "workspace_root": "/tmp/lokai-workspace",
+  "rpc_token": "test-token-placeholder",
+  "client_info": {
+    "name": "golden-test-editor",
+    "version": "1.0.0"
+  }
+}

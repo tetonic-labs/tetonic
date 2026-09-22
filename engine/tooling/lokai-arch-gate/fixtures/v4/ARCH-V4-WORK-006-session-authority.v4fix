@@ -1,0 +1,15 @@
+rule: ARCH-V4-WORK-006
+establishing: WORK-06
+status: planted mutant; not scanned as production; detector is test-only
+kind: session-authority inventory only
+note: find_parent_active inspecting LiveSession.current_run_id() or cancel_session directly calling supervisor.handle with CancelRun. Not ESTABLISHED. GATE-001 not satisfied.
+
+fn find_parent_active(session_id: &str, live: &LiveSession) -> Option<ActiveTurnRun> {
+    let run_id = live.current_run_id()?;
+    let root = live.root_task_id()?;
+    None
+}
+
+async fn cancel_session(&self, cmd: CancelRunCommand) -> Result<(), AppError> {
+    self.supervisor.handle(lokai_domain::RunCommand::CancelRun(cmd)).await
+}

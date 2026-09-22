@@ -1,0 +1,36 @@
+---
+description: Require evidence that acceptance criteria are met before declaring work complete
+alwaysApply: true
+---
+
+# Acceptance Criteria Before Completion
+
+Never mark a task, sprint, milestone, or feature **Complete/Done** merely because:
+
+- Types, helpers, interfaces, or placeholder APIs exist
+- Unit tests pass without production call sites
+- Code compiles or the workspace test suite is green
+- Future callers are expected to use an enforcement helper
+- Documentation describes behavior that runtime wiring does not enforce
+
+Before declaring completion:
+
+1. Read the authoritative acceptance criteria and required tests.
+2. Map every criterion to concrete production behavior and evidence.
+3. Verify safety/security invariants at every existing runtime boundary.
+4. Confirm new enforcement APIs have production callers where required.
+5. Check negative paths, retries, failover, stale state, and bypass paths.
+6. Run the narrowest relevant tests, then the required wider verification.
+7. Update status documentation to match actual behavior.
+
+If any criterion is missing, test-only, scaffolded, deferred, blocked by a later
+sprint, or not verifiable, report the work as **Partial**. State exactly:
+
+- Which criteria are met
+- Which criteria remain unmet
+- Whether missing work is runtime wiring, testing, documentation, or dependency
+- What must happen before the status can become Complete
+
+Do not silently reinterpret or move an acceptance criterion to a later sprint.
+If the criterion is obsolete or belongs elsewhere, propose that scope change to
+the user; until approved and documented, the current work remains Partial.

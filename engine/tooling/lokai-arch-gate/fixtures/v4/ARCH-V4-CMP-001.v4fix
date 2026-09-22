@@ -1,0 +1,5 @@
+rule: ARCH-V4-CMP-001
+establishing: WORK-FIN-02
+status: production-failing detector live
+kind: composition inventory only
+note: Fabric cannot construct or submit CompleteAttempt and has no public remote-patch commit door. Not ESTABLISHED. GATE-01 reconciles.

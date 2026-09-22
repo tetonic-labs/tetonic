@@ -1,0 +1,34 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+bin/
+target/
+*.exe
+*.dll
+*.so
+*.dylib
+*.test
+
+# Local data / model vault (re-downloadable via Ollama)
+/models/
+*.db
+*.sqlite
+
+# Local workspace / artifact store (runtime; never commit)
+.lokai/
+**/.lokai/
+
+# Logs & OS cruft
+*.log
+.DS_Store
+Thumbs.db
+.vite/
+
+# Python bench harness caches + local result dumps
+__pycache__/
+*.pyc
+engine/bench/results_*.json
+engine/bench/results_*.log

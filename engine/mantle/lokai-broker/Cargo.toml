@@ -1,0 +1,32 @@
+[package]
+name = "lokai-broker"
+version = "0.0.0"
+edition = { workspace = true }
+license = { workspace = true }
+repository = { workspace = true }
+rust-version = { workspace = true }
+publish = false
+description = "ComputeBroker and hierarchical admission control (M6-1)"
+
+# Application-facing compute entry: admission, reservation, dispatch adapters.
+# Does not open sockets; remote work goes through lokai-inference / fabric-client.
+[dependencies]
+lokai-domain = { path = "../../core/lokai-domain" }
+lokai-inference = { path = "../../atmos/lokai-inference" }
+lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
+lokai-run = { path = "../../mantle/lokai-run" }
+lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-telemetry = { path = "../../core/lokai-telemetry" }
+async-trait.workspace = true
+chrono = { workspace = true, features = ["serde"] }
+serde = { workspace = true, features = ["derive"] }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["rt", "sync", "time", "macros"] }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+lokai-secrets = { path = "../../core/lokai-secrets" }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros", "time"] }

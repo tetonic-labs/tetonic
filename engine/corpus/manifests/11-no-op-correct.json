@@ -1,0 +1,68 @@
+{
+  "scenario_id": "11-no-op-correct",
+  "scenario_version": "1.0.0",
+  "mode": "deterministic",
+  "repository_snapshot_id": "snap-11",
+  "git_commit": "abcdef",
+  "is_dirty_fixture": false,
+  "task_prompt": "Are there any memory leaks in main.rs?",
+  "task_prompt_digest": "sha256:abcd",
+  "system_prompt_version": "1.0",
+  "system_prompt_digest": "sha256:efgh",
+  "tool_schema_version": "1.0",
+  "tool_schema_digest": "sha256:ijkl",
+  "model_name": "qwen",
+  "model_digest": "sha256:mnop",
+  "quantization": "int8",
+  "tokenizer_digest": "sha256:qrst",
+  "sampling_parameters": {
+    "temperature": 0.0,
+    "seed": 42,
+    "context_window_size": 4096,
+    "context_reserve": 1024,
+    "compaction_settings": null
+  },
+  "feature_flags": [],
+  "orchestration_mode": "local",
+  "limits": {
+    "max_turns": 5,
+    "max_attempts": 1,
+    "max_tokens": 1000,
+    "max_wall_clock_duration_secs": 60
+  },
+  "environment": {
+    "os": "linux",
+    "cpu": "x86_64",
+    "ram_gb": 16,
+    "gpu": null,
+    "vram_gb": null,
+    "lokai_commit": "latest",
+    "build_profile": "release"
+  },
+  "expected_pass_threshold": 1.0,
+  "graders": [
+    {
+      "type": "FileBoundary",
+      "allowed_paths": [],
+      "prohibited_paths": []
+    }
+  ],
+  "source_and_license_metadata": "Synthetic test repository",
+  "setup_procedure": "Extract fixture using setup.py",
+  "cleanup_procedure": "Reset using reset.py",
+  "expected_behavioral_outcome": "Agent completes the task without regressions.",
+  "security_classification": "internal",
+  "expected_redactions": [],
+  "required_capabilities": [],
+  "known_nondeterministic_elements": [],
+  "patch_correctness": {
+    "files_may_change": null,
+    "files_must_not_change": null,
+    "required_functional_behavior": "Passes graders",
+    "required_tests": null,
+    "formatting_constraints": null,
+    "prohibited_shortcuts": null,
+    "expected_handling_pre_existing_failures": null,
+    "partial_credit_allowed": false
+  }
+}

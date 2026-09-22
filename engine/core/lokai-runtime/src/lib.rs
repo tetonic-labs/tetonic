@@ -1,0 +1,22 @@
+//! Mandatory production runtime assembly (Architecture Consolidation II).
+
+pub mod action_broker;
+pub mod approval;
+mod assembly;
+mod audit;
+mod build;
+mod capability_store;
+mod executor;
+mod policy;
+
+pub use action_broker::RuntimeActionBroker;
+pub use approval::{ApprovalKind, ProductionApproval};
+pub use assembly::{
+    wire_kernel_capability_helpers, AgentAssemblyParts, AssemblyError, AssemblyMode, EngineRuntime,
+    TestRuntime,
+};
+pub use audit::NullAudit;
+pub use build::{base_agent_config, lsp_enabled_for_workspace, AgentConfigInput};
+pub use capability_store::InMemoryCapabilityStore;
+pub use executor::LocalAgentAttemptExecutor;
+pub use policy::load_policy_engine;

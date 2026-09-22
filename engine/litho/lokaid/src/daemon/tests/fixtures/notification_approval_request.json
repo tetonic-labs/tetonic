@@ -1,0 +1,13 @@
+{
+  "jsonrpc": "2.0",
+  "method": "event/approval_request",
+  "params": {
+    "session_id": "s_golden_001",
+    "agent_id": "a0",
+    "seq": 4,
+    "approval_id": "ap_1",
+    "kind": "tool",
+    "detail": "run shell command",
+    "tool_call_id": "tc_1"
+  }
+}

@@ -1,0 +1,45 @@
+[package]
+name = "lokai-node"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+# Worker ingress (fabric listener) — N0.2. Only this crate binds fabric ports.
+[dependencies]
+lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-enroll = { path = "../../mantle/lokai-enroll" }
+lokai-inference = { path = "../../atmos/lokai-inference" }
+lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-egress = { path = "../../atmos/lokai-egress" }
+lokai-capacity = { path = "../../mantle/lokai-capacity" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "sync"] }
+tracing = { workspace = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rcgen = "0.13"
+rustls-pki-types = "1"
+x509-parser = "0.16"
+ed25519-dalek = { version = "2", features = ["zeroize", "pkcs8", "rand_core"] }
+rand = "0.8"
+hex = "0.4"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+http = "1"
+futures-util = { workspace = true }
+lokai-fabric-client = { path = "../../atmos/lokai-fabric-client" }
+lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
+lokai-domain = { path = "../../core/lokai-domain" }
+lokai-sandbox = { path = "../../core/lokai-sandbox" }
+
+[dev-dependencies]
+rusqlite = { workspace = true }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+lokai-enroll = { path = "../../mantle/lokai-enroll" }
+async-trait = { workspace = true }

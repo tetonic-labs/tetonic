@@ -1,0 +1,47 @@
+[package]
+name = "lokai-eval"
+version = "0.1.0"
+edition = "2021"
+description = "Lokai Evaluation Harness for deterministic and statistical evaluation."
+publish = false
+
+[[bin]]
+name = "lokai-eval"
+path = "src/main.rs"
+
+[lib]
+name = "lokai_eval"
+path = "src/lib.rs"
+
+[dependencies]
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+chrono = { workspace = true }
+url = { workspace = true }
+uuid = { version = "1.10", features = ["v4"] }
+async-trait = { workspace = true }
+lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-app = { path = "../../litho/lokai-app" }
+lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-policy = { path = "../../core/lokai-policy" }
+lokai-runtime = { path = "../../core/lokai-runtime" }
+lokai-broker = { path = "../../mantle/lokai-broker" }
+lokai-inference = { path = "../../atmos/lokai-inference" }
+lokai-sandbox = { path = "../../core/lokai-sandbox" }
+lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-domain = { path = "../../core/lokai-domain" }
+lokai-core = { path = "../../core/lokai-core" }
+lokai-orchestrator = { path = "../../mantle/lokai-orchestrator" }
+lokai-artifact = { path = "../../strata/lokai-artifact" }
+sha2 = "0.10"
+hex = "0.4"
+tempfile = "3"
+
+[dev-dependencies]
+lokai-artifact = { path = "../../strata/lokai-artifact" }

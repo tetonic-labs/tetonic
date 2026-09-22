@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "id": "profile_example_p40_coder",
+  "label": "P40 floor — coder (example; replace fingerprint after import)",
+  "created_at": "2026-06-28T12:00:00Z",
+  "node_id": "local",
+  "role": "coder",
+  "source": "import",
+  "hardware": {
+    "fingerprint": "sha256:REPLACE_AFTER_DETECT",
+    "gpus": [
+      {
+        "name": "Tesla P40",
+        "uuid": "GPU-00000000-0000-0000-0000-000000000000",
+        "bus_id": "00000000:03:00.0",
+        "vram_total_mb": 24576,
+        "role": "compute"
+      },
+      {
+        "name": "GeForce GTX 970",
+        "vram_total_mb": 4096,
+        "role": "display"
+      }
+    ],
+    "cpu_cores": 8,
+    "ram_mb": 32768,
+    "os": "windows-x86_64",
+    "ollama_version": null
+  },
+  "recipe": {
+    "base_model": "qwen3.6:latest",
+    "estate_model": "qwen3.6-estate",
+    "num_ctx": 4096,
+    "num_gpu": 999,
+    "keep_alive": "30m",
+    "env_hints": [
+      {
+        "name": "CUDA_VISIBLE_DEVICES",
+        "value": "0",
+        "apply": false,
+        "rationale": "Prefer compute GPU (P40) over display adapter"
+      }
+    ]
+  },
+  "observed": {
+    "gpu_processor_pct": 85.0,
+    "processor_split": "15%/85%",
+    "vram_used_mb": 18432,
+    "resident_model": "qwen3.6-estate",
+    "load_wall_s": 12.0,
+    "measured_at": "2026-06-28T12:05:00Z"
+  },
+  "metrics": {
+    "raw_short_wall_s": 8.0,
+    "raw_short_tps": 42.0,
+    "tool_payload_prefill_tps": 0.0,
+    "raw_long_prefill_tps": 0.0
+  },
+  "gates_passed": true
+}

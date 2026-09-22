@@ -1,0 +1,4 @@
+rule: ARCH-V4-IFACE-001
+establishing: PORTAL-01
+status: production-failing detector live
+kind: coding corpus candidate

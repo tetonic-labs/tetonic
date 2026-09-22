@@ -1,0 +1,62 @@
+[workspace]
+resolver = "2"
+members = [
+    "core/*",
+    "mantle/*",
+    "strata/*",
+    "litho/*",
+    "atmos/*",
+    "tooling/*",
+]
+
+[workspace.package]
+edition = "2021"
+license = "BUSL-1.1"
+repository = "https://github.com/tetonic-labs/tetonic"
+rust-version = "1.80"
+
+[workspace.dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+thiserror = "2"
+async-trait = "0.1"
+schemars = "0.8"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = "0.3"
+async-stream = "0.3"
+clap = { version = "4", features = ["derive"] }
+ignore = "0.4"
+globset = "0.4"
+regex = "1"
+uuid = { version = "1", features = ["v4"] }
+chrono = { version = "0.4", default-features = false, features = ["clock", "std"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+url = "2"
+rusqlite = { version = "0.32", features = ["bundled"] }
+directories = "5"
+zstd = "0.13"
+# Real per-model tokenizer (HF fast tokenizers). No `http` feature: tokenizer
+# files are loaded from local disk only — never downloaded (local-only).
+tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
+
+# Lean release profile: small, fast, static-friendly binary.
+# `panic = "abort"` is paired with `lokaid --supervise` (H3-3): abort kills
+# in-flight Infer/shell; the supervisor restarts and rehydrates from lokai.db.
+# Do not switch to unwind to "save" live sessions in-process.
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+# Speed-tuned profile for benchmarking / measuring the cost of the size-optimized
+# release defaults. Same correctness, opt-level 3.
+[profile.perf]
+inherits = "release"
+opt-level = 3
+lto = "thin"
+codegen-units = 16

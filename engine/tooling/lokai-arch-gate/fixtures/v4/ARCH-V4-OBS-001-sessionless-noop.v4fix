@@ -1,0 +1,21 @@
+// Planted mutant fixture for DEL-V4-044 / ARCH-V4-OBS-001:
+// Sessionless execution no-op sink: execute_bound_attempt silently drops steps.
+
+impl DefaultRunService {
+    pub async fn start_identity_job_mutant(
+        &self,
+        attempt_id: AttemptId,
+        agent: &mut lokai_core::Agent,
+        conv: &mut lokai_core::Conversation,
+        invocation: lokai_domain::AgentInvocation,
+    ) -> lokai_domain::CandidateOutcome {
+        self.execute_bound_attempt(
+            attempt_id,
+            agent,
+            conv,
+            invocation,
+            &mut |_| {},
+        )
+        .await
+    }
+}

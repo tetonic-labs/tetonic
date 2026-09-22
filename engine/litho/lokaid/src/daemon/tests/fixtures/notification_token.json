@@ -1,0 +1,11 @@
+{
+  "jsonrpc": "2.0",
+  "method": "event/token",
+  "params": {
+    "session_id": "s_golden_001",
+    "agent_id": "a0",
+    "seq": 2,
+    "delta": "Hello",
+    "role": "assistant"
+  }
+}

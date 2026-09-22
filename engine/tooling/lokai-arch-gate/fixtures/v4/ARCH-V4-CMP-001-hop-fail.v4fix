@@ -1,0 +1,30 @@
+rule: ARCH-V4-CMP-001
+establishing: CMP-02
+status: planted mutant; detector is test-only
+kind: hop-fail inventory only
+note: Unclassified fail_hop that submits FailAttempt without hop_run_classified or hop_job_spec_must_be_none. Not ESTABLISHED. GATE-001 not satisfied.
+
+pub async fn fail_hop(
+    supervisor: &dyn RunSupervisor,
+    run_id: RunId,
+    attempt_id: AttemptId,
+    expected_sequence: u64,
+    reason: String,
+) -> Result<u64, RunSupervisorError> {
+    let result = supervisor
+        .handle(RunCommand::FailAttempt(FailAttempt {
+            envelope: command_envelope(
+                format!("hop_fail_{}", attempt_id.0),
+                Some(expected_sequence),
+                "lokai-run",
+            ),
+            run_id,
+            attempt_id,
+            failure_class: FailureClass::WorkerUnavailable,
+            reason,
+            lease_proof: None,
+            timeout_kind: None,
+        }))
+        .await?;
+    Ok(result.sequence)
+}

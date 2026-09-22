@@ -1,0 +1,85 @@
+{
+  "scenario_id": "02-large-monorepo",
+  "scenario_version": "1.1.0",
+  "mode": "deterministic",
+  "repository_snapshot_id": "snap-02",
+  "git_commit": "abcdef",
+  "is_dirty_fixture": false,
+  "task_prompt": "In this small synthetic workspace, fix core/src/lib.rs so format_log(level, message) returns [LEVEL] message using the supplied level and message exactly, including empty strings and Unicode. Do not change the acceptance tests or workspace configuration.",
+  "task_prompt_digest": "sha256:2d9a27a986249549a23a54d97f1dd747663d3fa32b75879f0371e4a38485a8ec",
+  "system_prompt_version": "1.0",
+  "system_prompt_digest": "sha256:efgh",
+  "tool_schema_version": "1.0",
+  "tool_schema_digest": "sha256:ijkl",
+  "model_name": "qwen",
+  "model_digest": "sha256:mnop",
+  "quantization": "int8",
+  "tokenizer_digest": "sha256:qrst",
+  "sampling_parameters": {
+    "temperature": 0.0,
+    "seed": 42,
+    "context_window_size": 4096,
+    "context_reserve": 1024,
+    "compaction_settings": null
+  },
+  "feature_flags": [],
+  "orchestration_mode": "local",
+  "limits": {
+    "max_turns": 15,
+    "max_attempts": 1,
+    "max_tokens": 8000,
+    "max_wall_clock_duration_secs": 300
+  },
+  "environment": {
+    "os": "linux",
+    "cpu": "x86_64",
+    "ram_gb": 16,
+    "gpu": null,
+    "vram_gb": null,
+    "lokai_commit": "latest",
+    "build_profile": "release"
+  },
+  "expected_pass_threshold": 1.0,
+  "graders": [
+    {
+      "type": "ProtectedFiles",
+      "sha256": {
+        "Cargo.toml": "sha256:1cc5429bcf865ccb6dae59771a773e2d20356f85dd0a0eb994326c38f783627a",
+        "core/Cargo.toml": "sha256:33a5dde6ee079fc0f9c0647bd21c5d4e0fbe809c08134ce39681a645d00bfb0d",
+        "core/tests/acceptance.rs": "sha256:628eb43fb98bdc994ee0493a6bbed5e6e5bac3f74d4f97503191ba53ae1cd79e"
+      }
+    },
+    {
+      "type": "FileBoundary",
+      "allowed_paths": [
+        "core/src/lib.rs"
+      ],
+      "prohibited_paths": []
+    },
+    {
+      "type": "TestExecution",
+      "command": "cargo test --workspace --test acceptance",
+      "require_success": true,
+      "fail_if_skipped": true,
+      "expected_pass_count": 3
+    }
+  ],
+  "source_and_license_metadata": "Synthetic test repository",
+  "setup_procedure": "Extract fixture using setup.py",
+  "cleanup_procedure": "Reset using reset.py",
+  "expected_behavioral_outcome": "Agent completes the task without regressions.",
+  "security_classification": "internal",
+  "expected_redactions": [],
+  "required_capabilities": [],
+  "known_nondeterministic_elements": [],
+  "patch_correctness": {
+    "files_may_change": null,
+    "files_must_not_change": null,
+    "required_functional_behavior": "Passes graders",
+    "required_tests": null,
+    "formatting_constraints": null,
+    "prohibited_shortcuts": null,
+    "expected_handling_pre_existing_failures": null,
+    "partial_credit_allowed": false
+  }
+}

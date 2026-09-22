@@ -1,0 +1,8 @@
+// Planted mutant fixture for DEL-V4-043 / ARCH-V4-IFACE-002:
+// Shared runtime singleton approval hook violation.
+
+impl EngineRuntime {
+    pub fn set_session_approval_hook(&self, hook: lokai_core::ApprovalHook) {
+        self.action_broker.set_approval_hook(hook);
+    }
+}

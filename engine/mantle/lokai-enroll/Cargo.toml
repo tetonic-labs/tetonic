@@ -1,0 +1,31 @@
+[package]
+name = "lokai-enroll"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+# Enrollment handshake (node-enrollment-v1). Worker binds an enrollment listener;
+# coordinator reaches it via a user-initiated ephemeral egress allow.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+chrono = { workspace = true, features = ["serde"] }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "time", "io-util"] }
+tracing = { workspace = true }
+base64 = "0.22"
+rand = "0.8"
+sha2 = "0.10"
+hmac = "0.12"
+subtle = "2"
+zeroize = "1"
+ed25519-dalek = { version = "2", features = ["zeroize", "rand_core"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rustls-pki-types = "1"
+lokai-egress = { path = "../../atmos/lokai-egress" }
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+reqwest = { workspace = true }
+lokai-node = { path = "../../mantle/lokai-node" }

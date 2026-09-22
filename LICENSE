@@ -1,0 +1,154 @@
+================================================================================
+  TETONIC SOFTWARE LICENSE AGREEMENT
+================================================================================
+
+Tetonic Labs LLC offers this software under a community and commercial model
+modeled on modern developer platforms (such as the Docker subscription model):
+free for individuals, educational use, open source, and small businesses, with
+a paid commercial subscription required for larger organizations.
+
+--------------------------------------------------------------------------------
+SUMMARY OF PERMITTED USE
+--------------------------------------------------------------------------------
+
+| User / Organization Type | Terms |
+|---|---|
+| **Personal Use** | **100% Free** for personal projects and hobbies. |
+| **Education & Non-Profit Academic** | **100% Free** for students, faculty, and academic research. |
+| **Open Source Contributors** | **100% Free** for non-commercial open source development. |
+| **Small Businesses & Startups** | **100% Free** for internal and commercial production use if your organization has: <br> (1) 10 or fewer software developers; AND <br> (2) Less than $2,000,000 USD in annual revenue / ARR. |
+| **Evaluation Period** | **Free 30-Day Trial** for any organization of any size to test, evaluate, and benchmark internally. |
+| **Large Organizations & Enterprises** | **Paid Commercial Subscription Required** for organizations with more than 10 developers OR $2,000,000+ USD in annual revenue/ARR after the 30-day evaluation period. |
+| **Cloud / Managed Service Providers** | **Restricted**: You may not offer the software as a commercial hosted service or cloud API to third parties without an agreement. |
+
+Commercial Licensing and Inquiries:
+    Contact: enterprise@tetonic.ai
+
+================================================================================
+  LICENSE TERMS AND CONDITIONS
+================================================================================
+
+1. DEFINITIONS
+
+   (a) "Licensor" means Tetonic Labs LLC.
+
+   (b) "Licensed Work" means the Tetonic software platform, the Lokai coding
+       assistant, the Mantle fleet orchestrator, and all source code, documentation,
+       APIs, and binaries provided in this repository.
+
+   (c) "Entity" means the individual or legal entity using the Licensed Work,
+       together with all Affiliates under common control as a consolidated whole.
+       "Affiliate" means any entity that directly or indirectly controls, is
+       controlled by, or is under common control with the user (where "control"
+       means 50% or more ownership or voting power).
+
+   (d) "Developer" means any employee, contractor, or consultant who writes,
+       edits, reviews, tests, or maintains software, code, prompts, or technical
+       infrastructure on behalf of the Entity.
+
+   (e) "Annual Revenue" means the total consolidated annual revenue, gross
+       receipts, or Annual Recurring Revenue (ARR) of the Entity and all Affiliates
+       in its most recent fiscal year.
+
+   (f) "Small Business" means an Entity that simultaneously satisfies both:
+       (1) It engages ten (10) or fewer total Developers across the entire
+           organization; AND
+       (2) Its Annual Revenue is less than two million U.S. dollars ($2,000,000 USD).
+
+   (g) "Commercial Subscription" means a valid, active commercial enterprise
+       subscription agreement executed between the Entity and Tetonic Labs LLC.
+
+
+2. GRANT OF LICENSE FOR PERMITTED FREE USES
+
+   Subject to the terms of this Agreement, Licensor grants you a non-exclusive,
+   worldwide, royalty-free license to copy, modify, distribute, display, and use
+   the Licensed Work for the following Permitted Free Uses:
+
+   (a) Personal Use: Use by an individual for personal, non-commercial purposes,
+       hobbies, and side projects.
+
+   (b) Educational Use: Use by students, teachers, and faculty at accredited,
+       non-profit academic institutions for educational instruction and non-commercial
+       academic research.
+
+   (c) Non-Commercial Open Source: Use for developing and maintaining non-commercial,
+       public open-source software projects.
+
+   (d) Small Business Use: Internal development, testing, and commercial production
+       use by a Small Business (10 or fewer developers and under $2M ARR).
+
+   (e) Evaluation Use: Internal testing and evaluation of the Licensed Work by an
+       Entity of any size for a temporary period not to exceed thirty (30) days,
+       for the sole purpose of evaluating whether to purchase a Commercial
+       Subscription.
+
+
+3. COMMERCIAL SUBSCRIPTION REQUIRED FOR ENTERPRISE USE
+
+   Any use of the Licensed Work by an Entity that is not a Small Business (i.e.,
+   any organization that employs or contracts more than ten (10) Developers OR
+   has Annual Revenue of two million U.S. dollars ($2,000,000 USD) or more)
+   requires a paid Commercial Subscription from Tetonic Labs LLC following the
+   expiration of the 30-day Evaluation period.
+
+   Thresholds apply to the Entity as a whole, including all Affiliates. Organizations
+   may not segment internal departments, divisions, or subsidiaries to claim Small
+   Business status.
+
+
+4. RESTRICTIONS
+
+   Except as expressly authorized under a Commercial Subscription, you shall not:
+
+   (a) Commercial Hosting: Provide the Licensed Work, or any substantially similar
+       service derived from it, as a hosted service, managed service, cloud platform,
+       software-as-a-service (SaaS), or commercial web API to third parties.
+
+   (b) Notice Removal: Remove, alter, or obscure any copyright, trademark, patent,
+       or attribution notices contained in the Licensed Work.
+
+   (c) Model Training: Use the Licensed Work, its prompts, system instructions,
+       or outputs to train, fine-tune, or distill competing commercial artificial
+       intelligence foundation models or coding assistants without an explicit
+       agreement.
+
+
+5. FOUR-YEAR OPEN SOURCE CONVERSION
+
+   Licensor commits to the long-term open-source availability of the software.
+   Four (4) years after the initial public release date of each specific version
+   of the Licensed Work, that version automatically converts to and is licensed
+   under the terms of the Apache License, Version 2.0.
+
+
+6. TERM, TERMINATION, AND CURE PERIOD
+
+   (a) This Agreement remains in effect until terminated.
+
+   (b) If an Entity uses the Licensed Work outside the scope of the Permitted Free
+       Uses without an active Commercial Subscription, Licensor may notify the
+       Entity in writing. The Entity shall have thirty (30) days from receipt of
+       such notice to cure the non-compliance by purchasing a Commercial Subscription
+       or ceasing use.
+
+   (c) If the non-compliance is not cured within the 30-day cure period, all rights
+       under this Agreement terminate automatically, and the Entity must cease all
+       use of the Licensed Work.
+
+
+7. INTELLECTUAL PROPERTY
+
+   All title, ownership rights, and intellectual property rights in and to the
+   Licensed Work remain with Tetonic Labs LLC. This Agreement does not grant you
+   any rights to Licensor's trademarks, service marks, or trade names.
+
+
+8. DISCLAIMER OF WARRANTIES
+
+   THE LICENSED WORK IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+   OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+   FITNESS FOR A PARTICULAR PURPOSE, TITLE, AND NON-INFRINGEMENT. IN NO EVENT
+   SHALL LICENSOR BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL,
+   CONSEQUENTIAL, OR EXEMPLARY DAMAGES ARISING OUT OF OR IN CONNECTION WITH THE
+   USE OR PERFORMANCE OF THE SOFTWARE.

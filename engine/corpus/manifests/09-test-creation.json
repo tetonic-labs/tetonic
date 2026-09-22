@@ -1,0 +1,88 @@
+{
+  "scenario_id": "09-test-creation",
+  "scenario_version": "1.1.0",
+  "mode": "deterministic",
+  "repository_snapshot_id": "snap-09",
+  "git_commit": "abcdef",
+  "is_dirty_fixture": false,
+  "task_prompt": "Write a Rust test in tests/divide_by_zero.rs proving that math::divide_numbers panics when its denominator is zero. Do not change the implementation or Cargo configuration.",
+  "task_prompt_digest": "sha256:1e8a19994eac06bdc9991437824cd67d022829b6617dad5065f4ba563d6c274e",
+  "system_prompt_version": "1.0",
+  "system_prompt_digest": "sha256:efgh",
+  "tool_schema_version": "1.0",
+  "tool_schema_digest": "sha256:ijkl",
+  "model_name": "qwen",
+  "model_digest": "sha256:mnop",
+  "quantization": "int8",
+  "tokenizer_digest": "sha256:qrst",
+  "sampling_parameters": {
+    "temperature": 0.0,
+    "seed": 42,
+    "context_window_size": 4096,
+    "context_reserve": 1024,
+    "compaction_settings": null
+  },
+  "feature_flags": [],
+  "orchestration_mode": "local",
+  "limits": {
+    "max_turns": 5,
+    "max_attempts": 1,
+    "max_tokens": 8000,
+    "max_wall_clock_duration_secs": 60
+  },
+  "environment": {
+    "os": "linux",
+    "cpu": "x86_64",
+    "ram_gb": 16,
+    "gpu": null,
+    "vram_gb": null,
+    "lokai_commit": "latest",
+    "build_profile": "release"
+  },
+  "expected_pass_threshold": 1.0,
+  "graders": [
+    {
+      "type": "ProtectedFiles",
+      "sha256": {
+        "Cargo.toml": "sha256:fefb3712d1fe32a91371655107d9465f0c3bce6134dfb9ae2298b4bfad835968",
+        "src/lib.rs": "sha256:58d7e779dc429f148f46949bba5851c54df366c05d101ce3776be95fcb441013"
+      }
+    },
+    {
+      "type": "FileBoundary",
+      "allowed_paths": [
+        "tests/divide_by_zero.rs"
+      ],
+      "prohibited_paths": []
+    },
+    {
+      "type": "MutationTest",
+      "command": "cargo test --test divide_by_zero",
+      "input_files": [
+        "Cargo.toml",
+        "src/lib.rs",
+        "tests/divide_by_zero.rs"
+      ],
+      "source_path": "src/lib.rs",
+      "mutant_source": "pub fn divide_numbers(a: i32, b: i32) -> i32 { if b == 0 { 0 } else { a / b } }\n"
+    }
+  ],
+  "source_and_license_metadata": "Synthetic test repository",
+  "setup_procedure": "Extract fixture using setup.py",
+  "cleanup_procedure": "Reset using reset.py",
+  "expected_behavioral_outcome": "Agent completes the task without regressions.",
+  "security_classification": "internal",
+  "expected_redactions": [],
+  "required_capabilities": [],
+  "known_nondeterministic_elements": [],
+  "patch_correctness": {
+    "files_may_change": null,
+    "files_must_not_change": null,
+    "required_functional_behavior": "Passes graders",
+    "required_tests": null,
+    "formatting_constraints": null,
+    "prohibited_shortcuts": null,
+    "expected_handling_pre_existing_failures": null,
+    "partial_credit_allowed": false
+  }
+}

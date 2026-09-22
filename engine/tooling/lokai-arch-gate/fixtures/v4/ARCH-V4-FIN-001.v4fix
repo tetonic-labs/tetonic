@@ -1,0 +1,11 @@
+rule: ARCH-V4-FIN-001
+establishing: FIN-03
+status: planted mutant; not scanned as production; detector is test-only
+kind: manager-finalization-contract inventory only
+note: Manager finalization module calling concrete tools, commit_staged_if_any, or compiling coding definitions directly. Not ESTABLISHED. GATE-001 not satisfied.
+
+pub fn mutant_manager_finalization(tools: &lokai_tools::Tools) {
+    let _def = CodingAgentDefinition::production();
+    tools.commit_staged_if_any();
+    let _explain = true; // explain_turn
+}

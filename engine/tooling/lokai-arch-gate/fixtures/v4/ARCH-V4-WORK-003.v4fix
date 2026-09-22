@@ -1,0 +1,4 @@
+rule: ARCH-V4-WORK-003
+establishing: WORK-03
+status: planted mutant; not scanned as production
+kind: coding corpus candidate

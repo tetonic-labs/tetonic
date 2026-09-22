@@ -1,0 +1,39 @@
+---
+description: Network bind, listener, and egress safety — never expose the user's LAN/WAN during dev or tests
+alwaysApply: true
+---
+
+# Network safety (Lokai engine)
+
+Charter: default-deny. **Do not widen the user's attack surface** while building or testing enrollment, fabric, ingress, or egress.
+
+## Bind & listen
+
+- **Default bind: `127.0.0.1` only** for enrollment, fabric, and integration tests.
+- **`0.0.0.0` / `::` require explicit opt-in** (env var or flag) plus a user-visible warning in CLI output.
+- **Coordinator (`lokaid` stdio) must never `TcpListener::bind`** for fabric/enrollment — stdio RPC only.
+- **Only `lokai-node` / `lokai-enroll` / ingress crates** may bind fabric or enrollment ports (single audit surface).
+- **Fabric listener off by default** — explicit serve mode (`lokaid --node`), separate from `--enroll`.
+- **Do not leave listeners running** after tests or agent turns; use ephemeral ports (`127.0.0.1:0`) in tests.
+
+## Egress
+
+- **Never add** “allow all”, broad CIDR, or internet-wide rules.
+- **One enrolled worker = one pinned IP + port** via `EgressGuard::allow_node` only after successful enrollment.
+- Ephemeral enrollment allows (`_enroll:*`) must be **removed** after handshake.
+
+## Ingress (N0.2+)
+
+- **Default-deny accept** — mTLS + pinned coordinator/owner key before any `/v1/*` route.
+- Unauthenticated probe → **deny + log** (must have CI test).
+- No plain-HTTP fabric API; no fail-open on auth errors.
+
+## Testing & commands on the user's machine
+
+- **Do not** run long-lived servers on `0.0.0.0` without asking the user first.
+- **Do not** add UPnP, mDNS auto-discovery, or firewall hole-punching without explicit product decision.
+- Prefer `127.0.0.1` integration tests; document when LAN/tailnet testing needs user action.
+
+## Known gap to fix with N0.2
+
+Enrollment/fabric bind uses `resolve_listen_host()` (default `127.0.0.1`; `LOKAI_BIND_ALL=1` for all interfaces). Keep bind policy aligned when touching enrollment or ingress code.

@@ -1,0 +1,14 @@
+rule: ARCH-V4-SUB-001
+establishing: SUB-04
+status: planted mutant; detector is test-only
+kind: loop-coding-policy inventory only
+note: Hardcoded coding literals in agent loop. Not ESTABLISHED. GATE-001 not satisfied.
+
+pub fn mutant_loop_policy(name: &str, summary: &str) {
+    if name == "read_file" {
+        let _ = "read_file";
+    }
+    if summary.len() < 20 {
+        let _ = "too short";
+    }
+}

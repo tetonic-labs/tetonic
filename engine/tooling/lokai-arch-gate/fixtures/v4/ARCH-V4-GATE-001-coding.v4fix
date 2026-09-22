@@ -1,0 +1,5 @@
+rule: ARCH-V4-GATE-001 (coding half)
+establishing: AUD-01 (inventory only)
+status: not satisfied
+kind: coding corpus completeness fixture
+note: GATE-01 reconciles; AUD-01 must not mark ARCH-V4-GATE-001 satisfied

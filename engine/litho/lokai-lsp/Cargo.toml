@@ -1,0 +1,22 @@
+[package]
+name = "lokai-lsp"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+# Local LSP client: spawns language servers as subprocesses (stdio only, no network).
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+lsp-types = { version = "0.97", features = ["proposed"] }
+url = { workspace = true }
+
+[[bin]]
+name = "lsp-mock-server"
+path = "tests/support/mock_server.rs"
+
+[dev-dependencies]
+tempfile = "3"

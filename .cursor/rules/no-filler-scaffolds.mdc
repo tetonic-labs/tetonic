@@ -1,0 +1,35 @@
+---
+description: Ban scaffold/filler and test-only enforcement; ship real paths or document a named deferral sprint
+alwaysApply: true
+---
+
+# No filler unless deferred to a named sprint
+
+Prefer **one thin real path** over scaffolding that will need a later hole-patch sprint.
+
+## Do not ship
+
+- Placeholder digests, stub hashes, `"ok"` / `"todo"` / `unimplemented!` on production paths
+- Types, traits, or helpers with **no production caller** in the same change (unless the caller is this sprint’s AC)
+- Tests that only assert compile/green while the runtime boundary is unwired, mocked away, or bypassed
+- “Temporary” adapters, dual implementations, or warn-only enforcement when the AC requires deny/enforce
+- Docs that describe behavior the live path does not enforce
+
+## Allowed filler — only if all are true
+
+1. The gap is **explicitly out of scope** for this sprint’s acceptance criteria, **and**
+2. A **named future sprint** (e.g. `H1-3`, `R7-1`) owns the hole — cite it in code comment and sprint/status docs, **and**
+3. Status stays **Partial** (never Done) until that sprint closes with production evidence
+
+If there is no named sprint yet, **stop and ask** before adding the stub. Do not invent silent TODOs.
+
+## How to build instead
+
+- Wire the chokepoint the data actually takes in this change, or cut scope and leave the unused API out
+- Prefer fail-closed / honest `MissingControl` / refuse-to-run over fake success
+- Tests must exercise the **production call site** (or an arch-gate that locks that wiring), not only a helper in isolation
+- If AC cannot be met without later work: mark **Partial**, list unmet criteria, cite the deferral sprint — do not paper over with filler
+
+## Pair with
+
+`acceptance-criteria-handoff.mdc` (when something may be called Done) and `sprint-documentation.mdc` (honest Partial vs Done).

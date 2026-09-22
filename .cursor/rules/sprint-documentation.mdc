@@ -1,0 +1,26 @@
+---
+description: Update package docs and contracts when finishing a feature or sprint chunk
+alwaysApply: true
+---
+
+# Feature & Sprint Documentation
+
+When completing a chunk of work (feature slice, bug fix, protocol adjustment, or sprint ticket), ensure documentation accurately matches the live code before declaring work complete. Documentation must reflect actual code behavior, not aspirational plans.
+
+## Checklist
+
+1. **Package README**
+   - When modifying or adding a package under `engine/<layer>/<package>/`, ensure its `README.md` reflects:
+     - Purpose and role in its Earth layer (`atmos`, `core`, `litho`, `mantle`, `strata`, `tooling`).
+     - Key public APIs, traits, or RPC contracts.
+     - Testing instructions (`cargo test -p <package>`).
+
+2. **Contract Documentation**
+   - If protocol schemas, RPC methods, or serialization wire formats change, update the relevant contract in `docs/implementation/contracts/` (e.g., `agent-rpc-v1.md`, `fabric-protocol-v1.md`).
+
+3. **Sprint & Ticket Records**
+   - When executing an epic ticket, record completion status and verification evidence inside `docs/epics/<epic_name>/sprints/<sprint_name>/<ticket_name>.md`.
+
+4. **Testing and Verification**
+   - Run the engineering gate: `cargo run -p lokai-arch-gate -- verify package`.
+   - Run targeted tests for touched packages: `cargo test -p <package>`.

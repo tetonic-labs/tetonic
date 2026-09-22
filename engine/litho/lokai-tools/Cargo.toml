@@ -1,0 +1,28 @@
+[package]
+name = "lokai-tools"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+# No network deps by construction (Charter Right 1). Tools are workspace-scoped.
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+schemars = { workspace = true }
+thiserror = { workspace = true }
+ignore = { workspace = true }
+globset = { workspace = true }
+regex = { workspace = true }
+lokai-policy = { path = "../../core/lokai-policy" }
+lokai-memory = { path = "../../strata/lokai-memory" }
+lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-domain = { path = "../../core/lokai-domain" }
+lokai-sandbox = { path = "../../core/lokai-sandbox" }
+lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-transaction = { path = "../../core/lokai-transaction" }
+tokio = { workspace = true, features = ["rt", "macros"] }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"

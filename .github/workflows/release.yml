@@ -1,0 +1,190 @@
+name: release
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version tag (e.g. v0.1.0)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+defaults:
+  run:
+    working-directory: engine
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            asset_prefix: windows-x64
+            is_windows: true
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            asset_prefix: darwin-arm64
+            is_windows: false
+          - os: macos-13
+            target: x86_64-apple-darwin
+            asset_prefix: darwin-x64
+            is_windows: false
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            asset_prefix: linux-x64
+            is_windows: false
+
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: engine
+
+      - name: Build release binaries
+        run: cargo build --release --target ${{ matrix.target }} -p lokai-cli -p lokaid
+
+      - name: Stage release artifacts (Windows)
+        if: matrix.is_windows
+        shell: pwsh
+        run: |
+          $stage = "target/stage"
+          New-Item -ItemType Directory -Force -Path $stage | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/lokai.exe" "$stage/lokai.exe"
+          Copy-Item "target/${{ matrix.target }}/release/lokaid.exe" "$stage/lokaid.exe"
+          Copy-Item "../README.md" "$stage/README.txt"
+          Copy-Item "../LICENSE" "$stage/LICENSE.txt"
+          
+          New-Item -ItemType Directory -Force -Path "target/dist" | Out-Null
+          Compress-Archive -Path "$stage/*" -DestinationPath "target/dist/tetonic-${{ matrix.asset_prefix }}.zip" -Force
+          Copy-Item "target/dist/tetonic-${{ matrix.asset_prefix }}.zip" "target/dist/lokai-${{ matrix.asset_prefix }}.zip"
+
+      - name: Stage release artifacts (Unix)
+        if: "!matrix.is_windows"
+        shell: bash
+        run: |
+          STAGE="target/stage"
+          DIST="target/dist"
+          mkdir -p "$STAGE" "$DIST"
+          cp "target/${{ matrix.target }}/release/lokai" "$STAGE/lokai"
+          cp "target/${{ matrix.target }}/release/lokaid" "$STAGE/lokaid"
+          cp "../README.md" "$STAGE/README.txt"
+          cp "../LICENSE" "$STAGE/LICENSE.txt"
+          chmod +x "$STAGE/lokai" "$STAGE/lokaid"
+          
+          tar -czvf "$DIST/tetonic-${{ matrix.asset_prefix }}.tar.gz" -C "$STAGE" .
+          cp "$DIST/tetonic-${{ matrix.asset_prefix }}.tar.gz" "$DIST/lokai-${{ matrix.asset_prefix }}.tar.gz"
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: assets-${{ matrix.asset_prefix }}
+          path: engine/target/dist/*
+          if-no-files-found: error
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download all build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist-raw
+
+      - name: Organize release assets and generate checksums
+        shell: bash
+        run: |
+          mkdir -p dist
+          find dist-raw -type f -exec cp {} dist/ \;
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Generate Homebrew formula
+        shell: bash
+        run: |
+          VERSION="${{ github.ref_name }}"
+          if [ -z "$VERSION" ] || [ "$VERSION" = "main" ]; then
+            VERSION="${{ inputs.version }}"
+          fi
+          VERSION_CLEAN="${VERSION#v}"
+          
+          cd dist
+          SHA_DARWIN_ARM64=$(sha256sum lokai-darwin-arm64.tar.gz | awk '{print $1}')
+          SHA_DARWIN_X64=$(sha256sum lokai-darwin-x64.tar.gz | awk '{print $1}')
+          SHA_LINUX_X64=$(sha256sum lokai-linux-x64.tar.gz | awk '{print $1}')
+          
+          cat << 'EOF' > lokai.rb
+          class Lokai < Formula
+            desc "Sovereign AI coding assistant and digital autonomous organization engine"
+            homepage "https://github.com/tetonic/tetonic"
+            version "${VERSION_CLEAN}"
+            license "BUSL-1.1"
+
+            on_macos do
+              on_arm do
+                url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-darwin-arm64.tar.gz"
+                sha256 "${SHA_DARWIN_ARM64}"
+              end
+              on_intel do
+                url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-darwin-x64.tar.gz"
+                sha256 "${SHA_DARWIN_X64}"
+              end
+            end
+
+            on_linux do
+              url "https://github.com/tetonic/tetonic/releases/download/${VERSION}/lokai-linux-x64.tar.gz"
+              sha256 "${SHA_LINUX_X64}"
+            end
+
+            def install
+              bin.install "lokai"
+              bin.install "lokaid"
+            end
+
+            test do
+              assert_match "lokai", shell_output("#{bin}/lokai --help")
+            end
+          end
+          EOF
+          
+          sed -i "s/\${VERSION_CLEAN}/$VERSION_CLEAN/g" lokai.rb
+          sed -i "s/\${VERSION}/$VERSION/g" lokai.rb
+          sed -i "s/\${SHA_DARWIN_ARM64}/$SHA_DARWIN_ARM64/g" lokai.rb
+          sed -i "s/\${SHA_DARWIN_X64}/$SHA_DARWIN_X64/g" lokai.rb
+          sed -i "s/\${SHA_LINUX_X64}/$SHA_LINUX_X64/g" lokai.rb
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name || inputs.version }}
+          name: ${{ github.ref_name || inputs.version }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: |
+            dist/*

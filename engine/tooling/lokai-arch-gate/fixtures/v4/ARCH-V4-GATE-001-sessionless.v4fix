@@ -1,0 +1,5 @@
+rule: ARCH-V4-GATE-001 (sessionless half)
+establishing: WORK-03
+status: placeholder
+kind: AUD-PROOF-002
+note: WORK-03 lands AUD-PROOF-002; AUD-01 must not implement sessionless start

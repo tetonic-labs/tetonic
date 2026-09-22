@@ -1,0 +1,5 @@
+rule: ARCH-V4-APP-001
+establishing: CODE-01
+status: planted mutant; not scanned as production
+kind: coding corpus candidate
+note: CODE-01 inventory only; SUB-01 establishes absence of kernel law; GATE-01 reconciles. Not ESTABLISHED.
