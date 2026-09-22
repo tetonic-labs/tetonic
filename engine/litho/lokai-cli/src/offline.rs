@@ -66,7 +66,7 @@ pub async fn show_history(session: Option<&str>) -> Result<()> {
                     s.messages,
                     s.tool_calls,
                     s.file_changes,
-                    &s.started_at.chars().take(19).collect::<String>(),
+                    s.started_at.chars().take(19).collect::<String>(),
                     s.workspace_root,
                 );
             }
