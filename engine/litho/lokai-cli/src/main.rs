@@ -21,9 +21,9 @@ use std::sync::Arc;
 
 use anyhow::{bail, Context};
 use clap::Parser;
-use lokai_app::commands::EndSessionCommand;
-use lokai_app::lokai_telemetry;
-use lokai_app::{Application, CliBootstrapParams};
+use tetonic_app::commands::EndSessionCommand;
+use tetonic_app::tetonic_telemetry;
+use tetonic_app::{Application, CliBootstrapParams};
 
 use app_kernel::{TerminalApprovalCoordinator, TerminalEventSink, TerminalRenderer};
 use args::Args;
@@ -50,9 +50,9 @@ async fn main() -> anyhow::Result<()> {
     }
 
     let mode = if args.debug || std::env::var("LOKAI_DIAGNOSTIC_RAW_PAYLOADS").is_ok() {
-        lokai_telemetry::DiagnosticMode::UnsafeRawPayloads
+        tetonic_telemetry::DiagnosticMode::UnsafeRawPayloads
     } else {
-        lokai_telemetry::DiagnosticMode::Safe
+        tetonic_telemetry::DiagnosticMode::Safe
     };
 
     let _log_guard = if interactive {
@@ -60,18 +60,18 @@ async fn main() -> anyhow::Result<()> {
             let log_dir = dirs.data_dir().join("logs");
             std::fs::create_dir_all(&log_dir).ok();
             let (subscriber, guard) =
-                lokai_telemetry::init_subscriber_cli(mode, log_dir, interactive);
+                tetonic_telemetry::init_subscriber_cli(mode, log_dir, interactive);
             tracing::subscriber::set_global_default(subscriber)
                 .expect("Failed to set telemetry subscriber");
             Some(guard)
         } else {
-            let subscriber = lokai_telemetry::init_subscriber_stderr(mode);
+            let subscriber = tetonic_telemetry::init_subscriber_stderr(mode);
             tracing::subscriber::set_global_default(subscriber)
                 .expect("Failed to set telemetry subscriber");
             None
         }
     } else {
-        let subscriber = lokai_telemetry::init_subscriber_stderr(mode);
+        let subscriber = tetonic_telemetry::init_subscriber_stderr(mode);
         tracing::subscriber::set_global_default(subscriber)
             .expect("Failed to set telemetry subscriber");
         None
@@ -79,8 +79,8 @@ async fn main() -> anyhow::Result<()> {
 
     let root_span = tracing::info_span!("lokai_cli_root");
     let _root_enter = root_span.enter();
-    let root_ctx = lokai_telemetry::TraceContext::default();
-    lokai_telemetry::inject_context(root_ctx);
+    let root_ctx = tetonic_telemetry::TraceContext::default();
+    tetonic_telemetry::inject_context(root_ctx);
 
     if args.allow_shell && !args.i_understand_unapproved_shell {
         bail!(

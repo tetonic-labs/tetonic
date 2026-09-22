@@ -67,7 +67,11 @@ fn package_depends_on_index_or_lsp(pkg_name: &str) -> Result<Vec<String>, String
         let Some(name) = id_to_name.get(id) else {
             continue;
         };
-        if *name == "lokai-index" || *name == "lokai-lsp" {
+        if *name == "lokai-index"
+            || *name == "lokai-lsp"
+            || *name == "tetonic-index"
+            || *name == "tetonic-lsp"
+        {
             hits.push((*name).to_string());
         }
         let Some(node) = resolve

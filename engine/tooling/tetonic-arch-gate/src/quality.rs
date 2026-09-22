@@ -9,6 +9,7 @@ pub const GRANDFATHER_ANYHOW: &[&str] = &[
     "lokai-core",
     "tetonic-core",
     "lokai-app",
+    "tetonic-app",
     "lokai-artifact",
     "tetonic-artifact",
     "lokai-node",
@@ -34,6 +35,7 @@ const MODEL_FORBIDDEN_PREFIXES: &[&str] = &[
     "mantle/lokai-orchestrator/src/",
     "mantle/tetonic-orchestrator/src/",
     "litho/lokai-app/src/",
+    "litho/tetonic-app/src/",
 ];
 
 pub fn repo_root(engine_root: &Path) -> PathBuf {

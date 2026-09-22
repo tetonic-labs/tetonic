@@ -5,20 +5,20 @@ impl Daemon {
         &mut self,
         params: Value,
     ) -> Result<Value, RpcError> {
-        lokai_app::lokai_telemetry::fault::inject_fault("during_cancellation");
+        tetonic_app::tetonic_telemetry::fault::inject_fault("during_cancellation");
         let p: SessionCancelParams = parse(params)?;
         let services = self.services()?;
         services.app.cancel_session_broker_jobs(&p.session_id);
         services
             .app
             .sessions
-            .cancel_session(lokai_app::commands::CancelRunCommand {
+            .cancel_session(tetonic_app::commands::CancelRunCommand {
                 session_id: p.session_id.clone(),
                 pooled_cancel: services.fabric_pooled,
             })
             .await
             .map_err(|e| match &e {
-                lokai_app::errors::AppError::SessionNotFound(_) => {
+                tetonic_app::errors::AppError::SessionNotFound(_) => {
                     RpcError::new(ErrorCode::UnknownSession, "unknown session_id")
                 }
                 _ => RpcError::new(ErrorCode::InternalError, format!("app: {e}")),
@@ -41,7 +41,7 @@ impl Daemon {
         let result = services
             .app
             .sessions
-            .consolidate_session(lokai_app::commands::ConsolidateSessionCommand {
+            .consolidate_session(tetonic_app::commands::ConsolidateSessionCommand {
                 session_id: p.session_id.clone(),
                 workspace_root: services.workspace_root.clone(),
             })
@@ -59,7 +59,7 @@ impl Daemon {
         let ok = services
             .app
             .approvals
-            .respond(lokai_app::commands::ApprovalResponseCommand {
+            .respond(tetonic_app::commands::ApprovalResponseCommand {
                 session_id: p.session_id.clone(),
                 approval_id: p.approval_id.clone(),
                 approved: allowed,

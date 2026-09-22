@@ -7,7 +7,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 /// Named fault-inject point: after turn plan has durable run journal + live bind.
-/// Production calls [`lokai_telemetry::fault::inject_fault`] with this string.
+/// Production calls [`tetonic_telemetry::fault::inject_fault`] with this string.
 pub const INJECT_AFTER_TURN_PLAN: &str = "after_turn_plan";
 
 /// Documented recovery contract for this inject point (R06).
@@ -23,8 +23,8 @@ crash after_turn_plan → reopen same lokai.db → run journal present; \
 session resume_state=recovery_required; no silent half-commit success";
 
 struct FakeEventSink;
-impl lokai_app::events::ApplicationEventSink for FakeEventSink {
-    fn send(&self, _event: lokai_app::events::ApplicationEvent) {}
+impl tetonic_app::events::ApplicationEventSink for FakeEventSink {
+    fn send(&self, _event: tetonic_app::events::ApplicationEvent) {}
 }
 
 fn temp_dir(label: &str) -> PathBuf {
@@ -32,28 +32,28 @@ fn temp_dir(label: &str) -> PathBuf {
         "lokai-eval-r06-{}-{}-{}",
         label,
         std::process::id(),
-        lokai_memory::new_id("r06")
+        tetonic_memory::new_id("r06")
     ));
     std::fs::create_dir_all(&dir).unwrap();
     dir
 }
 
-fn make_app(dir: &Path) -> (lokai_app::Application, lokai_memory::SharedStore) {
+fn make_app(dir: &Path) -> (tetonic_app::Application, tetonic_memory::SharedStore) {
     let db_path = dir.join("lokai.db");
-    let store = lokai_memory::SharedStore::open(&db_path, 1).unwrap();
-    let policy = Arc::new(lokai_policy::PolicyEngine::default());
+    let store = tetonic_memory::SharedStore::open(&db_path, 1).unwrap();
+    let policy = Arc::new(tetonic_policy::PolicyEngine::default());
     // Eval scans with the same engine production does (M6, ADR-V3-016): eval is
     // how CI proves the system works, so it must not prove it on a path that
     // skips the scanner.
     let artifacts = Arc::new(
-        lokai_artifact::LocalArtifactStore::new(
+        tetonic_artifact::LocalArtifactStore::new(
             dir.join("artifacts"),
-            lokai_app::secret_scanner_factory::artifact_scan_policy(&Some(store.clone())),
+            tetonic_app::secret_scanner_factory::artifact_scan_policy(&Some(store.clone())),
         )
         .unwrap(),
     );
-    let runtime = lokai_runtime::EngineRuntime::new(policy.clone(), None, artifacts);
-    let app = lokai_app::Application::new(lokai_app::ApplicationDependencies {
+    let runtime = tetonic_runtime::EngineRuntime::new(policy.clone(), None, artifacts);
+    let app = tetonic_app::Application::new(tetonic_app::ApplicationDependencies {
         runtime: Arc::new(runtime),
         store: Some(store.clone()),
         policy,
@@ -69,14 +69,14 @@ fn make_app(dir: &Path) -> (lokai_app::Application, lokai_memory::SharedStore) {
 ///
 /// Returns `(data_dir, workspace, session_id, run_id)` for the restart half.
 pub async fn crash_after_turn_plan(
-) -> Result<(PathBuf, PathBuf, String, lokai_domain::RunId), String> {
+) -> Result<(PathBuf, PathBuf, String, tetonic_domain::RunId), String> {
     let dir = temp_dir("crash");
     let ws = dir.join("ws");
     std::fs::create_dir_all(&ws).map_err(|e| e.to_string())?;
     let (app, store) = make_app(&dir);
     let started = app
         .sessions
-        .start_session(lokai_app::commands::StartSessionCommand {
+        .start_session(tetonic_app::commands::StartSessionCommand {
             workspace_root: ws.display().to_string(),
             briefing: Some(false),
             ..Default::default()
@@ -86,7 +86,7 @@ pub async fn crash_after_turn_plan(
     let sid = started.session_id.clone();
     let plan = app
         .runs
-        .plan_turn(&lokai_app::commands::RunTurnCommand {
+        .plan_turn(&tetonic_app::commands::RunTurnCommand {
             session_id: sid.clone(),
             user_input: "r06 recovery probe".into(),
             verify_cmd: None,
@@ -107,7 +107,7 @@ pub async fn crash_after_turn_plan(
         .map_err(|e| e.to_string())??;
 
     // Named inject point: process would exit(1) when LOKAI_FAULT_INJECT matches.
-    lokai_telemetry::fault::inject_fault(INJECT_AFTER_TURN_PLAN);
+    tetonic_telemetry::fault::inject_fault(INJECT_AFTER_TURN_PLAN);
 
     // Crash: drop live process state without finishing the turn.
     drop(app);
@@ -120,12 +120,12 @@ pub async fn assert_recovery_after_turn_plan_crash(
     dir: &Path,
     ws: &Path,
     session_id: &str,
-    run_id: &lokai_domain::RunId,
+    run_id: &tetonic_domain::RunId,
 ) -> Result<(), String> {
     let (app2, _) = make_app(dir);
     let snap = app2
         .runs
-        .inspect_run(lokai_app::commands::InspectRunCommand {
+        .inspect_run(tetonic_app::commands::InspectRunCommand {
             run_id: run_id.to_string(),
         })
         .await
@@ -135,7 +135,7 @@ pub async fn assert_recovery_after_turn_plan_crash(
     }
     if matches!(
         snap.state,
-        lokai_domain::RunState::Succeeded | lokai_domain::RunState::Canceled
+        tetonic_domain::RunState::Succeeded | tetonic_domain::RunState::Canceled
     ) {
         return Err(format!(
             "run must not look finished after mid-turn crash, got {:?}",
@@ -145,7 +145,7 @@ pub async fn assert_recovery_after_turn_plan_crash(
 
     let resumed = app2
         .sessions
-        .start_session(lokai_app::commands::StartSessionCommand {
+        .start_session(tetonic_app::commands::StartSessionCommand {
             workspace_root: ws.display().to_string(),
             resume: Some(true),
             session_id: Some(session_id.to_string()),

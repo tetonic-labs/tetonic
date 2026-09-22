@@ -66,7 +66,7 @@ pub type ApprovalHook =
 pub type AbortStaged = Arc<dyn Fn() + Send + Sync>;
 
 /// Optional post-edit snapshot formatter. Missing hook appends nothing.
-/// Composition supplies `lokai_tools::format_post_edit_snapshot`. Must not commit.
+/// Composition supplies `tetonic_tools::format_post_edit_snapshot`. Must not commit.
 pub type PostEditSnapshot = Arc<dyn Fn(&tetonic_domain::FileChange) -> String + Send + Sync>;
 
 /// Optional workspace jail + size. Missing hook skips the size gate.

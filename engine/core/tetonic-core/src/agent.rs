@@ -2013,9 +2013,9 @@ fn content_looks_like_tool_json(content: &str) -> bool {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use lokai_tools::Tools;
     use tetonic_domain::{ActionKind, CapabilityError, ToolAdvertisement, ToolProposal};
     use tetonic_inference::{ChatRequest, ChatResponse, FabricSnapshot, InferenceError, TokenSink};
+    use tetonic_tools::Tools;
 
     fn test_inv(user: &str) -> AgentInvocation {
         test_inv_explain(user, false)
@@ -2023,7 +2023,7 @@ mod tests {
 
     fn wire_test_capability_helpers(agent: Agent) -> Agent {
         agent
-            .with_post_edit_snapshot(Arc::new(lokai_tools::format_post_edit_snapshot))
+            .with_post_edit_snapshot(Arc::new(tetonic_tools::format_post_edit_snapshot))
             .with_resolve_under_root(Arc::new(|root, rel| {
                 let abs =
                     tetonic_transaction::fs_ops::resolve_under_root(root, rel).map_err(|_| ())?;
@@ -2103,7 +2103,7 @@ mod tests {
             }
         }
         let dir = tempfile::tempdir().unwrap();
-        let full = Tools::new(lokai_tools::Workspace::new(dir.path()).unwrap(), false)
+        let full = Tools::new(tetonic_tools::Workspace::new(dir.path()).unwrap(), false)
             .with_orchestration(true);
         let catalog = full
             .advertisements()
@@ -2171,7 +2171,7 @@ mod tests {
     #[tokio::test]
     async fn test_tool_schemas_sorted_deterministically() {
         let temp = tempfile::tempdir().unwrap();
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(MockTestProvider {
             requests: std::sync::Mutex::new(vec![]),
@@ -2258,7 +2258,7 @@ mod tests {
     #[tokio::test]
     async fn test_prefix_kv_cache_invariance() {
         let temp = tempfile::tempdir().unwrap();
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(MockTestProvider {
             requests: std::sync::Mutex::new(vec![]),
@@ -2398,7 +2398,7 @@ mod tests {
         std::fs::write(temp.path().join("b.txt"), "hello from b").unwrap();
         std::fs::write(temp.path().join("c.txt"), "hello from c").unwrap();
 
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let root = ws.root().to_path_buf();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(MultiToolMockProvider {
@@ -2437,7 +2437,7 @@ mod tests {
         )
         .unwrap();
 
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(StreamingPrefetchMockProvider {
             turn: std::sync::atomic::AtomicUsize::new(0),
@@ -2514,7 +2514,7 @@ mod tests {
         std::fs::write(parent.path().join("secret.txt"), "super secret host bytes").unwrap();
         std::fs::write(ws_dir.join("ok.txt"), "inside").unwrap();
 
-        let ws = lokai_tools::Workspace::new(&ws_dir).unwrap();
+        let ws = tetonic_tools::Workspace::new(&ws_dir).unwrap();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(EscapePrefetchMockProvider {
             turn: std::sync::atomic::AtomicUsize::new(0),
@@ -2607,7 +2607,7 @@ mod tests {
         assert!(large_content.len() > 30 * 1024);
         std::fs::write(temp.path().join("large_file.rs"), &large_content).unwrap();
 
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let root = ws.root().to_path_buf();
         let tools = Tools::new(ws, false);
         let provider = Arc::new(SlicedReadMockProvider {
@@ -2676,7 +2676,7 @@ mod tests {
     fn staged_overlay_is_visible_on_tool_host() {
         let temp = tempfile::tempdir().unwrap();
         std::fs::write(temp.path().join("f.txt"), "live\n").unwrap();
-        let ws = lokai_tools::Workspace::new(temp.path()).unwrap();
+        let ws = tetonic_tools::Workspace::new(temp.path()).unwrap();
         let tools = Tools::new(ws, false);
         let staged = tools.execute(
             "write_file",
@@ -2738,8 +2738,8 @@ mod tests {
         );
         assert!(
             !production.contains("tools: Tools")
-                && !production.contains("tools: lokai_tools::Tools"),
-            "Agent must not store concrete lokai_tools::Tools"
+                && !production.contains("tools: tetonic_tools::Tools"),
+            "Agent must not store concrete tetonic_tools::Tools"
         );
         assert!(
             production.contains("context_compiler: Option<Arc<dyn ContextCompiler>>"),

@@ -5,7 +5,6 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use lokai_tools::{Tools, Workspace};
 use serde_json::{json, Value};
 use tetonic_core::{Agent, AgentConfig, Conversation};
 use tetonic_domain::sinks::ActionBroker;
@@ -15,11 +14,12 @@ use tetonic_domain::{
 use tetonic_inference::{
     ChatRequest, ChatResponse, FabricCallMeta, InferenceError, InferenceProvider, Message, ToolCall,
 };
+use tetonic_tools::{Tools, Workspace};
 
 fn wire_test_agent(agent: Agent) -> Agent {
     tetonic_runtime::wire_kernel_capability_helpers(
         agent,
-        Arc::new(lokai_tools::format_post_edit_snapshot),
+        Arc::new(tetonic_tools::format_post_edit_snapshot),
         Arc::new(|root, rel| {
             let abs = tetonic_transaction::fs_ops::resolve_under_root(root, rel).map_err(|_| ())?;
             std::fs::metadata(abs).map(|m| m.len()).map_err(|_| ())

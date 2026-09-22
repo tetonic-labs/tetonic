@@ -82,7 +82,13 @@ pub fn check_context_compiler_wired(root: &Path) -> Vec<Violation> {
             detail: "EngineRuntime::assemble_agent must support with_context_compiler".into(),
         });
     }
-    let turn = root.join("litho/lokai-app/src/turn_execution.rs");
+    let turn = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/turn_execution.rs",
+            "litho/lokai-app/src/turn_execution.rs",
+        ],
+    );
     let turn_text = std::fs::read_to_string(&turn).unwrap_or_default();
     if !turn_text.contains("assemble_agent")
         || !turn_text.contains("build_production_context_compiler")
@@ -133,7 +139,13 @@ pub fn check_outbound_secret_scanner(root: &Path) -> Vec<Violation> {
             detail: "secrets crate must not path-depend on context crate".into(),
         });
     }
-    let plane = root.join("litho/lokai-app/src/compute_plane.rs");
+    let plane = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/compute_plane.rs",
+            "litho/lokai-app/src/compute_plane.rs",
+        ],
+    );
     let plane_text = std::fs::read_to_string(&plane).unwrap_or_default();
     if !plane_text.contains("with_outbound_scanner") {
         out.push(Violation {
@@ -208,7 +220,10 @@ pub fn check_no_duplicate_enrollment_helpers(root: &Path) -> Vec<Violation> {
 /// Shared builder lives in lokai-app; CLI and daemon both call it.
 pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let cargo = root.join("litho/lokai-app/Cargo.toml");
+    let cargo = crate::resolve_path(
+        root,
+        &["litho/tetonic-app/Cargo.toml", "litho/lokai-app/Cargo.toml"],
+    );
     let cargo_text = std::fs::read_to_string(&cargo).unwrap_or_default();
     if !cargo_text.contains("lokai-broker") && !cargo_text.contains("tetonic-broker") {
         out.push(Violation {
@@ -217,7 +232,13 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "lokai-app must depend on broker crate".into(),
         });
     }
-    let plane = root.join("litho/lokai-app/src/compute_plane.rs");
+    let plane = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/compute_plane.rs",
+            "litho/lokai-app/src/compute_plane.rs",
+        ],
+    );
     let plane_text = std::fs::read_to_string(&plane).unwrap_or_default();
     if !plane_text.contains("BrokerInferenceProvider")
         || !plane_text.contains("wrap_pooled_with_broker")
@@ -236,7 +257,13 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "shared compute plane must attach PolicyDispatchGuard".into(),
         });
     }
-    let daemon = root.join("litho/lokai-app/src/daemon_bootstrap.rs");
+    let daemon = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/daemon_bootstrap.rs",
+            "litho/lokai-app/src/daemon_bootstrap.rs",
+        ],
+    );
     let daemon_text = std::fs::read_to_string(&daemon).unwrap_or_default();
     if !daemon_text.contains("build_compute_plane") {
         out.push(Violation {
@@ -245,7 +272,13 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "daemon bootstrap must call the shared lokai-app compute-plane builder".into(),
         });
     }
-    let cli_boot = root.join("litho/lokai-app/src/cli_bootstrap.rs");
+    let cli_boot = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/cli_bootstrap.rs",
+            "litho/lokai-app/src/cli_bootstrap.rs",
+        ],
+    );
     let cli_boot_text = std::fs::read_to_string(&cli_boot).unwrap_or_default();
     if !cli_boot_text.contains("build_compute_plane") {
         out.push(Violation {
@@ -343,7 +376,13 @@ pub fn check_lsp_via_process_broker(root: &Path) -> Vec<Violation> {
             detail: "lsp launcher must not be on subprocess allowlist (R29)".into(),
         });
     }
-    let tools_lsp = root.join("litho/lokai-app/src/lsp_launcher.rs");
+    let tools_lsp = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/lsp_launcher.rs",
+            "litho/lokai-app/src/lsp_launcher.rs",
+        ],
+    );
     let tools_text = std::fs::read_to_string(&tools_lsp).unwrap_or_default();
     if !tools_text.contains("SyncLongLivedService") || !tools_text.contains("SandboxLspLauncher") {
         out.push(Violation {
@@ -404,7 +443,7 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
         ],
     );
     let assembly_text = std::fs::read_to_string(&assembly).unwrap_or_default();
-    if assembly_text.contains("lokai_tools::")
+    if assembly_text.contains("tetonic_tools::")
         || assembly_text.contains("tetonic_tools::")
         || assembly_text.contains("EnforcementLevel")
     {
@@ -421,7 +460,13 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
             detail: "runtime assembly must not select Constrained".into(),
         });
     }
-    let turn = root.join("litho/lokai-app/src/turn_execution.rs");
+    let turn = crate::resolve_path(
+        root,
+        &[
+            "litho/tetonic-app/src/turn_execution.rs",
+            "litho/lokai-app/src/turn_execution.rs",
+        ],
+    );
     let turn_text = std::fs::read_to_string(&turn).unwrap_or_default();
     if !turn_text.contains("EnforcementLevel::Sandboxed") {
         out.push(Violation {
@@ -546,7 +591,7 @@ pub fn check_fabric_client_uses_protocol(root: &Path) -> Vec<Violation> {
         });
     }
     let proto_text = std::fs::read_to_string(&protocol).unwrap_or_default();
-    if !proto_text.contains("lokai_fabric_protocol")
+    if !proto_text.contains("tetonic_fabric_protocol")
         && !proto_text.contains("tetonic_fabric_protocol")
     {
         out.push(Violation {
@@ -609,7 +654,9 @@ pub fn check_async_sync_calls(root: &Path) -> Vec<Violation> {
         if rel_path.contains("/tests/")
             || rel_path.ends_with("_tests.rs")
             || rel_path.contains("lokai-app")
+            || rel_path.contains("tetonic-app")
             || rel_path.contains("lokai-cli")
+            || rel_path.contains("tetonic-tools")
             || rel_path.contains("lokai-tools")
             || rel_path.contains("lokai-arch-gate")
             || rel_path.contains("tetonic-arch-gate")
@@ -660,7 +707,7 @@ pub fn check_async_sync_calls(root: &Path) -> Vec<Violation> {
 /// H2-2: do not reintroduce `Mutex<Store>` / `Arc<Mutex<Store>>` as the shared
 /// store handle. The read pool may still use `Mutex<Vec<Store>>`.
 pub fn check_no_mutex_store(root: &Path) -> Vec<Violation> {
-    let re = regex::Regex::new(r"Mutex\s*<\s*(?:(?:lokai_memory|tetonic_memory)::)?Store\s*>")
+    let re = regex::Regex::new(r"Mutex\s*<\s*(?:(?:tetonic_memory|tetonic_memory)::)?Store\s*>")
         .expect("regex");
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
@@ -700,49 +747,49 @@ pub fn check_no_mutex_store(root: &Path) -> Vec<Violation> {
 pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     let forbidden_crates = [
-        ("lokai-core", "lokai_core"),
+        ("lokai-core", "tetonic_core"),
         ("tetonic-core", "tetonic_core"),
-        ("lokai-runtime", "lokai_runtime"),
+        ("lokai-runtime", "tetonic_runtime"),
         ("tetonic-runtime", "tetonic_runtime"),
-        ("lokai-inference", "lokai_inference"),
+        ("lokai-inference", "tetonic_inference"),
         ("tetonic-inference", "tetonic_inference"),
-        ("lokai-capacity", "lokai_capacity"),
+        ("lokai-capacity", "tetonic_capacity"),
         ("tetonic-capacity", "tetonic_capacity"),
-        ("lokai-broker", "lokai_broker"),
+        ("lokai-broker", "tetonic_broker"),
         ("tetonic-broker", "tetonic_broker"),
-        ("lokai-fabric-protocol", "lokai_fabric_protocol"),
+        ("lokai-fabric-protocol", "tetonic_fabric_protocol"),
         ("tetonic-fabric-protocol", "tetonic_fabric_protocol"),
-        ("lokai-fabric-client", "lokai_fabric_client"),
+        ("lokai-fabric-client", "tetonic_fabric_client"),
         ("tetonic-fabric-client", "tetonic_fabric_client"),
-        ("lokai-memory", "lokai_memory"),
+        ("lokai-memory", "tetonic_memory"),
         ("tetonic-memory", "tetonic_memory"),
-        ("lokai-index", "lokai_index"),
+        ("lokai-index", "tetonic_index"),
         ("tetonic-index", "tetonic_index"),
-        ("lokai-tools", "lokai_tools"),
+        ("lokai-tools", "tetonic_tools"),
         ("tetonic-tools", "tetonic_tools"),
-        ("lokai-artifact", "lokai_artifact"),
+        ("lokai-artifact", "tetonic_artifact"),
         ("tetonic-artifact", "tetonic_artifact"),
-        ("lokai-sandbox", "lokai_sandbox"),
+        ("lokai-sandbox", "tetonic_sandbox"),
         ("tetonic-sandbox", "tetonic_sandbox"),
-        ("lokai-context", "lokai_context"),
+        ("lokai-context", "tetonic_context"),
         ("tetonic-context", "tetonic_context"),
-        ("lokai-transaction", "lokai_transaction"),
+        ("lokai-transaction", "tetonic_transaction"),
         ("tetonic-transaction", "tetonic_transaction"),
-        ("lokai-policy", "lokai_policy"),
+        ("lokai-policy", "tetonic_policy"),
         ("tetonic-policy", "tetonic_policy"),
-        ("lokai-egress", "lokai_egress"),
+        ("lokai-egress", "tetonic_egress"),
         ("tetonic-egress", "tetonic_egress"),
-        ("lokai-secrets", "lokai_secrets"),
+        ("lokai-secrets", "tetonic_secrets"),
         ("tetonic-secrets", "tetonic_secrets"),
-        ("lokai-enroll", "lokai_enroll"),
+        ("lokai-enroll", "tetonic_enroll"),
         ("tetonic-enroll", "tetonic_enroll"),
-        ("lokai-node", "lokai_node"),
+        ("lokai-node", "tetonic_node"),
         ("tetonic-node", "tetonic_node"),
-        ("lokai-domain", "lokai_domain"),
+        ("lokai-domain", "tetonic_domain"),
         ("tetonic-domain", "tetonic_domain"),
-        ("lokai-orchestrator", "lokai_orchestrator"),
+        ("lokai-orchestrator", "tetonic_orchestrator"),
         ("tetonic-orchestrator", "tetonic_orchestrator"),
-        ("lokai-eval", "lokai_eval"),
+        ("lokai-eval", "tetonic_eval"),
         ("tetonic-eval", "tetonic_eval"),
     ];
 
@@ -814,8 +861,8 @@ pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
                     if trimmed.starts_with("//") {
                         return false;
                     }
-                    line.contains("use lokai_rpc::")
-                        || line.contains("lokai_rpc::")
+                    line.contains("use tetonic_rpc::")
+                        || line.contains("tetonic_rpc::")
                         || line.contains("use tetonic_rpc::")
                         || line.contains("tetonic_rpc::")
                 });

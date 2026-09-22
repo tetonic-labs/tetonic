@@ -4,8 +4,8 @@
 mod tests {
     use std::path::{Path, PathBuf};
 
-    use lokai_tools::{exec, Workspace};
     use tetonic_memory::Store;
+    use tetonic_tools::{exec, Workspace};
 
     use crate::briefing::{build_session_briefing, BriefingInput, BriefingOptions};
 
@@ -84,7 +84,7 @@ mod tests {
         let ws = Workspace::new(&root).unwrap();
         let err = ws.resolve("trap_link").unwrap_err();
         assert!(
-            matches!(err, lokai_tools::ToolError::OutsideWorkspace(_)),
+            matches!(err, tetonic_tools::ToolError::OutsideWorkspace(_)),
             "symlink escape must be blocked, got: {err:?}"
         );
     }

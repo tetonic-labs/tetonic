@@ -1,5 +1,5 @@
 use super::prelude::*;
-use lokai_rpc::protocol::{
+use tetonic_rpc::protocol::{
     FabricWorkerTrustAuditEntry, FabricWorkerTrustGetParams, FabricWorkerTrustGetResult,
     FabricWorkerTrustSetParams, FabricWorkerTrustSetResult,
 };
@@ -32,7 +32,7 @@ impl Daemon {
             .set_fabric_worker_trust(&p.worker_id, &p.trust)
             .await
             .map_err(|e| match e {
-                lokai_app::errors::AppError::InvalidRequest(msg) => {
+                tetonic_app::errors::AppError::InvalidRequest(msg) => {
                     RpcError::new(ErrorCode::InvalidParams, msg)
                 }
                 other => RpcError::new(ErrorCode::InternalError, format!("trust update: {other}")),
@@ -56,7 +56,7 @@ impl Daemon {
             .app
             .get_fabric_worker_trust(&p.worker_id)
             .map_err(|e| match e {
-                lokai_app::errors::AppError::InvalidRequest(msg) => {
+                tetonic_app::errors::AppError::InvalidRequest(msg) => {
                     RpcError::new(ErrorCode::InvalidParams, msg)
                 }
                 other => RpcError::new(ErrorCode::InternalError, format!("trust query: {other}")),

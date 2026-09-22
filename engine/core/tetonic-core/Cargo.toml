@@ -24,7 +24,7 @@ tokenizers = { workspace = true }
 tokio = { workspace = true, features = ["rt"] }
 
 [dev-dependencies]
-lokai-tools = { path = "../../litho/lokai-tools" }
+tetonic-tools = { path = "../../litho/tetonic-tools" }
 tetonic-transaction = { path = "../tetonic-transaction" }
 tempfile = "3"
 tokio = { workspace = true, features = ["rt", "macros"] }

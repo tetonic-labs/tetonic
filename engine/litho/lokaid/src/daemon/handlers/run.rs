@@ -10,7 +10,7 @@ impl Daemon {
         let snap = services
             .app
             .runs
-            .inspect_run(lokai_app::commands::InspectRunCommand {
+            .inspect_run(tetonic_app::commands::InspectRunCommand {
                 run_id: p.run_id.clone(),
             })
             .await
@@ -31,7 +31,7 @@ impl Daemon {
         let replay = services
             .app
             .runs
-            .resume_events(lokai_app::commands::ResumeRunEventsCommand {
+            .resume_events(tetonic_app::commands::ResumeRunEventsCommand {
                 run_id: p.run_id.clone(),
                 after_sequence: p.after_sequence,
                 limit: p.limit,
@@ -69,7 +69,7 @@ impl Daemon {
         services
             .app
             .runs
-            .cancel_run(lokai_app::commands::CancelByRunCommand { run_id: p.run_id })
+            .cancel_run(tetonic_app::commands::CancelByRunCommand { run_id: p.run_id })
             .await
             .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(Canceled { canceled: true }))

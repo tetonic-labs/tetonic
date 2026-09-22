@@ -1,6 +1,6 @@
-use lokai_app::events::ApplicationEvent;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+use tetonic_app::events::ApplicationEvent;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum SemanticEffect {
@@ -162,11 +162,11 @@ pub fn parse_effects(trace_log: &str) -> Vec<SemanticEffect> {
 
 /// Deterministic session + turn lifecycle exercised by both CLI and daemon adapters.
 pub async fn run_kernel_lifecycle_scenario(
-    app: &lokai_app::Application,
+    app: &tetonic_app::Application,
     workspace_root: &str,
     user_input: &str,
-) -> Result<String, lokai_app::errors::AppError> {
-    use lokai_app::commands::{
+) -> Result<String, tetonic_app::errors::AppError> {
+    use tetonic_app::commands::{
         CompleteTurnCommand, EndSessionCommand, RunTurnCommand, StartSessionCommand,
     };
 
@@ -228,9 +228,9 @@ pub async fn run_kernel_lifecycle_scenario(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_app::events::RecordingEventSink;
-    use lokai_app::{Application, ApplicationDependencies};
     use std::sync::Arc;
+    use tetonic_app::events::RecordingEventSink;
+    use tetonic_app::{Application, ApplicationDependencies};
 
     #[test]
     fn test_compare_equivalent() {
@@ -255,16 +255,16 @@ mod tests {
     #[tokio::test(flavor = "multi_thread")]
     async fn kernel_lifecycle_semantic_effects() {
         let (recorder, events) = RecordingEventSink::new();
-        let store = lokai_memory::SharedStore::open(":memory:", 1).unwrap();
-        let policy = Arc::new(lokai_policy::PolicyEngine::default());
+        let store = tetonic_memory::SharedStore::open(":memory:", 1).unwrap();
+        let policy = Arc::new(tetonic_policy::PolicyEngine::default());
         let artifact_store = Arc::new(
-            lokai_artifact::LocalArtifactStore::new(
+            tetonic_artifact::LocalArtifactStore::new(
                 std::env::temp_dir().join("artifacts"),
-                lokai_app::secret_scanner_factory::artifact_scan_policy(&Some(store.clone())),
+                tetonic_app::secret_scanner_factory::artifact_scan_policy(&Some(store.clone())),
             )
             .unwrap(),
         );
-        let runtime = Arc::new(lokai_runtime::EngineRuntime::new(
+        let runtime = Arc::new(tetonic_runtime::EngineRuntime::new(
             policy.clone(),
             None,
             artifact_store,

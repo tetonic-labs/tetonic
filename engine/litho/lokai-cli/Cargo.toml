@@ -9,7 +9,7 @@ name = "lokai"
 path = "src/main.rs"
 
 [dependencies]
-lokai-app = { path = "../../litho/lokai-app" }
+tetonic-app = { path = "../../litho/tetonic-app" }
 tokio = { workspace = true }
 clap = { workspace = true }
 anyhow = { workspace = true }

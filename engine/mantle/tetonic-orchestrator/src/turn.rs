@@ -4,9 +4,9 @@ use std::path::Path;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::Arc;
 
-use lokai_tools::ToolOutcome;
 use tetonic_core::{Agent, Conversation, SpawnHook, SpawnRequest, Step};
 use tetonic_domain::{AgentInvocation, AttemptId, CandidateOutcome};
+use tetonic_tools::ToolOutcome;
 
 use crate::critic::{critic_prompt_from_tracker, should_run_critic_enhanced, CriticOutcome};
 use crate::handoff::SpawnHandoff;
@@ -511,7 +511,7 @@ where
             .to_string();
         let handoff = SpawnHandoff::from_tracker(&agent_id, summary, &tracker);
         let content = handoff.to_tool_content();
-        lokai_tools::ToolOutcome {
+        tetonic_tools::ToolOutcome {
             ok: true,
             summary: format!("spawn finished ({})", handoff.agent_id),
             content,
@@ -525,7 +525,7 @@ where
             CandidateOutcome::Limited { message, .. } => message,
             CandidateOutcome::Completed { summary, .. } => summary,
         };
-        lokai_tools::ToolOutcome::fail(message, "other")
+        tetonic_tools::ToolOutcome::fail(message, "other")
     }
 }
 

@@ -6,7 +6,7 @@ use std::collections::HashSet;
 #[cfg(test)]
 use std::sync::Arc;
 
-use lokai_tools::Tools;
+use tetonic_tools::Tools;
 
 /// Pack-defined specialist identity. Not an orchestrator enum.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -330,8 +330,8 @@ fn read_subset() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_tools::{Tools, Workspace};
     use tempfile::TempDir;
+    use tetonic_tools::{Tools, Workspace};
 
     #[test]
     fn parses_role_aliases() {

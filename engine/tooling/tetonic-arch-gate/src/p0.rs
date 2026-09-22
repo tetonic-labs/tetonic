@@ -2,25 +2,25 @@
 
 #[cfg(test)]
 mod tests {
-    use lokai_domain::{
+    use std::sync::Arc;
+    use tetonic_domain::{
         ActionId, ActionKind, AuthorizedAction, DataClass, IssuedCapability, ProposedAction,
     };
-    use lokai_inference::{ActiveJobRegistry, OllamaProvider, StaleResultError};
-    use lokai_memory::Store;
-    use lokai_runtime::{
+    use tetonic_inference::{ActiveJobRegistry, OllamaProvider, StaleResultError};
+    use tetonic_memory::Store;
+    use tetonic_runtime::{
         AgentAssemblyParts, AssemblyMode, EngineRuntime, ProductionApproval, TestRuntime,
     };
-    use lokai_tools::{
+    use tetonic_tools::{
         EnforcementLevel, NonCodingProcessValidator, ProcessExecutor, Tools, Workspace,
     };
-    use std::sync::Arc;
 
-    use lokai_core::{Agent, AgentConfig, HeuristicTokenizer};
-    use lokai_policy::PolicyEngine;
+    use tetonic_core::{Agent, AgentConfig, HeuristicTokenizer};
+    use tetonic_policy::PolicyEngine;
 
     #[test]
     fn production_vs_test_runtime_split() {
-        let guard = Arc::new(lokai_egress::EgressGuard::new());
+        let guard = Arc::new(tetonic_egress::EgressGuard::new());
         let provider = Arc::new(OllamaProvider::new("http://127.0.0.1:11434", guard.clone()));
         let config = AgentConfig::default();
 
@@ -37,16 +37,16 @@ mod tests {
         let ws_prod = Workspace::new(std::env::temp_dir()).unwrap();
         let pe = Arc::new(PolicyEngine::default());
         let artifact_store = Arc::new(
-            lokai_artifact::LocalArtifactStore::new(
+            tetonic_artifact::LocalArtifactStore::new(
                 ws_prod.root().join("artifacts"),
-                lokai_artifact::ScanPolicy::Refuse,
+                tetonic_artifact::ScanPolicy::Refuse,
             )
             .unwrap(),
         );
         let rt = EngineRuntime::new(pe.clone(), None, artifact_store);
         let tools_prod =
             Tools::new(ws_prod, false).with_capability_consumer(rt.capability_store().clone());
-        let process_broker: Arc<dyn lokai_domain::sinks::ProcessBroker> =
+        let process_broker: Arc<dyn tetonic_domain::sinks::ProcessBroker> =
             Arc::new(tools_prod.executor().clone());
         let _workspace_root = config.workspace_root.clone();
         let agent =
@@ -61,14 +61,14 @@ mod tests {
                     spawn: None,
                     process_broker: Some(process_broker),
                     context_compiler: None,
-                    post_edit_snapshot: Arc::new(lokai_tools::format_post_edit_snapshot),
+                    post_edit_snapshot: Arc::new(tetonic_tools::format_post_edit_snapshot),
                     resolve_under_root: Arc::new(|root, rel| {
-                        let abs = lokai_transaction::fs_ops::resolve_under_root(root, rel)
+                        let abs = tetonic_transaction::fs_ops::resolve_under_root(root, rel)
                             .map_err(|_| ())?;
                         std::fs::metadata(abs).map(|m| m.len()).map_err(|_| ())
                     }),
                     capture_workspace_version: Arc::new(|root, paths| {
-                        lokai_transaction::version::capture_workspace_version(root, paths)
+                        tetonic_transaction::version::capture_workspace_version(root, paths)
                             .map_err(|e| e.to_string())
                     }),
                 },
@@ -78,7 +78,7 @@ mod tests {
     }
 
     struct PersistingAudit;
-    impl lokai_core::AuditSink for PersistingAudit {
+    impl tetonic_core::AuditSink for PersistingAudit {
         fn message(&self, _: &str, _: &str, _: Option<&str>) {}
         fn tool_call(&self, _: &str, _: &str, _: &str, _: bool, _: &str, _: Option<&str>) {}
         fn file_change(&self, _: &str, _: &str, _: &str, _: Option<&str>, _: Option<&str>) {}
@@ -113,8 +113,8 @@ mod tests {
 
     #[tokio::test]
     async fn mutating_deny_leaves_file_unchanged() {
-        use lokai_domain::AgentId;
-        use lokai_domain::SessionId;
+        use tetonic_domain::AgentId;
+        use tetonic_domain::SessionId;
 
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("f.txt");
@@ -125,9 +125,9 @@ mod tests {
         // Set up a policy that denies WriteFile
         let ws_test = Workspace::new(std::env::temp_dir()).unwrap();
         let artifact_store = Arc::new(
-            lokai_artifact::LocalArtifactStore::new(
+            tetonic_artifact::LocalArtifactStore::new(
                 ws_test.root().join("artifacts"),
-                lokai_artifact::ScanPolicy::Refuse,
+                tetonic_artifact::ScanPolicy::Refuse,
             )
             .unwrap(),
         );
@@ -143,7 +143,7 @@ mod tests {
             workspace_version: None,
             data_class: DataClass::RepositorySource,
             kind: ActionKind::WriteFile,
-            parameters: lokai_domain::execution::CanonicalActionParameters {
+            parameters: tetonic_domain::execution::CanonicalActionParameters {
                 digest: "digest".into(),
                 executable_identity: None,
                 resolved_path: Some(rel.into()),
@@ -190,9 +190,9 @@ mod tests {
 
     #[tokio::test]
     async fn process_sink_verify_round_trip() {
-        use lokai_domain::sinks::{AuthorizedProcessRequest, ProcessBroker};
-        use lokai_domain::AgentId;
-        use lokai_domain::SessionId;
+        use tetonic_domain::sinks::{AuthorizedProcessRequest, ProcessBroker};
+        use tetonic_domain::AgentId;
+        use tetonic_domain::SessionId;
 
         let dir = tempfile::tempdir().unwrap();
         let _ws = Workspace::new(dir.path()).unwrap();
@@ -211,7 +211,7 @@ mod tests {
             workspace_version: None,
             data_class: DataClass::RepositorySource,
             kind: ActionKind::ExecuteProcess,
-            parameters: lokai_domain::execution::CanonicalActionParameters {
+            parameters: tetonic_domain::execution::CanonicalActionParameters {
                 digest: "digest".into(),
                 executable_identity: Some("cargo".into()),
                 resolved_path: None,
@@ -225,7 +225,7 @@ mod tests {
                 filesystem_access_scope: None,
                 network_policy: None,
                 resource_limits: None,
-                process_class: Some(lokai_domain::execution::ProcessClass::BuildVerification),
+                process_class: Some(tetonic_domain::execution::ProcessClass::BuildVerification),
                 sandbox_profile: None,
                 expected_output_limits: None,
                 schema_version: 1,
@@ -236,7 +236,7 @@ mod tests {
         };
         let authorized = AuthorizedAction {
             capability: IssuedCapability {
-                capability_id: lokai_domain::CapabilityId::new("cap_p0_v"),
+                capability_id: tetonic_domain::CapabilityId::new("cap_p0_v"),
                 session_id: SessionId::new("s"),
                 run_id: None,
                 task_id: None,

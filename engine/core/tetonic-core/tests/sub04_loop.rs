@@ -6,13 +6,13 @@ use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use lokai_tools::{Tools, Workspace};
 use tetonic_core::{Agent, AgentConfig, Conversation};
 use tetonic_domain::{AgentInvocation, CandidateOutcome, CompletionKind, LoopDiscipline};
 use tetonic_inference::{
     ChatRequest, ChatResponse, FabricSnapshot, FunctionCall, InferenceError, InferenceProvider,
     Message, TokenSink, ToolCall,
 };
+use tetonic_tools::{Tools, Workspace};
 
 fn production_prefix(src: &str) -> &str {
     src.split("#[cfg(test)]").next().unwrap_or(src)

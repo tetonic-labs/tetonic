@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use lokai_app::Application;
+use tetonic_app::Application;
 
 use crate::capacity::{CapacitySub, SetupAliasSub};
 
@@ -18,7 +18,7 @@ pub async fn run_status() -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .estate
-        .get_estate_status(lokai_app::commands::GetEstateStatusCommand {
+        .get_estate_status(tetonic_app::commands::GetEstateStatusCommand {
             fabric_pooled: false,
         })
         .context("estate status")?;
@@ -42,7 +42,7 @@ pub async fn run_worker_add(code: &str, label: Option<&str>) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .estate
-        .enroll_worker(lokai_app::commands::EnrollWorkerCommand {
+        .enroll_worker(tetonic_app::commands::EnrollWorkerCommand {
             code: code.to_string(),
             label: label.map(String::from),
             data_dir: data_dir()?,
@@ -89,7 +89,7 @@ pub async fn run_worker_remove(ref_id: &str) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .estate
-        .remove_worker(lokai_app::commands::RemoveWorkerCommand {
+        .remove_worker(tetonic_app::commands::RemoveWorkerCommand {
             ref_id: ref_id.to_string(),
             data_dir: data_dir()?,
         })

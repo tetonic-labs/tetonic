@@ -4,12 +4,12 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
-use lokai_broker::redact_outbound;
-use lokai_domain::secrets::{OutboundRedactionSink, SecretScanner};
-use lokai_inference::{
+use serde_json::{json, Value};
+use tetonic_broker::redact_outbound;
+use tetonic_domain::secrets::{OutboundRedactionSink, SecretScanner};
+use tetonic_inference::{
     ChatRequest, ChatResponse, InferenceError, InferenceProvider, Message, TokenSink, ToolCall,
 };
-use serde_json::{json, Value};
 
 #[derive(Clone)]
 pub struct ScriptTurn {
@@ -252,7 +252,7 @@ impl InferenceProvider for ScriptedProvider {
                     .calls
                     .iter()
                     .map(|(n, a)| ToolCall {
-                        function: lokai_inference::FunctionCall {
+                        function: tetonic_inference::FunctionCall {
                             name: n.clone(),
                             arguments: a.clone(),
                         },
@@ -266,7 +266,7 @@ impl InferenceProvider for ScriptedProvider {
                 }
             }
             None => Message::assistant("").with_tool_calls(vec![ToolCall {
-                function: lokai_inference::FunctionCall {
+                function: tetonic_inference::FunctionCall {
                     name: "finish".into(),
                     arguments: json!({"summary": "done"}),
                 },

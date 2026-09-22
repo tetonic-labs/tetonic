@@ -1,8 +1,8 @@
 use crate::daemon::{Daemon, Dispatch};
-use lokai_app::{SharedStore, LOCAL_NODE_ID};
-use lokai_rpc::channel_pair;
-use lokai_rpc::protocol::*;
 use serde_json::{json, Value};
+use tetonic_app::{SharedStore, LOCAL_NODE_ID};
+use tetonic_rpc::channel_pair;
+use tetonic_rpc::protocol::*;
 
 use super::harness::*;
 
@@ -195,7 +195,7 @@ fn orchestration_in_loop_spawn_agent_exhausts_budget() {
         let sink = std::sync::Arc::new(crate::daemon::events::DaemonEventSink::new(
             daemon.notifier.clone(),
         ));
-        daemon.services.as_mut().unwrap().app = lokai_app::Application::bootstrap_mock_with_store(
+        daemon.services.as_mut().unwrap().app = tetonic_app::Application::bootstrap_mock_with_store(
             &dir,
             Some(SharedStore::open(":memory:", 1).unwrap()),
             sink,
@@ -976,7 +976,7 @@ fn run_snapshot_and_resume_rpc() {
         let app = daemon.services().unwrap().app.clone();
         let plan = app
             .runs
-            .plan_turn(&lokai_app::commands::RunTurnCommand {
+            .plan_turn(&tetonic_app::commands::RunTurnCommand {
                 session_id: sid,
                 user_input: "hi".into(),
                 verify_cmd: None,
@@ -1016,7 +1016,7 @@ fn run_cancel_without_session_rpc() {
         let app = daemon.services().unwrap().app.clone();
         let run_id = app
             .runs
-            .create_run(lokai_app::commands::CreateRunCommand {
+            .create_run(tetonic_app::commands::CreateRunCommand {
                 session_id: None,
                 root_task_id: None,
                 ..Default::default()

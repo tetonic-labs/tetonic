@@ -13,8 +13,8 @@ path = "src/main.rs"
 # contract defined in `lokai-rpc`. Privacy: the contract travels over a pipe,
 # never a socket.
 [dependencies]
-lokai-rpc = { package = "tetonic-rpc", path = "../../atmos/tetonic-rpc" }
-lokai-app = { path = "../../litho/lokai-app" }
+tetonic-rpc = { path = "../../atmos/tetonic-rpc" }
+tetonic-app = { path = "../../litho/tetonic-app" }
 async-trait = { workspace = true }
 regex = { workspace = true }
 uuid = { workspace = true }

@@ -483,7 +483,7 @@ impl ProcessExecutor {
             );
         } else {
             tracing::info!(
-                "lokai_tools::broker: lsp_service_start execution_id={} program={} workspace={} policy=Allow",
+                "tetonic_tools::broker: lsp_service_start execution_id={} program={} workspace={} policy=Allow",
                 execution_id,
                 program,
                 self.workspace.display()

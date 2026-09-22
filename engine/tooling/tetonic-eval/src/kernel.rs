@@ -5,16 +5,16 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use lokai_app::commands::{
+use tetonic_app::commands::{
     CancelRunCommand, InitializeCommand, RunTurnCommand, StartSessionCommand,
 };
-use lokai_app::events::{ApplicationEvent, ApplicationEventSink};
-use lokai_app::redaction_audit::StoreRedactionSink;
-use lokai_app::Application;
-use lokai_domain::secrets::{OutboundRedactionSink, SecretScanner};
-use lokai_inference::InferenceProvider;
-use lokai_memory::SharedStore;
-use lokai_secrets::scanner::ScannerEngine;
+use tetonic_app::events::{ApplicationEvent, ApplicationEventSink};
+use tetonic_app::redaction_audit::StoreRedactionSink;
+use tetonic_app::Application;
+use tetonic_domain::secrets::{OutboundRedactionSink, SecretScanner};
+use tetonic_inference::InferenceProvider;
+use tetonic_memory::SharedStore;
+use tetonic_secrets::scanner::ScannerEngine;
 
 use crate::corpus::snapshot_files;
 use crate::manifest::EvaluationManifest;
@@ -227,7 +227,7 @@ async fn run_kernel_turn(
         tokio::select! {
             biased;
             finish = &mut join => {
-                let finish = finish.unwrap_or(lokai_app::TurnFinish {
+                let finish = finish.unwrap_or(tetonic_app::TurnFinish {
                     ok: false,
                     canceled: true,
                     error: Some("join dropped".into()),

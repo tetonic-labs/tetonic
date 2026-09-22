@@ -58,8 +58,8 @@ pub fn lsp_enabled_for_workspace(_root: &Path) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use lokai_tools::{Tools, Workspace};
     use tetonic_domain::{DataClass, DisclosureTier};
+    use tetonic_tools::{Tools, Workspace};
 
     use super::*;
 
@@ -75,7 +75,7 @@ mod tests {
         );
         assert_eq!(
             daemon_tools.enforcement_level(),
-            lokai_tools::EnforcementLevel::Sandboxed
+            tetonic_tools::EnforcementLevel::Sandboxed
         );
     }
 

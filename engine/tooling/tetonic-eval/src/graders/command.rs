@@ -1,8 +1,8 @@
 use std::{path::Path, time::Duration};
 
-use lokai_domain::execution::ProcessClass;
-use lokai_sandbox::{SandboxError, SandboxedProcess};
 use serde::Deserialize;
+use tetonic_domain::execution::ProcessClass;
+use tetonic_sandbox::{SandboxError, SandboxedProcess};
 
 /// Grader commands are trusted harness inputs. Process policy stays in sandbox.
 pub(super) async fn run(
@@ -27,14 +27,14 @@ pub(super) async fn run_captured(
     command: &str,
     timeout: Duration,
 ) -> Result<Outcome, &'static str> {
-    let (program, args) = lokai_sandbox::split_verify_command(command, workspace)
+    let (program, args) = tetonic_sandbox::split_verify_command(command, workspace)
         .map_err(|_| "grader_invalid_command")?;
-    let backend = lokai_sandbox::platform_backend();
+    let backend = tetonic_sandbox::platform_backend();
     let caps = backend.capabilities();
     if !caps.runtime_enforcement || !caps.output_limits {
         return Err("grader_limits_unavailable");
     }
-    let mut request = lokai_sandbox::profile_for_class(ProcessClass::RepositoryTool, workspace);
+    let mut request = tetonic_sandbox::profile_for_class(ProcessClass::RepositoryTool, workspace);
     // Toolchain discovery needs these paths; do not inherit arbitrary credentials
     // or compiler flags from the invoking process.
     request.environment.allowlist.extend(
@@ -58,7 +58,7 @@ pub(super) async fn run_captured(
     );
     request.runtime_limit = timeout;
     request.resources.max_output_bytes_per_stream = 256 * 1024;
-    request = lokai_sandbox::apply_executable(request, &program, &args);
+    request = tetonic_sandbox::apply_executable(request, &program, &args);
     let result = backend.execute(request).await.map_err(|e| match e {
         SandboxError::Timeout => "grader_timeout",
         _ => "grader_execution_error",

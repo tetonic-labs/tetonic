@@ -64,16 +64,16 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-    let subscriber = lokai_telemetry::sanitization::init_subscriber(
-        lokai_telemetry::sanitization::DiagnosticMode::Safe,
+    let subscriber = tetonic_telemetry::sanitization::init_subscriber(
+        tetonic_telemetry::sanitization::DiagnosticMode::Safe,
     );
     tracing::subscriber::set_global_default(subscriber).expect("Failed to set tracing subscriber");
 
     let cli = Cli::parse();
-    let root_ctx = lokai_telemetry::TraceContext::default();
+    let root_ctx = tetonic_telemetry::TraceContext::default();
     let span = tracing::info_span!("lokai_eval_root");
     let _enter = span.enter();
-    lokai_telemetry::inject_context(root_ctx);
+    tetonic_telemetry::inject_context(root_ctx);
 
     let local = tokio::task::LocalSet::new();
     local.run_until(async move { dispatch(cli).await }).await

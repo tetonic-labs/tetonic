@@ -1,6 +1,6 @@
 //! Maps OS signals to product cancellation commands.
-use lokai_app::Application;
 use std::sync::Arc;
+use tetonic_app::Application;
 
 pub struct CancelHandle {
     task: tokio::task::JoinHandle<()>,

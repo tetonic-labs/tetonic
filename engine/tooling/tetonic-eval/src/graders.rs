@@ -31,7 +31,7 @@ pub fn patch_digest(files: &BTreeMap<String, Vec<u8>>, touched: &[String]) -> Re
 }
 
 pub fn outbound_contains_secrets(texts: &[String]) -> bool {
-    let engine = lokai_secrets::scanner::ScannerEngine::default_engine();
+    let engine = tetonic_secrets::scanner::ScannerEngine::default_engine();
     for text in texts {
         if text.is_empty() {
             continue;

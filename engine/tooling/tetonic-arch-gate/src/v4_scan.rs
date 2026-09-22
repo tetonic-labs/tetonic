@@ -112,7 +112,7 @@ fn check_iface_001(root: &Path) -> Vec<Violation> {
         "restore_conversation(",
         ".run_turn(",
         "build_supervisor",
-        "use lokai_run::RunSupervisor",
+        "use tetonic_run::RunSupervisor",
     ];
     let mut out = Vec::new();
     for rel in [
@@ -195,7 +195,13 @@ fn check_iface_002(root: &Path) -> Vec<Violation> {
                 "core/lokai-runtime/src/action_broker.rs",
             ],
         ),
-        root.join("litho/lokai-app/src/turn_execution.rs"),
+        crate::resolve_path(
+            root,
+            &[
+                "litho/tetonic-app/src/turn_execution.rs",
+                "litho/lokai-app/src/turn_execution.rs",
+            ],
+        ),
     ];
     for path in paths {
         if !path.exists() {

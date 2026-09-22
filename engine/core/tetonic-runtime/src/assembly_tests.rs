@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use lokai_tools::{Tools, Workspace};
 use tetonic_core::{Agent, AgentConfig, HeuristicTokenizer};
 use tetonic_inference::OllamaProvider;
 use tetonic_policy::PolicyEngine;
+use tetonic_tools::{Tools, Workspace};
 
 use super::{AgentAssemblyParts, AssemblyMode, EngineRuntime};
 use crate::approval::ProductionApproval;
@@ -13,12 +13,13 @@ fn test_fs_hooks() -> tetonic_context::workspace::ContextFsHooks {
     tetonic_context::workspace::ContextFsHooks {
         skip_symlink: Arc::new(tetonic_transaction::fs_ops::is_symlink_or_reparse),
         jailed_read: Arc::new(|root, rel| {
-            let ws = lokai_tools::Workspace::new(root).map_err(|e| e.to_string())?;
+            let ws = tetonic_tools::Workspace::new(root).map_err(|e| e.to_string())?;
             let path = ws.resolve(rel).map_err(|e| e.to_string())?;
-            lokai_tools::read_to_string_nofollow(&path).map_err(|e| e.to_string())
+            tetonic_tools::read_to_string_nofollow(&path).map_err(|e| e.to_string())
         }),
         run_git: Arc::new(|root, args| {
-            let pe = lokai_tools::coding_executor(root, lokai_tools::EnforcementLevel::Sandboxed);
+            let pe =
+                tetonic_tools::coding_executor(root, tetonic_tools::EnforcementLevel::Sandboxed);
             let r = pe.run_git(args.iter().map(|s| (*s).to_string()))?;
             Ok(r.output)
         }),
@@ -43,7 +44,7 @@ fn test_capability_hooks() -> (
     tetonic_core::CaptureWorkspaceVersion,
 ) {
     (
-        Arc::new(lokai_tools::format_post_edit_snapshot),
+        Arc::new(tetonic_tools::format_post_edit_snapshot),
         Arc::new(|root, rel| {
             let abs = tetonic_transaction::fs_ops::resolve_under_root(root, rel).map_err(|_| ())?;
             std::fs::metadata(abs).map(|m| m.len()).map_err(|_| ())
@@ -281,6 +282,6 @@ fn tools_new_defaults_sandboxed() {
     let tools = Tools::new(ws, false);
     assert_eq!(
         tools.enforcement_level(),
-        lokai_tools::EnforcementLevel::Sandboxed
+        tetonic_tools::EnforcementLevel::Sandboxed
     );
 }

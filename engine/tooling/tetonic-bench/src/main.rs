@@ -14,10 +14,10 @@
 use std::path::{Path, PathBuf};
 use std::time::Instant;
 
-use lokai_core::{HeuristicTokenizer, Tokenizer};
-use lokai_index::Index;
-use lokai_tools::{Tools, Workspace};
 use serde_json::json;
+use tetonic_core::{HeuristicTokenizer, Tokenizer};
+use tetonic_index::Index;
+use tetonic_tools::{Tools, Workspace};
 
 fn main() -> anyhow::Result<()> {
     let n_files: usize = std::env::args()

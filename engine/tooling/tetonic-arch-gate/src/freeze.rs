@@ -362,9 +362,9 @@ pub fn product_boundary_new(root: &Path) -> Vec<Violation> {
         }
         let text = production_text(&std::fs::read_to_string(&path).unwrap_or_default());
         if is_core_or_runtime_src(&rel_path)
-            && (text.contains("lokai_index::")
+            && (text.contains("tetonic_index::")
                 || text.contains("tetonic_index::")
-                || text.contains("lokai_lsp::")
+                || text.contains("tetonic_lsp::")
                 || text.contains("tetonic_lsp::"))
         {
             out.push(Violation {
@@ -721,7 +721,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write(
             &dir.path().join("core/lokai-core/src/agent.rs"),
-            "let _ = lokai_index::Index::open(p);\n",
+            "let _ = tetonic_index::Index::open(p);\n",
         );
         let v = product_boundary_new(dir.path());
         assert_eq!(v.len(), 1);
@@ -758,7 +758,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write(
             &dir.path().join("litho/lokai-app/src/coding_pack.rs"),
-            "let _ = lokai_index::FilesystemCodeIndex;\n",
+            "let _ = tetonic_index::FilesystemCodeIndex;\n",
         );
         write(
             &dir.path()

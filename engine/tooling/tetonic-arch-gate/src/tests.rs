@@ -123,7 +123,7 @@ fn workspace_mutations_allows_cli_jailed_write() {
     std::fs::create_dir_all(offline.parent().unwrap()).unwrap();
     std::fs::write(
         &offline,
-        "fn restore() { lokai_tools::write_bytes_nofollow(&path, text).unwrap(); }\n",
+        "fn restore() { tetonic_tools::write_bytes_nofollow(&path, text).unwrap(); }\n",
     )
     .unwrap();
     let v = check_workspace_mutations(dir.path());

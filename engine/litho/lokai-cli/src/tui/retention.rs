@@ -88,7 +88,7 @@ mod tests {
         for _ in 0..20 {
             super::super::events::apply(
                 &mut app,
-                lokai_app::events::ApplicationEvent::InspectorUpdate {
+                tetonic_app::events::ApplicationEvent::InspectorUpdate {
                     text: "x".repeat(100_000),
                 },
                 &coordinator,

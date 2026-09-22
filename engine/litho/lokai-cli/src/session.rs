@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use lokai_app::Application;
+use tetonic_app::Application;
 
 use crate::app_kernel::TerminalApprovalCoordinator;
 

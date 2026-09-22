@@ -23,7 +23,7 @@ impl Daemon {
             .map_err(|_| RpcError::new(ErrorCode::UnknownSession, "unknown session_id"))?;
         services
             .app
-            .submit_chat_turn(lokai_app::commands::RunTurnCommand {
+            .submit_chat_turn(tetonic_app::commands::RunTurnCommand {
                 session_id: p.session_id,
                 user_input: p.text,
                 verify_cmd: None,

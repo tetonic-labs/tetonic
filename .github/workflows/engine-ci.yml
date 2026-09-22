@@ -50,17 +50,17 @@ jobs:
 
       - name: Run Core Tests
         run: |
-          cargo test -p lokai-core \
-                     -p lokai-policy \
-                     -p lokai-secrets \
-                     -p lokai-domain \
-                     -p lokai-tools \
-                     -p lokai-artifact \
-                     -p lokai-transaction \
-                     -p lokai-egress \
-                     -p lokai-telemetry \
+          cargo test -p tetonic-core \
+                     -p tetonic-policy \
+                     -p tetonic-secrets \
+                     -p tetonic-domain \
+                     -p tetonic-tools \
+                     -p tetonic-artifact \
+                     -p tetonic-transaction \
+                     -p tetonic-egress \
+                     -p tetonic-telemetry \
                      -p lokai-cli \
-                     -p lokai-app
+                     -p tetonic-app
 
   build-matrix:
     name: Cross-Platform Build (${{ matrix.os }})

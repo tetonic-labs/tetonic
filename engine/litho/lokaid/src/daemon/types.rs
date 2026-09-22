@@ -3,7 +3,7 @@
 use std::sync::atomic::AtomicBool;
 use std::sync::{Arc, Mutex};
 
-use lokai_app::{Application, CapacityStatus, InferenceDefaults};
+use tetonic_app::{Application, CapacityStatus, InferenceDefaults};
 
 /// Synthetic session for capacity progress notifications (not a user session).
 pub const CAPACITY_SESSION: &str = "__capacity__";

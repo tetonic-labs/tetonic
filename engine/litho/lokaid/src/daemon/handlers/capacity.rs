@@ -45,14 +45,14 @@ impl Daemon {
         let begin = services
             .app
             .capacity
-            .begin_optimize(lokai_app::commands::BeginOptimizeCommand {
+            .begin_optimize(tetonic_app::commands::BeginOptimizeCommand {
                 sessions_busy: self.sessions_busy(),
                 capacity_busy: self.capacity.busy.load(Ordering::Relaxed),
                 depth: p.depth.as_deref().unwrap_or("quick").to_string(),
                 auto_apply: p.auto_apply.unwrap_or(false),
             })
             .map_err(|e| match &e {
-                lokai_app::errors::AppError::InvalidRequest(_) => {
+                tetonic_app::errors::AppError::InvalidRequest(_) => {
                     RpcError::new(ErrorCode::InvalidRequest, format!("{e}"))
                 }
                 _ => RpcError::new(ErrorCode::InternalError, format!("{e}")),
@@ -128,7 +128,7 @@ impl Daemon {
         let accepted = services
             .app
             .capacity
-            .cancel_optimize(lokai_app::commands::CancelOptimizeCommand {
+            .cancel_optimize(tetonic_app::commands::CancelOptimizeCommand {
                 requested_job_id: p.job_id.clone(),
                 active_job_id,
                 capacity_busy: self.capacity.busy.load(Ordering::Relaxed),
@@ -180,7 +180,7 @@ impl Daemon {
         let summaries = services
             .app
             .capacity
-            .list_profiles(lokai_app::commands::ListProfilesCommand {
+            .list_profiles(tetonic_app::commands::ListProfilesCommand {
                 node_id: node_id.to_string(),
                 role: role_name,
             })
@@ -219,7 +219,7 @@ impl Daemon {
         services
             .app
             .capacity
-            .activate_profile(lokai_app::commands::ActivateProfileCommand {
+            .activate_profile(tetonic_app::commands::ActivateProfileCommand {
                 node_id: node_id.to_string(),
                 role: role_name,
                 profile_id: p.profile_id.clone(),
@@ -259,7 +259,7 @@ impl Daemon {
         let prev = services
             .app
             .capacity
-            .rollback_profile(lokai_app::commands::RollbackProfileCommand {
+            .rollback_profile(tetonic_app::commands::RollbackProfileCommand {
                 node_id: node_id.to_string(),
                 role: role_name,
             })
@@ -288,7 +288,7 @@ impl Daemon {
         let profile = services
             .app
             .capacity
-            .export_profile(lokai_app::commands::ExportProfileCommand {
+            .export_profile(tetonic_app::commands::ExportProfileCommand {
                 profile_id: p.profile_id.clone(),
             })
             .map_err(crate::daemon::rpc::map::map_app_error)?;
@@ -306,7 +306,7 @@ impl Daemon {
         let row = services
             .app
             .capacity
-            .get_capacity_job(lokai_app::commands::GetCapacityJobCommand {
+            .get_capacity_job(tetonic_app::commands::GetCapacityJobCommand {
                 job_id: p.job_id.clone(),
             })
             .map_err(crate::daemon::rpc::map::map_app_error)?;

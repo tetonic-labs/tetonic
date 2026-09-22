@@ -230,7 +230,7 @@ pub fn check_schema_methods(root: &Path) -> Vec<Violation> {
         std::fs::read_to_string(&daemon).unwrap_or_default(),
         std::fs::read_to_string(&main_rs).unwrap_or_default(),
     );
-    let bundle = lokai_rpc::schema_bundle();
+    let bundle = tetonic_rpc::schema_bundle();
     let Some(methods) = bundle.get("methods").and_then(|m| m.as_object()) else {
         return vec![Violation {
             rule: "schema_methods",
@@ -292,6 +292,7 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     // pushed this file over 900. Not an M0 freeze split.
     // Removal: extract event/redact helpers; delete this row.
     "litho/lokai-app/src/turn_execution.rs",
+    "litho/tetonic-app/src/turn_execution.rs",
     // Owner: lokai-context. Reason: `src/tests.rs` is not skipped by `_tests.rs`/`/tests/`.
     // Removal: move to strata/lokai-context/tests/ or rename to *_tests.rs.
     "strata/lokai-context/src/tests.rs",
@@ -330,7 +331,10 @@ pub fn check_app_layer_deps(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
 
     // Check Cargo.toml for lokai-app
-    let cargo_path = root.join("litho/lokai-app/Cargo.toml");
+    let cargo_path = crate::resolve_path(
+        root,
+        &["litho/tetonic-app/Cargo.toml", "litho/lokai-app/Cargo.toml"],
+    );
     let cargo_text = std::fs::read_to_string(&cargo_path).unwrap_or_default();
     if cargo_text.contains("lokai-rpc")
         || cargo_text.contains("tetonic-rpc")
@@ -345,13 +349,13 @@ pub fn check_app_layer_deps(root: &Path) -> Vec<Violation> {
     }
 
     // Check lokai-app source files for print, eprint, rpc
-    let app_root = root.join("litho/lokai-app/src");
+    let app_root = crate::resolve_path(root, &["litho/tetonic-app/src", "litho/lokai-app/src"]);
     let print_re = regex::Regex::new(r"print(ln)?!\s*\(").unwrap();
     let eprint_re = regex::Regex::new(r"eprint(ln)?!\s*\(").unwrap();
 
     for path in collect_rs_files(&app_root) {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
-        if text.contains("lokai_rpc::") || text.contains("tetonic_rpc::") {
+        if text.contains("tetonic_rpc::") || text.contains("tetonic_rpc::") {
             out.push(Violation {
                 rule: "app_layer_isolation",
                 path: path.clone(),
@@ -405,7 +409,7 @@ pub fn check_cli_workflow_delegation(root: &Path) -> Vec<Violation> {
         "litho/lokai-cli/src/capacity.rs",
     ];
     let app_re = regex::Regex::new(
-        r"lokai_app::|\.runs\.|\.sessions\.|\.estate\.|\.capacity\.|\.approvals\.",
+        r"tetonic_app::|\.runs\.|\.sessions\.|\.estate\.|\.capacity\.|\.approvals\.",
     )
     .expect("regex");
     let mut out = Vec::new();
@@ -451,7 +455,7 @@ pub fn check_lokaid_no_direct_orchestration(root: &Path) -> Vec<Violation> {
 
 pub fn check_lokaid_handlers_no_profile_store(root: &Path) -> Vec<Violation> {
     let re = regex::Regex::new(
-        r"ProfileStore::new|(?:lokai_capacity|tetonic_capacity)::run_optimize\s*\(",
+        r"ProfileStore::new|(?:tetonic_capacity|tetonic_capacity)::run_optimize\s*\(",
     )
     .expect("regex");
     let mut out = Vec::new();
@@ -497,6 +501,7 @@ pub fn check_unguarded_remote_dispatch(root: &Path) -> Vec<Violation> {
     let pooled_new = regex::Regex::new(r"PooledProvider::new_with_registry\s*\(").expect("regex");
     let allow_remote_new = &[
         "litho/lokai-app/src/compute_plane.rs",
+        "litho/tetonic-app/src/compute_plane.rs",
         "litho/lokaid/src/daemon/compute.rs",
         "atmos/lokai-inference/src/pooled.rs",
         "atmos/tetonic-inference/src/pooled.rs",

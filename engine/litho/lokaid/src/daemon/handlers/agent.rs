@@ -20,7 +20,7 @@ impl Daemon {
 
         services
             .app
-            .submit_spawn(lokai_app::commands::SpawnAgentCommand {
+            .submit_spawn(tetonic_app::commands::SpawnAgentCommand {
                 session_id: p.session_id,
                 agent_id,
                 parent_agent_id,

@@ -5,13 +5,13 @@ use super::{
     App,
 };
 use crossterm::event::{KeyCode, KeyEvent, KeyModifiers};
-use lokai_app::inference_selection::ModelCatalog;
 use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::{Color, Style},
     text::{Line, Span},
     widgets::{Clear, List, ListItem, ListState, Paragraph, Wrap},
 };
+use tetonic_app::inference_selection::ModelCatalog;
 
 pub const CATEGORIES: &[&str] = &["All", "Local", "Anthropic Claude", "OpenAI", "DeepSeek"];
 
@@ -54,7 +54,7 @@ impl Picker {
         }
     }
 
-    pub fn matches(&self) -> Vec<&lokai_app::inference_selection::ModelChoice> {
+    pub fn matches(&self) -> Vec<&tetonic_app::inference_selection::ModelChoice> {
         let query = self.query.to_lowercase();
         let cat = CATEGORIES[self.category_index % CATEGORIES.len()];
         self.catalog
@@ -569,7 +569,7 @@ fn open_browser_url(url: &str) {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_app::inference_selection::ModelChoice;
+    use tetonic_app::inference_selection::ModelChoice;
 
     #[test]
     fn picker_renders_current_choice_and_empty_state_at_terminal_sizes() {

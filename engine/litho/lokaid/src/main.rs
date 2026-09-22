@@ -23,9 +23,9 @@ use anyhow::Result;
 use std::sync::Arc;
 use tokio::io::BufReader;
 
-use lokai_rpc::framing;
-use lokai_rpc::protocol::{ErrorCode, Incoming, Response, RpcError};
-use lokai_rpc::{writer_task, Notifier, OutboundQueue, DEFAULT_OUTBOUND_CAPACITY};
+use tetonic_rpc::framing;
+use tetonic_rpc::protocol::{ErrorCode, Incoming, Response, RpcError};
+use tetonic_rpc::{writer_task, Notifier, OutboundQueue, DEFAULT_OUTBOUND_CAPACITY};
 
 use daemon::{Daemon, Dispatch};
 
@@ -35,7 +35,7 @@ fn main() -> Result<()> {
     let combined_mode = args.iter().any(|a| a == "--combined");
 
     if std::env::args().skip(1).any(|a| a == "--print-schema") {
-        let bundle = lokai_rpc::schema_bundle();
+        let bundle = tetonic_rpc::schema_bundle();
         println!("{}", serde_json::to_string_pretty(&bundle)?);
         return Ok(());
     }
@@ -68,12 +68,12 @@ fn main() -> Result<()> {
     }
 
     let mode = if std::env::var("LOKAI_DIAGNOSTIC_RAW_PAYLOADS").is_ok() {
-        lokai_app::lokai_telemetry::DiagnosticMode::UnsafeRawPayloads
+        tetonic_app::tetonic_telemetry::DiagnosticMode::UnsafeRawPayloads
     } else {
-        lokai_app::lokai_telemetry::DiagnosticMode::Safe
+        tetonic_app::tetonic_telemetry::DiagnosticMode::Safe
     };
 
-    let subscriber = lokai_app::lokai_telemetry::init_subscriber(mode);
+    let subscriber = tetonic_app::tetonic_telemetry::init_subscriber(mode);
     tracing::subscriber::set_global_default(subscriber)
         .expect("Failed to set telemetry subscriber");
 
@@ -88,12 +88,14 @@ fn main() -> Result<()> {
 async fn serve() -> Result<()> {
     let root_span = tracing::info_span!("lokaid_root");
     let _root_enter = root_span.enter();
-    lokai_app::lokai_telemetry::inject_context(lokai_app::lokai_telemetry::TraceContext::default());
+    tetonic_app::tetonic_telemetry::inject_context(
+        tetonic_app::tetonic_telemetry::TraceContext::default(),
+    );
 
     let combined = std::env::args().skip(1).any(|a| a == "--combined");
-    let audit_store = lokai_app::open_default_audit_store();
-    lokai_app::install_shared_scanner_from_store(&audit_store);
-    let scanner = lokai_app::scanner_from_shared_store(&audit_store);
+    let audit_store = tetonic_app::open_default_audit_store();
+    tetonic_app::install_shared_scanner_from_store(&audit_store);
+    let scanner = tetonic_app::scanner_from_shared_store(&audit_store);
     let (mut queue, wake_rx) = OutboundQueue::new(DEFAULT_OUTBOUND_CAPACITY);
     let scanner_hook = scanner.clone();
     queue = queue.with_redactor(Arc::new(move |text| {
@@ -109,7 +111,7 @@ async fn serve() -> Result<()> {
     let mut writer = tokio::spawn(writer_task(queue, wake_rx, tokio::io::stdout()));
 
     let fabric_shutdown = if combined {
-        Some(lokai_app::Application::spawn_combined_fabric()?)
+        Some(tetonic_app::Application::spawn_combined_fabric()?)
     } else {
         None
     };

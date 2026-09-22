@@ -108,7 +108,7 @@ impl SessionHost {
                 .filter(|t| !t.trim().is_empty())
         });
 
-        let verify_cmd = lokai_tools::resolve_verify_cmd(verify_override, &self.workspace_root);
+        let verify_cmd = tetonic_tools::resolve_verify_cmd(verify_override, &self.workspace_root);
 
         let briefing = if briefing_enabled && self.briefing_enabled {
             build_session_briefing(

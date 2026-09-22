@@ -1,7 +1,7 @@
 //! Worker `--node` modes (node-enrollment-v1, fabric ingress N0.2).
 
 use anyhow::Result;
-use lokai_app::Application;
+use tetonic_app::Application;
 
 pub async fn run_enroll() -> Result<()> {
     Application::run_node_enroll().await

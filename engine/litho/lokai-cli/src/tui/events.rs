@@ -1,6 +1,6 @@
 //! Apply application events onto TUI state.
 
-use lokai_app::events::ApplicationEvent;
+use tetonic_app::events::ApplicationEvent;
 
 use super::approval::PendingApproval;
 use super::failure;
@@ -20,18 +20,18 @@ pub fn apply(
                 return;
             }
             let label = detail.unwrap_or_else(|| match &stage {
-                lokai_app::events::EngineStage::Routing { .. } => "Classifying intent...".into(),
-                lokai_app::events::EngineStage::CompilingContext { .. } => {
+                tetonic_app::events::EngineStage::Routing { .. } => "Classifying intent...".into(),
+                tetonic_app::events::EngineStage::CompilingContext { .. } => {
                     "Compiling context...".into()
                 }
-                lokai_app::events::EngineStage::SearchingIndex { .. } => {
+                tetonic_app::events::EngineStage::SearchingIndex { .. } => {
                     "Searching index...".into()
                 }
-                lokai_app::events::EngineStage::PreparingModel { model } => {
+                tetonic_app::events::EngineStage::PreparingModel { model } => {
                     format!("Preparing model {model}...")
                 }
-                lokai_app::events::EngineStage::Inferring { .. } => "Generating...".into(),
-                lokai_app::events::EngineStage::RunningTool { tool } => {
+                tetonic_app::events::EngineStage::Inferring { .. } => "Generating...".into(),
+                tetonic_app::events::EngineStage::RunningTool { tool } => {
                     format!("Running {tool}...")
                 }
             });
@@ -66,15 +66,17 @@ pub fn apply(
         }
         ApplicationEvent::NodeStarted { meta } => {
             let role = match meta.kind {
-                lokai_app::events::NodeKind::Specialist { role } => {
+                tetonic_app::events::NodeKind::Specialist { role } => {
                     transcript::AgentRoleKind::Specialist(role)
                 }
-                lokai_app::events::NodeKind::Evaluator { .. } => transcript::AgentRoleKind::Critic,
-                lokai_app::events::NodeKind::RefinementLoop { iteration, .. } => {
+                tetonic_app::events::NodeKind::Evaluator { .. } => {
+                    transcript::AgentRoleKind::Critic
+                }
+                tetonic_app::events::NodeKind::RefinementLoop { iteration, .. } => {
                     transcript::AgentRoleKind::Revision(iteration)
                 }
-                lokai_app::events::NodeKind::Root => transcript::AgentRoleKind::Primary,
-                lokai_app::events::NodeKind::ToolExecution { tool } => {
+                tetonic_app::events::NodeKind::Root => transcript::AgentRoleKind::Primary,
+                tetonic_app::events::NodeKind::ToolExecution { tool } => {
                     transcript::AgentRoleKind::Specialist(tool)
                 }
             };
@@ -90,21 +92,21 @@ pub fn apply(
             }
         }
         ApplicationEvent::NodeProgress {
-            state: lokai_app::events::NodeState::Active { status_message },
+            state: tetonic_app::events::NodeState::Active { status_message },
             ..
         } => {
             if app.turn_settled {
                 return;
             }
             app.phase = TurnPhase::Stage(
-                lokai_app::events::EngineStage::Inferring {
+                tetonic_app::events::EngineStage::Inferring {
                     agent_id: "".into(),
                 },
                 status_message,
             );
         }
         ApplicationEvent::NodeCompleted { state, .. } => match state {
-            lokai_app::events::NodeState::Succeeded { summary } => {
+            tetonic_app::events::NodeState::Succeeded { summary } => {
                 app.push_transcript(TranscriptLine::new(
                     LineKind::SubagentFooter {
                         ok: true,
@@ -113,7 +115,7 @@ pub fn apply(
                     summary,
                 ));
             }
-            lokai_app::events::NodeState::Failed { error, .. } => {
+            tetonic_app::events::NodeState::Failed { error, .. } => {
                 app.push_transcript(TranscriptLine::new(
                     LineKind::SubagentFooter {
                         ok: false,
@@ -307,7 +309,7 @@ pub fn status_inspect(app: &App) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use lokai_app::events::ApplicationEvent;
+    use tetonic_app::events::ApplicationEvent;
 
     #[test]
     fn tokens_and_tools_go_to_transcript_logs_go_to_activity() {
@@ -401,7 +403,7 @@ mod tests {
             ApplicationEvent::StageTransition {
                 session_id: "s".into(),
                 agent_id: "a0".into(),
-                stage: lokai_app::events::EngineStage::Routing { mode: "llm".into() },
+                stage: tetonic_app::events::EngineStage::Routing { mode: "llm".into() },
                 detail: Some("Classifying intent...".into()),
             },
             coordinator.as_ref(),
@@ -559,12 +561,12 @@ mod tests {
         apply(
             &mut app,
             ApplicationEvent::NodeStarted {
-                meta: lokai_app::events::ExecutionNodeMeta {
+                meta: tetonic_app::events::ExecutionNodeMeta {
                     node_id: "a0.1".into(),
                     parent_node_id: Some("a0".into()),
                     run_id: "r1".into(),
                     session_id: "s1".into(),
-                    kind: lokai_app::events::NodeKind::Specialist {
+                    kind: tetonic_app::events::NodeKind::Specialist {
                         role: "Coder".into(),
                     },
                     label: "Specialist: Coder".into(),
@@ -614,7 +616,7 @@ mod tests {
             &mut app,
             ApplicationEvent::NodeCompleted {
                 node_id: "a0.1".into(),
-                state: lokai_app::events::NodeState::Succeeded {
+                state: tetonic_app::events::NodeState::Succeeded {
                     summary: "Code edits applied".into(),
                 },
                 duration_ms: 1200,
@@ -626,12 +628,12 @@ mod tests {
         apply(
             &mut app,
             ApplicationEvent::NodeStarted {
-                meta: lokai_app::events::ExecutionNodeMeta {
+                meta: tetonic_app::events::ExecutionNodeMeta {
                     node_id: "a0.2".into(),
                     parent_node_id: Some("a0".into()),
                     run_id: "r1".into(),
                     session_id: "s1".into(),
-                    kind: lokai_app::events::NodeKind::Evaluator {
+                    kind: tetonic_app::events::NodeKind::Evaluator {
                         criterion: "LSP".into(),
                     },
                     label: "Critic Review".into(),
@@ -643,7 +645,7 @@ mod tests {
             &mut app,
             ApplicationEvent::NodeCompleted {
                 node_id: "a0.2".into(),
-                state: lokai_app::events::NodeState::Succeeded {
+                state: tetonic_app::events::NodeState::Succeeded {
                     summary: "Verdict: APPROVED".into(),
                 },
                 duration_ms: 400,

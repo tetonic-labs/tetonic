@@ -2,9 +2,9 @@
 
 use std::path::Path;
 
-use lokai_tools::resolve_verify_cmd;
 use tetonic_domain::{CodeIndexOpen, LspSessionOpen};
 use tetonic_memory::Store;
+use tetonic_tools::resolve_verify_cmd;
 
 const DEFAULT_TOKEN_BUDGET: usize = 700;
 const CHARS_PER_TOKEN: usize = 4;
@@ -153,7 +153,7 @@ pub fn build_session_briefing(input: BriefingInput<'_>, opts: BriefingOptions) -
         }
     }
 
-    if lokai_tools::lsp_available_for_workspace(input.lsp_open, input.workspace_root) {
+    if tetonic_tools::lsp_available_for_workspace(input.lsp_open, input.workspace_root) {
         sections.push(
             "LSP is available — run lsp_diagnostics on edited .rs/.py/.ts files before finish."
                 .into(),

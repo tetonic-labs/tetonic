@@ -65,7 +65,7 @@ impl Daemon {
 
     pub(in crate::daemon) async fn policy_get(&self) -> Result<Value, RpcError> {
         let services = self.services()?;
-        let cmd = lokai_app::commands::GetPolicyCommand {
+        let cmd = tetonic_app::commands::GetPolicyCommand {
             workspace_root: services.workspace_root.clone(),
         };
         let result = services
@@ -95,7 +95,7 @@ impl Daemon {
         let p: PolicySetParams = parse(params)?;
         let services = self.services()?;
 
-        let cmd = lokai_app::commands::SetPolicyCommand {
+        let cmd = tetonic_app::commands::SetPolicyCommand {
             mode: p.mode,
             verify_allowed: p.verify_allowed,
             mutations_allowed: p.mutations_allowed,
@@ -116,7 +116,7 @@ impl Daemon {
         let cur = services
             .app
             .policies
-            .get_policy(lokai_app::commands::GetPolicyCommand {
+            .get_policy(tetonic_app::commands::GetPolicyCommand {
                 workspace_root: services.workspace_root.clone(),
             })
             .await
@@ -137,7 +137,7 @@ impl Daemon {
 
     pub(in crate::daemon) fn estate_status(&self) -> Result<Value, RpcError> {
         let services = self.services()?;
-        let cmd = lokai_app::commands::GetEstateStatusCommand {
+        let cmd = tetonic_app::commands::GetEstateStatusCommand {
             fabric_pooled: services.fabric_pooled,
         };
         let result = services

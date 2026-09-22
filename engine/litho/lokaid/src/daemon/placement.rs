@@ -1,9 +1,9 @@
 //! Bridges inference dispatch placement reports to JSON-RPC notifications.
 
-use lokai_app::{data_class_name, DispatchPlacementReport, DispatchPlacementSink, ROOT_AGENT};
-use lokai_rpc::protocol::events;
-use lokai_rpc::Notifier;
 use serde_json::json;
+use tetonic_app::{data_class_name, DispatchPlacementReport, DispatchPlacementSink, ROOT_AGENT};
+use tetonic_rpc::protocol::events;
+use tetonic_rpc::Notifier;
 
 pub struct DaemonPlacementSink {
     notifier: Notifier,

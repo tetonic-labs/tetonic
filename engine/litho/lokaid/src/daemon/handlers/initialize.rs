@@ -25,11 +25,11 @@ impl Daemon {
         }
         self.rpc_authenticated.store(true, Ordering::Relaxed);
 
-        let placement_sink: Arc<dyn lokai_app::DispatchPlacementSink> = Arc::new(
+        let placement_sink: Arc<dyn tetonic_app::DispatchPlacementSink> = Arc::new(
             crate::daemon::placement::DaemonPlacementSink::new(self.notifier.clone()),
         );
 
-        let out = lokai_app::Application::bootstrap_daemon(lokai_app::DaemonBootstrapParams {
+        let out = tetonic_app::Application::bootstrap_daemon(tetonic_app::DaemonBootstrapParams {
             workspace_root: p.workspace_root,
             event_sink: Arc::new(crate::daemon::events::DaemonEventSink::new(
                 self.notifier.clone(),
@@ -49,7 +49,7 @@ impl Daemon {
         let capacity = out.capacity_status.clone().map(to_capacity_summary);
 
         let result = InitializeResult {
-            protocol_version: lokai_rpc::PROTOCOL_VERSION,
+            protocol_version: tetonic_rpc::PROTOCOL_VERSION,
             daemon_info: DaemonInfo {
                 name: "lokaid".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),

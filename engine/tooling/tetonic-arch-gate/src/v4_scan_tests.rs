@@ -199,7 +199,7 @@ pub async fn fail_hop(
     assert!(!detect_unclassified_fail_hop(classified));
 
     let production = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../mantle/lokai-run/src/infer_admission.rs");
+        .join("../../mantle/tetonic-run/src/infer_admission.rs");
     let src = fs::read_to_string(&production).expect("production fail_hop");
     assert!(
         !detect_unclassified_fail_hop(&src),
@@ -230,7 +230,7 @@ fn sub_001_loop_policy_mutant_trips() {
 
 #[test]
 fn sub_001_loop_policy_production_clean() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../core/lokai-core/src");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../core/tetonic-core/src");
     for rel in ["agent.rs", "monitor.rs", "demuxer.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
@@ -246,7 +246,7 @@ fn detect_manager_finalization_contract_violations(src: &str) -> bool {
     prod.contains("CodingAgentDefinition")
         || prod.contains("commit_staged_if_any")
         || prod.contains("explain_turn")
-        || prod.contains("lokai_tools::")
+        || prod.contains("tetonic_tools::")
 }
 
 #[test]
@@ -262,7 +262,7 @@ fn fin_001_contracts_mutant_trips() {
 
 #[test]
 fn fin_001_contracts_production_clean() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/lokai-app/src");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
     for rel in ["run_service.rs", "turn_finalization.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
@@ -289,7 +289,7 @@ fn work_004_product_spawn_local_mutant_trips() {
 
 #[test]
 fn work_004_product_spawn_local_production_clean() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/lokai-app/src");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
     let path = root.join("product_submit.rs");
     let src = fs::read_to_string(&path).expect("read product_submit.rs");
     assert!(
@@ -340,7 +340,7 @@ impl LocalAgentAttemptExecutor {
     pub(super) async fn start_identity_job(
         &self,
         cmd: StartIdentityJobCommand,
-        agent: &mut lokai_core::Agent,
+        agent: &mut tetonic_core::Agent,
     ) -> Result<StartIdentityJobResult, AppError> {
         let active = self.begin_job_run(None, &cmd.identity, cmd.job_spec).await?;
         Ok(StartIdentityJobResult { run_id: active.run_id, task_id: active.task_id, attempt_id: active.attempt_id, outcome: CandidateOutcome::ok() })
@@ -355,14 +355,14 @@ impl LocalAgentAttemptExecutor {
 #[test]
 fn work_005_binding_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
-    let executor_path = root.join("core/lokai-runtime/src/executor.rs");
+    let executor_path = root.join("core/tetonic-runtime/src/executor.rs");
     let executor_src = fs::read_to_string(&executor_path).expect("read executor.rs");
     assert!(
         !detect_unbound_identity_job_violations(&executor_src),
         "production executor.rs must bind ctx.attempt_id"
     );
 
-    let identity_job_path = root.join("mantle/lokai-run/src/managed/execution.rs");
+    let identity_job_path = root.join("mantle/tetonic-run/src/managed/execution.rs");
     let identity_job_src = fs::read_to_string(&identity_job_path).expect("read identity_job.rs");
     assert!(
         !detect_unbound_identity_job_violations(&identity_job_src),
@@ -398,7 +398,7 @@ fn work_006_session_authority_mutant_trips() {
 
 #[test]
 fn work_006_session_authority_production_clean() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/lokai-app/src");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
     for rel in ["run_service.rs", "services.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
@@ -431,9 +431,9 @@ fn iface_002_approval_singleton_mutant_trips() {
 fn iface_002_approval_singleton_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
     let paths = [
-        root.join("core/lokai-runtime/src/assembly.rs"),
-        root.join("core/lokai-runtime/src/action_broker.rs"),
-        root.join("litho/lokai-app/src/turn_execution.rs"),
+        root.join("core/tetonic-runtime/src/assembly.rs"),
+        root.join("core/tetonic-runtime/src/action_broker.rs"),
+        root.join("litho/tetonic-app/src/turn_execution.rs"),
     ];
     for path in paths {
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {:?}", path));
@@ -465,7 +465,7 @@ fn obs_001_sessionless_noop_mutant_trips() {
 
 #[test]
 fn obs_001_sessionless_noop_production_clean() {
-    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/lokai-app/src");
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
     let job_path = root.join("identity_job.rs");
     let job_src = fs::read_to_string(&job_path).expect("read identity_job.rs");
     assert!(
@@ -487,7 +487,7 @@ fn cap_001_trips_compiler_or_heuristics_in_runtime() {
     assert!(check_cap_001(&root).is_empty());
 
     write(
-        &root.join("core/lokai-runtime/src/assembly.rs"),
+        &root.join("core/tetonic-runtime/src/assembly.rs"),
         "fn make() { build_production_context_compiler(); }\n",
     );
     let v = check_cap_001(&root);
@@ -495,7 +495,7 @@ fn cap_001_trips_compiler_or_heuristics_in_runtime() {
 
     let (_keep2, root2) = temp_engine();
     write(
-        &root2.join("core/lokai-runtime/src/assembly.rs"),
+        &root2.join("core/tetonic-runtime/src/assembly.rs"),
         "fn make() { std::env::current_dir(); }\n",
     );
     let v2 = check_cap_001(&root2);

@@ -1,6 +1,6 @@
 //! Consent dialog for gated tools (not a warning splash).
 
-use lokai_app::ConfinementWarning;
+use tetonic_app::ConfinementWarning;
 
 #[derive(Debug, Clone)]
 pub struct PendingApproval {
@@ -39,10 +39,10 @@ pub fn dialog_text(pending: &PendingApproval) -> String {
 mod tests {
     use super::super::{deny_pending, events, respond_approval, App};
     use crate::app_kernel::TerminalApprovalCoordinator;
-    use lokai_app::approval::{ApprovalService, DefaultApprovalService};
-    use lokai_app::commands::RegisterApprovalCommand;
-    use lokai_app::events::{ApplicationEvent, ApplicationEventSink};
     use std::sync::Arc;
+    use tetonic_app::approval::{ApprovalService, DefaultApprovalService};
+    use tetonic_app::commands::RegisterApprovalCommand;
+    use tetonic_app::events::{ApplicationEvent, ApplicationEventSink};
 
     struct Sink(crate::event_queue::Sender);
     impl ApplicationEventSink for Sink {
