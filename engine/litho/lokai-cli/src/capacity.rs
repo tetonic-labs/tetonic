@@ -4,7 +4,7 @@ use std::path::PathBuf;
 
 use anyhow::{Context, Result};
 use clap::{Parser, Subcommand};
-use lokai_app::{Application, JobState, LOCAL_NODE_ID};
+use tetonic_app::{Application, JobState, LOCAL_NODE_ID};
 
 pub async fn dispatch(command: CapacitySub) -> Result<()> {
     match command {
@@ -97,7 +97,7 @@ async fn run_profiles_list() -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let summaries = app
         .capacity
-        .list_profiles(lokai_app::commands::ListProfilesCommand {
+        .list_profiles(tetonic_app::commands::ListProfilesCommand {
             node_id: LOCAL_NODE_ID.to_string(),
             role: "coder".into(),
         })
@@ -122,7 +122,7 @@ async fn run_profiles_activate(id: &str) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .capacity
-        .activate_profile(lokai_app::commands::ActivateProfileCommand {
+        .activate_profile(tetonic_app::commands::ActivateProfileCommand {
             node_id: LOCAL_NODE_ID.to_string(),
             role: "coder".into(),
             profile_id: id.to_string(),
@@ -139,7 +139,7 @@ async fn run_profiles_rollback() -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .capacity
-        .rollback_profile(lokai_app::commands::RollbackProfileCommand {
+        .rollback_profile(tetonic_app::commands::RollbackProfileCommand {
             node_id: LOCAL_NODE_ID.to_string(),
             role: "coder".into(),
         })
@@ -155,7 +155,7 @@ async fn run_profiles_export(id: &str, out: Option<&PathBuf>) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     let profile = app
         .capacity
-        .export_profile(lokai_app::commands::ExportProfileCommand {
+        .export_profile(tetonic_app::commands::ExportProfileCommand {
             profile_id: id.to_string(),
         })
         .context("export profile")?;
@@ -175,7 +175,7 @@ async fn run_import(file: &PathBuf, activate: bool, refresh_fingerprint: bool) -
     let app = Application::bootstrap_offline(None).await?;
     let result = app
         .capacity
-        .import_profile(lokai_app::commands::ImportProfileCommand {
+        .import_profile(tetonic_app::commands::ImportProfileCommand {
             json: raw,
             activate,
             refresh_fingerprint,

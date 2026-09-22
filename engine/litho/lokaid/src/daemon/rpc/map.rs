@@ -1,7 +1,7 @@
 //! Application error → JSON-RPC error translation.
 
-use lokai_app::errors::AppError;
-use lokai_rpc::protocol::{ErrorCode, RpcError};
+use tetonic_app::errors::AppError;
+use tetonic_rpc::protocol::{ErrorCode, RpcError};
 
 pub fn map_app_error(err: AppError) -> RpcError {
     match err {

@@ -24,8 +24,8 @@ use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event},
     execute,
 };
-use lokai_app::Application;
 use ratatui::{backend::CrosstermBackend, Terminal};
+use tetonic_app::Application;
 use tokio::sync::mpsc;
 
 use approval::PendingApproval;
@@ -633,7 +633,7 @@ fn respond_approval(
         .get_approvals()
         .ok_or_else(|| "Approval service unavailable".to_string())
         .and_then(|svc| {
-            svc.respond(lokai_app::commands::ApprovalResponseCommand {
+            svc.respond(tetonic_app::commands::ApprovalResponseCommand {
                 session_id: pending.session_id.clone(),
                 approval_id: pending.approval_id.clone(),
                 approved,

@@ -2,16 +2,16 @@
 
 use std::sync::Arc;
 
-use lokai_app::commands::{
+use serde_json::json;
+use tetonic_app::commands::{
     EndSessionCommand, InitializeCommand, RunTurnCommand, StartSessionCommand,
 };
-use lokai_app::events::RecordingEventSink;
-use lokai_app::semantic_effect::{
+use tetonic_app::events::RecordingEventSink;
+use tetonic_app::semantic_effect::{
     compare_sequences, normalize_application_events, normalize_rpc_notifications,
     run_kernel_lifecycle_scenario, SemanticEffect,
 };
-use lokai_app::{Application, MockProvider, SharedStore};
-use serde_json::json;
+use tetonic_app::{Application, MockProvider, SharedStore};
 
 use super::harness::{daemon_with_mock_recording, drain_until_run_status, turn};
 
@@ -48,7 +48,7 @@ fn mutation_core(seq: &[SemanticEffect]) -> Vec<SemanticEffect> {
 
 async fn run_cli_shaped_write_mutation(
     workspace: &std::path::Path,
-    event_sink: Arc<dyn lokai_app::events::ApplicationEventSink>,
+    event_sink: Arc<dyn tetonic_app::events::ApplicationEventSink>,
 ) {
     let db_path = workspace.join(".lokai").join("parity.db");
     std::fs::create_dir_all(db_path.parent().unwrap()).unwrap();

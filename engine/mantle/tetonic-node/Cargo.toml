@@ -1,0 +1,48 @@
+[package]
+name = "tetonic-node"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+# Worker ingress (fabric listener) — N0.2. Only this crate binds fabric ports.
+[lib]
+name = "tetonic_node"
+
+[dependencies]
+tetonic-secrets = { path = "../../core/tetonic-secrets" }
+tetonic-enroll = { path = "../../mantle/tetonic-enroll" }
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-memory = { path = "../../strata/tetonic-memory" }
+tetonic-egress = { path = "../../atmos/tetonic-egress" }
+tetonic-capacity = { path = "../../mantle/tetonic-capacity" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+anyhow = { workspace = true }
+chrono = { workspace = true }
+tokio = { workspace = true, features = ["rt-multi-thread", "macros", "net", "io-util", "sync"] }
+tracing = { workspace = true }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+rcgen = "0.13"
+rustls-pki-types = "1"
+x509-parser = "0.16"
+ed25519-dalek = { version = "2", features = ["zeroize", "pkcs8", "rand_core"] }
+rand = "0.8"
+hex = "0.4"
+hyper = { version = "1", features = ["server", "http1"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+http = "1"
+futures-util = { workspace = true }
+tetonic-fabric-client = { path = "../../atmos/tetonic-fabric-client" }
+tetonic-fabric-protocol = { path = "../../atmos/tetonic-fabric-protocol" }
+tetonic-domain = { path = "../../core/tetonic-domain" }
+tetonic-sandbox = { path = "../../core/tetonic-sandbox" }
+
+[dev-dependencies]
+rusqlite = { workspace = true }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt-multi-thread", "macros"] }
+tetonic-enroll = { path = "../../mantle/tetonic-enroll" }
+async-trait = { workspace = true }

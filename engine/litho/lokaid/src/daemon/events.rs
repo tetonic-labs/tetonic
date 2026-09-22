@@ -1,11 +1,11 @@
 //! Maps canonical application events to JSON-RPC v1 notifications.
 
 use super::types::{CAPACITY_AGENT, CAPACITY_SESSION};
-use lokai_app::events::{ApplicationEvent, ApplicationEventSink};
-use lokai_app::ROOT_AGENT;
-use lokai_rpc::protocol::events;
-use lokai_rpc::Notifier;
 use serde_json::{json, Value};
+use tetonic_app::events::{ApplicationEvent, ApplicationEventSink};
+use tetonic_app::ROOT_AGENT;
+use tetonic_rpc::protocol::events;
+use tetonic_rpc::Notifier;
 
 pub struct DaemonEventSink {
     notifier: Notifier,
@@ -170,7 +170,7 @@ impl ApplicationEventSink for DaemonEventSink {
                     "estimated": estimated,
                 });
                 if let Some(class) = data_class {
-                    payload["data_class"] = json!(lokai_app::data_class_name(class));
+                    payload["data_class"] = json!(tetonic_app::data_class_name(class));
                 }
                 self.notifier
                     .notify(&session_id, &agent_id, events::CONTEXT, payload);
@@ -197,7 +197,7 @@ impl ApplicationEventSink for DaemonEventSink {
                     payload["reason"] = json!(r);
                 }
                 if let Some(class) = data_class {
-                    payload["data_class"] = json!(lokai_app::data_class_name(class));
+                    payload["data_class"] = json!(tetonic_app::data_class_name(class));
                 }
                 self.notifier
                     .notify(&session_id, &agent_id, events::DISPATCH_PLACEMENT, payload);

@@ -1,9 +1,9 @@
 //! Shared daemon helpers (RPC parse and serialization).
 
-use lokai_app::{CapacityDoctorStatus, CapacityStatus, DiagnosisCode};
-use lokai_rpc::protocol::{CapacitySummary, ErrorCode, RpcError};
 use serde::de::DeserializeOwned;
 use serde_json::Value;
+use tetonic_app::{CapacityDoctorStatus, CapacityStatus, DiagnosisCode};
+use tetonic_rpc::protocol::{CapacitySummary, ErrorCode, RpcError};
 
 pub fn parse<T: DeserializeOwned>(params: Value) -> Result<T, RpcError> {
     serde_json::from_value(params)

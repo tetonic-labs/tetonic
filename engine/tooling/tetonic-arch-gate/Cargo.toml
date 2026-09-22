@@ -1,0 +1,36 @@
+[package]
+name = "tetonic-arch-gate"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+name = "tetonic_arch_gate"
+path = "src/lib.rs"
+
+[[bin]]
+name = "tetonic-arch-gate"
+path = "src/main.rs"
+
+[dependencies]
+syn = { version = "2", features = ["full", "visit"] }
+proc-macro2 = { version = "1", features = ["span-locations"] }
+regex = { workspace = true }
+tetonic-rpc = { path = "../../atmos/tetonic-rpc" }
+clap = { workspace = true }
+
+[dev-dependencies]
+tetonic-core = { path = "../../core/tetonic-core" }
+tetonic-domain = { path = "../../core/tetonic-domain" }
+tetonic-egress = { path = "../../atmos/tetonic-egress" }
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-memory = { path = "../../strata/tetonic-memory" }
+tetonic-runtime = { path = "../../core/tetonic-runtime" }
+tetonic-tools = { path = "../../litho/tetonic-tools" }
+tetonic-transaction = { path = "../../core/tetonic-transaction" }
+tetonic-policy = { path = "../../core/tetonic-policy" }
+serde_json = { workspace = true }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros"] }
+tetonic-artifact = { path = "../../strata/tetonic-artifact" }

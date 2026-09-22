@@ -95,9 +95,9 @@ def main():
 
     # Step 2: Run engineering gate
     if not args.skip_gate:
-        print("==> Running engineering gate (cargo run -p lokai-arch-gate -- verify package)...")
+        print("==> Running engineering gate (cargo run -p tetonic-arch-gate -- verify package)...")
         try:
-            run_cmd(["cargo", "run", "-p", "lokai-arch-gate", "--", "verify", "package"], cwd=engine_dir)
+            run_cmd(["cargo", "run", "-p", "tetonic-arch-gate", "--", "verify", "package"], cwd=engine_dir)
             print("Engineering gate verification: PASSED")
         except subprocess.CalledProcessError:
             print("Error: Engineering gate failed. Fix lints/architecture errors before releasing.", file=sys.stderr)

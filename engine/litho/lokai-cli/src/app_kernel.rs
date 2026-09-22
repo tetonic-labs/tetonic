@@ -3,9 +3,9 @@
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
-use lokai_app::approval::ApprovalService;
-use lokai_app::commands::ApprovalResponseCommand;
-use lokai_app::events::{ApplicationEvent, ApplicationEventSink};
+use tetonic_app::approval::ApprovalService;
+use tetonic_app::commands::ApprovalResponseCommand;
+use tetonic_app::events::{ApplicationEvent, ApplicationEventSink};
 
 use crate::printer::Printer;
 
@@ -59,7 +59,7 @@ impl TerminalRenderer {
                 eprintln!("  ┌─ [{}] {}", meta.node_id, meta.label);
             }
             ApplicationEvent::NodeCompleted {
-                state: lokai_app::events::NodeState::Succeeded { summary },
+                state: tetonic_app::events::NodeState::Succeeded { summary },
                 ..
             } => {
                 eprintln!("  └─ Succeeded: {summary}");
@@ -125,7 +125,7 @@ impl TerminalRenderer {
                 ..
             } => {
                 eprintln!("\n[approval required] {kind} — {detail}");
-                let extra = lokai_app::approval::format_confinement_prompt(
+                let extra = tetonic_app::approval::format_confinement_prompt(
                     missing_controls,
                     *user_approval_required,
                 );

@@ -1,0 +1,31 @@
+[package]
+name = "tetonic-core"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+
+[lib]
+name = "tetonic_core"
+
+[dependencies]
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-policy = { path = "../tetonic-policy" }
+tetonic-telemetry = { path = "../tetonic-telemetry" }
+tetonic-domain = { path = "../tetonic-domain" }
+serde_json = { workspace = true }
+serde = { workspace = true }
+async-trait = { workspace = true }
+futures-util = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+regex = { workspace = true }
+tokenizers = { workspace = true }
+tokio = { workspace = true, features = ["rt"] }
+
+[dev-dependencies]
+tetonic-tools = { path = "../../litho/tetonic-tools" }
+tetonic-transaction = { path = "../tetonic-transaction" }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros"] }
+chrono.workspace = true

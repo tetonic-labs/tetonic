@@ -4,21 +4,21 @@ use std::path::PathBuf;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 
-use lokai_rpc::{channel_pair, Notifier};
 use serde_json::Value;
+use tetonic_rpc::{channel_pair, Notifier};
 use tokio::sync::mpsc;
 
 use crate::daemon::{types::EngineServices, Daemon};
 
 #[allow(unused_imports)]
-pub use lokai_app::{test_turn as turn, MockProvider, ScriptTurn, SharedStore};
+pub use tetonic_app::{test_turn as turn, MockProvider, ScriptTurn, SharedStore};
 
 type DaemonRecordingFixture = (
     Daemon,
     mpsc::UnboundedReceiver<String>,
     PathBuf,
-    Arc<lokai_app::events::RecordingEventSink>,
-    Arc<std::sync::Mutex<Vec<lokai_app::events::ApplicationEvent>>>,
+    Arc<tetonic_app::events::RecordingEventSink>,
+    Arc<std::sync::Mutex<Vec<tetonic_app::events::ApplicationEvent>>>,
 );
 
 pub(super) fn write_verify_pass_py(dir: &std::path::Path) {
@@ -60,7 +60,7 @@ pub(super) fn daemon_with_mock(
 
     let root = dir.display().to_string();
     let event_sink = Arc::new(crate::daemon::events::DaemonEventSink::new(notifier));
-    let app = lokai_app::Application::bootstrap_mock(&dir, event_sink, turns);
+    let app = tetonic_app::Application::bootstrap_mock(&dir, event_sink, turns);
 
     daemon.services = Some(EngineServices {
         app,
@@ -92,9 +92,9 @@ pub(super) fn daemon_with_mock_recording(turns: Vec<ScriptTurn>) -> DaemonRecord
     std::fs::create_dir_all(&dir).unwrap();
 
     let (notifier, rx) = channel_pair(512);
-    let (recorder, recorded) = lokai_app::events::RecordingEventSink::new();
-    let event_sink: Arc<dyn lokai_app::events::ApplicationEventSink> =
-        lokai_app::events::FanoutEventSink::new(vec![
+    let (recorder, recorded) = tetonic_app::events::RecordingEventSink::new();
+    let event_sink: Arc<dyn tetonic_app::events::ApplicationEventSink> =
+        tetonic_app::events::FanoutEventSink::new(vec![
             recorder.clone(),
             Arc::new(crate::daemon::events::DaemonEventSink::new(
                 notifier.clone(),
@@ -105,7 +105,7 @@ pub(super) fn daemon_with_mock_recording(turns: Vec<ScriptTurn>) -> DaemonRecord
     daemon.rpc_authenticated.store(true, Ordering::Relaxed);
 
     let root = dir.display().to_string();
-    let app = lokai_app::Application::bootstrap_mock(&dir, event_sink, turns);
+    let app = tetonic_app::Application::bootstrap_mock(&dir, event_sink, turns);
 
     daemon.services = Some(EngineServices {
         app,
@@ -136,7 +136,7 @@ pub(super) fn daemon_with_store_and_mock(
     let event_sink = Arc::new(crate::daemon::events::DaemonEventSink::new(notifier));
     let dir = std::path::Path::new(&workspace_root);
     let app =
-        lokai_app::Application::bootstrap_mock_with_store(dir, Some(store), event_sink, turns);
+        tetonic_app::Application::bootstrap_mock_with_store(dir, Some(store), event_sink, turns);
 
     daemon.services = Some(EngineServices {
         app,

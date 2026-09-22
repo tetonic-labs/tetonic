@@ -2,18 +2,18 @@ use super::prelude::*;
 
 impl Daemon {
     pub(in crate::daemon) fn session_models(&mut self, params: Value) -> Result<Value, RpcError> {
-        let p: lokai_rpc::SessionInferenceParams = parse(params)?;
+        let p: tetonic_rpc::SessionInferenceParams = parse(params)?;
         let catalog = self
             .services()?
             .app
             .model_catalog(&p.session_id)
             .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
-        Ok(to_value(lokai_rpc::SessionModelsResult {
+        Ok(to_value(tetonic_rpc::SessionModelsResult {
             revision: catalog.revision,
             models: catalog
                 .models
                 .into_iter()
-                .map(|m| lokai_rpc::ModelChoice {
+                .map(|m| tetonic_rpc::ModelChoice {
                     id: m.id,
                     name: m.name,
                     provider_label: m.provider_label,
@@ -30,13 +30,13 @@ impl Daemon {
         &mut self,
         params: Value,
     ) -> Result<Value, RpcError> {
-        let p: lokai_rpc::SessionSelectModelParams = parse(params)?;
+        let p: tetonic_rpc::SessionSelectModelParams = parse(params)?;
         let services = self.services()?;
         let selection = services
             .app
             .select_session_model(&p.session_id, &p.selection_id, p.expected_revision)
             .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
-        Ok(to_value(lokai_rpc::SessionInferenceResult {
+        Ok(to_value(tetonic_rpc::SessionInferenceResult {
             profile: selection.profile,
             model_fast: selection.model_fast,
             model_hard: selection.model_hard,
@@ -52,9 +52,9 @@ impl Daemon {
     ) -> Result<Value, RpcError> {
         let services = self.services()?;
         let selection = if change {
-            let p: lokai_rpc::SessionSetInferenceParams = parse(params)?;
+            let p: tetonic_rpc::SessionSetInferenceParams = parse(params)?;
             services.app.change_session_inference(
-                lokai_app::inference_selection::ChangeInferenceCommand {
+                tetonic_app::inference_selection::ChangeInferenceCommand {
                     session_id: p.session_id,
                     profile: p.profile,
                     model_fast: p.model_fast,
@@ -63,11 +63,11 @@ impl Daemon {
                 },
             )
         } else {
-            let p: lokai_rpc::SessionInferenceParams = parse(params)?;
+            let p: tetonic_rpc::SessionInferenceParams = parse(params)?;
             services.app.session_inference(&p.session_id)
         }
         .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
-        Ok(to_value(lokai_rpc::SessionInferenceResult {
+        Ok(to_value(tetonic_rpc::SessionInferenceResult {
             profile: selection.profile,
             model_fast: selection.model_fast,
             model_hard: selection.model_hard,
@@ -93,7 +93,7 @@ impl Daemon {
             Some("hard") => services.model_hard.clone(),
             _ => services.model.clone(),
         };
-        let cmd = lokai_app::commands::StartSessionCommand {
+        let cmd = tetonic_app::commands::StartSessionCommand {
             workspace_root: services.workspace_root.clone(),
             resume: p.resume,
             model_tier: p.model_tier.clone(),
@@ -119,11 +119,11 @@ impl Daemon {
             .start_session(cmd)
             .await
             .map_err(|e| match &e {
-                lokai_app::errors::AppError::InvalidRequest(_) => {
+                tetonic_app::errors::AppError::InvalidRequest(_) => {
                     RpcError::new(ErrorCode::InvalidRequest, format!("{e}"))
                 }
-                lokai_app::errors::AppError::SessionNotFound(_)
-                | lokai_app::errors::AppError::SessionConflict => {
+                tetonic_app::errors::AppError::SessionNotFound(_)
+                | tetonic_app::errors::AppError::SessionConflict => {
                     RpcError::new(ErrorCode::UnknownSession, format!("{e}"))
                 }
                 _ => RpcError::new(ErrorCode::InternalError, format!("{e}")),
@@ -147,13 +147,13 @@ impl Daemon {
     }
 
     pub(in crate::daemon) fn session_end(&mut self, params: Value) -> Result<Value, RpcError> {
-        lokai_app::lokai_telemetry::fault::inject_fault("during_session_shutdown");
+        tetonic_app::tetonic_telemetry::fault::inject_fault("during_session_shutdown");
         let p: SessionEndParams = parse(params)?;
         let services = self.services()?;
         let workspace_root = services.workspace_root.clone();
         let app = services.app.clone();
         app.sessions
-            .end_session(lokai_app::commands::EndSessionCommand {
+            .end_session(tetonic_app::commands::EndSessionCommand {
                 session_id: p.session_id.clone(),
                 workspace_root,
                 status: p.status.clone(),
@@ -172,7 +172,7 @@ impl Daemon {
         let result = services
             .app
             .policies
-            .reclassify_session(lokai_app::commands::ReclassifySessionCommand {
+            .reclassify_session(tetonic_app::commands::ReclassifySessionCommand {
                 session_id: p.session_id.clone(),
                 data_class: p.data_class.clone(),
                 reason: p.reason,

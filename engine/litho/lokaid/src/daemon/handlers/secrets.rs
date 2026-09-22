@@ -1,12 +1,12 @@
 use crate::daemon::handlers::prelude::*;
-use lokai_app::{Application, ScannerEngine};
-use lokai_rpc::protocol::{
+use tetonic_app::{Application, ScannerEngine};
+use tetonic_rpc::protocol::{
     AddSecretRuleRequest, AllowSecretFingerprintRequest, RevokeSecretFingerprintRequest,
 };
 
-fn map_app(err: lokai_app::errors::AppError) -> RpcError {
+fn map_app(err: tetonic_app::errors::AppError) -> RpcError {
     match err {
-        lokai_app::errors::AppError::InvalidRequest(m) => {
+        tetonic_app::errors::AppError::InvalidRequest(m) => {
             RpcError::new(ErrorCode::InvalidParams, m)
         }
         other => RpcError::new(ErrorCode::InternalError, other.to_string()),

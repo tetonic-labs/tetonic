@@ -7,7 +7,7 @@ use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 
-use lokai_app::events::ApplicationEvent;
+use tetonic_app::events::ApplicationEvent;
 
 const MAX_EVENTS: usize = 4096;
 const MAX_BYTES: usize = 16 * 1024 * 1024;

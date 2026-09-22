@@ -9,11 +9,11 @@ mod args_tests {
     fn omitted_model_is_distinct_from_explicit_default() {
         assert!(Args::try_parse_from(["lokai"]).unwrap().model.is_none());
         assert_eq!(
-            Args::try_parse_from(["lokai", "--model", lokai_app::DEFAULT_MODEL])
+            Args::try_parse_from(["lokai", "--model", tetonic_app::DEFAULT_MODEL])
                 .unwrap()
                 .model
                 .as_deref(),
-            Some(lokai_app::DEFAULT_MODEL)
+            Some(tetonic_app::DEFAULT_MODEL)
         );
     }
 
@@ -43,7 +43,7 @@ mod args_tests {
 }
 
 mod explain_tests {
-    use lokai_app::definition::CodingAgentDefinition;
+    use tetonic_app::definition::CodingAgentDefinition;
 
     #[test]
     fn dogfood_summary_is_explain_only() {

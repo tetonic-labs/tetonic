@@ -3,7 +3,7 @@
 use std::io::Write;
 
 use anyhow::Result;
-use lokai_app::Application;
+use tetonic_app::Application;
 
 use crate::args::Args;
 
@@ -134,7 +134,7 @@ pub async fn time_travel(args: &Args) -> Result<()> {
     Ok(())
 }
 
-fn print_restore_summary(summary: &lokai_app::RestoreSummary, ws: &str) {
+fn print_restore_summary(summary: &tetonic_app::RestoreSummary, ws: &str) {
     println!(
         "{} {} file change(s): mark {} -> {}",
         if summary.dry_run {

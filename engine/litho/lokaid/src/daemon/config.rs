@@ -1,6 +1,6 @@
 //! RPC auth and environment flags.
 
-pub use lokai_app::generate_rpc_token;
+pub use tetonic_app::generate_rpc_token;
 
 /// Parent-provisioned token, or a generated one. Empty/whitespace env is unset.
 pub fn rpc_token_from_env_or_generate() -> String {

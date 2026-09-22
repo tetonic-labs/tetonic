@@ -1,12 +1,12 @@
 //! Golden JSON-RPC v1 fixtures — request/response/notification/framing compatibility.
 
-use lokai_app::errors::AppError;
-use lokai_rpc::framing;
-use lokai_rpc::outbound::{
+use serde_json::{json, Value};
+use tetonic_app::errors::AppError;
+use tetonic_rpc::framing;
+use tetonic_rpc::outbound::{
     classify_outbound, OutboundClass, OutboundQueue, DEFAULT_OUTBOUND_CAPACITY,
 };
-use lokai_rpc::protocol::*;
-use serde_json::{json, Value};
+use tetonic_rpc::protocol::*;
 
 fn load_fixture(name: &str) -> Value {
     let raw = match name {
@@ -108,8 +108,8 @@ fn golden_framing_content_length_roundtrip() {
 
 #[test]
 fn golden_schema_bundle_wire_names_stable() {
-    let bundle = lokai_rpc::schema_bundle();
-    assert_eq!(bundle["protocol_version"], lokai_rpc::PROTOCOL_VERSION);
+    let bundle = tetonic_rpc::schema_bundle();
+    assert_eq!(bundle["protocol_version"], tetonic_rpc::PROTOCOL_VERSION);
     assert_eq!(bundle["methods"]["CHAT_SEND"], methods::CHAT_SEND);
     assert_eq!(bundle["methods"]["INITIALIZE"], methods::INITIALIZE);
     assert_eq!(bundle["methods"]["RUN_SNAPSHOT"], methods::RUN_SNAPSHOT);

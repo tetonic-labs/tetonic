@@ -16,7 +16,7 @@ Before submitting this pull request, verify the following standards:
   - [ ] Transactional staging: file writes use `lokai-transaction` (`ARCH-FS-001`).
   - [ ] Single engine kernel: runs execute through `lokai-core` (`ARCH-APP-001`).
 - [ ] Engineering verification passes locally from `engine/`:
-  - `cargo run -p lokai-arch-gate -- verify package`
+  - `cargo run -p tetonic-arch-gate -- verify package`
   - `cargo test -p <modified_package>`
 - [ ] No Clippy warnings introduced (`-D warnings`).
 - [ ] No unhandled panics (`.unwrap()` or `.expect()`) in production dispatch paths.

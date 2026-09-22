@@ -7,7 +7,7 @@ use crate::tui::failure;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum TurnPhase {
     Idle,
-    Stage(lokai_app::events::EngineStage, String),
+    Stage(tetonic_app::events::EngineStage, String),
     Generating,
     WaitingApproval,
     RunningTool(String),

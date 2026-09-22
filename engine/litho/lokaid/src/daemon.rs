@@ -22,8 +22,8 @@ use std::sync::Arc;
 
 use serde_json::Value;
 
-use lokai_rpc::protocol::*;
-use lokai_rpc::Notifier;
+use tetonic_rpc::protocol::*;
+use tetonic_rpc::Notifier;
 
 /// Outcome of one RPC dispatch. `Stop` means authenticated shutdown.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,14 +44,14 @@ pub struct Daemon {
     /// Random token required on `initialize` (SEC-003).
     rpc_token: String,
     rpc_authenticated: AtomicBool,
-    scanner: Option<Arc<lokai_app::ScannerEngine>>,
+    scanner: Option<Arc<tetonic_app::ScannerEngine>>,
 }
 
 impl Daemon {
     pub fn new(
         notifier: Notifier,
         fabric_shutdown: Option<Arc<AtomicBool>>,
-        scanner: Option<Arc<lokai_app::ScannerEngine>>,
+        scanner: Option<Arc<tetonic_app::ScannerEngine>>,
     ) -> Self {
         Self {
             notifier,
@@ -167,7 +167,7 @@ impl Daemon {
                         "secret/rule.add is disabled when LOKAI_STRICT_RPC is on — use lokai CLI",
                     ))
                 } else if let (Some(scanner), Ok(services)) = (&self.scanner, self.services()) {
-                    match serde_json::from_value::<lokai_rpc::protocol::AddSecretRuleRequest>(
+                    match serde_json::from_value::<tetonic_rpc::protocol::AddSecretRuleRequest>(
                         msg.params,
                     ) {
                         Ok(req) => handlers::secrets::handle_add_secret_rule(
@@ -191,9 +191,10 @@ impl Daemon {
                         "secret/fingerprint.allow is disabled when LOKAI_STRICT_RPC is on",
                     ))
                 } else if let (Some(scanner), Ok(services)) = (&self.scanner, self.services()) {
-                    match serde_json::from_value::<lokai_rpc::protocol::AllowSecretFingerprintRequest>(
-                        msg.params,
-                    ) {
+                    match serde_json::from_value::<
+                        tetonic_rpc::protocol::AllowSecretFingerprintRequest,
+                    >(msg.params)
+                    {
                         Ok(req) => {
                             handlers::secrets::handle_allow_fingerprint(
                                 services.app.as_ref(),
@@ -219,7 +220,7 @@ impl Daemon {
                     ))
                 } else if let (Some(scanner), Ok(services)) = (&self.scanner, self.services()) {
                     match serde_json::from_value::<
-                        lokai_rpc::protocol::RevokeSecretFingerprintRequest,
+                        tetonic_rpc::protocol::RevokeSecretFingerprintRequest,
                     >(msg.params)
                     {
                         Ok(req) => {

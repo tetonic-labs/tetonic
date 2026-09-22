@@ -2,7 +2,7 @@
 
 use std::sync::Arc;
 
-use lokai_app::commands::RunTurnCommand;
+use tetonic_app::commands::RunTurnCommand;
 
 use crate::app_kernel::TerminalRenderer;
 use crate::session::CliTurnContext;
@@ -110,7 +110,7 @@ pub async fn run_one_shot(
             llm_router: Some(ctx.llm_router),
         })
         .map_err(|e| anyhow::anyhow!("{e}"))?;
-    let finish = finish.await.unwrap_or(lokai_app::TurnFinish {
+    let finish = finish.await.unwrap_or(tetonic_app::TurnFinish {
         ok: false,
         canceled: false,
         error: Some("join dropped".into()),
@@ -126,7 +126,7 @@ pub async fn run_one_shot(
 }
 
 fn inspector_text(tx: &crate::event_queue::Sender, text: impl Into<String>) {
-    let _ = tx.send(lokai_app::events::ApplicationEvent::InspectorUpdate { text: text.into() });
+    let _ = tx.send(tetonic_app::events::ApplicationEvent::InspectorUpdate { text: text.into() });
 }
 
 async fn inspector_doctor(ctx: &CliTurnContext, tx: &crate::event_queue::Sender) {
@@ -222,7 +222,7 @@ async fn handle_slash_command(
     ctx: &CliTurnContext,
     tx_events: &crate::event_queue::Sender,
 ) {
-    let _ = tx_events.send(lokai_app::events::ApplicationEvent::InspectorClear);
+    let _ = tx_events.send(tetonic_app::events::ApplicationEvent::InspectorClear);
 
     let parts: Vec<&str> = line.trim_start_matches('/').split_whitespace().collect();
     if parts.is_empty() {
@@ -250,7 +250,7 @@ async fn handle_slash_command(
 
     match cmd {
         "model" | "inference" => {
-            let result = (|| -> Result<String, lokai_app::errors::AppError> {
+            let result = (|| -> Result<String, tetonic_app::errors::AppError> {
                 let selected = ctx.app.session_inference(&ctx.session_id)?;
                 if is_help {
                     return Ok("/model MODEL [HARD_MODEL]\n/inference PROFILE MODEL [HARD_MODEL]\n/inference shows selection and profiles. Changes apply between turns, for this live session.\n".into());
@@ -271,9 +271,9 @@ async fn handle_slash_command(
                     ("model", [fast, hard]) => (selected.profile.as_str(), *fast, *hard),
                     ("inference", [profile, fast]) => (*profile, *fast, *fast),
                     ("inference", [profile, fast, hard]) => (*profile, *fast, *hard),
-                    _ => return Err(lokai_app::errors::AppError::InvalidRequest("use /model MODEL [HARD_MODEL] or /inference PROFILE MODEL [HARD_MODEL]".into())),
+                    _ => return Err(tetonic_app::errors::AppError::InvalidRequest("use /model MODEL [HARD_MODEL] or /inference PROFILE MODEL [HARD_MODEL]".into())),
                 };
-                let changed = ctx.app.change_session_inference(lokai_app::inference_selection::ChangeInferenceCommand {
+                let changed = ctx.app.change_session_inference(tetonic_app::inference_selection::ChangeInferenceCommand {
                     session_id: ctx.session_id.clone(), profile: profile.into(), model_fast: fast.into(),
                     model_hard: hard.into(), expected_revision: selected.revision,
                 })?;
@@ -335,7 +335,7 @@ async fn handle_slash_command(
                 [] => ctx.app.recovery_report().await,
                 ["abandon", run_id, revision] => match revision.parse::<u64>() {
                     Ok(revision) => ctx.app.abandon_recovery_run(run_id, revision).await,
-                    Err(_) => Err(lokai_app::errors::AppError::InvalidRequest("revision must be a number from /recovery".into())),
+                    Err(_) => Err(tetonic_app::errors::AppError::InvalidRequest("revision must be a number from /recovery".into())),
                 },
                 _ => {
                     inspector_text(tx_events, "/recovery - inspect interrupted runs\n/recovery abandon <run-id> <revision> - cancel further execution; preserve workspace changes\n");

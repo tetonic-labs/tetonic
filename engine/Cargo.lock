@@ -1817,150 +1817,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
-name = "lokai-app"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "directories",
- "futures",
- "hex",
- "lokai-artifact",
- "lokai-broker",
- "lokai-capacity",
- "lokai-context",
- "lokai-core",
- "lokai-domain",
- "lokai-egress",
- "lokai-enroll",
- "lokai-eval",
- "lokai-fabric-client",
- "lokai-fabric-protocol",
- "lokai-index",
- "lokai-inference",
- "lokai-lsp",
- "lokai-memory",
- "lokai-node",
- "lokai-orchestrator",
- "lokai-policy",
- "lokai-run",
- "lokai-runtime",
- "lokai-sandbox",
- "lokai-secrets",
- "lokai-telemetry",
- "lokai-tools",
- "lokai-transaction",
- "regex",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "lokai-arch-gate"
-version = "0.0.0"
-dependencies = [
- "clap",
- "lokai-artifact",
- "lokai-core",
- "lokai-domain",
- "lokai-egress",
- "lokai-inference",
- "lokai-memory",
- "lokai-policy",
- "lokai-rpc",
- "lokai-runtime",
- "lokai-tools",
- "lokai-transaction",
- "proc-macro2",
- "regex",
- "serde_json",
- "syn 2.0.118",
- "tempfile",
- "tokio",
-]
-
-[[package]]
-name = "lokai-artifact"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "fs2",
- "hex",
- "lokai-domain",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-bench"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "lokai-core",
- "lokai-index",
- "lokai-tools",
- "serde_json",
-]
-
-[[package]]
-name = "lokai-broker"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "lokai-domain",
- "lokai-fabric-protocol",
- "lokai-inference",
- "lokai-memory",
- "lokai-run",
- "lokai-secrets",
- "lokai-telemetry",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-capacity"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "directories",
- "lokai-inference",
- "lokai-memory",
- "schemars",
- "serde",
- "serde_json",
- "sysinfo",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
-]
-
-[[package]]
 name = "lokai-cli"
 version = "0.0.0"
 dependencies = [
@@ -1971,496 +1827,12 @@ dependencies = [
  "clap",
  "crossterm",
  "directories",
- "lokai-app",
  "ratatui",
  "serde_json",
+ "tetonic-app",
  "tokio",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "lokai-context"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "chrono",
- "futures-util",
- "hex",
- "ignore",
- "lokai-artifact",
- "lokai-domain",
- "lokai-secrets",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-core"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "futures-util",
- "lokai-domain",
- "lokai-inference",
- "lokai-policy",
- "lokai-telemetry",
- "lokai-tools",
- "lokai-transaction",
- "regex",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokenizers",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lokai-domain"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "zeroize",
-]
-
-[[package]]
-name = "lokai-egress"
-version = "0.0.0"
-dependencies = [
- "async-stream",
- "chrono",
- "futures-util",
- "reqwest",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "url",
- "x509-parser",
-]
-
-[[package]]
-name = "lokai-enroll"
-version = "0.0.0"
-dependencies = [
- "base64 0.22.1",
- "chrono",
- "ed25519-dalek",
- "hmac",
- "lokai-egress",
- "lokai-node",
- "rand 0.8.6",
- "reqwest",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "sha2",
- "subtle",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "zeroize",
-]
-
-[[package]]
-name = "lokai-eval"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "clap",
- "hex",
- "lokai-app",
- "lokai-artifact",
- "lokai-broker",
- "lokai-core",
- "lokai-domain",
- "lokai-inference",
- "lokai-memory",
- "lokai-orchestrator",
- "lokai-policy",
- "lokai-runtime",
- "lokai-sandbox",
- "lokai-secrets",
- "lokai-telemetry",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "lokai-fabric-client"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "ed25519-dalek",
- "hex",
- "lokai-artifact",
- "lokai-domain",
- "lokai-egress",
- "lokai-enroll",
- "lokai-fabric-protocol",
- "lokai-inference",
- "lokai-memory",
- "lokai-run",
- "lokai-telemetry",
- "lokai-transaction",
- "rand 0.8.6",
- "rcgen",
- "reqwest",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "url",
- "x509-parser",
-]
-
-[[package]]
-name = "lokai-fabric-protocol"
-version = "0.0.0"
-dependencies = [
- "chrono",
- "ed25519-dalek",
- "hex",
- "lokai-domain",
- "rand 0.8.6",
- "serde",
- "serde_json",
- "sha2",
- "thiserror 2.0.18",
-]
-
-[[package]]
-name = "lokai-index"
-version = "0.0.0"
-dependencies = [
- "chrono",
- "ignore",
- "instant-distance",
- "lokai-domain",
- "notify",
- "notify-debouncer-full",
- "rusqlite",
- "thiserror 2.0.18",
- "tracing",
- "tree-sitter",
- "tree-sitter-javascript",
- "tree-sitter-python",
- "tree-sitter-rust",
- "tree-sitter-typescript",
-]
-
-[[package]]
-name = "lokai-inference"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "futures-util",
- "lokai-domain",
- "lokai-egress",
- "lokai-fabric-protocol",
- "lokai-policy",
- "lokai-telemetry",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lokai-lsp"
-version = "0.0.0"
-dependencies = [
- "lsp-types",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "lokai-memory"
-version = "0.0.0"
-dependencies = [
- "chrono",
- "fs2",
- "lokai-domain",
- "lokai-policy",
- "lokai-telemetry",
- "rusqlite",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
- "zstd",
-]
-
-[[package]]
-name = "lokai-node"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "ed25519-dalek",
- "futures-util",
- "hex",
- "http",
- "http-body-util",
- "hyper",
- "hyper-util",
- "lokai-capacity",
- "lokai-domain",
- "lokai-egress",
- "lokai-enroll",
- "lokai-fabric-client",
- "lokai-fabric-protocol",
- "lokai-inference",
- "lokai-memory",
- "lokai-sandbox",
- "lokai-secrets",
- "rand 0.8.6",
- "rcgen",
- "rusqlite",
- "rustls",
- "rustls-pki-types",
- "serde",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tokio-rustls",
- "tracing",
- "x509-parser",
-]
-
-[[package]]
-name = "lokai-orchestrator"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "lokai-context",
- "lokai-core",
- "lokai-domain",
- "lokai-index",
- "lokai-inference",
- "lokai-memory",
- "lokai-policy",
- "lokai-runtime",
- "lokai-tools",
- "lokai-transaction",
- "serde",
- "serde_json",
- "tempfile",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lokai-policy"
-version = "0.0.0"
-dependencies = [
- "chrono",
- "lokai-domain",
- "serde",
- "serde_json",
- "tempfile",
-]
-
-[[package]]
-name = "lokai-rpc"
-version = "0.0.0"
-dependencies = [
- "lokai-telemetry",
- "schemars",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "lokai-run"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "lokai-artifact",
- "lokai-core",
- "lokai-domain",
- "lokai-memory",
- "lokai-policy",
- "lokai-runtime",
- "rusqlite",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-runtime"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "lokai-artifact",
- "lokai-context",
- "lokai-core",
- "lokai-domain",
- "lokai-egress",
- "lokai-inference",
- "lokai-memory",
- "lokai-policy",
- "lokai-tools",
- "lokai-transaction",
- "serde_json",
- "tempfile",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "uuid",
-]
-
-[[package]]
-name = "lokai-sandbox"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "libc",
- "lokai-domain",
- "lokai-secrets",
- "nix",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "lokai-secrets"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "chrono",
- "dbus-secret-service",
- "hex",
- "hmac",
- "keyring",
- "lokai-domain",
- "regex",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "tokio",
- "uuid",
- "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "lokai-telemetry"
-version = "0.1.0"
-dependencies = [
- "chrono",
- "lazy_static",
- "lokai-secrets",
- "regex",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
- "tracing-appender",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
-name = "lokai-tools"
-version = "0.0.0"
-dependencies = [
- "async-trait",
- "globset",
- "ignore",
- "libc",
- "lokai-domain",
- "lokai-memory",
- "lokai-policy",
- "lokai-sandbox",
- "lokai-secrets",
- "lokai-telemetry",
- "lokai-transaction",
- "regex",
- "schemars",
- "serde",
- "serde_json",
- "thiserror 2.0.18",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lokai-transaction"
-version = "0.0.0"
-dependencies = [
- "chrono",
- "fs2",
- "ignore",
- "libc",
- "lokai-domain",
- "lokai-telemetry",
- "serde",
- "serde_json",
- "sha2",
- "tempfile",
- "thiserror 2.0.18",
 ]
 
 [[package]]
@@ -2471,12 +1843,12 @@ dependencies = [
  "async-trait",
  "chrono",
  "directories",
- "lokai-app",
- "lokai-rpc",
  "regex",
  "serde",
  "serde_json",
  "subtle",
+ "tetonic-app",
+ "tetonic-rpc",
  "tokio",
  "tracing",
  "tracing-subscriber",
@@ -4093,6 +3465,634 @@ dependencies = [
  "wezterm-dynamic",
  "wezterm-input-types",
  "winapi",
+]
+
+[[package]]
+name = "tetonic-app"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "directories",
+ "futures",
+ "hex",
+ "regex",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-broker",
+ "tetonic-capacity",
+ "tetonic-context",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-enroll",
+ "tetonic-eval",
+ "tetonic-fabric-client",
+ "tetonic-fabric-protocol",
+ "tetonic-index",
+ "tetonic-inference",
+ "tetonic-lsp",
+ "tetonic-memory",
+ "tetonic-node",
+ "tetonic-orchestrator",
+ "tetonic-policy",
+ "tetonic-run",
+ "tetonic-runtime",
+ "tetonic-sandbox",
+ "tetonic-secrets",
+ "tetonic-telemetry",
+ "tetonic-tools",
+ "tetonic-transaction",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-arch-gate"
+version = "0.0.0"
+dependencies = [
+ "clap",
+ "proc-macro2",
+ "regex",
+ "serde_json",
+ "syn 2.0.118",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-rpc",
+ "tetonic-runtime",
+ "tetonic-tools",
+ "tetonic-transaction",
+ "tokio",
+]
+
+[[package]]
+name = "tetonic-artifact"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "fs2",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-domain",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-bench"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "tetonic-core",
+ "tetonic-index",
+ "tetonic-tools",
+]
+
+[[package]]
+name = "tetonic-broker"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-domain",
+ "tetonic-fabric-protocol",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-run",
+ "tetonic-secrets",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-capacity"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "directories",
+ "schemars",
+ "serde",
+ "serde_json",
+ "sysinfo",
+ "tempfile",
+ "tetonic-inference",
+ "tetonic-memory",
+ "thiserror 2.0.18",
+ "tokio",
+]
+
+[[package]]
+name = "tetonic-context"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures-util",
+ "hex",
+ "ignore",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-domain",
+ "tetonic-secrets",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-core"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "futures-util",
+ "regex",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-domain",
+ "tetonic-inference",
+ "tetonic-policy",
+ "tetonic-telemetry",
+ "tetonic-tools",
+ "tetonic-transaction",
+ "thiserror 2.0.18",
+ "tokenizers",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "tetonic-domain"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "zeroize",
+]
+
+[[package]]
+name = "tetonic-egress"
+version = "0.0.0"
+dependencies = [
+ "async-stream",
+ "chrono",
+ "futures-util",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "url",
+ "x509-parser",
+]
+
+[[package]]
+name = "tetonic-enroll"
+version = "0.0.0"
+dependencies = [
+ "base64 0.22.1",
+ "chrono",
+ "ed25519-dalek",
+ "hmac",
+ "rand 0.8.6",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "subtle",
+ "tetonic-egress",
+ "tetonic-node",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "zeroize",
+]
+
+[[package]]
+name = "tetonic-eval"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "clap",
+ "hex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-app",
+ "tetonic-artifact",
+ "tetonic-broker",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-orchestrator",
+ "tetonic-policy",
+ "tetonic-runtime",
+ "tetonic-sandbox",
+ "tetonic-secrets",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-fabric-client"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "ed25519-dalek",
+ "hex",
+ "rand 0.8.6",
+ "rcgen",
+ "reqwest",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-enroll",
+ "tetonic-fabric-protocol",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-run",
+ "tetonic-telemetry",
+ "tetonic-transaction",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "url",
+ "x509-parser",
+]
+
+[[package]]
+name = "tetonic-fabric-protocol"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "ed25519-dalek",
+ "hex",
+ "rand 0.8.6",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tetonic-domain",
+ "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tetonic-index"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "ignore",
+ "instant-distance",
+ "notify",
+ "notify-debouncer-full",
+ "rusqlite",
+ "tetonic-domain",
+ "thiserror 2.0.18",
+ "tracing",
+ "tree-sitter",
+ "tree-sitter-javascript",
+ "tree-sitter-python",
+ "tree-sitter-rust",
+ "tree-sitter-typescript",
+]
+
+[[package]]
+name = "tetonic-inference"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "futures-util",
+ "serde",
+ "serde_json",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-fabric-protocol",
+ "tetonic-policy",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "tetonic-lsp"
+version = "0.0.0"
+dependencies = [
+ "lsp-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "thiserror 2.0.18",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "tetonic-memory"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "fs2",
+ "rusqlite",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-domain",
+ "tetonic-policy",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+ "zstd",
+]
+
+[[package]]
+name = "tetonic-node"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "ed25519-dalek",
+ "futures-util",
+ "hex",
+ "http",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
+ "rand 0.8.6",
+ "rcgen",
+ "rusqlite",
+ "rustls",
+ "rustls-pki-types",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-capacity",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-enroll",
+ "tetonic-fabric-client",
+ "tetonic-fabric-protocol",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-sandbox",
+ "tetonic-secrets",
+ "thiserror 2.0.18",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "x509-parser",
+]
+
+[[package]]
+name = "tetonic-orchestrator"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-context",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-index",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-runtime",
+ "tetonic-tools",
+ "tetonic-transaction",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "tetonic-policy"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "tempfile",
+ "tetonic-domain",
+]
+
+[[package]]
+name = "tetonic-rpc"
+version = "0.0.0"
+dependencies = [
+ "schemars",
+ "serde",
+ "serde_json",
+ "tetonic-telemetry",
+ "tokio",
+]
+
+[[package]]
+name = "tetonic-run"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "rusqlite",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-runtime",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-runtime"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "serde_json",
+ "tempfile",
+ "tetonic-artifact",
+ "tetonic-context",
+ "tetonic-core",
+ "tetonic-domain",
+ "tetonic-egress",
+ "tetonic-inference",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-tools",
+ "tetonic-transaction",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-sandbox"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "libc",
+ "nix",
+ "serde",
+ "serde_json",
+ "tetonic-domain",
+ "tetonic-secrets",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "tetonic-secrets"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "dbus-secret-service",
+ "hex",
+ "hmac",
+ "keyring",
+ "regex",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-domain",
+ "tokio",
+ "uuid",
+ "windows-sys 0.59.0",
+]
+
+[[package]]
+name = "tetonic-telemetry"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "lazy_static",
+ "regex",
+ "serde",
+ "serde_json",
+ "tetonic-secrets",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+ "tracing-appender",
+ "tracing-subscriber",
+ "uuid",
+]
+
+[[package]]
+name = "tetonic-tools"
+version = "0.0.0"
+dependencies = [
+ "async-trait",
+ "globset",
+ "ignore",
+ "libc",
+ "regex",
+ "schemars",
+ "serde",
+ "serde_json",
+ "tetonic-domain",
+ "tetonic-memory",
+ "tetonic-policy",
+ "tetonic-sandbox",
+ "tetonic-secrets",
+ "tetonic-telemetry",
+ "tetonic-transaction",
+ "thiserror 2.0.18",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "tetonic-transaction"
+version = "0.0.0"
+dependencies = [
+ "chrono",
+ "fs2",
+ "ignore",
+ "libc",
+ "serde",
+ "serde_json",
+ "sha2",
+ "tempfile",
+ "tetonic-domain",
+ "tetonic-telemetry",
+ "thiserror 2.0.18",
 ]
 
 [[package]]

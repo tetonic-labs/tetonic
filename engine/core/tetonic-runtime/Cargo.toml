@@ -1,0 +1,32 @@
+[package]
+name = "tetonic-runtime"
+version = "0.0.0"
+edition.workspace = true
+license.workspace = true
+description = "Mandatory production runtime assembly (AC2-1)"
+
+[lib]
+name = "tetonic_runtime"
+
+[dependencies]
+tetonic-core = { path = "../tetonic-core" }
+tetonic-domain = { path = "../tetonic-domain" }
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-memory = { path = "../../strata/tetonic-memory" }
+tetonic-policy = { path = "../tetonic-policy" }
+async-trait = { workspace = true }
+thiserror = { workspace = true }
+serde_json = { workspace = true }
+tokio = { workspace = true }
+tracing = { workspace = true }
+uuid = { workspace = true }
+
+[dev-dependencies]
+tetonic-context = { path = "../../strata/tetonic-context" }
+tetonic-artifact = { version = "0.0.0", path = "../../strata/tetonic-artifact" }
+tetonic-egress = { path = "../../atmos/tetonic-egress" }
+tetonic-tools = { path = "../../litho/tetonic-tools" }
+tetonic-transaction = { path = "../tetonic-transaction" }
+tempfile = "3"
+tokio = { workspace = true, features = ["rt", "macros"] }
+
