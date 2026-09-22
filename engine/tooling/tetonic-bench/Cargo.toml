@@ -9,6 +9,6 @@ rust-version.workspace = true
 [dependencies]
 lokai-index = { path = "../../strata/lokai-index" }
 lokai-tools = { path = "../../litho/lokai-tools" }
-lokai-core = { path = "../../core/lokai-core" }
+lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
 serde_json = { workspace = true }
 anyhow = { workspace = true }

@@ -7,9 +7,9 @@ repository.workspace = true
 rust-version.workspace = true
 
 [dependencies]
-lokai-domain = { path = "../../core/lokai-domain" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-artifact = { path = "../../strata/lokai-artifact" }
-lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 serde.workspace = true
 serde_json.workspace = true
 chrono.workspace = true

@@ -26,17 +26,17 @@ chrono = { workspace = true }
 url = { workspace = true }
 uuid = { version = "1.10", features = ["v4"] }
 async-trait = { workspace = true }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 lokai-app = { path = "../../litho/lokai-app" }
 lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-policy = { path = "../../core/lokai-policy" }
-lokai-runtime = { path = "../../core/lokai-runtime" }
+lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
+lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
 lokai-broker = { path = "../../mantle/lokai-broker" }
 lokai-inference = { path = "../../atmos/lokai-inference" }
-lokai-sandbox = { path = "../../core/lokai-sandbox" }
-lokai-secrets = { path = "../../core/lokai-secrets" }
-lokai-domain = { path = "../../core/lokai-domain" }
-lokai-core = { path = "../../core/lokai-core" }
+lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
+lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
+lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
 lokai-orchestrator = { path = "../../mantle/lokai-orchestrator" }
 lokai-artifact = { path = "../../strata/lokai-artifact" }
 sha2 = "0.10"

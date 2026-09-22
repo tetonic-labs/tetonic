@@ -6,7 +6,7 @@ license.workspace = true
 
 # Worker ingress (fabric listener) — N0.2. Only this crate binds fabric ports.
 [dependencies]
-lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 lokai-enroll = { path = "../../mantle/lokai-enroll" }
 lokai-inference = { path = "../../atmos/lokai-inference" }
 lokai-memory = { path = "../../strata/lokai-memory" }
@@ -34,8 +34,8 @@ http = "1"
 futures-util = { workspace = true }
 lokai-fabric-client = { path = "../../atmos/lokai-fabric-client" }
 lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
-lokai-domain = { path = "../../core/lokai-domain" }
-lokai-sandbox = { path = "../../core/lokai-sandbox" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
+lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
 
 [dev-dependencies]
 rusqlite = { workspace = true }

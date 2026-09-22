@@ -8,11 +8,11 @@ description = "Durable run supervisor and task state machine (M3-1)"
 
 [dependencies]
 lokai-artifact = { path = "../../strata/lokai-artifact" }
-lokai-core = { path = "../../core/lokai-core" }
-lokai-runtime = { path = "../../core/lokai-runtime" }
-lokai-policy = { path = "../../core/lokai-policy" }
+lokai-core = { package = "tetonic-core", path = "../../core/tetonic-core" }
+lokai-runtime = { package = "tetonic-runtime", path = "../../core/tetonic-runtime" }
+lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
 async-trait = { workspace = true }
-lokai-domain = { path = "../../core/lokai-domain" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-memory = { path = "../../strata/lokai-memory" }
 serde = { workspace = true }
 serde_json = { workspace = true }

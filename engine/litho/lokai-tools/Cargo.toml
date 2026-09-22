@@ -13,13 +13,13 @@ thiserror = { workspace = true }
 ignore = { workspace = true }
 globset = { workspace = true }
 regex = { workspace = true }
-lokai-policy = { path = "../../core/lokai-policy" }
+lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
 lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
-lokai-domain = { path = "../../core/lokai-domain" }
-lokai-sandbox = { path = "../../core/lokai-sandbox" }
-lokai-secrets = { path = "../../core/lokai-secrets" }
-lokai-transaction = { path = "../../core/lokai-transaction" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
+lokai-sandbox = { package = "tetonic-sandbox", path = "../../core/tetonic-sandbox" }
+lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
+lokai-transaction = { package = "tetonic-transaction", path = "../../core/tetonic-transaction" }
 tokio = { workspace = true, features = ["rt", "macros"] }
 async-trait = { workspace = true }
 tracing = { workspace = true }

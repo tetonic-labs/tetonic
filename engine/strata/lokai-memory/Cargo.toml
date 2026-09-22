@@ -12,9 +12,9 @@ publish = false
 # client. It holds project content, so it stays on-device — see
 # contracts/memory-store-v2.md (Privacy posture).
 [dependencies]
-lokai-domain = { path = "../../core/lokai-domain" }
-lokai-policy = { path = "../../core/lokai-policy" }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
+lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 rusqlite = { workspace = true }
 serde_json = { workspace = true }
 sha2 = "0.10"

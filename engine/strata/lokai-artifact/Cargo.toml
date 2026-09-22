@@ -6,7 +6,7 @@ license.workspace = true
 description = "Artifact Lifecycle and Provenance (M3-3)"
 
 [dependencies]
-lokai-domain = { path = "../../core/lokai-domain" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true, features = ["fs", "io-util", "sync", "time"] }

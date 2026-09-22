@@ -16,7 +16,7 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 schemars = { workspace = true }
 tokio = { workspace = true }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 
 [dev-dependencies]
 tokio = { workspace = true }

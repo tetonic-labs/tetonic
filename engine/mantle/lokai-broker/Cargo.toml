@@ -11,12 +11,12 @@ description = "ComputeBroker and hierarchical admission control (M6-1)"
 # Application-facing compute entry: admission, reservation, dispatch adapters.
 # Does not open sockets; remote work goes through lokai-inference / fabric-client.
 [dependencies]
-lokai-domain = { path = "../../core/lokai-domain" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-inference = { path = "../../atmos/lokai-inference" }
 lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
 lokai-run = { path = "../../mantle/lokai-run" }
 lokai-memory = { path = "../../strata/lokai-memory" }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 async-trait.workspace = true
 chrono = { workspace = true, features = ["serde"] }
 serde = { workspace = true, features = ["derive"] }
@@ -27,6 +27,6 @@ tracing = { workspace = true }
 uuid = { workspace = true }
 
 [dev-dependencies]
-lokai-secrets = { path = "../../core/lokai-secrets" }
+lokai-secrets = { package = "tetonic-secrets", path = "../../core/tetonic-secrets" }
 tempfile = "3"
 tokio = { workspace = true, features = ["rt", "macros", "time"] }

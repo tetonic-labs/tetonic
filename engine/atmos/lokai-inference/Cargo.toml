@@ -7,11 +7,11 @@ license.workspace = true
 # Note: deliberately does NOT depend on reqwest. All network goes through
 # lokai-egress (Charter Right 1). See contracts/inference-fabric-v1.md.
 [dependencies]
-lokai-domain = { path = "../../core/lokai-domain" }
+lokai-domain = { package = "tetonic-domain", path = "../../core/tetonic-domain" }
 lokai-egress = { path = "../../atmos/lokai-egress" }
 lokai-fabric-protocol = { path = "../../atmos/lokai-fabric-protocol" }
-lokai-policy = { path = "../../core/lokai-policy" }
-lokai-telemetry = { path = "../../core/lokai-telemetry" }
+lokai-policy = { package = "tetonic-policy", path = "../../core/tetonic-policy" }
+lokai-telemetry = { package = "tetonic-telemetry", path = "../../core/tetonic-telemetry" }
 serde = { workspace = true }
 serde_json = { workspace = true }
 async-trait = { workspace = true }
