@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 1 — The Continuous Agent & Pluggable Brain  
 **Layer:** `engine/core/tetonic-runtime`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -28,6 +28,6 @@ All cognitive structures implement the exact same `tetonic_domain::Brain` trait 
    * Cognitive preemption: cancel in-flight deliberative tasks via `CancellationToken` if sensory urgency changes.
 
 ## 3. Acceptance Criteria
-- [ ] An agent using `SingleModelBrain` successfully processes a continuous perception stream.
-- [ ] An agent using `DualProcessBrain` successfully runs fast reflexes and preempts slow deliberations when an urgent tick arrives.
-- [ ] Unit tests prove zero code changes are required in `Agent` when swapping between `SingleModelBrain` and `DualProcessBrain`.
+- [x] An agent using `SingleModelBrain` successfully processes a continuous perception stream.
+- [x] An agent using `DualProcessBrain` successfully runs fast reflexes and preempts slow deliberations when an urgent tick arrives.
+- [x] Unit tests prove zero code changes are required in `Agent` when swapping between `SingleModelBrain` and `DualProcessBrain`.

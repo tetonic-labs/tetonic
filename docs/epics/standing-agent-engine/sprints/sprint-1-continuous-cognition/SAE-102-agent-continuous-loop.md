@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 1 — Continuous Cognition  
 **Layer:** `engine/core/tetonic-core`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -20,6 +20,6 @@ Currently, `Agent` only supports turn-based execution via `turn(&self, convo, in
 3. Support latest-value drop semantics (if the brain is busy, stale intermediate ticks can be dropped so the agent always acts on the freshest world state).
 
 ## 3. Acceptance Criteria
-- [ ] `Agent` is fully decoupled from direct inference dependencies.
-- [ ] `run_continuous` passes unit tests simulating a 50Hz tick stream with mock actions.
-- [ ] Cancellation signal cleanly terminates the loop without panicking.
+- [x] `Agent` is fully decoupled from direct inference dependencies.
+- [x] `run_continuous` passes unit tests simulating a 50Hz tick stream with mock actions.
+- [x] Cancellation signal cleanly terminates the loop without panicking.

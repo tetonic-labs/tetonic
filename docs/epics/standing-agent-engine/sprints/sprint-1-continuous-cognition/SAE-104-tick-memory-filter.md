@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 1 — Continuous Cognition  
 **Layer:** `engine/core/tetonic-core` & `engine/strata/tetonic-memory`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -21,5 +21,5 @@ In turn-based agents, every interaction is pushed into `Conversation.messages`. 
    * The overarching agent charter.
 
 ## 3. Acceptance Criteria
-- [ ] Running 10,000 sensory ticks does not increase conversation message length if no milestone events occurred.
-- [ ] Milestone events are reliably committed and recalled when System 2 is engaged.
+- [x] Running 10,000 sensory ticks does not increase conversation message length if no milestone events occurred.
+- [x] Milestone events are reliably committed and recalled when System 2 is engaged.

@@ -24,7 +24,7 @@
 
 ```text
 ┌────────────────────────────────────────────────────────────────────────┐
-│ SPRINT 1: The Continuous Agent & Pluggable Brain (Core & Runtime)      │
+│ SPRINT 1: Continuous Cognition & Pluggable Brain [COMPLETED]           │
 │ - Domain re-exports (Perception, WorldAction, WorldAdapter)            │
 │ - run_continuous() actor loop in tetonic-core with latest-value drops  │
 │ - Pluggable Brain: SingleModelBrain (default) + DualProcessBrain       │

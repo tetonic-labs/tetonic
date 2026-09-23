@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 1 — Continuous Cognition  
 **Layer:** `engine/core/tetonic-domain`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -17,5 +17,5 @@ The fundamental types for continuous agent execution (`Perception`, `Signal`, `W
 4. Ensure zero dependencies on `tetonic-inference`.
 
 ## 3. Acceptance Criteria
-- [ ] `cargo check -p tetonic-domain` passes cleanly.
-- [ ] Round-trip JSON tests pass for all perception types.
+- [x] `cargo check -p tetonic-domain` passes cleanly.
+- [x] Round-trip JSON tests pass for all perception types.
