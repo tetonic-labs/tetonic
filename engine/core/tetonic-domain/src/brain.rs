@@ -24,6 +24,17 @@ pub trait Brain: Send + Sync {
         on_token: &mut BrainTokenSink<'_>,
     ) -> Result<BrainResponse, BrainError>;
 
+    /// Process a continuous perception tick and produce an optional world action.
+    ///
+    /// Default implementation returns `Ok(None)` (no action). Implementations
+    /// may override to evaluate signals and events in real-time.
+    async fn perceive(
+        &self,
+        _perception: crate::Perception,
+    ) -> Result<Option<crate::WorldAction>, BrainError> {
+        Ok(None)
+    }
+
     /// A short human-readable description of this brain's architecture.
     /// Used in logs, the chronicle, and experiment tracking.
     /// Examples: `"single:claude-sonnet-4-5"`, `"dual:jev+claude"`, `"ensemble:3x-local"`

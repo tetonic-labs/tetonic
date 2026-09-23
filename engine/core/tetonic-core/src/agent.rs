@@ -49,6 +49,7 @@ pub struct Agent {
     process_broker: Option<Arc<dyn tetonic_domain::sinks::ProcessBroker>>,
     turn_ops: Option<TurnOpsHook>,
     context_compiler: Option<Arc<dyn ContextCompiler>>,
+    brain: Option<Arc<dyn tetonic_domain::Brain>>,
 }
 
 // Thread safety must follow from every field's trait bounds; never override
@@ -288,7 +289,65 @@ impl Agent {
             turn_ops: None,
             context_compiler: None,
             work_scope: Default::default(),
+            brain: None,
         }
+    }
+
+    /// Attach a pluggable brain for cognitive processing.
+    pub fn with_brain(mut self, brain: Arc<dyn tetonic_domain::Brain>) -> Self {
+        self.brain = Some(brain);
+        self
+    }
+
+    /// Access the agent's attached brain, if any.
+    pub fn brain(&self) -> Option<&Arc<dyn tetonic_domain::Brain>> {
+        self.brain.as_ref()
+    }
+
+    /// Run an ongoing continuous actor loop in a live environment.
+    ///
+    /// The agent receives perceptions from `perception_rx`, evaluates them
+    /// against its pluggable brain, and sends any resulting actions to `action_tx`.
+    ///
+    /// # Latest-Value Semantics
+    /// If the brain's cognitive cycle takes longer than the incoming tick interval,
+    /// stale intermediate ticks queued up in the channel are drained so the agent
+    /// always deliberates and acts on the freshest available sensory data.
+    pub async fn run_continuous(
+        &self,
+        mut perception_rx: tokio::sync::mpsc::Receiver<tetonic_domain::Perception>,
+        action_tx: tokio::sync::mpsc::Sender<tetonic_domain::WorldAction>,
+    ) -> Result<(), AgentError> {
+        let brain = self.brain.as_ref().ok_or_else(|| {
+            AgentError::Capability("agent has no configured brain for continuous execution".into())
+        })?;
+
+        while let Some(perception) = perception_rx.recv().await {
+            if self.work_scope.is_canceled() {
+                break;
+            }
+
+            // Drain queued backlog to achieve latest-value semantics
+            let mut latest = perception;
+            while let Ok(fresher) = perception_rx.try_recv() {
+                latest = fresher;
+            }
+
+            match brain.perceive(latest).await {
+                Ok(Some(action)) => {
+                    if action_tx.send(action).await.is_err() {
+                        // World action consumer has disconnected
+                        break;
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(agent_id = %self.config.agent_id, error = %e, "continuous brain perception failed");
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Persist operational turn state for crash recovery (AC2-6).
@@ -3044,6 +3103,93 @@ mod tests {
             aborted.load(std::sync::atomic::Ordering::SeqCst),
             "abort_staged hook must be invoked when turn finishes with LimitKind::EmptyTools"
         );
+    }
+
+    struct MockContinuousBrain;
+
+    #[async_trait]
+    impl tetonic_domain::Brain for MockContinuousBrain {
+        async fn complete(
+            &self,
+            _req: tetonic_domain::BrainRequest,
+            _on_token: &mut tetonic_domain::BrainTokenSink<'_>,
+        ) -> Result<tetonic_domain::BrainResponse, tetonic_domain::BrainError> {
+            unimplemented!()
+        }
+
+        async fn perceive(
+            &self,
+            perception: tetonic_domain::Perception,
+        ) -> Result<Option<tetonic_domain::WorldAction>, tetonic_domain::BrainError> {
+            if perception.urgency == tetonic_domain::Urgency::High {
+                Ok(Some(tetonic_domain::WorldAction::bare(
+                    "emergency_action",
+                    tetonic_domain::BrainPathway::Reflexive {
+                        model: "mock".into(),
+                    },
+                )))
+            } else {
+                Ok(None)
+            }
+        }
+
+        fn describe(&self) -> &str {
+            "mock:continuous"
+        }
+
+        fn last_cost(&self) -> tetonic_domain::BrainCost {
+            Default::default()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_continuous_executes_perceptions_and_emits_actions() {
+        let brain = Arc::new(MockContinuousBrain);
+        let agent = Agent::default().with_brain(brain);
+
+        let (perception_tx, perception_rx) = tokio::sync::mpsc::channel(10);
+        let (action_tx, mut action_rx) = tokio::sync::mpsc::channel(10);
+
+        let agent_handle = tokio::spawn(async move {
+            agent.run_continuous(perception_rx, action_tx).await
+        });
+
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 1,
+                urgency: tetonic_domain::Urgency::Low,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 2,
+                urgency: tetonic_domain::Urgency::High,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+
+        let action = action_rx.recv().await.expect("action emitted");
+        assert_eq!(action.kind, "emergency_action");
+
+        drop(perception_tx);
+        let result = agent_handle.await.unwrap();
+        assert!(result.is_ok());
     }
 }
 

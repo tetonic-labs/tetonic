@@ -13,6 +13,7 @@ mod context;
 mod conversation;
 pub mod demuxer;
 mod error;
+pub mod filter;
 mod hooks;
 mod inference_binding;
 mod monitor;
@@ -26,6 +27,7 @@ pub use context::ContextReport;
 pub use conversation::Conversation;
 pub use demuxer::{DemuxedChunk, TokenDemuxer};
 pub use error::AgentError;
+pub use filter::{FilterDecision, SensoryFilter};
 pub use hooks::{
     AbortStaged, ApprovalHook, ApprovalRequest, AuditSink, CaptureWorkspaceVersion,
     ConfinementWarning, PostEditSnapshot, ResolveUnderRoot, SpawnHook, SpawnRequest,

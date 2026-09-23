@@ -17,7 +17,7 @@ pub use assembly::{
     TestRuntime,
 };
 pub use audit::NullAudit;
-pub use brain::SingleModelBrain;
+pub use brain::{DualProcessBrain, ScriptedBrain, SingleModelBrain};
 pub use build::{base_agent_config, lsp_enabled_for_workspace, AgentConfigInput};
 pub use capability_store::InMemoryCapabilityStore;
 pub use executor::LocalAgentAttemptExecutor;

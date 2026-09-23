@@ -3665,6 +3665,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror 2.0.18",
+ "tokio",
  "zeroize",
 ]
 
@@ -3980,6 +3981,7 @@ name = "tetonic-runtime"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "serde_json",
  "tempfile",
  "tetonic-artifact",

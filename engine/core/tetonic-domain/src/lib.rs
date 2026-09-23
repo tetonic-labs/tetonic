@@ -15,6 +15,7 @@ pub mod ids;
 pub mod invocation;
 pub mod key_storage;
 pub mod lsp_session;
+pub mod perception;
 pub mod placement;
 pub mod policy;
 pub mod result_integrity;
@@ -23,6 +24,7 @@ pub mod secrets;
 pub mod sinks;
 pub mod tool_host;
 pub mod trust;
+pub mod world_adapter;
 pub mod workspace;
 
 pub use canonical::{
@@ -105,5 +107,10 @@ pub use brain::{
     Brain, BrainCost, BrainError, BrainFinishReason, BrainMessage, BrainPathway,
     BrainRequest, BrainResponse, BrainRole, BrainTokenSink,
 };
+pub use perception::{
+    ActionResult, Perception, Signal, SignalValue, Trend, Urgency, WorldAction,
+    WorldError, WorldEvent, WorldState,
+};
+pub use world_adapter::{PerceptionReceiver, PerceptionSender, WorldAdapter};
 
 pub mod work_scope;
