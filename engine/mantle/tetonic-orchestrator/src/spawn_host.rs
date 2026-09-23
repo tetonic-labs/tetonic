@@ -5,8 +5,7 @@ use std::sync::atomic::{AtomicU32, AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 
 use tetonic_core::{Conversation, SpawnHook, SpawnRequest, Step};
-use tetonic_domain::AgentInvocation;
-use tetonic_tools::ToolOutcome;
+use tetonic_domain::{AgentInvocation, ToolOutcome};
 
 use crate::handoff::carve_max_steps;
 use crate::run::{spawn_depth, SpawnLimits};

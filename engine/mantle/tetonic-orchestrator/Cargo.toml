@@ -11,7 +11,6 @@ name = "tetonic_orchestrator"
 tetonic-inference = { path = "../../atmos/tetonic-inference" }
 tetonic-memory = { path = "../../strata/tetonic-memory" }
 tetonic-policy = { path = "../../core/tetonic-policy" }
-tetonic-tools = { path = "../../litho/tetonic-tools" }
 tetonic-core = { path = "../../core/tetonic-core" }
 tetonic-domain = { path = "../../core/tetonic-domain" }
 tetonic-context = { path = "../../strata/tetonic-context" }
@@ -29,3 +28,4 @@ tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
 tetonic-index = { path = "../../strata/tetonic-index" }
 tetonic-runtime = { path = "../../core/tetonic-runtime" }
 tetonic-transaction = { path = "../../core/tetonic-transaction" }
+tetonic-tools = { path = "../../litho/tetonic-tools" }

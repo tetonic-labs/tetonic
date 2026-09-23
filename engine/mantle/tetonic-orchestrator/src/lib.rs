@@ -2,6 +2,7 @@
 
 mod briefing;
 mod critic;
+mod domain_pack;
 mod handoff;
 mod host;
 mod router;
@@ -27,8 +28,9 @@ pub use critic::{
     critic_prompt_from_tracker, critic_user_prompt, parse_critic_verdict, should_run_critic,
     should_run_critic_enhanced, CriticOutcome,
 };
+pub use domain_pack::{DomainPack, PackManifest};
 pub use handoff::{carve_max_steps, SpawnHandoff, SpawnPointer};
-pub use host::{SessionHost, SessionStartPlan, TurnHooks};
+pub use host::{SessionHost, SessionStartPlan, TurnHooks, VerifyResolver};
 pub use router::{
     resolve_route, route_task, route_task_with_context, RouteContext, RouteDecision, RouteMode,
     RouteSource,

@@ -28,6 +28,9 @@ pub struct TurnHooks {
     pub note: Option<String>,
 }
 
+/// Function or closure resolving verify command for workspace and override.
+pub type VerifyResolver = Arc<dyn Fn(&Path, Option<&str>) -> Option<String> + Send + Sync>;
+
 /// Orchestrator shell: policy + briefing + session lifecycle (D3/D5).
 pub struct SessionHost {
     workspace_root: PathBuf,
@@ -36,6 +39,7 @@ pub struct SessionHost {
     briefing_token_budget: usize,
     code_index: Option<Arc<dyn CodeIndexOpen>>,
     lsp_open: Option<Arc<dyn LspSessionOpen>>,
+    verify_resolver: Option<VerifyResolver>,
 }
 
 impl SessionHost {
@@ -47,6 +51,7 @@ impl SessionHost {
             briefing_token_budget: BriefingOptions::default().token_budget,
             code_index: None,
             lsp_open: None,
+            verify_resolver: None,
         }
     }
 
@@ -61,6 +66,11 @@ impl SessionHost {
 
     pub fn with_lsp_open(mut self, opener: Arc<dyn LspSessionOpen>) -> Self {
         self.lsp_open = Some(opener);
+        self
+    }
+
+    pub fn with_verify_resolver(mut self, resolver: VerifyResolver) -> Self {
+        self.verify_resolver = Some(resolver);
         self
     }
 
@@ -108,14 +118,18 @@ impl SessionHost {
                 .filter(|t| !t.trim().is_empty())
         });
 
-        let verify_cmd = tetonic_tools::resolve_verify_cmd(verify_override, &self.workspace_root);
+        let verify_cmd = if let Some(resolver) = &self.verify_resolver {
+            resolver(&self.workspace_root, verify_override)
+        } else {
+            verify_override.map(str::to_string)
+        };
 
         let briefing = if briefing_enabled && self.briefing_enabled {
             build_session_briefing(
                 BriefingInput {
                     workspace_root: &self.workspace_root,
                     session_id,
-                    verify_cmd: verify_override,
+                    verify_cmd: verify_cmd.as_deref(),
                     store,
                     index_db,
                     code_index: self.code_index.as_deref(),

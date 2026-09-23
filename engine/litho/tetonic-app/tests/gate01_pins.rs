@@ -247,14 +247,18 @@ fn gate01_bh_id_session_still_defect() {
 
 #[test]
 fn gate01_destination_lokai_tools_remain() {
-    for rel in ["Cargo.toml", "../../mantle/tetonic-orchestrator/Cargo.toml"] {
-        let toml = crate_src(rel);
-        assert!(
-            cargo_prod_deps(&toml).contains("tetonic-tools")
-                || cargo_prod_deps(&toml).contains("lokai-tools"),
-            "{rel} must keep lokai-tools"
-        );
-    }
+    let toml = crate_src("Cargo.toml");
+    assert!(
+        cargo_prod_deps(&toml).contains("tetonic-tools")
+            || cargo_prod_deps(&toml).contains("lokai-tools"),
+        "Cargo.toml must keep lokai-tools"
+    );
+    let orch_toml = crate_src("../../mantle/tetonic-orchestrator/Cargo.toml");
+    assert!(
+        !cargo_prod_deps(&orch_toml).contains("tetonic-tools")
+            && !cargo_prod_deps(&orch_toml).contains("lokai-tools"),
+        "mantle/tetonic-orchestrator must not have production dependency on tetonic-tools"
+    );
 }
 
 #[path = "support/lifecycle_contract.rs"]

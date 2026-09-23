@@ -732,16 +732,19 @@ fn build_agent(
         .clone()
         .with_orchestration(build.orchestration_tools);
     if let Some(spec) = &build.dynamic_spec {
-        tools = spec.apply_tool_filter(tools);
+        if let Some(names) = &spec.allowed_tools {
+            let set: std::collections::HashSet<String> = names.iter().cloned().collect();
+            tools = tools.with_allowed_tools(set);
+        }
     } else if let Some(r) = &build.role {
         tools = if build.spawned {
-            let mut t = CodingPack.apply_spawn_tool_filter(r, tools);
+            let mut t = CodingPack::apply_spawn_tool_filter(r, tools);
             if host.allow_shell && matches!(r.as_str(), "coder" | "debugger") {
                 t = t.allow_tool("run_shell");
             }
             t
         } else {
-            CodingPack.apply_tool_filter(r, tools)
+            CodingPack::apply_tool_filter(r, tools)
         };
     }
 

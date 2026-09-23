@@ -1,12 +1,9 @@
 //! Specialist roles as pack overlays (M9). Spawn/handoff stay in the orchestrator.
 
 use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
 
 #[cfg(test)]
 use std::sync::Arc;
-
-use tetonic_tools::Tools;
 
 /// Pack-defined specialist identity. Not an orchestrator enum.
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -36,21 +33,6 @@ pub trait SpecialistPack: Send + Sync {
     fn explain_turn(&self, role: &RoleId, base: bool) -> bool;
     /// Product compile of Single-door / `role: None` explain mode. Current heuristic, not PRESERVE.
     fn root_explain_turn(&self, user_text: &str) -> bool;
-
-    fn apply_tool_filter(&self, role: &RoleId, tools: Tools) -> Tools {
-        match self.allowed_tools(role) {
-            None => tools,
-            Some(names) => {
-                let set: HashSet<String> = names.into_iter().collect();
-                tools.with_allowed_tools(set)
-            }
-        }
-    }
-
-    fn apply_spawn_tool_filter(&self, role: &RoleId, tools: Tools) -> Tools {
-        let set: HashSet<String> = self.spawn_allowed_tools(role).into_iter().collect();
-        tools.with_allowed_tools(set)
-    }
 }
 
 /// Dynamic generic agent specification for synthesized agents, router specialists, and DAG nodes (OPT-401).
@@ -97,16 +79,6 @@ impl DynamicAgentSpec {
     pub fn with_allowed_tools(mut self, tools: Vec<String>) -> Self {
         self.allowed_tools = Some(tools);
         self
-    }
-
-    pub fn apply_tool_filter(&self, tools: Tools) -> Tools {
-        match &self.allowed_tools {
-            None => tools,
-            Some(names) => {
-                let set: HashSet<String> = names.iter().cloned().collect();
-                tools.with_allowed_tools(set)
-            }
-        }
     }
 }
 
@@ -330,8 +302,6 @@ fn read_subset() -> Vec<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::TempDir;
-    use tetonic_tools::{Tools, Workspace};
 
     #[test]
     fn parses_role_aliases() {
@@ -345,54 +315,29 @@ mod tests {
 
     #[test]
     fn planner_filter_blocks_shell_and_edit() {
-        let dir = TempDir::new().unwrap();
-        let ws = Workspace::new(dir.path()).unwrap();
         let pack = TestCodingPack;
         let role = pack.parse("planner").unwrap();
-        let tools = pack.apply_tool_filter(&role, Tools::new(ws, true));
-        let names: Vec<String> = tools
-            .defs()
-            .into_iter()
-            .map(|d| d.name.to_string())
-            .collect();
+        let names = pack.allowed_tools(&role).unwrap();
         assert!(names.iter().any(|n| n == "read_file"));
         assert!(names.iter().any(|n| n == "finish"));
         assert!(!names.iter().any(|n| n == "run_shell"));
         assert!(!names.iter().any(|n| n == "edit_file"));
-        let args = serde_json::json!({"command":"echo hi"});
-        let out = tools.execute("run_shell", &args);
-        assert!(!out.ok);
     }
 
     #[test]
     fn coder_keeps_full_catalogue() {
-        let dir = TempDir::new().unwrap();
-        let ws = Workspace::new(dir.path()).unwrap();
         let pack = TestCodingPack;
         let role = pack.default_role();
-        let base = Tools::new(ws, true);
-        let base_count = base.defs().len();
-        let filtered = pack.apply_tool_filter(&role, base);
-        assert_eq!(filtered.defs().len(), base_count);
+        assert!(pack.allowed_tools(&role).is_none());
     }
 
     #[test]
     fn spawned_coder_blocks_shell_and_spawn() {
-        let dir = TempDir::new().unwrap();
-        let ws = Workspace::new(dir.path()).unwrap();
         let pack = TestCodingPack;
         let role = pack.default_role();
-        let tools = pack.apply_spawn_tool_filter(&role, Tools::new(ws, true));
-        let names: Vec<String> = tools
-            .defs()
-            .into_iter()
-            .map(|d| d.name.to_string())
-            .collect();
+        let names = pack.spawn_allowed_tools(&role);
         assert!(names.iter().any(|n| n == "edit_file"));
         assert!(!names.iter().any(|n| n == "run_shell"));
         assert!(!names.iter().any(|n| n == "spawn_agent"));
-        let args = serde_json::json!({"command":"echo hi"});
-        let out = tools.execute("run_shell", &args);
-        assert!(!out.ok);
     }
 }
