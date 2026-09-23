@@ -1,6 +1,7 @@
 //! Stable domain value objects and execution-contract types (Architecture Consolidation II).
 
 pub mod artifact;
+pub mod brain;
 pub mod canonical;
 pub mod classify;
 pub mod code_index;
@@ -99,6 +100,10 @@ pub use workspace::{
     PatchApproval, RepositoryId, StagedOperation, StagedOperationKind, TransactionArtifact,
     TransactionPreview, TransactionState, VerificationRecord, WorkspaceBinding, WorkspaceConflict,
     WorkspacePath, WorkspaceVersionScheme,
+};
+pub use brain::{
+    Brain, BrainCost, BrainError, BrainFinishReason, BrainMessage, BrainPathway,
+    BrainRequest, BrainResponse, BrainRole, BrainTokenSink,
 };
 
 pub mod work_scope;

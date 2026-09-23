@@ -2,6 +2,7 @@
 
 pub mod action_broker;
 pub mod approval;
+pub mod brain;
 mod assembly;
 mod audit;
 mod build;
@@ -16,6 +17,7 @@ pub use assembly::{
     TestRuntime,
 };
 pub use audit::NullAudit;
+pub use brain::SingleModelBrain;
 pub use build::{base_agent_config, lsp_enabled_for_workspace, AgentConfigInput};
 pub use capability_store::InMemoryCapabilityStore;
 pub use executor::LocalAgentAttemptExecutor;
