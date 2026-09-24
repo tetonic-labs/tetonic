@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 5 — Fleet Portal & Human Experience  
 **Layer:** `engine/core/tetonic-telemetry` & `engine/litho/tetonic-app`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -22,5 +22,5 @@ Operators need real-time visibility into what standing agents are doing, thinkin
    * `BoundaryViolation` (intercepted actions)
 
 ## 3. Acceptance Criteria
-- [ ] SSE thought stream broadcasts token deltas with low latency (<10ms).
-- [ ] Multiple UI clients can connect concurrently without degrading agent loop throughput.
+- [x] SSE thought stream broadcasts token deltas with low latency (<10ms).
+- [x] Multiple UI clients can connect concurrently without degrading agent loop throughput.

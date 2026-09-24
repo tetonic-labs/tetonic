@@ -39,7 +39,7 @@ pub use checkpoint::CheckpointManager;
 pub use tetonic_domain::checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
 pub use tetonic_domain::engine_config::{
     EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig,
-    NodeMode, StorageConfig, StorageMode,
+    NodeMode, StorageConfig, StorageMode, TelemetryConfig, TelemetrySinkKind,
 };
 pub use tokenizer::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 pub use turn::{validate_transition, TurnOpsEvent, TurnOpsHook, TurnState};

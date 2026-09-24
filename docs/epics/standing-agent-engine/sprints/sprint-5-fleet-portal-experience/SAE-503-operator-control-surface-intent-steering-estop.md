@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 5 — Fleet Portal & Human Experience  
 **Layer:** `engine/litho/tetonic-app` & `engine/mantle/tetonic-orchestrator`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -26,6 +26,6 @@ Operators interface with the aimed fleet across three primary modes:
    * In-flight steering input modal.
 
 ## 3. Acceptance Criteria
-- [ ] Steering endpoint immediately impacts agent sensory priority on next cognitive tick.
-- [ ] E-Stop endpoints instantly trip actuator interlocks across all target agents.
-- [ ] Resume endpoint safely clears emergency stop state after operator verification.
+- [x] Steering endpoint immediately impacts agent sensory priority on next cognitive tick.
+- [x] E-Stop endpoints instantly trip actuator interlocks across all target agents.
+- [x] Resume endpoint safely clears emergency stop state after operator verification.

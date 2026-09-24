@@ -236,6 +236,65 @@ impl FleetSupervisor {
         }
     }
 
+    /// Retrieve a managed agent by ID.
+    pub fn get_agent(&self, agent_id: &AgentId) -> Option<Arc<ManagedAgent>> {
+        self.agents.read().unwrap().get(agent_id).cloned()
+    }
+
+    /// Emergency stop a specific managed agent.
+    pub fn emergency_stop_agent(
+        &self,
+        agent_id: &AgentId,
+        reason: impl Into<String>,
+    ) -> Result<(), FleetError> {
+        let reason_str = reason.into();
+        let guard = self.agents.read().unwrap();
+        let agent = guard
+            .get(agent_id)
+            .ok_or_else(|| FleetError::AgentNotFound(agent_id.clone()))?;
+        *agent.state.write().unwrap() = AgentLifecycleState::Estopped;
+        if let Some(ref adapter) = agent.adapter {
+            let _ = adapter.trigger_estop(reason_str);
+        }
+        Ok(())
+    }
+
+    /// Emergency stop all agents in a designated squad.
+    pub fn emergency_stop_squad(
+        &self,
+        squad_id: &SquadId,
+        reason: impl Into<String>,
+    ) -> Result<Vec<AgentId>, FleetError> {
+        let reason_str = reason.into();
+        let guard = self.agents.read().unwrap();
+        let mut stopped = Vec::new();
+
+        for agent in guard.values() {
+            if agent.squad_id.as_ref() == Some(squad_id) {
+                *agent.state.write().unwrap() = AgentLifecycleState::Estopped;
+                if let Some(ref adapter) = agent.adapter {
+                    let _ = adapter.trigger_estop(reason_str.clone());
+                }
+                stopped.push(agent.agent_id.clone());
+            }
+        }
+
+        Ok(stopped)
+    }
+
+    /// Resume a specific managed agent from emergency stop.
+    pub fn resume_agent(&self, agent_id: &AgentId) -> Result<(), FleetError> {
+        let guard = self.agents.read().unwrap();
+        let agent = guard
+            .get(agent_id)
+            .ok_or_else(|| FleetError::AgentNotFound(agent_id.clone()))?;
+        *agent.state.write().unwrap() = AgentLifecycleState::Running;
+        if let Some(ref adapter) = agent.adapter {
+            let _ = adapter.resume();
+        }
+        Ok(())
+    }
+
     /// Whether the fleet is currently under emergency stop.
     pub fn is_fleet_estopped(&self) -> bool {
         self.global_estop.is_estopped()

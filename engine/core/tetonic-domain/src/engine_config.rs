@@ -201,12 +201,75 @@ impl Default for InferenceConfig {
     }
 }
 
+/// Upstream telemetry and trace sink type.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum TelemetrySinkKind {
+    /// In-memory ring buffer (default for Web UI) and stdout/stderr.
+    Embedded,
+    /// Universal OpenTelemetry Protocol (OTLP) gRPC/HTTP exporter.
+    Otlp,
+    /// Local append-only JSON-lines log file.
+    File,
+}
+
+impl Default for TelemetrySinkKind {
+    fn default() -> Self {
+        Self::Embedded
+    }
+}
+
+impl std::fmt::Display for TelemetrySinkKind {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Embedded => write!(f, "embedded"),
+            Self::Otlp => write!(f, "otlp"),
+            Self::File => write!(f, "file"),
+        }
+    }
+}
+
+impl std::str::FromStr for TelemetrySinkKind {
+    type Err = EngineConfigError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s.trim().to_lowercase().as_str() {
+            "embedded" | "stdout" | "memory" => Ok(Self::Embedded),
+            "otlp" | "opentelemetry" => Ok(Self::Otlp),
+            "file" | "jsonl" => Ok(Self::File),
+            other => Err(EngineConfigError::InvalidValue {
+                field: "telemetry.sink".to_string(),
+                value: other.to_string(),
+            }),
+        }
+    }
+}
+
+/// Configuration for real-time telemetry, thought stream broadcasting, and trace export.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct TelemetryConfig {
+    pub sink: TelemetrySinkKind,
+    pub endpoint_url: Option<String>,
+    pub ring_buffer_capacity: usize,
+}
+
+impl Default for TelemetryConfig {
+    fn default() -> Self {
+        Self {
+            sink: TelemetrySinkKind::Embedded,
+            endpoint_url: None,
+            ring_buffer_capacity: 256,
+        }
+    }
+}
+
 /// Top-level declarative engine configuration (`tetonic.toml`).
 #[derive(Debug, Clone, PartialEq, Eq, Default, Serialize, Deserialize)]
 pub struct EngineConfig {
     pub node: NodeConfig,
     pub storage: StorageConfig,
     pub inference: InferenceConfig,
+    pub telemetry: TelemetryConfig,
 }
 
 #[derive(Debug, Error)]
@@ -339,6 +402,27 @@ impl EngineConfig {
             }
         }
 
+        if let Some(telem_sec) = sections.get("telemetry") {
+            if let Some(val) = telem_sec.get("sink") {
+                config.telemetry.sink = val.parse()?;
+            }
+            config.telemetry.endpoint_url = telem_sec.get("endpoint_url").and_then(|val| {
+                if val.is_empty() || val == "none" {
+                    None
+                } else {
+                    Some(val.clone())
+                }
+            });
+            if let Some(val) = telem_sec.get("ring_buffer_capacity") {
+                config.telemetry.ring_buffer_capacity = val.parse().map_err(|_| {
+                    EngineConfigError::InvalidValue {
+                        field: "telemetry.ring_buffer_capacity".to_string(),
+                        value: val.clone(),
+                    }
+                })?;
+            }
+        }
+
         Ok(config)
     }
 
@@ -430,6 +514,22 @@ impl EngineConfig {
                 self.inference.timeout_ms = ms;
             }
         }
+
+        if let Ok(val) = std::env::var("TETONIC_TELEMETRY_SINK") {
+            if let Ok(sink) = val.parse() {
+                self.telemetry.sink = sink;
+            }
+        }
+        if let Ok(val) = std::env::var("TETONIC_TELEMETRY_ENDPOINT") {
+            if !val.trim().is_empty() {
+                self.telemetry.endpoint_url = Some(val);
+            }
+        }
+        if let Ok(val) = std::env::var("TETONIC_TELEMETRY_BUFFER_SIZE") {
+            if let Ok(cap) = val.parse() {
+                self.telemetry.ring_buffer_capacity = cap;
+            }
+        }
     }
 
     /// Formats the configuration into canonical TOML text.
@@ -465,6 +565,16 @@ impl EngineConfig {
             out.push_str(&format!("reflex_model = \"{}\"\n", reflex));
         }
         out.push_str(&format!("timeout_ms = {}\n", self.inference.timeout_ms));
+
+        out.push_str("\n[telemetry]\n");
+        out.push_str(&format!("sink = \"{}\"\n", self.telemetry.sink));
+        if let Some(endpoint) = &self.telemetry.endpoint_url {
+            out.push_str(&format!("endpoint_url = \"{}\"\n", endpoint));
+        }
+        out.push_str(&format!(
+            "ring_buffer_capacity = {}\n",
+            self.telemetry.ring_buffer_capacity
+        ));
 
         out
     }
@@ -559,6 +669,11 @@ timeout_ms = 15000
                 reflex_model: None,
                 timeout_ms: 45000,
             },
+            telemetry: TelemetryConfig {
+                sink: TelemetrySinkKind::Otlp,
+                endpoint_url: Some("http://otel-collector:4317".into()),
+                ring_buffer_capacity: 512,
+            },
         };
 
         let toml_text = original.to_toml_string();
@@ -571,6 +686,7 @@ timeout_ms = 15000
         let mut cfg = EngineConfig::default();
         std::env::set_var("TETONIC_NODE_MODE", "runner");
         std::env::set_var("TETONIC_INFERENCE_ENDPOINT", "http://env-override:9000");
+        std::env::set_var("TETONIC_TELEMETRY_SINK", "otlp");
 
         cfg.apply_env_overrides();
 
@@ -579,8 +695,10 @@ timeout_ms = 15000
             cfg.inference.endpoint_url.as_deref(),
             Some("http://env-override:9000")
         );
+        assert_eq!(cfg.telemetry.sink, TelemetrySinkKind::Otlp);
 
         std::env::remove_var("TETONIC_NODE_MODE");
         std::env::remove_var("TETONIC_INFERENCE_ENDPOINT");
+        std::env::remove_var("TETONIC_TELEMETRY_SINK");
     }
 }

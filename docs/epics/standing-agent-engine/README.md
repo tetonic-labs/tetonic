@@ -48,7 +48,7 @@
 │ - Decoupled stateless GPU inference fabric routing & circuit breaker   │
 │ - Moveable execution volume and state checkpoint contract              │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 5: Fleet Portal & Human Experience (Litho)                      │
+│ SPRINT 5: Fleet Portal & Human Experience [COMPLETED]                  │
 │ - Brain-dead simple creation API (POST /orgs, POST /agents)            │
 │ - Zero-compute telemetry & live thought inspection streams             │
 │ - Operator Control Surface: Intent builder, steering, and E-Stop UI    │

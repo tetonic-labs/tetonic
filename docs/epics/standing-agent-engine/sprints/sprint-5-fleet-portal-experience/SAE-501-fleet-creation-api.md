@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 5 — Fleet Portal & Human Experience  
 **Layer:** `engine/litho/tetonic-app`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -20,6 +20,6 @@ In line with the core axiom "Expert-level engine design, brain-dead easy UI", op
 3. Validate request parameters, world adapter bindings, and budget allocations.
 
 ## 3. Acceptance Criteria
-- [ ] Endpoints create organizations, squads, and agents with valid configuration.
-- [ ] Over-budget creation requests are refused with descriptive error diagnostics.
-- [ ] Spawned agents automatically register with the supervisor and start continuous actor loops.
+- [x] Endpoints create organizations, squads, and agents with valid configuration.
+- [x] Over-budget creation requests are refused with descriptive error diagnostics.
+- [x] Spawned agents automatically register with the supervisor and start continuous actor loops.

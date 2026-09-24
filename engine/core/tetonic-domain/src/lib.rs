@@ -121,5 +121,5 @@ pub use world_adapter::{
 pub use checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
 pub use engine_config::{
     EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig,
-    NodeMode, StorageConfig, StorageMode,
+    NodeMode, StorageConfig, StorageMode, TelemetryConfig, TelemetrySinkKind,
 };
