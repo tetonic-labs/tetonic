@@ -34,10 +34,11 @@
 │ - Ingest Tiled map grid & authoritative 2D coordinate system           │
 │ - System 1/2 spatial locomotion & Tetonic Gateway WebSocket bridge     │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 3: Generative Mechanics & Modifiable Canvas                     │
-│ - Tile/structure modification mechanics (place_tile, build, harvest)   │
-│ - Resource supply graph (timber, iron, stone, grain)                   │
-│ - Physical information propagation & Town Notice Board (Workpad)       │
+│ SPRINT 3: Generative Mechanics, Chemistry & Discovery Engine           │
+│ - Modifiable canvas, physical chemistry & fire mechanics (VIL-301)     │
+│ - Resource supply graph & material transformations (VIL-302)           │
+│ - Physical information propagation & Town Notice Board (VIL-303)       │
+│ - Visitor object creation, star ranking & discovery lifecycle (VIL-304)│
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 4: Spectator View Integration (the-village/web Pixi.js Client)  │
 │ - Connect Pixi.js client to authoritative Colyseus room state diffs    │
@@ -70,7 +71,8 @@ docs/epics/the-village/sprints/
 ├── sprint-3-generative-world-mechanics/
 │   ├── VIL-301-modifiable-canvas-construction.md
 │   ├── VIL-302-resource-economy-supply-graph.md
-│   └── VIL-303-spatial-information-notice-board.md
+│   ├── VIL-303-spatial-information-notice-board.md
+│   └── VIL-304-visitor-object-creation-and-discovery.md
 ├── sprint-4-spectator-view-integration/
 │   ├── VIL-401-pixi-colyseus-room-sync.md
 │   ├── VIL-402-live-thought-inspector-hud.md
