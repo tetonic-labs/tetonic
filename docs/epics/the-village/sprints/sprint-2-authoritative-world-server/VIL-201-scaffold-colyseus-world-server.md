@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 2 — Authoritative World Server  
 **Layer:** `the-village/world`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -24,6 +24,6 @@ Scaffold the 100% free, self-hosted Colyseus multiplayer game server in `the-vil
    * `GlobalEconomyState`: Synchronized resources (`timber`, `iron`, `stone`, `grain`).
 
 ## 3. Acceptance Criteria
-- [ ] Colyseus server builds and starts cleanly on port 3001 with zero external cloud dependencies.
-- [ ] Ingests Tiled map data and initializes 2D coordinate space.
-- [ ] Schema state syncs reliably to test client connections.
+- [x] Colyseus server builds and starts cleanly on port 3001 with zero external cloud dependencies.
+- [x] Ingests Tiled map data and initializes 2D coordinate space (`MapManager.ts`).
+- [x] Schema state syncs reliably to test client connections (`VillageState`, `EntityState`, `TileState`, `EconomyState`).

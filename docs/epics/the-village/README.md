@@ -29,9 +29,10 @@
 │ - Run local single-agent sanity test proving >80% sensory suppression  │
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 2: Authoritative World Server (Colyseus in the-village/world)   │
+│   [COMPLETED]                                                          │
 │ - Scaffold self-hosted Colyseus server in the-village/world            │
 │ - Ingest Tiled map grid & authoritative 2D coordinate system           │
-│ - A* spatial pathfinding & Tetonic Gateway WebSocket bridge            │
+│ - System 1/2 spatial locomotion & Tetonic Gateway WebSocket bridge     │
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 3: Generative Mechanics & Modifiable Canvas                     │
 │ - Tile/structure modification mechanics (place_tile, build, harvest)   │
