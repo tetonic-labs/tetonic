@@ -13,17 +13,41 @@ use tetonic_domain::{
 };
 use tetonic_inference::{ChatRequest, InferenceProvider, Message, ToolSchema};
 
+// Continuous brains bypass the turn loop, so they must perform its outbound
+// redaction step themselves before calling a real inference provider.
+fn scan_request(req: &mut ChatRequest) -> Result<(), BrainError> {
+    let input = serde_json::json!({"messages": req.messages, "tools": req.tools});
+    let (clean, found) = tetonic_secrets::redact_json_value(tetonic_secrets::shared_scanner(), &input)
+        .map_err(|detail| BrainError::Inference {
+            pathway: "outbound_scan".into(),
+            detail,
+        })?;
+    req.messages = serde_json::from_value(clean["messages"].clone()).map_err(|e| BrainError::Inference {
+        pathway: "outbound_scan".into(),
+        detail: e.to_string(),
+    })?;
+    req.tools = serde_json::from_value(clean["tools"].clone()).map_err(|e| BrainError::Inference {
+        pathway: "outbound_scan".into(),
+        detail: e.to_string(),
+    })?;
+    req.outbound_scan = tetonic_inference::OutboundScan::from_scan(found);
+    Ok(())
+}
+
 // ── SingleModelBrain ─────────────────────────────────────────────────────────
 
 /// The default brain: exactly one model, one call, same behaviour as the
 /// pre-Brain agent loop. Every existing agent gets this by default; there is
 /// no behaviour change until you opt into a different brain architecture.
+pub type InferenceObserver = Arc<dyn Fn(&str, &str, serde_json::Value) + Send + Sync>;
+
 pub struct SingleModelBrain {
     provider: Arc<dyn InferenceProvider>,
     model: String,
     num_ctx: usize,
     description: String,
     last_cost: std::sync::Mutex<BrainCost>,
+    observer: Option<InferenceObserver>,
 }
 
 impl SingleModelBrain {
@@ -40,7 +64,12 @@ impl SingleModelBrain {
             num_ctx,
             description,
             last_cost: std::sync::Mutex::new(BrainCost::default()),
+            observer: None,
         }
+    }
+    pub fn with_observer(mut self, observer: InferenceObserver) -> Self {
+        self.observer = Some(observer);
+        self
     }
 }
 
@@ -51,6 +80,7 @@ impl Brain for SingleModelBrain {
         req: BrainRequest,
         on_token: &mut BrainTokenSink<'_>,
     ) -> Result<BrainResponse, BrainError> {
+        let trace_id = req.trace_label.clone();
         let messages = brain_messages_to_inference(req.messages);
         let tools: Vec<ToolSchema> = req
             .tools
@@ -58,7 +88,7 @@ impl Brain for SingleModelBrain {
             .filter_map(|v| serde_json::from_value(v).ok())
             .collect();
 
-        let chat_req = ChatRequest {
+        let mut chat_req = ChatRequest {
             model: self.model.clone(),
             messages,
             tools,
@@ -66,14 +96,24 @@ impl Brain for SingleModelBrain {
             ..Default::default()
         };
 
-        let resp = self
-            .provider
-            .chat(chat_req, on_token)
-            .await
-            .map_err(|e| BrainError::Inference {
-                pathway: self.model.clone(),
-                detail: e.to_string(),
-            })?;
+        scan_request(&mut chat_req)?;
+        let emit = |stage: &str, data: serde_json::Value| {
+            if let Some(observer) = &self.observer { observer(&trace_id, stage, data); }
+        };
+        emit("inference_request", serde_json::json!({"model":chat_req.model,"messages":chat_req.messages,"tools":chat_req.tools,"num_ctx":chat_req.num_ctx,"temperature":chat_req.temperature,"boundary":"post-redaction request passed to inference provider"}));
+        let started = std::time::Instant::now();
+        let mut stream = |chunk: &str| {
+            emit("output_delta", serde_json::json!({"text":chunk}));
+            on_token(chunk);
+        };
+        let resp = match self.provider.chat(chat_req, &mut stream).await {
+            Ok(response) => response,
+            Err(error) => {
+                emit("inference_error", serde_json::json!({"error":error.to_string(),"elapsed_ms":started.elapsed().as_millis()}));
+                return Err(BrainError::Inference {pathway:self.model.clone(),detail:error.to_string()});
+            }
+        };
+        emit("inference_response", serde_json::json!({"message":resp.message,"elapsed_ms":started.elapsed().as_millis(),"input_tokens":resp.usage.prompt_tokens,"output_tokens":resp.usage.eval_tokens,"prompt_eval_ms":resp.usage.prompt_eval_ms,"eval_ms":resp.usage.eval_ms}));
 
         let cost = BrainCost {
             input_tokens: resp.usage.prompt_tokens.unwrap_or(0),
@@ -126,13 +166,14 @@ impl Brain for SingleModelBrain {
             serde_json::to_string(&perception).unwrap_or_else(|_| "{}".into());
         let user_msg = Message::user(format!("Current Perception:\n{perception_summary}"));
 
-        let chat_req = ChatRequest {
+        let mut chat_req = ChatRequest {
             model: self.model.clone(),
             messages: vec![system_msg, user_msg],
             num_ctx: Some(self.num_ctx as u32),
             ..Default::default()
         };
 
+        scan_request(&mut chat_req)?;
         let mut noop = |_: &str| {};
         let resp = self
             .provider
@@ -357,6 +398,31 @@ mod tests {
     use super::*;
     use chrono::Utc;
     use tetonic_domain::{Perception, Urgency, WorldAction, WorldState};
+
+    struct TraceProvider;
+    #[async_trait]
+    impl InferenceProvider for TraceProvider {
+        async fn chat(&self, req: ChatRequest, sink: &mut tetonic_inference::TokenSink<'_>) -> Result<tetonic_inference::ChatResponse,tetonic_inference::InferenceError> {
+            assert_eq!(req.messages[0].content,"local observation");
+            sink("not "); sink("valid JSON");
+            Ok(tetonic_inference::ChatResponse {message:Message::assistant("not valid JSON"),usage:Default::default(),provenance:Default::default()})
+        }
+    }
+    #[tokio::test]
+    async fn observer_keeps_unparsed_response_and_real_chunks_in_order() {
+        let events=Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded=events.clone();
+        let brain=SingleModelBrain::new(Arc::new(TraceProvider),"test",4096).with_observer(Arc::new(move |id,stage,data|recorded.lock().unwrap().push((id.to_string(),stage.to_string(),data))));
+        let req=BrainRequest {messages:vec![BrainMessage {role:BrainRole::User,content:"local observation".into(),tool_calls:None,tool_call_id:None}],tools:vec![],max_tokens:None,trace_label:"decision-1".into()};
+        let mut chunks=String::new();let mut sink=|s:&str|chunks.push_str(s);
+        let response=brain.complete(req,&mut sink).await.unwrap();
+        assert_eq!(response.content,"not valid JSON");assert_eq!(chunks,response.content);
+        let events=events.lock().unwrap();
+        assert_eq!(events.iter().map(|e|e.1.as_str()).collect::<Vec<_>>(),vec!["inference_request","output_delta","output_delta","inference_response"]);
+        assert!(events.iter().all(|e|e.0=="decision-1"));
+        assert_eq!(events[0].2["messages"][0]["content"],"local observation");
+        assert_eq!(events[3].2["message"]["content"],"not valid JSON");
+    }
 
     #[tokio::test]
     async fn test_scripted_brain_perceives_and_acts() {

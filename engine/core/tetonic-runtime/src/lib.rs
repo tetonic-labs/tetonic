@@ -5,6 +5,7 @@ pub mod approval;
 pub mod brain;
 pub mod composite_adapter;
 pub mod stream_adapter;
+pub mod websocket_adapter;
 mod assembly;
 mod audit;
 mod build;

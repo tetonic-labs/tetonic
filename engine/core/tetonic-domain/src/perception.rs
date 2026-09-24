@@ -158,6 +158,7 @@ pub struct WorldEvent {
     /// Who or what produced this event (agent id, system component, external input).
     pub source: Option<String>,
     /// Full event-specific content. Schema is world-defined.
+    #[serde(default)]
     pub payload: Value,
     /// How urgently this event needs a response.
     pub urgency: Urgency,

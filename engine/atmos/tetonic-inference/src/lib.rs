@@ -604,6 +604,8 @@ pub struct OllamaChatOptions {
 
 #[derive(Debug, Serialize)]
 pub struct OllamaChatRequestBody<'a> {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub think: Option<bool>,
     pub model: &'a str,
     pub messages: &'a [Message],
     pub stream: bool,
@@ -618,6 +620,7 @@ pub struct OllamaChatRequestBody<'a> {
 
 /// Single-node Ollama provider. Talks to `/api/chat` via the egress guard.
 pub struct OllamaProvider {
+    thinking: Option<bool>,
     base_url: String,
     guard: Arc<EgressGuard>,
     ps_cache: Arc<tokio::sync::RwLock<Option<(Value, std::time::Instant)>>>,
@@ -638,6 +641,7 @@ impl OllamaProvider {
     pub fn new(base_url: impl Into<String>, guard: Arc<EgressGuard>) -> Self {
         let base_url = base_url.into();
         Self {
+            thinking: None,
             admission: residency::runtime_admission(&base_url),
             base_url,
             guard,
@@ -648,6 +652,13 @@ impl OllamaProvider {
 
     pub fn egress_guard(&self) -> &Arc<EgressGuard> {
         &self.guard
+    }
+
+    /// Explicitly select thinking mode for models that support Ollama's `think`
+    /// option. None preserves the provider/model default for existing callers.
+    pub fn with_thinking(mut self, thinking: Option<bool>) -> Self {
+        self.thinking = thinking;
+        self
     }
 
     /// Speculatively pre-warm a model in VRAM (OPT-101).
@@ -1325,6 +1336,7 @@ impl InferenceProvider for OllamaProvider {
             Some(req.tools.as_slice())
         };
         let mut body = OllamaChatRequestBody {
+            think: self.thinking,
             model: &req.model,
             messages: &req.messages,
             stream: true,
@@ -1695,7 +1707,8 @@ mod request_serialization_tests {
         } else {
             Some(req.tools.as_slice())
         };
-        let typed_body = OllamaChatRequestBody {
+        let mut typed_body = OllamaChatRequestBody {
+            think: None,
             model: &req.model,
             messages: &req.messages,
             stream: true,
@@ -1728,6 +1741,9 @@ mod request_serialization_tests {
             .as_f64()
             .unwrap();
         assert!((typed_temp - 0.2).abs() < 1e-5);
+        assert!(parsed_from_typed.get("think").is_none());
+        typed_body.think = Some(false);
+        assert_eq!(serde_json::to_value(&typed_body).unwrap()["think"], false);
     }
 
     #[test]
