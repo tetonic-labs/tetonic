@@ -15,6 +15,7 @@ use crate::config::AgentConfig;
 use crate::context::ContextReport;
 use crate::conversation::Conversation;
 use crate::error::AgentError;
+use crate::filter::{FilterDecision, SensoryFilter};
 use crate::hooks::{
     AbortStaged, ApprovalHook, ApprovalRequest, AuditSink, CaptureWorkspaceVersion,
     PostEditSnapshot, ResolveUnderRoot, SpawnHook, SpawnRequest,
@@ -322,6 +323,8 @@ impl Agent {
             AgentError::Capability("agent has no configured brain for continuous execution".into())
         })?;
 
+        let mut sensory_filter = SensoryFilter::new();
+
         while let Some(perception) = perception_rx.recv().await {
             if self.work_scope.is_canceled() {
                 break;
@@ -331,6 +334,10 @@ impl Agent {
             let mut latest = perception;
             while let Ok(fresher) = perception_rx.try_recv() {
                 latest = fresher;
+            }
+
+            if sensory_filter.filter(&latest) == FilterDecision::Drop {
+                continue;
             }
 
             match brain.perceive(latest).await {
@@ -373,6 +380,8 @@ impl Agent {
         let (sender, mut perception_rx) = adapter.open();
         drop(sender);
 
+        let mut sensory_filter = SensoryFilter::new();
+
         while let Some(perception) = perception_rx.recv().await {
             if self.work_scope.is_canceled() {
                 break;
@@ -382,6 +391,10 @@ impl Agent {
             let mut latest = perception;
             while let Ok(fresher) = perception_rx.try_recv() {
                 latest = fresher;
+            }
+
+            if sensory_filter.filter(&latest) == FilterDecision::Drop {
+                continue;
             }
 
             match brain.perceive(latest).await {

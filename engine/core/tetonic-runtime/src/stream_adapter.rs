@@ -424,4 +424,60 @@ mod tests {
         drop(reader);
         drop(writer);
     }
+
+    #[test]
+    fn test_twp_wire_protocol_serialization_compliance() {
+        use tetonic_domain::{Signal, SignalValue, WorldEvent};
+
+        // 1. Perception frame
+        let perception = Perception {
+            when: chrono::Utc::now(),
+            sequence: 100,
+            urgency: Urgency::High,
+            signals: vec![Signal {
+                name: "temperature".into(),
+                value: SignalValue::Int(350),
+                changed: true,
+                trend: Some(tetonic_domain::Trend::Rising),
+                urgency: Urgency::High,
+            }],
+            events: vec![WorldEvent {
+                kind: "spark_ignited".into(),
+                source: Some("agent-1".into()),
+                payload: serde_json::json!({ "intensity": 0.8 }),
+                urgency: Urgency::High,
+            }],
+            state: WorldState {
+                schema_id: "grid_v1".into(),
+                data: serde_json::json!({ "x": 10, "y": 20 }),
+            },
+        };
+        let msg = StreamMessage::Perception(perception);
+        let serialized = serde_json::to_string(&msg).unwrap();
+        assert!(serialized.contains("\"type\":\"perception\""));
+        assert!(serialized.contains("\"name\":\"temperature\""));
+        assert!(serialized.contains("\"kind\":\"spark_ignited\""));
+
+        // 2. Action frame
+        let action = WorldAction::with_payload(
+            "ignite",
+            serde_json::json!({ "target": "dry_grass" }),
+            BrainPathway::Reflexive { model: "fast".into() },
+        );
+        let action_msg = StreamMessage::Action(action);
+        let serialized_act = serde_json::to_string(&action_msg).unwrap();
+        assert!(serialized_act.contains("\"type\":\"action\""));
+        assert!(serialized_act.contains("\"kind\":\"ignite\""));
+
+        // 3. Estop frame
+        let estop_msg = StreamMessage::Estop { reason: "thermal runaway".into() };
+        let serialized_estop = serde_json::to_string(&estop_msg).unwrap();
+        assert!(serialized_estop.contains("\"type\":\"estop\""));
+        assert!(serialized_estop.contains("\"reason\":\"thermal runaway\""));
+
+        // 4. Heartbeat frame
+        let hb = StreamMessage::Heartbeat;
+        let serialized_hb = serde_json::to_string(&hb).unwrap();
+        assert_eq!(serialized_hb, "{\"type\":\"heartbeat\"}");
+    }
 }
