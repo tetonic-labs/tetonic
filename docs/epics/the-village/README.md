@@ -47,10 +47,16 @@
 │ - Live Thought Stream Inspector HUD wired to Tetonic SSE endpoint      │
 │ - Real-time rendering of dynamic construction, paths, and activity     │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 5: The Looking Glass & Live 24/7 Experiment Launch             │
+│ SPRINT 5: The Looking Glass & Founding Fleet Bootstrap [READY]         │
 │ - Visitor ingress conduit (Petitions, Dock shipments, Referendums)    │
+│ - Visitor Creation Studio (multi-frame animation timeline & ⭐ stars)   │
 │ - Founding Trio fleet bootstrap (Mayor, Blacksmith, Scout)             │
-│ - 24-hour soak test, safety interlock verification, and public launch  │
+│ - Local operator safety interlocks (E-Stop, Steer injection, Resume)   │
+├────────────────────────────────────────────────────────────────────────┤
+│ SPRINT 6: Production Deployment & 24/7 Operations [PLANNED]            │
+│ - Deployment architecture & hosting evaluation (GCP / VPS / Docker)    │
+│ - Orchestration, Caddy/Nginx reverse proxy, TLS & health monitoring    │
+│ - 24-hour continuous autonomous production soak test & cost audit      │
 └────────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -79,8 +85,12 @@ docs/epics/the-village/sprints/
 │   ├── VIL-401-pixi-colyseus-room-sync.md
 │   ├── VIL-402-live-thought-inspector-hud.md
 │   └── VIL-403-dynamic-construction-rendering.md
-└── sprint-5-looking-glass-experiment-launch/
-    ├── VIL-501-looking-glass-visitor-conduit.md
-    ├── VIL-502-founding-trio-fleet-bootstrap.md
-    └── VIL-503-24h-soak-test-safety-verification.md
+├── sprint-5-looking-glass-experiment-launch/
+│   ├── VIL-501-looking-glass-visitor-conduit.md
+│   ├── VIL-502-founding-trio-fleet-bootstrap.md
+│   └── VIL-503-24h-soak-test-safety-verification.md
+└── sprint-6-production-deployment-and-soak-test/
+    ├── VIL-601-production-deployment-architecture.md
+    ├── VIL-602-deployment-orchestration-and-monitoring.md
+    └── VIL-603-24h-production-soak-and-cost-audit.md
 ```

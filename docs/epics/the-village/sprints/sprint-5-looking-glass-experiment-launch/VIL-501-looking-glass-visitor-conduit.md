@@ -21,8 +21,13 @@ Implement "The Looking Glass" public interaction channels, enabling web visitors
 3. **Democratic Referendum Ballots:**
    * When the Mayor puts a policy or major project to a town vote, the web client renders the voting drawer.
    * Spectators cast votes; tallies update live on the HUD and are read by the Mayor at the close of the ballot.
+4. **Visitor Creation Studio & Star Voting:**
+   * Upgrade `AssetForgeModal` with multi-frame animation studio (1 to 4 frames with live looping preview).
+   * Physical property tagging (`flammable`, `heat_source`, `walkable`, `durability`).
+   * ⭐ Star upvote button on community cards calling authoritative `starAsset(id)`.
 
 ## 3. Acceptance Criteria
 - [ ] Visitors can submit petitions, drop dock resources, and vote on town ballots.
+- [ ] Visitors can create multi-frame pixel animations, tag physical properties, and vote on community blueprints with stars.
 - [ ] Submissions cleanly translate into in-world events without prompt injection vulnerabilities.
 - [ ] Rate limits prevent denial-of-service or queue poisoning.
