@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 5 — The Looking Glass & Live 24/7 Experiment Launch  
 **Layer:** `the-village/web` & `world`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -27,7 +27,7 @@ Implement "The Looking Glass" public interaction channels, enabling web visitors
    * ⭐ Star upvote button on community cards calling authoritative `starAsset(id)`.
 
 ## 3. Acceptance Criteria
-- [ ] Visitors can submit petitions, drop dock resources, and vote on town ballots.
-- [ ] Visitors can create multi-frame pixel animations, tag physical properties, and vote on community blueprints with stars.
-- [ ] Submissions cleanly translate into in-world events without prompt injection vulnerabilities.
-- [ ] Rate limits prevent denial-of-service or queue poisoning.
+- [x] Visitors can submit petitions, drop dock resources, and vote on town ballots (`PetitionModal.ts`, `DockDropModal.ts`).
+- [x] Visitors can create multi-frame pixel animations, tag physical properties, and vote on community blueprints with stars (`AssetForgeModal.ts`).
+- [x] Submissions cleanly translate into in-world events without prompt injection vulnerabilities (`VillageRoom.ts`, `simulation.ts`).
+- [x] Rate limits and content sanitization prevent denial-of-service or queue poisoning.
