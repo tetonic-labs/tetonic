@@ -1703,6 +1703,7 @@ mod tests {
         let model = ModelSelection::from_request("qwen:7b", None);
         let project = ProjectPlacementPolicy::default();
         let req = ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             model_digest: None,
             messages: vec![Message::user("summarize")],
@@ -1777,6 +1778,7 @@ mod tests {
         let model = ModelSelection::from_request("qwen:7b", None);
         let project = ProjectPlacementPolicy::default();
         let req = ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             model_digest: None,
             messages: vec![Message::user("hello")],
@@ -1901,6 +1903,7 @@ mod tests {
         let model = ModelSelection::from_request("qwen:7b", None);
         let project = ProjectPlacementPolicy::default();
         let req = ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             model_digest: None,
             messages: vec![Message::user("hello")],
@@ -2037,6 +2040,7 @@ mod tests {
         use crate::{ChatRequest, Message, ToolSchema};
 
         let req = ChatRequest {
+            max_tokens: None,
             model: "m".into(),
             model_digest: None,
             messages: vec![
@@ -2407,6 +2411,7 @@ mod tests {
             generated_at: Utc::now(),
         });
         let req = crate::ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],
@@ -2519,6 +2524,7 @@ mod tests {
             generated_at: Utc::now(),
         });
         let req = crate::ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             messages: vec![Message::user("hi")],
             fabric: Some(FabricCallMeta {

@@ -157,7 +157,7 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
 
     let mut body = json!({
         "model": req.model,
-        "max_tokens": config.max_output_tokens,
+        "max_tokens": req.max_tokens.unwrap_or(config.max_output_tokens).min(config.max_output_tokens),
         "messages": anthropic_messages,
     });
 
@@ -285,6 +285,14 @@ mod tests {
             supports_json_schema: false,
             send_temperature: true,
         }
+    }
+
+    #[test]
+    fn completion_limit_respects_request_and_provider_ceiling() {
+        let mut req = ChatRequest {model: "claude-3-5-sonnet-20241022".into(), messages: vec![Message::user("Hello")], max_tokens: Some(64), ..Default::default()};
+        assert_eq!(request(&req, &test_config()).unwrap()["max_tokens"], 64);
+        req.max_tokens = Some(8192);
+        assert_eq!(request(&req, &test_config()).unwrap()["max_tokens"], 4096);
     }
 
     #[test]

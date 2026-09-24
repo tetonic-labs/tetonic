@@ -125,6 +125,7 @@ mod tests {
 
     fn chat() -> ChatRequest {
         ChatRequest {
+            max_tokens: None,
             model: "qwen:7b".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],

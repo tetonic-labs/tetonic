@@ -295,3 +295,12 @@ fn finish_at_end_of_conversation_synthesizes_tool_result() {
     assert_eq!(msgs[2]["content"], "Completed.");
     assert_eq!(msgs[2]["tool_call_id"], msgs[1]["tool_calls"][0]["id"]);
 }
+
+#[test]
+fn completion_limit_respects_request_and_provider_ceiling() {
+    let mut req = request();
+    req.max_tokens = Some(64);
+    assert_eq!(openai::request(&req, &config()).unwrap()["max_tokens"], 64);
+    req.max_tokens = Some(1024);
+    assert_eq!(openai::request(&req, &config()).unwrap()["max_tokens"], 512);
+}

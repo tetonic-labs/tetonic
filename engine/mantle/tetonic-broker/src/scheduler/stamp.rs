@@ -187,6 +187,7 @@ mod tests {
         use tetonic_inference::{ChatRequest, Message};
 
         let mut chat = ChatRequest {
+            max_tokens: None,
             model: "m".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],

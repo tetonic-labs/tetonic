@@ -60,6 +60,7 @@ async fn worker_revoked_before_dispatch_rejects_legacy_chat() {
     provider.mark_worker_revoked();
 
     let req = ChatRequest {
+            max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hello")],
@@ -113,6 +114,7 @@ async fn chat_without_negotiate_fails_closed() {
     assert!(provider.negotiated_protocol_version().is_none());
 
     let req = ChatRequest {
+            max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hello")],
@@ -364,6 +366,7 @@ async fn remote_chat_refuses_unstamped_request() {
         Arc::new(AtomicU64::new(0)),
     );
     let req = ChatRequest {
+            max_tokens: None,
         model: "qwen:7b".into(),
         messages: vec![Message::user("hello")],
         fabric: Some(FabricCallMeta {

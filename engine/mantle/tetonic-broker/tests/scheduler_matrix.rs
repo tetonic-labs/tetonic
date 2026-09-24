@@ -476,6 +476,7 @@ fn quarantine_excludes_worker_from_schedule_infer_chat() {
         }
     };
     let chat = ChatRequest {
+        max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hi")],
@@ -884,6 +885,7 @@ fn placement_denied_external_trust_excludes_remote() {
         }
     };
     let chat = ChatRequest {
+        max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hi")],
@@ -1084,6 +1086,7 @@ fn trust_downgrade_hop_skips_via_revalidate_hop_placement() {
         }
     };
     let chat = ChatRequest {
+        max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hi")],
@@ -1171,6 +1174,7 @@ fn capability_expire_excludes_from_schedule_infer_chat() {
         }
     };
     let chat = ChatRequest {
+        max_tokens: None,
         model: "qwen:7b".into(),
         model_digest: None,
         messages: vec![Message::user("hi")],

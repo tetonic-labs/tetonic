@@ -93,6 +93,7 @@ impl Brain for SingleModelBrain {
             messages,
             tools,
             num_ctx: Some(self.num_ctx as u32),
+            max_tokens: req.max_tokens,
             ..Default::default()
         };
 
@@ -100,7 +101,7 @@ impl Brain for SingleModelBrain {
         let emit = |stage: &str, data: serde_json::Value| {
             if let Some(observer) = &self.observer { observer(&trace_id, stage, data); }
         };
-        emit("inference_request", serde_json::json!({"model":chat_req.model,"messages":chat_req.messages,"tools":chat_req.tools,"num_ctx":chat_req.num_ctx,"temperature":chat_req.temperature,"boundary":"post-redaction request passed to inference provider"}));
+        emit("inference_request", serde_json::json!({"model":chat_req.model,"messages":chat_req.messages,"tools":chat_req.tools,"num_ctx":chat_req.num_ctx,"max_tokens":chat_req.max_tokens,"temperature":chat_req.temperature,"boundary":"post-redaction request passed to inference provider"}));
         let started = std::time::Instant::now();
         let mut stream = |chunk: &str| {
             emit("output_delta", serde_json::json!({"text":chunk}));
@@ -113,7 +114,7 @@ impl Brain for SingleModelBrain {
                 return Err(BrainError::Inference {pathway:self.model.clone(),detail:error.to_string()});
             }
         };
-        emit("inference_response", serde_json::json!({"message":resp.message,"elapsed_ms":started.elapsed().as_millis(),"input_tokens":resp.usage.prompt_tokens,"output_tokens":resp.usage.eval_tokens,"prompt_eval_ms":resp.usage.prompt_eval_ms,"eval_ms":resp.usage.eval_ms}));
+        emit("inference_response", serde_json::json!({"message":resp.message,"finish_reason":resp.usage.finish_reason,"elapsed_ms":started.elapsed().as_millis(),"input_tokens":resp.usage.prompt_tokens,"output_tokens":resp.usage.eval_tokens,"prompt_eval_ms":resp.usage.prompt_eval_ms,"eval_ms":resp.usage.eval_ms}));
 
         let cost = BrainCost {
             input_tokens: resp.usage.prompt_tokens.unwrap_or(0),
@@ -128,7 +129,9 @@ impl Brain for SingleModelBrain {
             .as_ref()
             .map(|v| !v.is_empty())
             .unwrap_or(false);
-        let finish_reason = if has_tool_calls {
+        let finish_reason = if resp.usage.finish_reason.as_deref() == Some("length") {
+            BrainFinishReason::Length
+        } else if has_tool_calls {
             BrainFinishReason::ToolUse
         } else {
             BrainFinishReason::Stop
@@ -170,6 +173,7 @@ impl Brain for SingleModelBrain {
             model: self.model.clone(),
             messages: vec![system_msg, user_msg],
             num_ctx: Some(self.num_ctx as u32),
+            max_tokens: Some(256),
             ..Default::default()
         };
 
@@ -404,8 +408,9 @@ mod tests {
     impl InferenceProvider for TraceProvider {
         async fn chat(&self, req: ChatRequest, sink: &mut tetonic_inference::TokenSink<'_>) -> Result<tetonic_inference::ChatResponse,tetonic_inference::InferenceError> {
             assert_eq!(req.messages[0].content,"local observation");
+            assert_eq!(req.max_tokens, Some(256));
             sink("not "); sink("valid JSON");
-            Ok(tetonic_inference::ChatResponse {message:Message::assistant("not valid JSON"),usage:Default::default(),provenance:Default::default()})
+            Ok(tetonic_inference::ChatResponse {message:Message::assistant("not valid JSON"),usage:tetonic_inference::GenUsage {finish_reason:Some("length".into()),..Default::default()},provenance:Default::default()})
         }
     }
     #[tokio::test]
@@ -413,9 +418,10 @@ mod tests {
         let events=Arc::new(std::sync::Mutex::new(Vec::new()));
         let recorded=events.clone();
         let brain=SingleModelBrain::new(Arc::new(TraceProvider),"test",4096).with_observer(Arc::new(move |id,stage,data|recorded.lock().unwrap().push((id.to_string(),stage.to_string(),data))));
-        let req=BrainRequest {messages:vec![BrainMessage {role:BrainRole::User,content:"local observation".into(),tool_calls:None,tool_call_id:None}],tools:vec![],max_tokens:None,trace_label:"decision-1".into()};
+        let req=BrainRequest {messages:vec![BrainMessage {role:BrainRole::User,content:"local observation".into(),tool_calls:None,tool_call_id:None}],tools:vec![],max_tokens:Some(256),trace_label:"decision-1".into()};
         let mut chunks=String::new();let mut sink=|s:&str|chunks.push_str(s);
         let response=brain.complete(req,&mut sink).await.unwrap();
+        assert_eq!(response.finish_reason, BrainFinishReason::Length);
         assert_eq!(response.content,"not valid JSON");assert_eq!(chunks,response.content);
         let events=events.lock().unwrap();
         assert_eq!(events.iter().map(|e|e.1.as_str()).collect::<Vec<_>>(),vec!["inference_request","output_delta","output_delta","inference_response"]);

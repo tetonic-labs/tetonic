@@ -96,7 +96,7 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
             OutputLimitField::MaxCompletionTokens => "max_completion_tokens",
         }
     };
-    body[field] = json!(config.max_output_tokens);
+    body[field] = json!(req.max_tokens.unwrap_or(config.max_output_tokens).min(config.max_output_tokens));
     if config.send_temperature && !is_reasoning {
         body["temperature"] = json!(req.temperature);
     }

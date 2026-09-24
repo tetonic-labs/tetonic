@@ -295,6 +295,7 @@ mod tests {
 
     fn sample_chat_request(model: &str) -> ChatRequest {
         ChatRequest {
+            max_tokens: None,
             model: model.into(),
             model_digest: None,
             messages: vec![Message::user("hello")],

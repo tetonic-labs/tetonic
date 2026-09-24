@@ -316,6 +316,7 @@ mod tests {
 
     fn chat() -> ChatRequest {
         ChatRequest {
+            max_tokens: None,
             model: "m".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],
@@ -530,6 +531,7 @@ mod tests {
         let sup = Arc::new(DurableRunSupervisor::new(None));
         let broker = broker_with_supervisor(sup.clone());
         let req_src = ChatRequest {
+            max_tokens: None,
             model: "m".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],
@@ -641,6 +643,7 @@ mod tests {
 
     fn chat_with_agent_ids() -> ChatRequest {
         ChatRequest {
+            max_tokens: None,
             model: "m".into(),
             model_digest: None,
             messages: vec![Message::user("hi")],

@@ -359,6 +359,8 @@ pub struct ChatRequest {
     pub temperature: f32,
     /// Context window to request from the runtime (Ollama `num_ctx`).
     pub num_ctx: Option<u32>,
+    /// Maximum generated tokens; mapped to the provider completion limit.
+    pub max_tokens: Option<u32>,
     /// Speculative draft model for accelerated token decoding (OPT-501).
     pub draft_model: Option<String>,
     /// Number of tokens to speculate ahead per forward pass.
@@ -413,6 +415,8 @@ pub struct ChatResponse {
 /// = prompt evaluation (re-paid every agent step); decode = output generation.
 #[derive(Debug, Clone, Default)]
 pub struct GenUsage {
+    /// Runtime-reported termination reason; absent means unavailable, not normal stop.
+    pub finish_reason: Option<String>,
     pub prompt_tokens: Option<u64>,
     pub eval_tokens: Option<u64>,
     pub prompt_eval_ms: Option<f64>,
@@ -587,6 +591,8 @@ pub trait InferenceProvider: Send + Sync {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct OllamaChatOptions {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub num_predict: Option<u32>,
     pub temperature: f32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub num_gpu: Option<i32>,
@@ -1341,6 +1347,7 @@ impl InferenceProvider for OllamaProvider {
             messages: &req.messages,
             stream: true,
             options: OllamaChatOptions {
+                num_predict: req.max_tokens,
                 num_gpu: None,
                 num_batch: None,
                 temperature: req.temperature,
@@ -1429,6 +1436,7 @@ impl InferenceProvider for OllamaProvider {
             }
             if chunk.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
                 received_done = true;
+                usage.finish_reason = chunk.get("done_reason").and_then(Value::as_str).map(str::to_owned);
                 // Final chunk carries the generation accounting. Durations are
                 // nanoseconds; convert to ms here so callers don't have to.
                 usage.prompt_tokens = chunk.get("prompt_eval_count").and_then(|v| v.as_u64());
@@ -1713,6 +1721,7 @@ mod request_serialization_tests {
             messages: &req.messages,
             stream: true,
             options: OllamaChatOptions {
+                num_predict: req.max_tokens,
                 num_gpu: None,
                 num_batch: None,
                 temperature: req.temperature,
@@ -1749,6 +1758,7 @@ mod request_serialization_tests {
     #[test]
     fn test_speculative_decoding_options_serialization() {
         let opts = OllamaChatOptions {
+            num_predict: Some(256),
             num_gpu: None,
             num_batch: None,
             temperature: 0.2,
@@ -1759,8 +1769,10 @@ mod request_serialization_tests {
         let json = serde_json::to_value(&opts).unwrap();
         assert_eq!(json["draft_model"], "qwen2.5-coder:1.5b");
         assert_eq!(json["draft_count"], 5);
+        assert_eq!(json["num_predict"], 256);
 
         let opts_empty = OllamaChatOptions {
+            num_predict: None,
             num_gpu: None,
             num_batch: None,
             temperature: 0.2,
@@ -1771,6 +1783,7 @@ mod request_serialization_tests {
         let json_empty = serde_json::to_value(&opts_empty).unwrap();
         assert!(json_empty.get("draft_model").is_none());
         assert!(json_empty.get("draft_count").is_none());
+        assert!(json_empty.get("num_predict").is_none());
     }
 }
 

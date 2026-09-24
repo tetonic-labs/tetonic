@@ -160,6 +160,8 @@ pub struct FabricJobResult {
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Default)]
 pub struct GenUsageSerde {
     #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub finish_reason: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub prompt_tokens: Option<u64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub eval_tokens: Option<u64>,
@@ -172,6 +174,7 @@ pub struct GenUsageSerde {
 impl From<&GenUsage> for GenUsageSerde {
     fn from(u: &GenUsage) -> Self {
         Self {
+            finish_reason: u.finish_reason.clone(),
             prompt_tokens: u.prompt_tokens,
             eval_tokens: u.eval_tokens,
             prompt_eval_ms: u.prompt_eval_ms,
@@ -183,6 +186,7 @@ impl From<&GenUsage> for GenUsageSerde {
 impl From<GenUsageSerde> for GenUsage {
     fn from(u: GenUsageSerde) -> Self {
         Self {
+            finish_reason: u.finish_reason,
             prompt_tokens: u.prompt_tokens,
             eval_tokens: u.eval_tokens,
             prompt_eval_ms: u.prompt_eval_ms,
