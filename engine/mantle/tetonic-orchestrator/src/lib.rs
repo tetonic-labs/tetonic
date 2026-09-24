@@ -14,6 +14,8 @@ mod spawn_host;
 mod spawn_session;
 mod specialist;
 mod turn;
+pub mod fleet;
+pub mod fleet_supervisor;
 
 #[cfg(test)]
 mod security_fixture_tests;
@@ -49,4 +51,8 @@ pub use turn::{
     format_orchestration_log, format_router_log, run_orchestrated_turn, run_spawned_specialist,
     AgentBuildRequest, ChildAdmit, ChildJob, OrchestratedTurnInput, OrchestratedTurnOutcome,
     RootExecute, ROOT_AGENT,
+};
+pub use fleet::{BudgetQuota, Bulletin, FleetError, Organization, SharedWorkpad, Squad};
+pub use fleet_supervisor::{
+    AgentLifecycleState, AgentStatusSummary, FleetSnapshot, FleetSupervisor, ManagedAgent,
 };

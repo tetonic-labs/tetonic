@@ -3914,6 +3914,7 @@ name = "tetonic-orchestrator"
 version = "0.0.0"
 dependencies = [
  "async-trait",
+ "chrono",
  "serde",
  "serde_json",
  "tempfile",
@@ -3927,6 +3928,7 @@ dependencies = [
  "tetonic-runtime",
  "tetonic-tools",
  "tetonic-transaction",
+ "thiserror 2.0.18",
  "tokio",
  "tracing",
 ]

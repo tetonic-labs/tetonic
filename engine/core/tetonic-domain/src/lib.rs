@@ -3,6 +3,7 @@
 pub mod artifact;
 pub mod brain;
 pub mod canonical;
+pub mod charter;
 pub mod classify;
 pub mod code_index;
 pub mod context_compiler;
@@ -60,9 +61,10 @@ pub use idempotency::{AttemptDeliveryKey, TaskIdempotencyKey};
 pub use identity::{AgentAttemptExecutor, AgentIdentity, AgentJobSpec, AttemptExecutionContext};
 pub use ids::{
     ActionId, AgentId, ApprovalId, ArtifactId, AttemptId, CapabilityId, CoordinatorId, EvidenceId,
-    ExecutionId, ExpansionHandleId, IdentityId, JobId, KeyId, LeaseId, ReservationId, ResultId,
-    RunId, SessionId, TaskId, TransactionId, TurnId, WorkerId, WorkspaceVersion,
+    ExecutionId, ExpansionHandleId, IdentityId, JobId, KeyId, LeaseId, OrgId, ReservationId, ResultId,
+    RunId, SessionId, SquadId, TaskId, TransactionId, TurnId, WorkerId, WorkspaceVersion,
 };
+pub use charter::{IntentCharter, OperationalBoundary, SteeringVector};
 pub use invocation::{
     AgentInvocation, CandidateOutcome, CompletionKind, LimitKind, LoopDiscipline,
     LoopDisciplineLimits, LoopNotes,

@@ -36,7 +36,7 @@
 │ - Multi-adapter composition (agents binding to multiple environments)  │
 │ - WebSocket / Stream WorldAdapter implementation                       │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 3: Standing Fleet, Multi-Dimensional Intent & Steering (Mantle) │
+│ SPRINT 3: Standing Fleet, Multi-Dimensional Intent & Steering [COMPLETED]│
 │ - Organization & Squad runtime structures (tenancy, budget quotas)     │
 │ - Composite Intent Charter: multi-target boundaries & constraints      │
 │ - In-Flight Course Correction: inject real-time steering vectors       │

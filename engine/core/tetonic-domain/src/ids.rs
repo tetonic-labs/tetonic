@@ -48,6 +48,8 @@ id_newtype!(KeyId);
 id_newtype!(CoordinatorId);
 id_newtype!(ReservationId);
 id_newtype!(IdentityId);
+id_newtype!(OrgId);
+id_newtype!(SquadId);
 
 pub use crate::workspace::WorkspaceVersion;
 
