@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 4 — Spectator View Integration  
 **Layer:** `the-village/web` & Graphics  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -22,6 +22,6 @@ Ensure that all dynamic world mutations made by agents—newly paved roads, fenc
    * Spectators clicking on the physical Town Notice Board in the Town Square open a readable parchment modal showing current active notices and directives.
 
 ## 3. Acceptance Criteria
-- [ ] New tiles and structures appear dynamically on the canvas as agents construct them.
-- [ ] Active work triggers appropriate pixel-art visual effects.
-- [ ] Town Notice Board displays real notices posted by the agents.
+- [x] New tiles and structures appear dynamically on the canvas as agents construct them (`WorldGrid.ts`, `simulation.ts`).
+- [x] Active work triggers appropriate pixel-art visual effects and scaffolding progress bars.
+- [x] Town Notice Board displays real notices posted by the agents (`NoticeBoardModal.ts`, `VillageRoom.ts`).

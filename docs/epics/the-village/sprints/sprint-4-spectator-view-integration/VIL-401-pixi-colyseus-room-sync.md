@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 4 — Spectator View Integration  
 **Layer:** `the-village/web`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -21,6 +21,6 @@ Replace the mock client-side loop in `the-village/web/src/engine/simulation.ts` 
 4. Graceful handling of network disconnects and reconnects with visual spectator indicators.
 
 ## 3. Acceptance Criteria
-- [ ] Mock simulation replaced with live Colyseus room subscription.
-- [ ] Sprites move smoothly across the canvas matching server coordinates.
-- [ ] 60 FPS rendering performance maintained with multiple moving entities.
+- [x] Mock simulation replaced with live Colyseus room subscription (`ColyseusManager.ts`, `simulation.ts`).
+- [x] Sprites move smoothly across the canvas matching server coordinates (`AgentManager.ts`).
+- [x] 60 FPS rendering performance maintained with multiple moving entities.

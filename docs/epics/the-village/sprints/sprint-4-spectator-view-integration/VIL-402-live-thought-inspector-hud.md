@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 4 — Spectator View Integration  
 **Layer:** `the-village/web` & Tetonic Telemetry  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -21,6 +21,6 @@ Connect the frontend Character Inspector drawer directly to Tetonic's `ThoughtSt
 3. Automatically close SSE connection when the inspector is closed to conserve client and network bandwidth.
 
 ## 3. Acceptance Criteria
-- [ ] Clicking any villager opens live SSE stream and displays recent thought history instantly.
-- [ ] Incoming token deltas render smoothly with low latency.
-- [ ] Zero compute or inference overhead incurred on the server during spectator viewing.
+- [x] Clicking any villager opens live SSE stream and displays recent thought history instantly (`ThoughtStreamClient.ts`, `inspector.ts`, `VillageRoom.ts`).
+- [x] Incoming token deltas render smoothly with low latency via typewriter effect.
+- [x] Zero compute or inference overhead incurred on the server during spectator viewing.

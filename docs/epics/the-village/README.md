@@ -42,6 +42,7 @@
 │ - Visitor object creation, star ranking & discovery lifecycle (VIL-304)│
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 4: Spectator View Integration (the-village/web Pixi.js Client)  │
+│   [COMPLETED]                                                          │
 │ - Connect Pixi.js client to authoritative Colyseus room state diffs    │
 │ - Live Thought Stream Inspector HUD wired to Tetonic SSE endpoint      │
 │ - Real-time rendering of dynamic construction, paths, and activity     │
