@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 4 — Engine Configuration & Decoupled Inference  
 **Layer:** `engine/mantle/tetonic-node`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -22,5 +22,5 @@ In distributed deployments, nodes assume distinct roles:
 3. Handle graceful runner deregistration and cluster failover triggers.
 
 ## 3. Acceptance Criteria
-- [ ] Nodes initialize according to configured role.
-- [ ] Runners complete registration handshake with coordinator and maintain active lease proofs.
+- [x] Nodes initialize according to configured role.
+- [x] Runners complete registration handshake with coordinator and maintain active lease proofs.

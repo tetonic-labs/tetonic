@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 4 — Engine Configuration & Decoupled Inference  
 **Layer:** `engine/atmos/tetonic-inference` & `engine/core/tetonic-runtime`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -19,5 +19,5 @@ Stateful agents should not run on expensive GPU nodes, and GPU nodes should not 
    * Trips circuit on consecutive timeouts and redirects requests to backup endpoints or local fallback models.
 
 ## 3. Acceptance Criteria
-- [ ] Agent loops route inference requests to decoupled GPU endpoints without holding GPU memory.
-- [ ] Failed endpoints trip circuit breaker and route to healthy backups without crashing the agent loop.
+- [x] Agent loops route inference requests to decoupled GPU endpoints without holding GPU memory.
+- [x] Failed endpoints trip circuit breaker and route to healthy backups without crashing the agent loop.

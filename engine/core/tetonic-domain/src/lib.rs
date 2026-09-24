@@ -27,7 +27,9 @@ pub mod tool_host;
 pub mod trust;
 pub mod world_adapter;
 pub mod workspace;
-
+pub mod checkpoint;
+pub mod engine_config;
+pub mod work_scope;
 pub use canonical::{
     compute_canonical_digest, finalize_parameters, prepare_proposed_action,
     validate_authorized_action, CANONICAL_SCHEMA_VERSION,
@@ -116,5 +118,8 @@ pub use perception::{
 pub use world_adapter::{
     Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender, WorldAdapter, WorldManifest,
 };
-
-pub mod work_scope;
+pub use checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
+pub use engine_config::{
+    EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig,
+    NodeMode, StorageConfig, StorageMode,
+};

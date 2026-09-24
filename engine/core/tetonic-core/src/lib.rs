@@ -34,5 +34,12 @@ pub use hooks::{
 };
 pub use inference_binding::{AgentInferenceBinding, InvalidInferenceBinding};
 pub use step::Step;
+pub mod checkpoint;
+pub use checkpoint::CheckpointManager;
+pub use tetonic_domain::checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
+pub use tetonic_domain::engine_config::{
+    EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig,
+    NodeMode, StorageConfig, StorageMode,
+};
 pub use tokenizer::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 pub use turn::{validate_transition, TurnOpsEvent, TurnOpsHook, TurnState};

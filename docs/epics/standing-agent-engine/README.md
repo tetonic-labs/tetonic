@@ -42,9 +42,10 @@
 │ - In-Flight Course Correction: inject real-time steering vectors       │
 │ - FleetSupervisor: persistent agent lifecycles, heartbeats, failover   │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 4: Engine Configuration & Decoupled Inference (Atmos & Config)  │
+│ SPRINT 4: Engine Configuration & Decoupled Inference [COMPLETED]       │
 │ - Declarative tetonic.toml parser (standalone vs coordinator vs runner)│
-│ - Decoupled stateless GPU inference fabric routing                     │
+│ - Node roles (Standalone, Coordinator / The Keeper, and Runner)        │
+│ - Decoupled stateless GPU inference fabric routing & circuit breaker   │
 │ - Moveable execution volume and state checkpoint contract              │
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 5: Fleet Portal & Human Experience (Litho)                      │

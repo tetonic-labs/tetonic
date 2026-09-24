@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 4 — Engine Configuration & Decoupled Inference  
 **Layer:** `engine/core/tetonic-domain` & `engine/core/tetonic-core`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -25,6 +25,6 @@ In cloud-native Kubernetes environments, runner pods are ephemeral and can be pr
    * Verifies data integrity via content digest before restoration.
 
 ## 3. Acceptance Criteria
-- [ ] Atomic checkpoints write cleanly to the designated volume mount path.
-- [ ] Corrupted checkpoints are detected and fallback to the latest valid prior snapshot.
-- [ ] Agent state restores identically on a different node instance.
+- [x] Atomic checkpoints write cleanly to the designated volume mount path.
+- [x] Corrupted checkpoints are detected and fallback to the latest valid prior snapshot.
+- [x] Agent state restores identically on a different node instance.

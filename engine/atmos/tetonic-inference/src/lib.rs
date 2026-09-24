@@ -22,6 +22,11 @@ mod placement_engine;
 mod pooled;
 mod residency;
 mod worker_eligibility;
+pub mod decoupled;
+
+pub use decoupled::{
+    CircuitState, DecoupledInferenceRouter, EndpointLease, EndpointTier, InferenceEndpoint,
+};
 
 pub use fabric_node_provider::FabricNodeProvider;
 

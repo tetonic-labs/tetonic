@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 4 — Engine Configuration & Decoupled Inference  
 **Layer:** `engine/core/tetonic-domain` & `engine/core/tetonic-core`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -22,6 +22,6 @@ To uphold the "1-to-1,000 Scale Invariant", the engine must be configured declar
    * Sensible zero-config desktop defaults when no file is present.
 
 ## 3. Acceptance Criteria
-- [ ] Successfully parses complete multi-section `tetonic.toml`.
-- [ ] Returns valid desktop standalone defaults when no config file exists.
-- [ ] Environment variable overrides take precedence over file configuration.
+- [x] Successfully parses complete multi-section `tetonic.toml`.
+- [x] Returns valid desktop standalone defaults when no config file exists.
+- [x] Environment variable overrides take precedence over file configuration.
