@@ -35,6 +35,7 @@
 │ - System 1/2 spatial locomotion & Tetonic Gateway WebSocket bridge     │
 ├────────────────────────────────────────────────────────────────────────┤
 │ SPRINT 3: Generative Mechanics, Chemistry & Discovery Engine           │
+│   [COMPLETED]                                                          │
 │ - Modifiable canvas, physical chemistry & fire mechanics (VIL-301)     │
 │ - Resource supply graph & material transformations (VIL-302)           │
 │ - Physical information propagation & Town Notice Board (VIL-303)       │

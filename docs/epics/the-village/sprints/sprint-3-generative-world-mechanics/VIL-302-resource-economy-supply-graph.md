@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 3 — Generative World Mechanics  
 **Layer:** `the-village/world` & Economy  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -23,6 +23,6 @@ Emergent social and operational dynamics require resource tension and supply cha
    * Emit resource reserve signals (`timber_reserve`, `iron_reserve`) in the perception packet to trigger agent deliberation when supplies run dangerously low.
 
 ## 3. Acceptance Criteria
-- [ ] Material harvesting and refining flow works end-to-end according to recipe costs.
-- [ ] Agents must physically pick up resources from storage nodes to construct buildings.
-- [ ] Low-supply thresholds trigger urgent perception events.
+- [x] Material harvesting and refining flow works end-to-end according to recipe costs (`tests/economy.test.ts`).
+- [x] Agents must physically pick up resources from storage nodes / backpack to construct buildings.
+- [x] Low-supply thresholds trigger urgent perception events and signals.

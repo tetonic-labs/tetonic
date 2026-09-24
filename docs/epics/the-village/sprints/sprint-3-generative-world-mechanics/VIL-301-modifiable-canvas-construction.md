@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 3 — Generative World Mechanics  
 **Layer:** `the-village/world` & Physics  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -26,7 +26,7 @@ True emergence requires moving beyond static, hardcoded interaction trees. Give 
    * Fire on a tile flags it as a high-urgency environmental hazard in the TWP `Perception` packet, allowing reflexive retreat and deliberative response.
 
 ## 3. Acceptance Criteria
-- [ ] Physical chemistry simulation ticks thermal spread and flammability across adjacent combustible tiles.
-- [ ] Structural integrity degrades under combustion, collapsing into debris when consumed.
-- [ ] Agents can pave paths, erect structures, ignite campfires/heat sources, and extinguish fires.
-- [ ] Fire events generate high-urgency perception signals and trigger state change broadcasts.
+- [x] Physical chemistry simulation ticks thermal spread and flammability across adjacent combustible tiles (`ChemistryEngine.ts`).
+- [x] Structural integrity degrades under combustion, collapsing into debris when consumed.
+- [x] Agents can pave paths, erect structures, ignite campfires/heat sources, and extinguish fires.
+- [x] Fire events generate high-urgency perception signals and trigger state change broadcasts.

@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 3 — Generative World Mechanics  
 **Layer:** `the-village/world` & Mantle  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -21,6 +21,6 @@ Eliminate unnatural telepathy between agents. In a living world, information mus
 3. Information travel delays create realistic civic coordination (e.g. the Scout discovering a washed-out path on the coast must jog back to the Town Square to notify the Mayor).
 
 ## 3. Acceptance Criteria
-- [ ] Speech events are strictly limited to spatial hearing radius.
-- [ ] Town Notice Board stores notices and delivers them only to reading agents.
-- [ ] Peer agents coordinate tasks asynchronously through notices without telepathic state sharing.
+- [x] Speech events are strictly limited to spatial hearing radius (`tests/notice_board.test.ts`).
+- [x] Town Notice Board stores notices and delivers them only to reading agents standing adjacent.
+- [x] Peer agents coordinate tasks asynchronously through notices without telepathic state sharing.

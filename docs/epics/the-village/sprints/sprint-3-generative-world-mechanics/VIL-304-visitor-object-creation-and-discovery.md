@@ -3,7 +3,7 @@
 **Epic:** The Village — Living World Experiment  
 **Sprint:** Sprint 3 — Generative World Mechanics  
 **Layer:** `the-village/world` & Community Pipeline  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -29,7 +29,7 @@ Because the static pixel tileset cannot contain every emergent phenomenon (such 
      * Agents perceive the newly discovered object and can incorporate it into deliberate construction, crafting, or ceremonial behavior.
 
 ## 3. Acceptance Criteria
-- [ ] Visitors can submit multi-frame pixel creations with physical properties via server API.
-- [ ] Star voting increments rankings and maintains an authoritative top-assets leaderboard.
-- [ ] Discovery lifecycle successfully transitions top-voted assets into active world state and emits TWP perception events to agents.
-- [ ] Dynamic animations (e.g. community-drawn fire) link directly to the physical chemistry engine.
+- [x] Visitors can submit multi-frame pixel creations with physical properties via server API.
+- [x] Star voting increments rankings and maintains an authoritative top-assets leaderboard.
+- [x] Discovery lifecycle successfully transitions top-voted assets into active world state and emits TWP perception events to agents.
+- [x] Dynamic animations (e.g. community-drawn fire) link directly to the physical chemistry engine.
