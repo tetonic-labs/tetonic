@@ -350,6 +350,106 @@ impl Agent {
         Ok(())
     }
 
+    /// Dock this agent directly into a live [`WorldAdapter`].
+    ///
+    /// The agent opens the world's perception stream, evaluates incoming ticks against
+    /// its pluggable brain with latest-value backlog drain, authoritatively validates
+    /// action proposals against the world's advertised [`WorldManifest`], checks E-Stop
+    /// interlocks, and dispatches actions to the adapter.
+    ///
+    /// # Safety & Actuator Interlock (SAE-202)
+    /// - If the world adapter is in an E-Stop state, any pending action is dropped and
+    ///   `abort_staged_mutations()` is invoked to guarantee transactional rollback.
+    /// - Working memory and agent identity remain intact for diagnostic inspection.
+    pub async fn run_in_world(
+        &self,
+        adapter: Arc<dyn tetonic_domain::WorldAdapter>,
+    ) -> Result<(), AgentError> {
+        let brain = self.brain.as_ref().ok_or_else(|| {
+            AgentError::Capability("agent has no configured brain for continuous execution".into())
+        })?;
+
+        let manifest = adapter.manifest();
+        let (sender, mut perception_rx) = adapter.open();
+        drop(sender);
+
+        while let Some(perception) = perception_rx.recv().await {
+            if self.work_scope.is_canceled() {
+                break;
+            }
+
+            // Drain queued backlog to achieve latest-value semantics
+            let mut latest = perception;
+            while let Ok(fresher) = perception_rx.try_recv() {
+                latest = fresher;
+            }
+
+            match brain.perceive(latest).await {
+                Ok(Some(action)) => {
+                    // 1. Authoritative Affordance Validation (SAE-201)
+                    if let Err(e) = manifest.validate_action(&action) {
+                        tracing::warn!(
+                            agent_id = %self.config.agent_id,
+                            action = %action.kind,
+                            error = %e,
+                            "action rejected by world manifest"
+                        );
+                        continue;
+                    }
+
+                    // 2. Authoritative E-Stop Interlock Check (SAE-202)
+                    if adapter.is_estopped() {
+                        tracing::warn!(
+                            agent_id = %self.config.agent_id,
+                            action = %action.kind,
+                            "world is estopped: aborting staged mutations and dropping action"
+                        );
+                        self.abort_staged_mutations().await;
+                        continue;
+                    }
+
+                    // 3. Dispatch to World Actuators
+                    match adapter.execute(action).await {
+                        Ok(res) => {
+                            tracing::debug!(
+                                agent_id = %self.config.agent_id,
+                                success = res.success,
+                                "world action executed successfully"
+                            );
+                        }
+                        Err(tetonic_domain::WorldError::ActionRejected { reason, .. })
+                            if reason.contains("E-Stop active") =>
+                        {
+                            tracing::warn!(
+                                agent_id = %self.config.agent_id,
+                                reason = %reason,
+                                "action rejected by adapter E-Stop interlock: aborting staged mutations"
+                            );
+                            self.abort_staged_mutations().await;
+                        }
+                        Err(e) => {
+                            tracing::warn!(
+                                agent_id = %self.config.agent_id,
+                                error = %e,
+                                "world action execution failed"
+                            );
+                        }
+                    }
+                }
+                Ok(None) => {}
+                Err(e) => {
+                    tracing::warn!(
+                        agent_id = %self.config.agent_id,
+                        error = %e,
+                        "continuous brain perception failed"
+                    );
+                }
+            }
+        }
+
+        Ok(())
+    }
+
     /// Persist operational turn state for crash recovery (AC2-6).
     pub fn with_turn_ops(mut self, hook: TurnOpsHook) -> Self {
         self.turn_ops = Some(hook);
@@ -2072,7 +2172,9 @@ fn content_looks_like_tool_json(content: &str) -> bool {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use tetonic_domain::{ActionKind, CapabilityError, ToolAdvertisement, ToolProposal};
+    use tetonic_domain::{
+        ActionKind, CapabilityError, ToolAdvertisement, ToolProposal, WorldAdapter,
+    };
     use tetonic_inference::{ChatRequest, ChatResponse, FabricSnapshot, InferenceError, TokenSink};
     use tetonic_tools::Tools;
 
@@ -3190,6 +3292,214 @@ mod tests {
         drop(perception_tx);
         let result = agent_handle.await.unwrap();
         assert!(result.is_ok());
+    }
+
+    struct MockWorldAdapter {
+        manifest: tetonic_domain::WorldManifest,
+        estop: tetonic_domain::EstopSwitch,
+        executed_actions: std::sync::Mutex<Vec<tetonic_domain::WorldAction>>,
+        perception_rx:
+            std::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tetonic_domain::Perception>>>,
+    }
+
+    impl MockWorldAdapter {
+        fn new(
+            manifest: tetonic_domain::WorldManifest,
+        ) -> (
+            Arc<Self>,
+            tokio::sync::mpsc::Sender<tetonic_domain::Perception>,
+        ) {
+            let (tx, rx) = tokio::sync::mpsc::channel(10);
+            let adapter = Arc::new(Self {
+                manifest,
+                estop: tetonic_domain::EstopSwitch::new(),
+                executed_actions: std::sync::Mutex::new(Vec::new()),
+                perception_rx: std::sync::Mutex::new(Some(rx)),
+            });
+            (adapter, tx)
+        }
+    }
+
+    #[async_trait::async_trait]
+    impl tetonic_domain::WorldAdapter for MockWorldAdapter {
+        fn open(&self) -> (tetonic_domain::PerceptionSender, tetonic_domain::PerceptionReceiver) {
+            let rx = self.perception_rx.lock().unwrap().take().expect("open once");
+            let (tx, _) = tokio::sync::mpsc::channel(1);
+            (tx, rx)
+        }
+
+        async fn execute(
+            &self,
+            action: tetonic_domain::WorldAction,
+        ) -> Result<tetonic_domain::ActionResult, tetonic_domain::WorldError> {
+            self.estop.check(&action.kind)?;
+            self.executed_actions.lock().unwrap().push(action);
+            Ok(tetonic_domain::ActionResult {
+                success: true,
+                feedback: Some("executed".into()),
+                state_changed: true,
+            })
+        }
+
+        fn describe(&self) -> &str {
+            "mock:world"
+        }
+
+        fn manifest(&self) -> tetonic_domain::WorldManifest {
+            self.manifest.clone()
+        }
+
+        fn trigger_estop(&self, reason: String) -> Result<(), tetonic_domain::WorldError> {
+            self.estop.trigger(reason);
+            Ok(())
+        }
+
+        fn resume(&self) -> Result<(), tetonic_domain::WorldError> {
+            self.estop.resume();
+            Ok(())
+        }
+
+        fn is_estopped(&self) -> bool {
+            self.estop.is_estopped()
+        }
+    }
+
+    #[tokio::test]
+    async fn test_run_in_world_executes_actions_when_manifest_valid() {
+        let brain = Arc::new(MockContinuousBrain);
+        let agent = Agent::default().with_brain(brain);
+
+        let manifest = tetonic_domain::WorldManifest::new("mock_world", "1.0")
+            .with_affordance(tetonic_domain::Affordance::instant(
+                "emergency_action",
+                "Execute emergency response",
+            ));
+
+        let (adapter, perception_tx) = MockWorldAdapter::new(manifest);
+        let adapter_clone = adapter.clone();
+
+        let agent_handle = tokio::spawn(async move {
+            agent.run_in_world(adapter_clone).await
+        });
+
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 1,
+                urgency: tetonic_domain::Urgency::High,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+
+        // Give the actor loop a tick to process
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(perception_tx);
+        let _ = agent_handle.await.unwrap();
+
+        let executed = adapter.executed_actions.lock().unwrap();
+        assert_eq!(executed.len(), 1);
+        assert_eq!(executed[0].kind, "emergency_action");
+    }
+
+    #[tokio::test]
+    async fn test_run_in_world_rejects_unmanifested_actions() {
+        let brain = Arc::new(MockContinuousBrain);
+        let agent = Agent::default().with_brain(brain);
+
+        // Manifest does NOT include "emergency_action"
+        let manifest = tetonic_domain::WorldManifest::new("mock_world", "1.0")
+            .with_affordance(tetonic_domain::Affordance::instant(
+                "other_action",
+                "Other action",
+            ));
+
+        let (adapter, perception_tx) = MockWorldAdapter::new(manifest);
+        let adapter_clone = adapter.clone();
+
+        let agent_handle = tokio::spawn(async move {
+            agent.run_in_world(adapter_clone).await
+        });
+
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 1,
+                urgency: tetonic_domain::Urgency::High,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(perception_tx);
+        let _ = agent_handle.await.unwrap();
+
+        let executed = adapter.executed_actions.lock().unwrap();
+        assert_eq!(executed.len(), 0); // Action was rejected by manifest!
+    }
+
+    #[tokio::test]
+    async fn test_run_in_world_enforces_estop_interlock_and_aborts_mutations() {
+        let brain = Arc::new(MockContinuousBrain);
+        let aborted = Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let aborted_clone = aborted.clone();
+
+        let agent = Agent::default()
+            .with_brain(brain)
+            .with_abort_staged(Arc::new(move || {
+                aborted_clone.store(true, std::sync::atomic::Ordering::SeqCst);
+            }));
+
+        let manifest = tetonic_domain::WorldManifest::new("mock_world", "1.0")
+            .with_affordance(tetonic_domain::Affordance::instant(
+                "emergency_action",
+                "Execute emergency response",
+            ));
+
+        let (adapter, perception_tx) = MockWorldAdapter::new(manifest);
+        // Authoritatively engage E-Stop
+        adapter.trigger_estop("Safety containment breach".into()).unwrap();
+
+        let adapter_clone = adapter.clone();
+        let agent_handle = tokio::spawn(async move {
+            agent.run_in_world(adapter_clone).await
+        });
+
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 1,
+                urgency: tetonic_domain::Urgency::High,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(perception_tx);
+        let _ = agent_handle.await.unwrap();
+
+        // 1. Staged mutations must be aborted
+        assert!(aborted.load(std::sync::atomic::Ordering::SeqCst));
+        // 2. Action must NOT have executed
+        let executed = adapter.executed_actions.lock().unwrap();
+        assert_eq!(executed.len(), 0);
     }
 }
 

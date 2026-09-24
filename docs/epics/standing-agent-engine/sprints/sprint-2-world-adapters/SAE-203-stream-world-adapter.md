@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 2 — World Adapters & Actuator Safety Gates  
 **Layer:** `engine/core/tetonic-runtime`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -19,6 +19,6 @@ To enable agents to be aimed at external real-time environments (live simulation
 2. Provide integration test fixture simulating an external stream server.
 
 ## 3. Acceptance Criteria
-- [ ] Connects, completes handshake, and streams perceptions to a running agent.
-- [ ] Successfully delivers emitted actions back to the stream server.
-- [ ] Recovers cleanly from network drops without crashing the agent actor loop.
+- [x] Connects, completes handshake, and streams perceptions to a running agent.
+- [x] Successfully delivers emitted actions back to the stream server.
+- [x] Recovers cleanly from network drops without crashing the agent actor loop.

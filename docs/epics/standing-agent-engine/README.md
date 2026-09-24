@@ -30,7 +30,7 @@
 │ - Pluggable Brain: SingleModelBrain (default) + DualProcessBrain       │
 │ - Sensory filtering: decouple high-frequency ticks from memory context │
 ├────────────────────────────────────────────────────────────────────────┤
-│ SPRINT 2: World Adapters & Actuator Safety Gates (Domain & Runtime)    │
+│ SPRINT 2: World Adapters & Actuator Safety Gates [COMPLETED]           │
 │ - WorldAdapter affordance negotiation (world advertises its verbs)     │
 │ - Authoritative E-Stop & Actuator Interlock (drop mutations, freeze)   │
 │ - Multi-adapter composition (agents binding to multiple environments)  │

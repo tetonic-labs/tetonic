@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 2 — World Adapters & Actuator Safety Gates  
 **Layer:** `engine/core/tetonic-domain` & `engine/core/tetonic-runtime`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -21,5 +21,5 @@ Emergency intervention cannot rely on prompting an agent to stop. In high-stakes
 3. Freeze the agent's continuous execution loop in place without discarding working memory, allowing forensic inspection through the Portal API.
 
 ## 3. Acceptance Criteria
-- [ ] Triggering E-Stop causes 100% of subsequent action proposals to be dropped at the adapter level.
-- [ ] Agent state remains intact for inspection during E-Stop and resumes cleanly when `resume()` is called.
+- [x] Triggering E-Stop causes 100% of subsequent action proposals to be dropped at the adapter level.
+- [x] Agent state remains intact for inspection during E-Stop and resumes cleanly when `resume()` is called.

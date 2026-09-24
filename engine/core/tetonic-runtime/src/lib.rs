@@ -3,6 +3,8 @@
 pub mod action_broker;
 pub mod approval;
 pub mod brain;
+pub mod composite_adapter;
+pub mod stream_adapter;
 mod assembly;
 mod audit;
 mod build;
@@ -22,3 +24,5 @@ pub use build::{base_agent_config, lsp_enabled_for_workspace, AgentConfigInput};
 pub use capability_store::InMemoryCapabilityStore;
 pub use executor::LocalAgentAttemptExecutor;
 pub use policy::load_policy_engine;
+pub use stream_adapter::{StreamMessage, StreamWorldAdapter};
+pub use composite_adapter::CompositeWorldAdapter;

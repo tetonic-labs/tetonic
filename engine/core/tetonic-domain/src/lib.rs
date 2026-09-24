@@ -111,6 +111,8 @@ pub use perception::{
     ActionResult, Perception, Signal, SignalValue, Trend, Urgency, WorldAction,
     WorldError, WorldEvent, WorldState,
 };
-pub use world_adapter::{PerceptionReceiver, PerceptionSender, WorldAdapter};
+pub use world_adapter::{
+    Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender, WorldAdapter, WorldManifest,
+};
 
 pub mod work_scope;

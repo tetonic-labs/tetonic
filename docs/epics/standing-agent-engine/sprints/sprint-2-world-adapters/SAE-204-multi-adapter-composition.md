@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 2 — World Adapters & Actuator Safety Gates  
 **Layer:** `engine/core/tetonic-domain` & `engine/core/tetonic-core`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -18,5 +18,5 @@ Real-world missions often require an agent or squad to touch multiple environmen
 2. Aggregate affordance manifests from all child adapters into a combined manifest.
 
 ## 3. Acceptance Criteria
-- [ ] Agent receives interleaved perceptions from two distinct mock adapters.
-- [ ] Outgoing actions are accurately routed to the corresponding child adapter.
+- [x] Agent receives interleaved perceptions from two distinct mock adapters.
+- [x] Outgoing actions are accurately routed to the corresponding child adapter.

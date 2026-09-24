@@ -3,7 +3,7 @@
 **Epic:** Standing Agent Engine  
 **Sprint:** Sprint 2 — World Adapters & Actuator Safety Gates  
 **Layer:** `engine/core/tetonic-domain` & `engine/core/tetonic-runtime`  
-**Status:** Ready
+**Status:** Complete
 
 ---
 
@@ -20,5 +20,5 @@ Agents should not have hardcoded assumptions about what actions exist in a given
 3. Automatically translate advertised affordances into available tool/action schemas in `Agent::run_continuous`.
 
 ## 3. Acceptance Criteria
-- [ ] Agents dynamically expose the exact action verbs advertised by the target World Adapter.
-- [ ] Validates proposed actions against the world's parameter schema before submission.
+- [x] Agents dynamically expose the exact action verbs advertised by the target World Adapter.
+- [x] Validates proposed actions against the world's parameter schema before submission.
