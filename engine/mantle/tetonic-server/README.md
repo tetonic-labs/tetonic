@@ -36,3 +36,10 @@ cargo build -p tetonic-server
 World adapters may supply `state.data.observations`, an array of locally observed facts with stable string `id` fields, and `state.data.memory_scope`, an opaque world-instance identifier. Each configured brain keeps up to 32 last-seen facts independently. Facts retain their observation sequence and become unverified when absent from the current observation. A changed scope clears those memories.
 
 Current observations take precedence over remembered facts and prior decision intents. Only out-of-view memories are repeated in the decision context. This memory is bounded and in-process; it does not persist across server restarts. Worlds remain responsible for observation visibility and action validation. World geometry, sensing rules, game actions, and scenario configuration belong in the world repository.
+
+
+## Decision budget and health
+
+Optional inference settings `completion_tokens` (default 384) and `context_margin` (default 512) reserve space within `context_tokens`. Prompt assembly estimates UTF-8 bytes / 3 plus 64 chat-overhead tokens, trims optional history, and rejects essential overflow. This is disclosed heuristic accounting, not exact model tokenization. The trace includes `context_budget`, requested `max_tokens`, and runtime-reported finish reasons. Length-terminated decisions emit no action.
+
+The loopback health response includes a payload-free `decision` snapshot even when raw observability is disabled. Runtime state is separate from the world's connection and physical activity. `waiting` means no inference/action currently in progress; it does not establish that the model voluntarily chose idle. Failure metadata remains available after the next decision begins.

@@ -1,6 +1,6 @@
 # Sprint 7: Agent reliability and sustained agency
 
-Status: Planned  
+Status: In progress — M1
 Created: 2026-09-24  
 Epic: Standing Agent Engine  
 Companion: [Village Sprint 4](../../../../../../the-village/docs/epics/grounded-world/sprints/sprint-4-emergent-world-foundations/README.md)
@@ -21,7 +21,7 @@ The current Village observation repeats per-object capabilities, and its recent 
 
 This is a coordinated enhancement sprint with four gated milestones, not a claim that all work fits a single short calendar iteration. M1 is the committed first implementation slice; M2-M4 are planned follow-on scope gated by working evidence. No delivery date or staffing capacity is assumed. Points describe relative effort and uncertainty; re-estimate after the contract and provider audit.
 
-All tickets are **Planned**. This sprint document does not claim that any enhancement has been implemented. Preserve the current local experiment and existing repository changes. No publication, deployment, distributed-node rollout or model replacement is included.
+Implementation has begun. Individual ticket checkpoints record completed slices and remaining acceptance criteria; no milestone gate is complete. Preserve the current local experiment and existing repository changes. No publication, deployment, distributed-node rollout or model replacement is included.
 
 ## Principles
 
@@ -105,3 +105,9 @@ Engine subtotal: **78 points across 12 tickets**. Village subtotal: **78 points 
 
 Older epic completion labels describe prior work, not verification of these new acceptance criteria. Re-audit existing capabilities against this sprint before declaring a ticket already satisfied.
 
+
+## Progress — 2026-09-24
+
+Plans and existing integration were committed separately, followed by provider-limit propagation (f24d698). The next slice adds bounded context assembly and decision-health reporting. SAE-702/703/704/705 are in progress; other tickets remain planned. The complete M1 gate, shared contract migration, reliable event delivery, bounded recovery and 30-minute soak remain outstanding.
+
+Current validation: 9 server tests, 28 runtime tests and 130 inference tests passed (2 inference tests ignored); broker/fabric-client/server test-target compilation passed.
