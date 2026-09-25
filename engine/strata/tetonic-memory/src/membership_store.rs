@@ -4,7 +4,7 @@
 use crate::{Result, Store, StoreError};
 use rusqlite::params;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OrganizationRole {
     Administrator,
     TeamCreator,
@@ -12,7 +12,7 @@ pub enum OrganizationRole {
 }
 
 impl OrganizationRole {
-    fn as_str(self) -> &'static str {
+    pub(crate) fn as_str(self) -> &'static str {
         match self {
             Self::Administrator => "administrator",
             Self::TeamCreator => "team_creator",
@@ -161,8 +161,9 @@ mod tests {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlPermission {
+    ManageOrganization,
     CreateOrganization,
     ReadOrganization,
     CreateTeam,
@@ -274,6 +275,7 @@ impl Store {
         team_id: &str,
     ) -> Result<bool> {
         let action = match permission {
+            ControlPermission::ManageOrganization => "manage_org",
             ControlPermission::CreateOrganization => "create_org",
             ControlPermission::ReadOrganization => "read_org",
             ControlPermission::CreateTeam => "create_team",
@@ -285,6 +287,7 @@ impl Store {
                (?2='create_org' AND p.platform_admin=1) OR
                EXISTS(SELECT 1 FROM organization_members m WHERE m.org_id=?3 AND m.principal_id=p.principal_id AND (
                  ?2='read_org' OR
+                 (?2='manage_org' AND m.role='administrator') OR
                  (?2='create_team' AND m.role IN ('administrator','team_creator')) OR
                  (?2='read_team' AND (m.role='administrator' OR
                    EXISTS(SELECT 1 FROM teams t WHERE t.org_id=?3 AND t.team_id=?4 AND t.owner_principal_id=p.principal_id) OR

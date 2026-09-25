@@ -11,11 +11,14 @@ mod local_control;
 mod local_credentials;
 pub use local_control::LocalControl;
 mod membership;
+mod administration;
+pub use tetonic_memory::OrganizationRole;
 pub use local_credentials::{IssuedCredential, LocalCredentials};
 pub use membership::CredentialVerifier;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceAction {
+    ManageOrganization { org_id: String },
     CreateOrganization { org_id: String },
     ReadOrganization { org_id: String },
     CreateTeam { org_id: String, team_id: String },
@@ -60,6 +63,8 @@ pub trait ResourceAuthority: Send + Sync {
 pub enum ResourceError {
     #[error("resource access denied")]
     Denied,
+    #[error("organization must retain an enabled administrator")]
+    LastAdministrator,
     #[error("durable resource storage is required")]
     StorageRequired,
     #[error("resource already exists with different attributes")]
@@ -79,6 +84,8 @@ impl From<AccessError> for ResourceError {
 impl From<StoreError> for ResourceError {
     fn from(error: StoreError) -> Self {
         match error {
+            StoreError::ControlAccessDenied => Self::Denied,
+            StoreError::LastOrganizationAdministrator => Self::LastAdministrator,
             StoreError::ControlResourceConflict => Self::Conflict,
             StoreError::InvalidControlResource(_) => Self::Invalid,
             _ => Self::Storage,

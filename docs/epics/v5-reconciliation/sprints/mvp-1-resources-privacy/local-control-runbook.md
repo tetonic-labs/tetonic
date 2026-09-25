@@ -46,6 +46,22 @@ The final read should return access denied. Revoke is idempotent and reports tha
 
 Bootstrap and credential issuance are separate operations. If issuance/output delivery fails, keep the initialized database and issue a new credential; do not repeat bootstrap or delete the database. A credential whose output was lost expires at its recorded deadline; credential listing/recovery ergonomics remain unfinished. Keep the audience stable across restarts. A separately cloned deployment should change its audience if old credentials must not carry over.
 
-Membership administration, operator identity in administrative audit, organization policy ceilings, remote transport, end-user UI and managed team activation remain pending. Local issuance/revocation rely on the operator's database access, not an authenticated remote role. Do not expose those provisioning methods as unauthenticated network routes.
+Team-specific membership administration, operator identity in administrative audit, organization policy ceilings, remote transport, end-user UI and managed team activation remain pending. Local issuance/revocation rely on the operator's database access, not an authenticated remote role. Do not expose those provisioning methods as unauthenticated network routes.
 
 Verification: `cargo test --manifest-path engine/Cargo.toml -p tetonic-cli --test control_cli` runs bootstrap, takeover rejection, credential issuance, team creation/read in separate CLI processes, missing-credential rejection and persisted revocation against a temporary database. It never prints the generated secret. Storage tests additionally cover concurrent bootstrap and rollback if the audit write fails.
+
+## Organization membership administration
+
+Register a second identity through the trusted local operator door, then use an existing organization administrator credential to grant metadata permissions:
+
+```powershell
+& .\engine\target\debug\tetonic.exe @controlArgs register-principal --principal local/bob
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs set-member --org acme --principal local/bob --role team-creator
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs remove-member --org acme --principal local/bob
+```
+
+Use a currently valid administrator credential (the earlier revocation example invalidates `$issued`). Roles are `administrator`, `team-creator`, or `member`. Registration grants no organization access and retries never re-enable an existing identity or change its platform role. Issue the new user's credential separately through the local operator door.
+
+Membership changes record the authenticated actor, subject, organization and requested role/removal atomically. The write transaction rechecks enabled administrator membership, so a demoted actor cannot rely on an earlier membership decision. The last enabled administrator cannot be removed or demoted through this door. Removing organization membership also removes explicit team memberships. These grants authorize resource metadata only; they do not authorize execution, tools or private knowledge.
+
+Credential validation happens at admission; revoking a credential does not cancel a change already admitted. Direct database operators remain trusted and can bypass these application controls. Remote employee access, administrator recovery and audit browsing remain unfinished.

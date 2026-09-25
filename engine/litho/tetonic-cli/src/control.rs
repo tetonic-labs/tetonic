@@ -4,7 +4,7 @@ use std::{
     io::{IsTerminal, Read},
     path::PathBuf,
 };
-use tetonic_app::resources::LocalControl;
+use tetonic_app::resources::{LocalControl, OrganizationRole};
 
 #[derive(Parser)]
 #[command(
@@ -23,6 +23,27 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Trusted local operator: register an identity without granting membership.
+    RegisterPrincipal {
+        #[arg(long)]
+        principal: String,
+    },
+    /// Set organization membership using an administrator credential on stdin.
+    SetMember {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        principal: String,
+        #[arg(long, value_enum)]
+        role: MemberRole,
+    },
+    /// Remove organization membership using an administrator credential on stdin.
+    RemoveMember {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        principal: String,
+    },
     /// Initialize the first administrator once. Existing principals forbid this.
     Bootstrap {
         #[arg(long)]
@@ -62,6 +83,13 @@ enum Command {
     },
 }
 
+#[derive(Clone, clap::ValueEnum)]
+enum MemberRole {
+    Administrator,
+    TeamCreator,
+    Member,
+}
+
 async fn credential_from_stdin() -> anyhow::Result<String> {
     tokio::task::spawn_blocking(|| -> anyhow::Result<String> {
         anyhow::ensure!(
@@ -84,6 +112,35 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
+        Command::RegisterPrincipal { principal } => {
+            control.register_principal(principal).await?;
+            println!("{}", serde_json::json!({"registration_processed":true}));
+        }
+        Command::SetMember {
+            org,
+            principal,
+            role,
+        } => {
+            let credential = credential_from_stdin().await?;
+            let role = match role {
+                MemberRole::Administrator => OrganizationRole::Administrator,
+                MemberRole::TeamCreator => OrganizationRole::TeamCreator,
+                MemberRole::Member => OrganizationRole::Member,
+            };
+            control
+                .resources()
+                .set_organization_member(&credential, org, principal, Some(role))
+                .await?;
+            println!("{}", serde_json::json!({"membership_updated":true}));
+        }
+        Command::RemoveMember { org, principal } => {
+            let credential = credential_from_stdin().await?;
+            control
+                .resources()
+                .set_organization_member(&credential, org, principal, None)
+                .await?;
+            println!("{}", serde_json::json!({"membership_updated":true}));
+        }
         Command::Bootstrap {
             principal,
             org,

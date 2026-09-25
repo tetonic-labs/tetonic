@@ -96,3 +96,11 @@ The naming correction now includes source folders and Cargo package IDs: `engine
 Historical audit inventories retain their original baseline paths/hashes; historical prose is not rewritten into evidence of a newer tree. Documentation source links now resolve to the renamed folders. The `.lokai` malicious-project security fixture and persisted user-data/config names remain legacy-format compatibility cases, not product source package names. The user's checkout directory is outside the versioned source rename.
 
 Validation: renamed CLI/daemon suites, CLI process integration and all 89 architecture-checker unit tests passed; the live architecture gate and epic documentation links passed. All six selected application integration suites that pin CLI, composition, gate, portal and work source paths passed against the renamed folders.
+
+## 2026-09-25 — Authenticated organization membership administration
+
+MVP-101 now exposes organization role grants/removal through the resource service and local `tetonic control set-member` / `remove-member` commands. The actor comes from verified credentials; durable enabled administrator membership is checked again inside the transaction that changes membership and records actor, subject, scope and requested role. Last-enabled-administrator removal/demotion is rejected. Team-creator and platform-only identities cannot administer organization membership. This does not grant execution, tool or private knowledge access.
+
+Trusted local `register-principal` provisions an unprivileged identity with an audit record, without allowing retries to alter an existing principal's enabled or platform-admin fields. The schema remains version 32. Credential revocation remains admission-time: the transaction rechecks actor membership, not the already-verified credential. Remote transport, team-specific membership administration, audit browsing, operator identity/recovery, immutable agent revisions and privacy enforcement remain unfinished.
+
+Validation: 85 memory-store tests, six application resource tests, two separate-process CLI scenarios and the architecture gate passed. Added evidence covers self-escalation/cross-org denial, revoked administrators, last-admin protection, concurrent cross-removal, rollback on audit failure, and grant/create/revoke/deny across CLI processes. All test databases are temporary.

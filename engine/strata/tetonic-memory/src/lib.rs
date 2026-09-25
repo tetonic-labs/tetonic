@@ -31,6 +31,7 @@ mod identity_store;
 mod control_credentials;
 mod control_bootstrap;
 mod membership_store;
+mod membership_admin;
 mod team_store;
 #[cfg(test)]
 mod migration_tests;
@@ -102,6 +103,10 @@ pub enum StoreError {
     InvalidControlResource(String),
     #[error("control resource already exists with different attributes")]
     ControlResourceConflict,
+    #[error("control access denied")]
+    ControlAccessDenied,
+    #[error("organization must retain an enabled administrator")]
+    LastOrganizationAdministrator,
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;
