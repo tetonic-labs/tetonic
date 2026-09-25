@@ -90,7 +90,7 @@ pub use run::{
     MarkTaskReady, RecordHeartbeat, RecordSideEffectCommit, RejectArtifact, ReplayGap,
     ReplayGapReason, ResourceRequirements, RunCommand, RunCommandResult, RunEventEnvelope,
     RunFinishOutcome, RunSnapshot, RunState, RunSupervisorError, StartAttempt, StartRun,
-    StorageLimits, TaskDependency, TaskInputBinding, TaskRecord, TaskState, TraceContext,
+    ExecutionScope, StorageLimits, TaskDependency, TaskInputBinding, TaskRecord, TaskState, TraceContext,
     VerificationPolicy, VersionedEventPayload,
 };
 pub use secrets::{

@@ -51,6 +51,48 @@ impl super::service::ManagedRunService {
                 "identity and job binding mismatch".into(),
             ));
         }
+        // Do not let a child silently drop or introduce authority. Governed
+        // delegation requires its own inherited grant/budget contract.
+        if let Some(parent) = &job.parent_attempt {
+            let parent_scoped = self
+                .active
+                .lock_recover()
+                .get(parent)
+                .is_some_and(|active| active.authorization.is_some());
+            if parent_scoped || context.authorization.is_some() {
+                return Err(ManagedRunError::InvalidRequest(
+                    "governed delegation is not configured".into(),
+                ));
+            }
+        }
+        if context.authorization.is_some() && context.session_id.is_some() {
+            return Err(ManagedRunError::InvalidRequest(
+                "governed session activation is not configured".into(),
+            ));
+        }
+        if let Some(authorization) = &context.authorization {
+            let scope = &authorization.scope;
+            if self.store.is_none()
+                || [
+                    &scope.principal_id,
+                    &scope.organization_id,
+                    &scope.information_context_id,
+                ]
+                .iter()
+                .any(|id| id.trim().is_empty() || id.len() > 256 || id.contains('\0'))
+            {
+                return Err(ManagedRunError::InvalidRequest(
+                    "execution authorization denied".into(),
+                ));
+            }
+            authorization
+                .authority
+                .authorize(scope, &job.identity, &job.job_spec)
+                .await
+                .map_err(|_| {
+                    ManagedRunError::InvalidRequest("execution authorization denied".into())
+                })?;
+        }
         // This admission path has no authenticated employee execution scope.
         // A caller-supplied correlation ID must not activate a scoped discussion.
         if let (Some(store), Some(session)) = (&self.store, &context.session_id) {
@@ -161,6 +203,7 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
                     binding: TaskInputBinding {
+                        execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         job_spec: Some(job.job_spec.clone()),
                         job_role: job.role.clone(),
                         ..TaskInputBinding::default()
@@ -249,6 +292,7 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     root_task_id: task_id.clone(),
                     root_binding: TaskInputBinding {
+                        execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         job_spec: Some(job.job_spec.clone()),
                         job_role: job.role.clone(),
                         ..TaskInputBinding::default()
@@ -378,6 +422,7 @@ impl super::service::ManagedRunService {
                     binding: binding.clone(),
                     identity: job.identity,
                     execution_policy: self.execution_policy.clone(),
+                    authorization: context.authorization.clone(),
                     role: job.role,
                     parent_attempt: job.parent_attempt,
                     task_handle: task.clone(),

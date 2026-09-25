@@ -81,6 +81,7 @@ impl DefaultRunService {
                     parent_attempt: None,
                 },
                 tetonic_run::managed::AdmissionContext {
+                    authorization: None,
                     speculation: Some(tetonic_domain::SpeculationConfig {
                         allowed: true,
                         max_simultaneous_attempts: 2,
@@ -146,6 +147,7 @@ impl DefaultRunService {
                     parent_attempt: Some(parent.attempt_id),
                 },
                 tetonic_run::managed::AdmissionContext {
+                    authorization: None,
                     speculation: None,
                     session_id: Some(tetonic_domain::SessionId::new(session_id)),
                     task_id: Some(TaskId::new(format!("task_spawn_{agent_id}"))),

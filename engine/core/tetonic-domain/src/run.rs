@@ -98,8 +98,19 @@ pub struct VerificationPolicy {
     pub remediation: VerificationRemediation,
 }
 
+/// Durable attribution for governed execution. These identifiers are not grants;
+/// current authority must be checked by the trusted execution host.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ExecutionScope {
+    pub principal_id: String,
+    pub organization_id: String,
+    pub information_context_id: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskInputBinding {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_scope: Option<ExecutionScope>,
     /// Per-task managed job truth. Omitted for legacy snapshots and Infer tasks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub job_spec: Option<AgentJobSpec>,
@@ -120,6 +131,7 @@ pub struct TaskInputBinding {
 impl Default for TaskInputBinding {
     fn default() -> Self {
         Self {
+            execution_scope: None,
             job_spec: None,
             job_role: None,
             task_definition_version: 1,

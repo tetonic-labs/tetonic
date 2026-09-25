@@ -12,6 +12,7 @@ pub struct ActiveAttempt {
     pub binding: ManagedBinding,
     pub identity: tetonic_domain::AgentIdentity,
     pub execution_policy: ExecutionPolicy,
+    pub authorization: Option<AuthorizedExecution>,
     pub role: Option<String>,
     pub parent_attempt: Option<AttemptId>,
     pub task_handle: Option<AbortHandle>,

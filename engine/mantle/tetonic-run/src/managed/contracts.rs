@@ -119,11 +119,33 @@ pub trait ManagedRunHooks: Send + Sync {
 }
 
 /// Optional durable correlation and caller-selected task delivery key.
-/// This is not employee authorization. With durable storage, session IDs must
-/// resolve to legacy-local sessions; scoped activation requires a verified binding.
+/// Correlation alone is not employee authorization. The optional host authority
+/// binds sessionless tasks; session IDs still require legacy-local scope and cannot
+/// be combined with governed activation until session composition is implemented.
 #[derive(Clone, Default)]
 pub struct AdmissionContext {
+    pub authorization: Option<AuthorizedExecution>,
     pub speculation: Option<tetonic_domain::SpeculationConfig>,
     pub session_id: Option<tetonic_domain::SessionId>,
     pub task_id: Option<TaskId>,
+}
+
+/// Trusted host authorization, separate from harness definition conformance.
+/// Implementations must check current credentials, context and execution grants.
+/// Denial details are deliberately not exposed by the manager.
+#[async_trait::async_trait]
+pub trait ExecutionAuthority: Send + Sync {
+    async fn authorize(
+        &self,
+        scope: &tetonic_domain::ExecutionScope,
+        identity: &AgentIdentity,
+        job: &AgentJobSpec,
+    ) -> Result<(), ()>;
+}
+
+/// Host-composed binding, never accepted as a deserialized employee request.
+#[derive(Clone)]
+pub struct AuthorizedExecution {
+    pub scope: tetonic_domain::ExecutionScope,
+    pub authority: Arc<dyn ExecutionAuthority>,
 }

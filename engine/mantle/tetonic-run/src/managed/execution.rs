@@ -54,6 +54,20 @@ impl super::service::ManagedRunService {
                 _ => return fail("durable identity missing or changed".into()),
             }
         }
+        if task.binding.execution_scope.as_ref() != active.authorization.as_ref().map(|a| &a.scope)
+        {
+            return fail("execution authorization binding mismatch".into());
+        }
+        if let Some(authorization) = &active.authorization {
+            if authorization
+                .authority
+                .authorize(&authorization.scope, &active.identity, &binding.job_spec)
+                .await
+                .is_err()
+            {
+                return fail("execution authorization denied".into());
+            }
+        }
         let advertised = agent.advertised_tool_names();
         if let Err(error) = (active.execution_policy)(
             Some(&active.identity),

@@ -551,3 +551,124 @@ async fn admitted_policy_cannot_be_replaced_by_dispatching_through_another_handl
     assert_eq!(policy_calls.load(Ordering::SeqCst), 2);
     assert_eq!(calls.load(Ordering::SeqCst), 0);
 }
+
+struct TestExecutionAuthority(Arc<std::sync::atomic::AtomicBool>);
+#[async_trait::async_trait]
+impl tetonic_run::managed::ExecutionAuthority for TestExecutionAuthority {
+    async fn authorize(
+        &self,
+        _: &tetonic_domain::ExecutionScope,
+        _: &AgentIdentity,
+        _: &AgentJobSpec,
+    ) -> Result<(), ()> {
+        if self.0.load(Ordering::SeqCst) {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+}
+
+#[tokio::test]
+async fn execution_scope_persists_and_revocation_blocks_claim_and_delegation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let allowed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let scope = tetonic_domain::ExecutionScope {
+        principal_id: "alice".into(),
+        organization_id: "org".into(),
+        information_context_id: "private".into(),
+    };
+    let context = tetonic_run::managed::AdmissionContext {
+        authorization: Some(tetonic_run::managed::AuthorizedExecution {
+            scope: scope.clone(),
+            authority: Arc::new(TestExecutionAuthority(allowed.clone())),
+        }),
+        ..Default::default()
+    };
+    let cmd = command();
+    let job = || tetonic_run::AdmitJob {
+        identity: cmd.identity.clone(),
+        job_spec: cmd.job_spec.clone(),
+        role: None,
+        parent_attempt: None,
+    };
+    let denied_ticket = runs.managed.reserve_dispatch();
+    assert!(runs
+        .managed
+        .admit_with_context(&denied_ticket.id, job(), context.clone())
+        .await
+        .is_err());
+    let identity_id = cmd.identity.id.clone();
+    assert!(runs
+        .managed
+        .store()
+        .unwrap()
+        .read(move |db| tetonic_run::get_identity(db, &identity_id))
+        .await
+        .unwrap()
+        .unwrap()
+        .is_none());
+    allowed.store(true, Ordering::SeqCst);
+    let mut session_context = context.clone();
+    session_context.session_id = Some(tetonic_domain::SessionId::new("legacy-or-scoped"));
+    assert!(runs
+        .managed
+        .admit_with_context(&runs.managed.reserve_dispatch().id, job(), session_context)
+        .await
+        .is_err());
+    let binding = runs
+        .managed
+        .admit_with_context(&runs.managed.reserve_dispatch().id, job(), context)
+        .await
+        .unwrap();
+    // Reopen storage and reconstruct the supervisor to prove this is durable
+    // task state rather than merely a process-local authorization attachment.
+    let reopened = tetonic_memory::SharedStore::open(tmp.path().join("run.db"), 1).unwrap();
+    let supervisor = tetonic_run::DurableRunSupervisor::new(Some(reopened));
+    let snapshot = tetonic_run::RunSupervisor::snapshot(&supervisor, binding.run_id.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        snapshot.tasks[&binding.task_id]
+            .binding
+            .execution_scope
+            .as_ref(),
+        Some(&scope)
+    );
+    let mut child = job();
+    child.parent_attempt = Some(binding.attempt_id.clone());
+    assert!(runs
+        .managed
+        .admit(&runs.managed.reserve_dispatch().id, child)
+        .await
+        .is_err());
+    allowed.store(false, Ordering::SeqCst);
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (tx, _) = tokio::sync::mpsc::unbounded_channel();
+    let mut executor = agent(&tmp, calls.clone(), tx);
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        runs.execute_bound_attempt(
+            binding.attempt_id.clone(),
+            &mut executor,
+            &mut Conversation::new(),
+            cmd.invocation,
+            &mut |_| {},
+        ),
+    )
+    .await
+    .unwrap();
+    assert!(matches!(outcome, CandidateOutcome::Failed { ref message }
+        if message == "execution authorization denied"));
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert!(
+        !runs
+            .managed
+            .inspect_run(&binding.run_id)
+            .await
+            .unwrap()
+            .attempts[&binding.attempt_id]
+            .execution_claimed
+    );
+}
