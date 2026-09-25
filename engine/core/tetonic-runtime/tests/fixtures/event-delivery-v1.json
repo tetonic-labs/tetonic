@@ -1,0 +1,55 @@
+{
+  "perception": {
+    "when": "2026-09-24T00:00:00Z",
+    "sequence": 7,
+    "urgency": "medium",
+    "signals": [],
+    "events": [
+      {
+        "kind": "task_outcome",
+        "source": "world",
+        "urgency": "medium",
+        "payload": {
+          "task_id": "task-1",
+          "action_id": "action-1",
+          "decision_id": "perception-6",
+          "phase": "arrived",
+          "position": [
+            1,
+            2
+          ],
+          "_delivery": {
+            "id": "session-1:1",
+            "world_session": "session-1",
+            "agent_id": "a",
+            "occurred_tick": 5
+          }
+        }
+      }
+    ],
+    "state": {
+      "schema_id": "test_local_v1",
+      "data": {
+        "agent_id": "a",
+        "memory_scope": "session-1",
+        "delivery": {
+          "protocol": 1,
+          "world_session": "session-1",
+          "ack_policy": "parsed_decision",
+          "pending": 1,
+          "dropped_total": 0
+        }
+      }
+    }
+  },
+  "ack": {
+    "type": "events_ack",
+    "data": {
+      "world_session": "session-1",
+      "event_ids": [
+        "session-1:1"
+      ],
+      "decision_id": "perception-7"
+    }
+  }
+}

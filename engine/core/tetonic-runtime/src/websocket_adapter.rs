@@ -29,6 +29,7 @@ pub struct WebSocketWorldAdapter {
     connected: Arc<AtomicBool>,
     epoch: Arc<AtomicU64>,
     tx: mpsc::Sender<Request>,
+    acknowledgements: mpsc::Sender<Value>,
     perceptions: PerceptionSender,
     receiver: Mutex<Option<PerceptionReceiver>>,
 }
@@ -42,6 +43,7 @@ impl WebSocketWorldAdapter {
     ) -> Arc<Self> {
         let (tx, mut rx) = mpsc::channel::<Request>(8);
         let (ptx, prx) = mpsc::channel(32);
+        let (ack_tx, mut ack_rx) = mpsc::channel::<Value>(16);
         let adapter = Arc::new(Self {
             manifest,
             observer: std::sync::Mutex::new(None),
@@ -50,6 +52,7 @@ impl WebSocketWorldAdapter {
             connected: Arc::new(AtomicBool::new(false)),
             epoch: Arc::new(AtomicU64::new(0)),
             tx,
+            acknowledgements: ack_tx,
             perceptions: ptx.clone(),
             receiver: Mutex::new(Some(prx)),
         });
@@ -76,6 +79,9 @@ impl WebSocketWorldAdapter {
                     let mut expiry = tokio::time::interval(Duration::from_millis(100));
                     loop {
                         tokio::select! {
+                            ack = ack_rx.recv() => {
+                                if let Some(data)=ack { if ws.send(Message::Text(json!({"type":"events_ack","data":data}).to_string().into())).await.is_err(){break;} }
+                            }
                             _ = expiry.tick() => {
                                 if pending.as_ref().is_some_and(|r| r.deadline <= Instant::now() || r.reply.is_closed()) {
                                     if let Some(r) = pending.take() { let _ = r.reply.send(Err(WorldError::Timeout { elapsed_ms: 5000 })); }
@@ -148,6 +154,10 @@ impl WebSocketWorldAdapter {
         adapter
     }
     pub fn set_observer(&self, observer: crate::brain::InferenceObserver) { *self.observer.lock().unwrap() = Some(observer); }
+    /// Acknowledges decision inclusion only. A full queue leaves events pending at the world.
+    pub fn acknowledge_events(&self, session:&str, ids:&[String], decision_id:&str) {
+        if !ids.is_empty() { let _=self.acknowledgements.try_send(json!({"world_session":session,"event_ids":ids,"decision_id":decision_id})); }
+    }
     pub fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
     }
@@ -224,6 +234,23 @@ impl WorldAdapter for WebSocketWorldAdapter {
 mod tests {
     use super::*;
     use tetonic_domain::BrainPathway;
+
+    #[tokio::test]
+    async fn event_acknowledgements_use_the_shared_wire_fixture_without_a_world_action(){
+        let fixture:Value=serde_json::from_str(include_str!("../tests/fixtures/event-delivery-v1.json")).unwrap();
+        let listener=tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
+        let wire=fixture.clone();
+        let server=tokio::spawn(async move {
+            let (socket,_)=listener.accept().await.unwrap();let mut ws=tokio_tungstenite::accept_async(socket).await.unwrap();
+            ws.send(Message::Text(json!({"type":"perception","data":wire["perception"]}).to_string().into())).await.unwrap();
+            let frame=ws.next().await.unwrap().unwrap();let packet:Value=serde_json::from_str(frame.to_text().unwrap()).unwrap();assert_eq!(packet,wire["ack"]);
+        });
+        let adapter=WebSocketWorldAdapter::connect(format!("ws://{addr}"),"a".into(),WorldManifest::new("test","1"),Duration::from_secs(6));
+        let (_,mut rx)=adapter.open();let p=tokio::time::timeout(Duration::from_secs(3),rx.recv()).await.unwrap().unwrap();
+        assert_eq!(p.events.len(),1);assert_eq!(p.state.data["delivery"]["protocol"],1);
+        adapter.acknowledge_events("session-1",&["session-1:1".into()],"perception-7");
+        tokio::time::timeout(Duration::from_secs(3),server).await.unwrap().unwrap();
+    }
 
     #[tokio::test]
     async fn waits_for_matching_world_receipt_and_fences_old_decisions() {

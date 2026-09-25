@@ -63,3 +63,17 @@ None of these implies compliance. Editing internal state must not be implemented
 
 Record decisions, rationale and alternatives here. An unresolved decision blocks its dependent implementation, not independent source audits or tests.
 
+
+## Accepted local event contract — 2026-09-24
+
+The first implemented capability version is event_protocol=1 in the WebSocket URL. The experiment gateway requires it; unknown versions or missing version close with 1008. Non-experiment legacy clients retain their previous behavior. This is a local capability version, not a claim that the entire TWP schema migration is complete.
+
+Perception state.data.delivery includes protocol, world_session, ack_policy=parsed_decision, pending and dropped_total. Event payload._delivery carries stable id, world_session, agent_id and occurred_tick. Snapshots repeatedly offer the oldest two pending events. events_ack.data carries world_session, event_ids and decision_id. Socket identity determines the acknowledging agent. IDs not offered to that recipient cannot consume events. A successfully parsed decision queues acknowledgement; failed/oversized/truncated decisions do not. This establishes decision inclusion only, never belief/compliance or durable storage.
+
+Both repositories carry identical event-delivery-v1.json fixtures. Tetonic's fixture is engine/core/tetonic-runtime/tests/fixtures/event-delivery-v1.json; Village's is world/tests/fixtures/event-delivery-v1.json. Tests parse and exercise the wire shape. Village state schema is village_local_v4 after removing duplicate private_suggestions/recent_experiences fields.
+
+World events are retained per recipient, max 128. Overflow drops oldest with an explicit trace containing lost IDs and persistent dropped_total; no silent loss guarantee is made beyond that bound. Acknowledgement transport queue is bounded; if full/disconnected, the world retains events and offers them again. Runtime memory is run-scoped and acknowledges after a parsed decision; world/engine restarts are not yet durable.
+
+Action IDs are protected by a world-owned run ledger (4096 entries, no eviction). Exact repeated parameters return original receipts; conflicting reuse and capacity overflow reject new mutations. Replay protection ends at world reset; durable replay protection is pending.
+
+Upgrade order for this local slice: stop the managed pair, rebuild both, then start world and engine. A mixed old/new experiment client fails explicitly. Full schema advertisement, durable acknowledgement and generic protocol-error health reporting remain open.
