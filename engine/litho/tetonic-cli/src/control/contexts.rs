@@ -1,0 +1,117 @@
+use clap::Subcommand;
+use std::{io::Read, path::PathBuf};
+use tetonic_app::resources::{ContextOwner, LocalControl};
+
+#[derive(Subcommand)]
+pub enum ContextCommand {
+    /// Create a context privately owned by the authenticated principal.
+    Private {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        context: String,
+    },
+    /// Create a shared context; requires current team participation.
+    Team {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        team: String,
+        #[arg(long)]
+        context: String,
+    },
+    /// Open durable discussion history; no workspace access or inference is granted.
+    Open {
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        session: String,
+    },
+    /// Store a human message from a UTF-8 file (maximum 64 KiB).
+    Send {
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        session: String,
+        /// Reuse this ID for an identical retry; use a new ID for a new message.
+        #[arg(long)]
+        request: String,
+        #[arg(long)]
+        message_file: PathBuf,
+    },
+    /// Read the latest authorized messages as JSON in chronological order.
+    History {
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        session: String,
+        #[arg(long, default_value_t=50, value_parser=clap::value_parser!(u32).range(1..=200))]
+        limit: u32,
+    },
+}
+
+pub async fn dispatch(control: &LocalControl, command: ContextCommand) -> anyhow::Result<()> {
+    let credential = super::credential_from_stdin().await?;
+    let service = control.contexts();
+    let output = match command {
+        ContextCommand::Private { org, context } => {
+            service
+                .create(&credential, context, ContextOwner::Private { org_id: org })
+                .await?;
+            serde_json::json!({"context_created":true})
+        }
+        ContextCommand::Team { org, team, context } => {
+            service
+                .create(
+                    &credential,
+                    context,
+                    ContextOwner::Team {
+                        org_id: org,
+                        team_id: team,
+                    },
+                )
+                .await?;
+            serde_json::json!({"context_created":true})
+        }
+        ContextCommand::Open { context, session } => {
+            service.open_history(&credential, context, session).await?;
+            serde_json::json!({"discussion_open":true,"agent_activated":false})
+        }
+        ContextCommand::Send {
+            context,
+            session,
+            request,
+            message_file,
+        } => {
+            let content = tokio::task::spawn_blocking(move || -> anyhow::Result<String> {
+                let mut text = String::new();
+                std::fs::File::open(message_file)?
+                    .take(65_537)
+                    .read_to_string(&mut text)?;
+                anyhow::ensure!(
+                    !text.is_empty() && text.len() <= 65_536,
+                    "message must contain 1 to 65536 UTF-8 bytes"
+                );
+                Ok(text)
+            })
+            .await??;
+            let sequence = service
+                .append_message(&credential, context, session, request, content)
+                .await?;
+            serde_json::json!({"stored":true,"sequence":sequence,"agent_activated":false})
+        }
+        ContextCommand::History {
+            context,
+            session,
+            limit,
+        } => {
+            let rows = service
+                .transcript(&credential, context, session, limit)
+                .await?;
+            let messages: Vec<_> = rows.into_iter().map(|(seq,role,content)|serde_json::json!({"sequence":seq,"role":role,"content":content})).collect();
+            serde_json::json!({"messages":messages})
+        }
+    };
+    println!("{}", serde_json::to_string(&output)?);
+    Ok(())
+}

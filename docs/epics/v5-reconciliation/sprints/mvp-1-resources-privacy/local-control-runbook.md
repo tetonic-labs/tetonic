@@ -71,3 +71,24 @@ Credential validation happens at admission; revoking a credential does not cance
 `add-team-member --org acme --team maintainers --principal local/bob` and `remove-team-member` accept a credential on stdin, like the organization membership commands. Only a current team owner or organization administrator can manage these grants. The recipient must already belong to that organization. Organization membership alone does not grant access to every team's metadata.
 
 Removal changes explicit membership only: it does not transfer ownership or remove rights held through the organization administrator role. Removing an owner's organization membership blocks their owner permissions. Each accepted change records actor, organization, team, subject and operation in the same transaction as the membership change. Schema 33 adds a nullable team identifier to existing administrative audit records; historical organization events remain intact.
+
+## Private and team discussions
+
+These local commands create durable human discussion history. They do not start inference or agents. All take a bearer credential through stdin. As elsewhere in this runbook, filesystem/database operators remain trusted; this is not confidentiality against someone who can open the database or issue credentials for other principals.
+
+After bootstrap, issue a currently valid credential for the intended principal (substitute an existing organization member):
+
+```powershell
+$discussionKey = & .\engine\target\debug\tetonic.exe @controlArgs issue-credential --principal local/admin | ConvertFrom-Json
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context private --org acme --context my-private-context
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context open --context my-private-context --session my-discussion
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context send --context my-private-context --session my-discussion --request message-1 --message-file .\message.txt
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context history --context my-private-context --session my-discussion --limit 50
+Remove-Variable discussionKey
+```
+
+Create `message.txt` as a nonempty UTF-8 file of at most 64 KiB before sending. Message text stays out of command arguments. Reuse `message-1` only to retry the same author/content; a new message requires a new request ID. History emits JSON and can contain sensitive content, so choose where to display or redirect it accordingly.
+
+For a shared discussion, use `context team --org acme --team maintainers --context maintenance-discussion`, then the same open/send/history operations. The caller must be the current team owner or an explicit team member and still belong to the organization. Organization metadata administrator status alone does not grant team-content access. Private contexts are owned by the authenticated principal; there is no owner-override argument.
+
+History returns the latest 1–200 messages in chronological order, not an assertion that all earlier history was returned. Human author attribution is stored separately from agent identity; the initial CLI history output exposes sequence, role and content. Full participant UI, streaming, archival and agent activation remain pending.

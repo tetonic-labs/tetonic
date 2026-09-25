@@ -1,5 +1,6 @@
 //! Offline/local operator control. Never starts inference or an agent session.
 use clap::{Parser, Subcommand};
+mod contexts;
 use std::{
     io::{IsTerminal, Read},
     path::PathBuf,
@@ -23,6 +24,11 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Authenticated private/team discussion history (does not activate agents).
+    Context {
+        #[command(subcommand)]
+        command: contexts::ContextCommand,
+    },
     /// Grant explicit team metadata access; administrator or owner credential on stdin.
     AddTeamMember {
         #[arg(long)]
@@ -130,6 +136,7 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
+        Command::Context { command } => contexts::dispatch(&control, command).await?,
         Command::AddTeamMember {
             org,
             team,

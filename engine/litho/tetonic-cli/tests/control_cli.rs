@@ -29,6 +29,193 @@ fn run(db: &std::path::Path, args: &[&str], credential: Option<&str>) -> Output 
 }
 
 #[test]
+fn private_discussion_cli_preserves_history_and_denies_other_principals() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("discussion.db");
+    assert!(run(
+        &db,
+        &[
+            "bootstrap",
+            "--principal",
+            "admin",
+            "--org",
+            "org",
+            "--name",
+            "Org"
+        ],
+        None
+    )
+    .status
+    .success());
+    assert!(
+        run(&db, &["register-principal", "--principal", "alice"], None)
+            .status
+            .success()
+    );
+    let issue = |principal| {
+        let output = run(&db, &["issue-credential", "--principal", principal], None);
+        assert!(output.status.success());
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap()["credential"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let admin = issue("admin");
+    assert!(run(
+        &db,
+        &[
+            "set-member",
+            "--org",
+            "org",
+            "--principal",
+            "alice",
+            "--role",
+            "member"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+    let alice = issue("alice");
+    assert!(run(
+        &db,
+        &[
+            "context",
+            "private",
+            "--org",
+            "org",
+            "--context",
+            "private-a"
+        ],
+        Some(&alice)
+    )
+    .status
+    .success());
+    let open = run(
+        &db,
+        &[
+            "context",
+            "open",
+            "--context",
+            "private-a",
+            "--session",
+            "discussion",
+        ],
+        Some(&alice),
+    );
+    assert!(open.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&open.stdout).unwrap()["agent_activated"],
+        false
+    );
+    let file = dir.path().join("message.txt");
+    std::fs::write(&file, "PRIVATECANARY — a personal thought").unwrap();
+    let send = [
+        "context",
+        "send",
+        "--context",
+        "private-a",
+        "--session",
+        "discussion",
+        "--request",
+        "request-1",
+        "--message-file",
+        file.to_str().unwrap(),
+    ];
+    for _ in 0..2 {
+        assert!(run(&db, &send, Some(&alice)).status.success());
+    }
+    let history = [
+        "context",
+        "history",
+        "--context",
+        "private-a",
+        "--session",
+        "discussion",
+    ];
+    let own = run(&db, &history, Some(&alice));
+    assert!(own.status.success());
+    let result: serde_json::Value = serde_json::from_slice(&own.stdout).unwrap();
+    assert_eq!(result["messages"].as_array().unwrap().len(), 1);
+    assert!(result["messages"][0]["content"]
+        .as_str()
+        .unwrap()
+        .contains("PRIVATECANARY"));
+    for token in [Some(admin.as_str()), None] {
+        let denied = run(&db, &history, token);
+        assert!(!denied.status.success());
+        for output in [&denied.stdout, &denied.stderr] {
+            let text = String::from_utf8_lossy(output);
+            assert!(!text.contains("PRIVATECANARY"));
+            assert!(!text.contains(&alice));
+            assert!(!text.contains(&admin));
+        }
+    }
+    assert!(run(
+        &db,
+        &[
+            "create-team",
+            "--org",
+            "org",
+            "--team",
+            "team",
+            "--name",
+            "Team"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+    let shared = [
+        "context",
+        "team",
+        "--org",
+        "org",
+        "--team",
+        "team",
+        "--context",
+        "shared",
+    ];
+    assert!(!run(&db, &shared, Some(&alice)).status.success());
+    assert!(run(&db, &shared, Some(&admin)).status.success());
+    assert!(run(
+        &db,
+        &[
+            "add-team-member",
+            "--org",
+            "org",
+            "--team",
+            "team",
+            "--principal",
+            "alice"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+    assert!(run(&db, &shared, Some(&alice)).status.success());
+    let wrong_scope = [
+        "context",
+        "history",
+        "--context",
+        "shared",
+        "--session",
+        "discussion",
+    ];
+    assert!(!run(&db, &wrong_scope, Some(&alice)).status.success());
+    std::fs::write(&file, vec![b'x'; 65_537]).unwrap();
+    assert!(!run(&db, &send, Some(&alice)).status.success());
+    assert!(run(
+        &db,
+        &["remove-member", "--org", "org", "--principal", "alice"],
+        Some(&admin)
+    )
+    .status
+    .success());
+    assert!(!run(&db, &history, Some(&alice)).status.success());
+}
+
+#[test]
 fn membership_grants_and_revocations_govern_new_processes() {
     let dir = tempfile::tempdir().unwrap();
     let db = dir.path().join("members.db");
