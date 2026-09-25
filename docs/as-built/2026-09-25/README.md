@@ -8,7 +8,34 @@ Tetonic is a Rust workspace with **32 packages and several distinct execution pa
 
 The most important ownership distinction is between **durable job execution**, **live conversational execution**, and **world interaction**. A run projection is not a live agent; a session's conversation is not a durable run journal; a world receipt is not a transaction in Tetonic's SQLite database. Each has its own failure and recovery boundary. [service.rs — `pub struct DurableRunSupervisor`](../../../engine/mantle/tetonic-run/src/service.rs#L51), [session_live.rs — `pub struct LiveSession`](../../../engine/litho/tetonic-app/src/session_live.rs#L29), [websocket_adapter.rs — `struct Request`](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L17).
 
+## Organizations, squads, and agents — level 0
+
+Tetonic's fleet model organizes agents as **Organization → Squad → Agent**. An **organization** groups squads and holds a token budget, an active-agent limit field and a token-consumption counter. A **squad** belongs to an organization and groups agent IDs around an `IntentCharter`: shared strategic intent and operational boundaries. Each squad also owns a **SharedWorkpad**, where callers can post attributed bulletins for peers to read. These are implemented management objects, with in-memory state. [fleet.rs — `pub struct Organization`](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L51), [fleet.rs — `pub struct Squad`](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L162), [fleet.rs — `pub struct SharedWorkpad`](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L122).
+
+```mermaid
+flowchart TB
+  Manager[FleetManager: creation and lookup API] -->|creates and indexes| Org[Organization]
+  Org -->|owns quota fields and usage counter| Budget[Organization budget state]
+  Org -->|registers squads by ID| Squad[Squad]
+  Squad -->|owns| Charter[Shared IntentCharter]
+  Squad -->|owns| Pad[SharedWorkpad: attributed bulletins]
+  Squad -->|stores member IDs| Members[Agents belonging to the squad]
+  Manager -->|registers organization and agent records| Supervisor[FleetSupervisor]
+  Supervisor -->|tracks by agent ID| Managed[ManagedAgent: status and heartbeat]
+  Managed -->|optional squad ID reference| Squad
+  Managed -.->|steering delivery only when channel attached| Channel[Agent perception channel]
+  Managed -->|optional control handle| Adapter[WorldAdapter]
+```
+
+Scope: the implemented fleet management model, independent of deployment. Solid arrows show local ownership, references or API calls as labeled; the dashed arrow is asynchronous in-process channel delivery. All depicted management state is volatile; this diagram includes no database or network listener. Squad membership stores agent IDs, while the supervisor separately holds managed-agent records. `ManagedAgent.squad_id` is optional at the lower-level API; the FleetManager creation path assigns a squad. Evidence: [fleet_api.rs — `pub struct FleetManager`](../../../engine/litho/tetonic-app/src/fleet_api.rs#L102), [fleet_api.rs — `pub async fn create_agent`](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251), [fleet_supervisor.rs — `pub struct ManagedAgent`](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L33), [fleet_supervisor.rs — `pub async fn inject_steering`](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L156).
+
+**Management and execution have distinct responsibilities.** FleetManager creates and looks up organizations, squads and agent records. FleetSupervisor tracks registered agents, exposes heartbeat/status queries, applies squad steering and invokes stop/resume on attached adapters. Squad steering adjusts the shared charter and attempts delivery to members with attached perception channels. The workpad is a shared data structure; it is not automatically inserted into every member's model context. [fleet_api.rs — `impl FleetManager`](../../../engine/litho/tetonic-app/src/fleet_api.rs#L110), [fleet_supervisor.rs — `pub async fn inject_steering`](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L156), [fleet.rs — `impl SharedWorkpad`](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L135).
+
+**Current integration:** the FleetManager agent-creation path registers an agent with no adapter or perception channel and returns a Running status without starting an agent loop. The CLI/daemon Application and standalone world server do not currently instantiate this hierarchy in their inspected composition roots. Thus organizations and squads are part of the implemented system model, while the execution paths below operate without that fleet integration. Budget enforcement is also partial: agent creation charges a fixed 1000 tokens; the inspected code has no hourly counter reset or active-agent-limit check on that path. See [the fleet lifecycle detail](organizations-and-squads.md) for creation, steering, quotas and API behavior. [fleet_api.rs — `pub async fn create_agent`](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251), [fleet.rs — `pub fn record_tokens`](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L86), [lib.rs — `pub struct Application`](../../../engine/litho/tetonic-app/src/lib.rs#L124), [main.rs — `async fn main`](../../../engine/mantle/tetonic-server/src/main.rs#L75).
+
 ## Navigation
+
+[Organizations and squads](organizations-and-squads.md) explains the management hierarchy introduced above.
 
 1. [Entrypoints and composition](entrypoints.md): every Cargo binary, startup branches, scripts, shutdown.
 2. [Execution paths](execution.md): finite agent turns, local/remote inference, tools, world decisions and receipts.

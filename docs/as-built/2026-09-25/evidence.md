@@ -13,6 +13,20 @@ These anchors were resolved against actual source text. A citation records the s
 | [README.md](README.md) | [engine/mantle/tetonic-run/src/service.rs:51](../../../engine/mantle/tetonic-run/src/service.rs#L51) | `pub struct DurableRunSupervisor` |
 | [README.md](README.md) | [engine/litho/tetonic-app/src/session_live.rs:29](../../../engine/litho/tetonic-app/src/session_live.rs#L29) | `pub struct LiveSession` |
 | [README.md](README.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:17](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L17) | `struct Request` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:51](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L51) | `pub struct Organization` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:162](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L162) | `pub struct Squad` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:122](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L122) | `pub struct SharedWorkpad` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/fleet_api.rs:102](../../../engine/litho/tetonic-app/src/fleet_api.rs#L102) | `pub struct FleetManager` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/fleet_api.rs:251](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251) | `pub async fn create_agent` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:33](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L33) | `pub struct ManagedAgent` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:156](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L156) | `pub async fn inject_steering` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/fleet_api.rs:110](../../../engine/litho/tetonic-app/src/fleet_api.rs#L110) | `impl FleetManager` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:156](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L156) | `pub async fn inject_steering` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:135](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L135) | `impl SharedWorkpad` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/fleet_api.rs:251](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251) | `pub async fn create_agent` |
+| [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:86](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L86) | `pub fn record_tokens` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/lib.rs:124](../../../engine/litho/tetonic-app/src/lib.rs#L124) | `pub struct Application` |
+| [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
 | [README.md](README.md) | [engine/litho/lokai-cli/src/main.rs:34](../../../engine/litho/lokai-cli/src/main.rs#L34) | `async fn main` |
 | [README.md](README.md) | [engine/litho/lokaid/src/main.rs:88](../../../engine/litho/lokaid/src/main.rs#L88) | `async fn serve` |
 | [README.md](README.md) | [engine/litho/tetonic-app/src/node_worker.rs:135](../../../engine/litho/tetonic-app/src/node_worker.rs#L135) | `pub async fn run_node_serve` |
@@ -208,6 +222,30 @@ These anchors were resolved against actual source text. A citation records the s
 | [limits.md](limits.md) | [engine/mantle/tetonic-server/src/context_budget.rs:7](../../../engine/mantle/tetonic-server/src/context_budget.rs#L7) | `struct` |
 | [limits.md](limits.md) | [.github/workflows/engine-ci.yml:51](../../../.github/workflows/engine-ci.yml#L51) | `Run Core Tests` |
 | [limits.md](limits.md) | [engine/core/tetonic-sandbox/src/backend/mod.rs:58](../../../engine/core/tetonic-sandbox/src/backend/mod.rs#L58) | `pub fn platform_backend` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:51](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L51) | `pub struct Organization` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:162](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L162) | `pub struct Squad` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:128](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L128) | `pub struct Bulletin` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:102](../../../engine/litho/tetonic-app/src/fleet_api.rs#L102) | `pub struct FleetManager` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:33](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L33) | `pub struct ManagedAgent` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:91](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L91) | `pub struct FleetSupervisor` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:122](../../../engine/litho/tetonic-app/src/fleet_api.rs#L122) | `pub async fn create_org` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:175](../../../engine/litho/tetonic-app/src/fleet_api.rs#L175) | `pub async fn create_squad` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:189](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L189) | `pub fn add_member` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:251](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251) | `pub async fn create_agent` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:326](../../../engine/litho/tetonic-app/src/fleet_api.rs#L326) | `pub async fn get_agent` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:42](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L42) | `impl ManagedAgent` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:103](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L103) | `pub fn total_agent_count` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:156](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L156) | `pub async fn inject_steering` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:218](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L218) | `pub fn apply_steering` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:135](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L135) | `impl SharedWorkpad` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:86](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L86) | `pub fn record_tokens` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:251](../../../engine/litho/tetonic-app/src/fleet_api.rs#L251) | `pub async fn create_agent` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:210](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L210) | `pub fn emergency_stop_fleet` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:226](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L226) | `pub fn resume_fleet` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs:59](../../../engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs#L59) | `pub fn record_heartbeat` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/fleet_api.rs:342](../../../engine/litho/tetonic-app/src/fleet_api.rs#L342) | `pub async fn dispatch_rest` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/litho/tetonic-app/src/lib.rs:124](../../../engine/litho/tetonic-app/src/lib.rs#L124) | `pub struct Application` |
+| [organizations-and-squads.md](organizations-and-squads.md) | [engine/mantle/tetonic-server/src/main.rs:170](../../../engine/mantle/tetonic-server/src/main.rs#L170) | `let agent` |
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-domain/src/identity.rs:27](../../../engine/core/tetonic-domain/src/identity.rs#L27) | `pub struct AgentJobSpec` |
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-domain/src/work_scope.rs:29](../../../engine/core/tetonic-domain/src/work_scope.rs#L29) | `pub struct WorkScope` |
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-core/src/agent.rs:28](../../../engine/core/tetonic-core/src/agent.rs#L28) | `pub struct Agent` |

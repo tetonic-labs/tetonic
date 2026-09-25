@@ -1,7 +1,7 @@
 {
   "mermaid_version": "11.12.0",
   "jsdom_version": "26.1.0",
-  "diagrams": 49,
+  "diagrams": 50,
   "passed": true,
   "results": [
     {
@@ -207,6 +207,11 @@
     {
       "document": "README.md",
       "number": 1,
+      "passed": true
+    },
+    {
+      "document": "README.md",
+      "number": 2,
       "passed": true
     },
     {

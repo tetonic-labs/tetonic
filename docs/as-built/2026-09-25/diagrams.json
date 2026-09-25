@@ -202,6 +202,11 @@
   {
     "document": "README.md",
     "number": 1,
+    "source": "flowchart TB\n  Manager[FleetManager: creation and lookup API] -->|creates and indexes| Org[Organization]\n  Org -->|owns quota fields and usage counter| Budget[Organization budget state]\n  Org -->|registers squads by ID| Squad[Squad]\n  Squad -->|owns| Charter[Shared IntentCharter]\n  Squad -->|owns| Pad[SharedWorkpad: attributed bulletins]\n  Squad -->|stores member IDs| Members[Agents belonging to the squad]\n  Manager -->|registers organization and agent records| Supervisor[FleetSupervisor]\n  Supervisor -->|tracks by agent ID| Managed[ManagedAgent: status and heartbeat]\n  Managed -->|optional squad ID reference| Squad\n  Managed -.->|steering delivery only when channel attached| Channel[Agent perception channel]\n  Managed -->|optional control handle| Adapter[WorldAdapter]"
+  },
+  {
+    "document": "README.md",
+    "number": 2,
     "source": "flowchart TB\n  User[CLI user] -->|in-process CLI commands| CLI[lokai process]\n  Editor[Editor client] -.->|async framed JSON-RPC over stdio| D[lokaid coordinator process]\n  CLI -->|constructs| App[Application and coding runtime]\n  D -->|constructs on initialize| App\n  App -->|awaited provider calls| CP[Compute broker and provider routing]\n  CP -.->|HTTP inference| O[Local Ollama process]\n  CP -.->|TLS fabric requests| W[lokaid worker process]\n  W -.->|HTTP inference| WO[Worker Ollama process]\n  App -->|read / serialized write| DB[(Coordinator SQLite stores)]\n  App -->|authorized effects| FS[Workspace and sandboxed children]\n  S[tetonic-server process] -->|constructs| B[PerceptiveBrain and Agent world loop]\n  B -.->|HTTP inference| O\n  B -.->|WebSocket actions / perceptions / receipts| World[External world authority]\n  S -->|owns in RAM| RAM[Experience and trace buffers]"
   },
   {
