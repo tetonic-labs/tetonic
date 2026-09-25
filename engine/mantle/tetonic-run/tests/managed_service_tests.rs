@@ -643,3 +643,90 @@ async fn finalization_passes_live_cancellation_to_verifier() {
         })
         .await;
 }
+
+#[tokio::test]
+async fn legacy_admission_rejects_scoped_and_unknown_sessions_before_identity_write() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = tetonic_memory::SharedStore::open(dir.path().join("run.db"), 1).unwrap();
+    let legacy = db
+        .write(|db| {
+            db.bootstrap_control("alice", "org", "Org")?;
+            db.create_information_context(
+                "alice",
+                "private",
+                &tetonic_memory::ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )?;
+            db.open_context_history("alice", "private", "discussion")?;
+            db.start_session("workspace", "test", "model")
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    let artifacts = Arc::new(
+        tetonic_artifact::LocalArtifactStore::new(
+            dir.path().join("artifacts"),
+            tetonic_artifact::ScanPolicy::Scan(Arc::new(|_| false)),
+        )
+        .unwrap(),
+    );
+    let service = ManagedRunService::new(
+        Arc::new(DurableRunSupervisor::new(Some(db.clone()))),
+        Some(db.clone()),
+        artifacts,
+        Arc::new(tetonic_policy::PolicyEngine::new(
+            tetonic_policy::PolicyMode::EstateStub,
+        )),
+    );
+    for session in ["discussion", "unknown"] {
+        let (identity, job_spec) = test_identity_and_spec();
+        let ticket = service.reserve_dispatch();
+        let denied = service
+            .admit_with_context(
+                &ticket.id,
+                AdmitJob {
+                    identity,
+                    job_spec,
+                    role: None,
+                    parent_attempt: None,
+                },
+                tetonic_run::managed::AdmissionContext {
+                    session_id: Some(tetonic_domain::SessionId::new(session)),
+                    ..Default::default()
+                },
+            )
+            .await;
+        assert!(denied
+            .unwrap_err()
+            .to_string()
+            .contains("session is not available"));
+        assert!(db
+            .read(|db| db.get_agent_identity("test_agent"))
+            .await
+            .unwrap()
+            .unwrap()
+            .is_none());
+        service.cancel_dispatch(&ticket.id).unwrap();
+    }
+    let (identity, job_spec) = test_identity_and_spec();
+    let ticket = service.reserve_dispatch();
+    let binding = service
+        .admit_with_context(
+            &ticket.id,
+            AdmitJob {
+                identity,
+                job_spec,
+                role: None,
+                parent_attempt: None,
+            },
+            tetonic_run::managed::AdmissionContext {
+                session_id: Some(tetonic_domain::SessionId::new(legacy.clone())),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    assert_eq!(binding.session_id.unwrap().0, legacy);
+    service.cancel_dispatch(&ticket.id).unwrap();
+}

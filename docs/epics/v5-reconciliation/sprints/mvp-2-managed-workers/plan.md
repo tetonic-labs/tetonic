@@ -17,3 +17,9 @@ Acceptance: one lifecycle works for both workloads; no mandatory coding identity
 Reuse: REC-201/202 plus coding extraction from REC-502. Remove D07/D08 only after live parity; retain useful adapters and test fixtures.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
+
+## Managed activation boundary (source trace, 2026-09-25)
+
+`identity_job.rs::begin_job_run` composes identity/job admission through `ManagedRunService::admit_with_context`; `AdmissionContext.session_id` is correlation, not an authenticated employee scope. The existing manager pins identity/job bindings and execution rechecks the durable identity revision, input digest, advertised capabilities, policy and claim. Preserve this lifecycle when adding employee activation.
+
+The legacy admission door now rejects persisted private/team and unknown session IDs before identity writes. This is a cutover guard, not scoped execution support. The next activation contract must resolve an organization-owned agent revision, verified initiating principal, information context, resource grants and budgets; persist those bindings with the existing run/task state; inherit them for child work; and revalidate authority before execution and protected effects. Context-bound retrieval alone is insufficient. Scoped activation must not simply pass an authenticated discussion ID into AdmissionContext or bypass the existing claim/finalization manager.

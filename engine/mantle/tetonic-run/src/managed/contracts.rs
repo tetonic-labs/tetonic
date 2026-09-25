@@ -117,6 +117,8 @@ pub trait ManagedRunHooks: Send + Sync {
 }
 
 /// Optional durable correlation and caller-selected task delivery key.
+/// This is not employee authorization. With durable storage, session IDs must
+/// resolve to legacy-local sessions; scoped activation requires a verified binding.
 #[derive(Clone, Default)]
 pub struct AdmissionContext {
     pub speculation: Option<tetonic_domain::SpeculationConfig>,

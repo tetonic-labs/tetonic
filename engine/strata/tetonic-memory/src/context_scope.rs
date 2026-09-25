@@ -45,7 +45,7 @@ impl Store {
 
     /// Fail closed before a legacy caller can consume a scoped session by ID.
     /// Unknown IDs retain the same denial as inaccessible scoped IDs.
-    pub(crate) fn require_legacy_session(&self, session: &str) -> Result<()> {
+    pub fn require_legacy_session(&self, session: &str) -> Result<()> {
         let allowed: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1 AND context_id='legacy-local')",
             [session],

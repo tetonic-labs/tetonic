@@ -51,6 +51,24 @@ impl super::service::ManagedRunService {
                 "identity and job binding mismatch".into(),
             ));
         }
+        // This admission path has no authenticated employee execution scope.
+        // A caller-supplied correlation ID must not activate a scoped discussion.
+        if let (Some(store), Some(session)) = (&self.store, &context.session_id) {
+            let session = session.0.clone();
+            store
+                .read(move |db| db.require_legacy_session(&session))
+                .await
+                .map_err(|_| {
+                    ManagedRunError::InvalidRequest(
+                        "session is not available for legacy execution".into(),
+                    )
+                })?
+                .map_err(|_| {
+                    ManagedRunError::InvalidRequest(
+                        "session is not available for legacy execution".into(),
+                    )
+                })?;
+        }
         if let Some(store) = &self.store {
             let identity = job.identity.clone();
             store
