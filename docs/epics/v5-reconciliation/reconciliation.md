@@ -104,6 +104,8 @@ Lease safety: use authority-assigned expiry and generation, define clock-skew al
 
 ## Configuration and binary convergence
 
+User-confirmed requirement: telemetry, logging and storage must be operator-configurable from installation onward. The [operator configuration contract](operator-configuration.md) defines required controls, distributed deployment semantics and acceptance gates. This work begins with the initial contracts and is implemented alongside each subsystem; it is not postponed to final packaging.
+
 `tetonic-server` becomes the supported composition root. Server configuration holds listeners/authentication, storage, worker roles, provider connections, limits, telemetry, secret references and allowed execution profiles. Agent definitions live in durable resources; bootstrap definitions may be imported from config explicitly.
 
 Standalone means the same control services with a local worker, not a different execution loop. Legacy CLI/stdio operations become transport adapters to those services. An embedded CLI mode may remain if it uses identical admission/enforcement and is explicitly local. Retire independent bootstrap paths after parity tests.

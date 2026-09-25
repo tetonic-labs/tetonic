@@ -19,6 +19,7 @@ The primary problem is fragmented authority, not a shortage of subsystems. Recon
 - [Validation results](validation.json) and [validator](validate.py): file hashes, Cargo workspace membership and local links.
 - [Sequenced implementation tickets](sprints/README.md).
 - [Quality double-pass review](quality-review.md): corrections, migration hazards and scenario acceptance matrix.
+- [Operator configuration requirements](operator-configuration.md): mandatory configurable telemetry, logging and storage, plus production/distributed operational contracts.
 
 Method: source reads at composition roots and critical lifecycle paths, repository-wide symbol/caller searches, manifest dependency inspection, tracked-file census, and delivery workflow inspection. Earlier architecture documents were not treated as evidence for runtime behavior. This is an initial reconciliation audit, not an exhaustive semantic proof or a compiler-derived whole-program call graph. No production runtime was started and no production code was changed. Dynamic, macro-generated, external library consumers and untracked files are not proven absent by lexical searches. Individual deletion PRs must repeat caller/build checks.
 

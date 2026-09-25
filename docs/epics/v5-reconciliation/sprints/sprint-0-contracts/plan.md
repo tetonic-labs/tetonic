@@ -10,6 +10,8 @@ Acceptance: every target box has one authority; no second run store; two agents 
 
 Resolve executor thread affinity/LocalSet hosting, revision-update behavior under existing identity equality checks, single-writer enforcement, bounded activation admission, schedule catch-up, and speculation defaults. Generic effects default to no concurrent speculation. Define cancellation acknowledgment versus quiescence and escalation before changing execution interfaces.
 
+Define the versioned operator configuration contract now: telemetry, logging and storage are mandatory configurable surfaces. Specify supported backends, config precedence/validation, secret references, reload versus restart, dependency-failure behavior and distributed topology constraints. Follow [operator requirements](../../operator-configuration.md); implement settings with their owning subsystem rather than waiting for sprint 5.
+
 ## REC-002: Preserve useful behavior and identify obsolete tests
 
 Depends on: REC-001 for target expectations. Capture deterministic fake-provider coding execution and external-world protocol scenarios, current recovery/quarantine behavior, capability denial, approval and cancellation. Inventory structure-only tests separately from behavior tests. Record current failures without changing production to conceal them.

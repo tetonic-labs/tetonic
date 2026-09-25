@@ -6,6 +6,8 @@ Depends on: common runtime stable; remote settings depend on sprint 4. Converge 
 
 Acceptance: clean install and upgrade exercise actual server/client artifacts; legacy config migration is deterministic; unsupported options fail; readiness reflects storage/control dependencies; graceful drain is tested; old supported CLI/RPC operations preserve behavior or return an explicit migration error.
 
+Production configuration acceptance: engineer-configured telemetry destination, logging level/output and supported storage connection/path work without recompilation. Exercise invalid-config rejection, redacted effective configuration, exporter outage, storage outage and distributed reconnect/fencing. Verify [operator requirements](../../operator-configuration.md), already implemented with earlier subsystem tickets; do not introduce a second late-stage configuration system.
+
 Rehearse rollback with actual schema versions and backups; document any post-backup write loss. Replace one composition root at a time without dual mutable authorities. Renaming executables is optional and independent of lifecycle correctness.
 
 Retirement: D09/D12 parsers and independent bootstraps. Rename crates only if it helps the public product, not as a substitute for consolidation.
