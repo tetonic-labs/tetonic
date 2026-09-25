@@ -1,21 +1,21 @@
 # lokai-cli
 
-Phase A headless CLI (`lokai`): single-agent runs, interactive chat, audit/history, time-travel, code index, project memory, orchestration, and `lokai estate` fleet commands.
+Phase A headless CLI (`tetonic`): single-agent runs, interactive chat, audit/history, time-travel, code index, project memory, orchestration, and `lokai estate` fleet commands.
 
-Package name is **`lokai-cli`**; the binary on PATH is **`lokai`**.
+Package name is **`lokai-cli`**; the binary on PATH is **`tetonic`**.
 
 ## Entry points
 
 | Command / flag | Purpose |
 |----------------|---------|
 | `lokai "task"` | One-shot agent run |
-| `lokai` (no task) | Interactive multi-turn chat |
-| `lokai --explain "…"` | Force read-only explain mode (no edits, verify, or critic) |
-| `lokai --orchestrate auto` | Keyword router + specialists + optional critic (D11/D12) |
-| `lokai --orchestrate auto --no-critic` | Specialists without post-edit critic |
-| `lokai --index`, `--search`, etc. | Code index operations |
-| `lokai --checkpoint`, `--undo`, `--redo` | Time travel |
-| `lokai --project-status`, `--project-note` | Project memory (D4) |
+| `tetonic` (no task) | Interactive multi-turn chat |
+| `tetonic --explain "…"` | Force read-only explain mode (no edits, verify, or critic) |
+| `tetonic --orchestrate auto` | Keyword router + specialists + optional critic (D11/D12) |
+| `tetonic --orchestrate auto --no-critic` | Specialists without post-edit critic |
+| `tetonic --index`, `--search`, etc. | Code index operations |
+| `tetonic --checkpoint`, `--undo`, `--redo` | Time travel |
+| `tetonic --project-status`, `--project-note` | Project memory (D4) |
 | `lokai estate …` | Worker enrollment / fleet (N0.1) |
 | `lokai estate worker trust get <worker>` | Show persisted M5-3 trust and audit history |
 | `lokai estate worker trust set <worker> <tier>` | Persist a globally versioned coordinator-owned trust assignment |
@@ -29,13 +29,13 @@ Package name is **`lokai-cli`**; the binary on PATH is **`lokai`**.
 | `session.rs` | `CliSessionConfig`, `CliTurnContext`; live session via `SessionLiveStore` |
 | `signal.rs` | One-shot: Ctrl+C → live cancel + `SessionService::cancel_session`. TUI: Ctrl+C cancels the turn; Ctrl+Q / `/exit` quit. |
 | `chat.rs` | Interactive / one-shot turns via `Application::submit_chat_turn`; TUI slash palette |
-| `tui/` | Interactive chat. Left pane is a **transcript** (`you` / `lokai` / `tool` / `error`); telemetry is Activity (Ctrl+L). Status names the phase. Approvals default to Deny; arrows select and Enter confirms; Esc denies. Opening `lokai` resumes only when the last workspace session was left **running** (crash / incomplete turn). A finished chat starts fresh. |
+| `tui/` | Interactive chat. Left pane is a **transcript** (`you` / `tetonic` / `tool` / `error`); telemetry is Activity (Ctrl+L). Status names the phase. Approvals default to Deny; arrows select and Enter confirms; Esc denies. Opening `tetonic` resumes only when the last workspace session was left **running** (crash / incomplete turn). A finished chat starts fresh. |
 | `app_bootstrap.rs` | Shared `Application::bootstrap` for estate subcommands |
 | `args.rs` | Clap CLI surface |
 | `offline.rs` | History, time-travel, index, project commands (infra) |
 | `estate.rs` / `capacity.rs` | Estate subcommands; status/doctor via `lokai-app` services |
 
-Agent turns submit through `lokai-app::Application::submit_chat_turn` (product owns Conversation and the turn future). Session start/end/cancel use the same `DefaultSessionService` + `SessionLiveStore` as `lokaid`. The CLI is transport: it submits, awaits or subscribes, relays approval responses, and renders.
+Agent turns submit through `lokai-app::Application::submit_chat_turn` (product owns Conversation and the turn future). Session start/end/cancel use the same `DefaultSessionService` + `SessionLiveStore` as `tetonicd`. The CLI is transport: it submits, awaits or subscribes, relays approval responses, and renders.
 
 ## Interactive TUI
 
@@ -141,7 +141,7 @@ time.
 
 ## Tests
 
-`cargo test -p lokai-cli` — CLI arg parsing, explain heuristics, runtime/policy wiring, shared compute-plane assembly (broker Some, Secret local-only), TUI transcript vs activity, slash Tab cycle, approval Always/high-risk, status phases, failure copy (stale caps, hop-lease miss, GPU spill, capacity warn-and-proceed). Orchestration integration is covered by `lokai-orchestrator` and `lokaid`.
+`cargo test -p lokai-cli` — CLI arg parsing, explain heuristics, runtime/policy wiring, shared compute-plane assembly (broker Some, Secret local-only), TUI transcript vs activity, slash Tab cycle, approval Always/high-risk, status phases, failure copy (stale caps, hop-lease miss, GPU spill, capacity warn-and-proceed). Orchestration integration is covered by `lokai-orchestrator` and `tetonicd`.
 
 ## Related docs
 

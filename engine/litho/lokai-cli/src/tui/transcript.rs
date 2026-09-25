@@ -90,7 +90,7 @@ impl TranscriptLine {
     pub fn prefix(&self) -> &'static str {
         match &self.kind {
             LineKind::You => "you",
-            LineKind::Lokai => "lokai",
+            LineKind::Lokai => "tetonic",
             LineKind::Tool => "tool",
             LineKind::Thought { .. } => "thought",
             LineKind::SubagentHeader { .. } => "agent",
@@ -397,7 +397,7 @@ mod tests {
     #[test]
     fn prefixes_are_stable() {
         assert_eq!(TranscriptLine::new(LineKind::You, "hi").prefix(), "you");
-        assert_eq!(TranscriptLine::new(LineKind::Lokai, "ok").prefix(), "lokai");
+        assert_eq!(TranscriptLine::new(LineKind::Lokai, "ok").prefix(), "tetonic");
         assert_eq!(TranscriptLine::new(LineKind::Tool, "ps").prefix(), "tool");
         assert_eq!(TranscriptLine::new(LineKind::Error, "x").prefix(), "error");
         assert_eq!(

@@ -95,7 +95,7 @@ impl Application {
         tracing::info!("Code file: {}", code_path.display());
         tracing::info!("Enrollment listener: {bind_host}:{}", code.enroll_port);
         tracing::info!(
-            "On the coordinator (PowerShell): .\\engine\\target\\debug\\lokai.exe estate worker add --code-file \"{}\" --label gpu-box",
+            "On the coordinator (PowerShell): .\\engine\\target\\debug\\tetonic.exe estate worker add --code-file \"{}\" --label gpu-box",
             code_path.display()
         );
         if host == "127.0.0.1" {
@@ -120,7 +120,7 @@ impl Application {
                 store.upsert_coordinator_pin("estate_local", &coordinator_pubkey, &label)?;
                 tracing::info!("Enrollment succeeded for coordinator label `{label}`.");
                 tracing::info!("Coordinator pinned; enrollment listener closed.");
-                tracing::info!("Start fabric serving with: lokaid --node");
+                tracing::info!("Start fabric serving with: tetonicd --node");
                 Ok(())
             }
             EnrollmentServerOutcome::Expired => {
@@ -143,7 +143,7 @@ impl Application {
         let store = WorkerStore::open(&worker_db)?;
         let pins = store.list_coordinator_pins()?;
         if pins.is_empty() {
-            anyhow::bail!("no coordinator pinned — run `lokaid --node --enroll` first");
+            anyhow::bail!("no coordinator pinned — run `tetonicd --node --enroll` first");
         }
 
         let (bind_host, bind_warn) = resolve_listen_host();
@@ -183,7 +183,7 @@ impl Application {
                 "  capacity doctor degraded — run optimize or import a profile on this worker"
             );
         } else if !status.0.completed {
-            tracing::warn!("  no capacity profile — import with `lokai estate capacity profiles import` on this machine");
+            tracing::warn!("  no capacity profile — import with `tetonic estate capacity profiles import` on this machine");
         }
 
         tracing::info!("Press Ctrl+C to stop.");

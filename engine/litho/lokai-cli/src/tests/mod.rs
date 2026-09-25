@@ -7,9 +7,9 @@ mod args_tests {
 
     #[test]
     fn omitted_model_is_distinct_from_explicit_default() {
-        assert!(Args::try_parse_from(["lokai"]).unwrap().model.is_none());
+        assert!(Args::try_parse_from(["tetonic"]).unwrap().model.is_none());
         assert_eq!(
-            Args::try_parse_from(["lokai", "--model", tetonic_app::DEFAULT_MODEL])
+            Args::try_parse_from(["tetonic", "--model", tetonic_app::DEFAULT_MODEL])
                 .unwrap()
                 .model
                 .as_deref(),
@@ -19,7 +19,7 @@ mod args_tests {
 
     #[test]
     fn explain_flag_parses() {
-        let args = Args::try_parse_from(["lokai", "--explain", "what is this repo"]).unwrap();
+        let args = Args::try_parse_from(["tetonic", "--explain", "what is this repo"]).unwrap();
         assert!(args.explain);
         assert_eq!(args.prompt.join(" "), "what is this repo");
     }
@@ -27,17 +27,17 @@ mod args_tests {
     #[test]
     fn orchestrate_auto_parses() {
         let args =
-            Args::try_parse_from(["lokai", "--orchestrate", "auto", "implement foo"]).unwrap();
+            Args::try_parse_from(["tetonic", "--orchestrate", "auto", "implement foo"]).unwrap();
         assert_eq!(args.orchestrate, "auto");
     }
 
     #[test]
     fn debug_flag_parses() {
-        let args = Args::try_parse_from(["lokai", "--debug"]).unwrap();
+        let args = Args::try_parse_from(["tetonic", "--debug"]).unwrap();
         assert!(args.debug);
-        let args_short = Args::try_parse_from(["lokai", "-d"]).unwrap();
+        let args_short = Args::try_parse_from(["tetonic", "-d"]).unwrap();
         assert!(args_short.debug);
-        let args_default = Args::try_parse_from(["lokai"]).unwrap();
+        let args_default = Args::try_parse_from(["tetonic"]).unwrap();
         assert!(!args_default.debug);
     }
 }

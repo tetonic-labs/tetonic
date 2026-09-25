@@ -1,4 +1,4 @@
-//! `lokai estate capacity` — runtime profile status, doctor, import, optimize (ES5).
+//! `tetonic estate capacity` — runtime profile status, doctor, import, optimize (ES5).
 
 use std::path::PathBuf;
 
@@ -29,7 +29,7 @@ pub async fn dispatch(command: CapacitySub) -> Result<()> {
     }
 }
 
-/// Alias: `lokai estate setup status|doctor` → capacity.
+/// Alias: `tetonic estate setup status|doctor` → capacity.
 pub async fn dispatch_setup_alias(action: SetupAliasSub) -> Result<()> {
     match action {
         SetupAliasSub::Status => run_status(None).await,

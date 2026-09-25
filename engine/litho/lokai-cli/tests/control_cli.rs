@@ -5,7 +5,7 @@ use std::{
 };
 
 fn run(db: &std::path::Path, args: &[&str], credential: Option<&str>) -> Output {
-    let mut child = Command::new(env!("CARGO_BIN_EXE_lokai"))
+    let mut child = Command::new(env!("CARGO_BIN_EXE_tetonic"))
         .args(["control", "--database"])
         .arg(db)
         .args(["--audience", "cli-test"])

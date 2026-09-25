@@ -6,12 +6,12 @@ Editor-spawned daemon: thin JSON-RPC transport adapter over stdin/stdout. All ap
 
 | Invocation | Behavior |
 |------------|----------|
-| `lokaid` (default) | Stdio JSON-RPC coordinator; no TCP listen |
-| `lokaid --supervise` | Parent restart loop around the coordinator (`LOKAI_SUPERVISE=1` also). Crash kills in-flight Infer/shell; restart rehydrates from `lokai.db`. |
-| `lokaid --print-schema` | Emit protocol JSON Schema |
-| `lokaid --node --enroll` | One-shot enrollment server |
-| `lokaid --node` | Worker fabric listener |
-| `lokaid --combined` | Stdio coordinator + local fabric scheduler (N1.2) |
+| `tetonicd` (default) | Stdio JSON-RPC coordinator; no TCP listen |
+| `tetonicd --supervise` | Parent restart loop around the coordinator (`LOKAI_SUPERVISE=1` also). Crash kills in-flight Infer/shell; restart rehydrates from `lokai.db`. |
+| `tetonicd --print-schema` | Emit protocol JSON Schema |
+| `tetonicd --node --enroll` | One-shot enrollment server |
+| `tetonicd --node` | Worker fabric listener |
+| `tetonicd --combined` | Stdio coordinator + local fabric scheduler (N1.2) |
 
 Stdout carries **only** protocol bytes; logs go to stderr.
 

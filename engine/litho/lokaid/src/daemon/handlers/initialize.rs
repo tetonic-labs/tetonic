@@ -51,7 +51,7 @@ impl Daemon {
         let result = InitializeResult {
             protocol_version: tetonic_rpc::PROTOCOL_VERSION,
             daemon_info: DaemonInfo {
-                name: "lokaid".to_string(),
+                name: "tetonicd".to_string(),
                 version: env!("CARGO_PKG_VERSION").to_string(),
             },
             capabilities: caps,

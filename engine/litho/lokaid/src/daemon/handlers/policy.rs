@@ -89,7 +89,7 @@ impl Daemon {
         if !rpc_control_plane_mutations_allowed() {
             return Err(RpcError::new(
                 ErrorCode::InvalidRequest,
-                "policy/set is disabled when LOKAI_STRICT_RPC=1 — use lokai CLI for control-plane changes",
+                "policy/set is disabled when LOKAI_STRICT_RPC=1 — use tetonic CLI for control-plane changes",
             ));
         }
         let p: PolicySetParams = parse(params)?;

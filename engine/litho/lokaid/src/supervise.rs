@@ -70,7 +70,7 @@ pub fn run() -> anyhow::Result<()> {
     let mut window_start = Instant::now();
     let mut restarts = 0u32;
     loop {
-        eprintln!("lokaid: supervisor starting coordinator");
+        eprintln!("tetonicd: supervisor starting coordinator");
         let status = Command::new(&exe)
             .args(&child_args)
             .env_remove("LOKAI_SUPERVISE")
@@ -92,14 +92,14 @@ pub fn run() -> anyhow::Result<()> {
                     MAX_RESTARTS_IN_WINDOW,
                 ) {
                     eprintln!(
-                        "lokaid: supervisor giving up after {restarts} crashes in {:?}",
+                        "tetonicd: supervisor giving up after {restarts} crashes in {:?}",
                         RESTART_WINDOW
                     );
                     std::process::exit(code.unwrap_or(1));
                 }
                 restarts += 1;
                 eprintln!(
-                    "lokaid: coordinator crashed (code={code:?}); restart {restarts}/{} in {:?}",
+                    "tetonicd: coordinator crashed (code={code:?}); restart {restarts}/{} in {:?}",
                     MAX_RESTARTS_IN_WINDOW, RESTART_WINDOW
                 );
                 thread::sleep(backoff);

@@ -97,7 +97,7 @@ pub async fn time_travel(args: &Args) -> Result<()> {
         }
         if report.checkpoints.is_empty() {
             println!(
-                "  (none yet — create one with `lokai --checkpoint \"label\" --workspace <dir>`)"
+                "  (none yet — create one with `tetonic --checkpoint \"label\" --workspace <dir>`)"
             );
             return Ok(());
         }
@@ -229,7 +229,7 @@ pub async fn code_index(args: &Args) -> Result<()> {
             println!("  {lang:<8} {n}");
         }
         if s.files == 0 {
-            println!("  (empty — run `lokai --index --workspace <dir>`)");
+            println!("  (empty — run `tetonic --index --workspace <dir>`)");
         }
         return Ok(());
     }
@@ -237,7 +237,7 @@ pub async fn code_index(args: &Args) -> Result<()> {
     if let Some(name) = &args.def {
         let rows = app.find_definition(&ws, name)?;
         if rows.is_empty() {
-            println!("no definition of '{name}' found (is the workspace indexed? `lokai --index`)");
+            println!("no definition of '{name}' found (is the workspace indexed? `tetonic --index`)");
         }
         for r in rows {
             println!(

@@ -22,7 +22,7 @@ impl Daemon {
         if !rpc_control_plane_mutations_allowed() {
             return Err(RpcError::new(
                 ErrorCode::InvalidRequest,
-                "fabric/worker.trust.set is disabled when LOKAI_STRICT_RPC=1 — use lokai CLI",
+                "fabric/worker.trust.set is disabled when LOKAI_STRICT_RPC=1 — use tetonic CLI",
             ));
         }
         let p: FabricWorkerTrustSetParams = parse(params)?;

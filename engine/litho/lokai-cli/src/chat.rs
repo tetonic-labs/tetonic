@@ -215,8 +215,8 @@ fn inspector_egress(ctx: &CliTurnContext, tx: &crate::event_queue::Sender, rest:
     }
 }
 
-/// TUI inspector: app services + egress HTTP. Nested `lokai` subprocesses are
-/// not used (R3-2). `/optimize` and arbitrary `/lokai` stay terminal-only.
+/// TUI inspector: app services + egress HTTP. Nested `tetonic` subprocesses are
+/// not used (R3-2). `/optimize` and arbitrary `/tetonic` stay terminal-only.
 async fn handle_slash_command(
     line: &str,
     ctx: &CliTurnContext,
@@ -314,7 +314,7 @@ async fn handle_slash_command(
                 inspector_text(
                     tx_events,
                     "/capacity — saved profile health plus this session's `--model`.\n\
-                     Other subcommands: run `lokai estate capacity …` in a terminal.\n",
+                     Other subcommands: run `tetonic estate capacity …` in a terminal.\n",
                 );
                 return;
             }
@@ -325,7 +325,7 @@ async fn handle_slash_command(
                     tx_events,
                     format!(
                         "`/{cmd} {other}` is a long-running or mutating estate command.\n\
-                         Run `lokai estate capacity {other} …` in a terminal.\n"
+                         Run `tetonic estate capacity {other} …` in a terminal.\n"
                     ),
                 ),
             }
@@ -348,7 +348,7 @@ async fn handle_slash_command(
             tx_events,
             "Optimize rebuilds the *default* capacity profile (creates an estate model and benches).\n\
              You do not need it to chat with a smaller model — restart with `--model <tag>`.\n\n\
-             To rebuild the default: `lokai estate capacity optimize --yes` in a terminal.\n",
+             To rebuild the default: `tetonic estate capacity optimize --yes` in a terminal.\n",
         ),
         "egress" => {
             if is_help {
@@ -360,10 +360,10 @@ async fn handle_slash_command(
             }
             inspector_egress(ctx, tx_events, rest);
         }
-        "lokai" => inspector_text(
+        "tetonic" => inspector_text(
             tx_events,
-            // Infra leftover: inspector must not spawn the lokai binary (R3-2).
-            "Nested `lokai` is not spawned from the inspector.\n\
+            // Infra leftover: inspector must not spawn the tetonic binary (R3-2).
+            "Nested `tetonic` is not spawned from the inspector.\n\
              Run the command in a terminal, or use /doctor /capacity /egress /ps /evict.\n",
         ),
         "kill-ollama" => inspector_text(

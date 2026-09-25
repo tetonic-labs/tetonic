@@ -301,7 +301,7 @@ fn export_ux_frames() {
     ] {
         let mut app = App::test_stub();
         app.model = "local model".into();
-        app.workspace_root = "~/projects/lokai".into();
+        app.workspace_root = "~/projects/tetonic".into();
         app.transcript.push(TranscriptLine::new(
             LineKind::You,
             "Help me improve the terminal experience.",

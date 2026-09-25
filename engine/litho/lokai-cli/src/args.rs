@@ -1,11 +1,11 @@
-//! Clap CLI surface for `lokai`.
+//! Clap CLI surface for `tetonic`.
 
 use crate::help;
 use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(
-    name = "lokai",
-    about = "Local-only agentic coding assistant (Phase A)",
+    name = "tetonic",
+    about = "Tetonic agent runtime client",
     long_about = None,
     after_help = help::CLI_EXAMPLES
 )]
@@ -91,7 +91,7 @@ pub struct Args {
     pub(crate) embed_model: String,
 
     /// Make --search a semantic (vector) search instead of keyword. Requires the
-    /// workspace to have been embedded (`lokai --index --embed`).
+    /// workspace to have been embedded (`tetonic --index --embed`).
     #[arg(long, default_value_t = false)]
     pub(crate) semantic: bool,
 

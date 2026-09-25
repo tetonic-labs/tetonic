@@ -1,4 +1,4 @@
-//! `lokai estate` — owned fleet management (N0.1 enrollment).
+//! `tetonic estate` — owned fleet management (N0.1 enrollment).
 
 use std::path::PathBuf;
 
@@ -10,7 +10,7 @@ use crate::capacity::{CapacitySub, SetupAliasSub};
 
 pub fn data_dir() -> Result<PathBuf> {
     let dirs = directories::ProjectDirs::from("", "", "lokai")
-        .context("could not resolve lokai data directory")?;
+        .context("could not resolve tetonic data directory")?;
     Ok(dirs.data_dir().to_path_buf())
 }
 
@@ -25,7 +25,7 @@ pub async fn run_status() -> Result<()> {
     let workers = app.list_worker_enrollments()?;
     if workers.is_empty() && result.workers_enrolled == 0 {
         println!("Estate: no workers enrolled.");
-        println!("Start a worker with: lokaid --node --enroll");
+        println!("Start a worker with: tetonicd --node --enroll");
         return Ok(());
     }
     println!("Estate workers ({}):", workers.len());
@@ -124,7 +124,7 @@ fn resolve_enrollment_code_input(
             anyhow::bail!("provide either a code argument or --code-file, not both")
         }
         (None, None) => anyhow::bail!(
-            "provide an enrollment code or --code-file (from `lokaid --node --enroll`)"
+            "provide an enrollment code or --code-file (from `tetonicd --node --enroll`)"
         ),
     }
 }
@@ -159,7 +159,7 @@ pub async fn dispatch(estate: EstateCli) -> Result<()> {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "lokai estate", about = "Owned fleet enrollment and status")]
+#[command(name = "tetonic estate", bin_name = "tetonic estate", about = "Owned fleet enrollment and status")]
 pub struct EstateCli {
     #[command(subcommand)]
     pub command: EstateSub,
@@ -184,7 +184,7 @@ pub enum EstateSub {
         #[command(subcommand)]
         action: WorkerSub,
     },
-    /// Persisted egress allow rules (loaded on next lokaid initialize).
+    /// Persisted egress allow rules (loaded on next tetonicd initialize).
     Egress {
         #[command(subcommand)]
         action: EgressSub,
@@ -193,11 +193,11 @@ pub enum EstateSub {
 
 #[derive(Subcommand, Debug)]
 pub enum WorkerSub {
-    /// Complete enrollment using a one-time code from `lokaid --node --enroll`.
+    /// Complete enrollment using a one-time code from `tetonicd --node --enroll`.
     Add {
         /// Full code string (`lokai-enroll-v1:...`). Quote it in PowerShell.
         code: Option<String>,
-        /// Read code from file (written by `lokaid --node --enroll`).
+        /// Read code from file (written by `tetonicd --node --enroll`).
         #[arg(long)]
         code_file: Option<PathBuf>,
         #[arg(long)]
@@ -250,7 +250,7 @@ pub async fn run_egress_allow(label: &str, ip: &str, port: Option<u16>) -> Resul
         "Egress allow rule `{label}` → {ip}{} persisted.",
         port.map(|p| format!(":{p}")).unwrap_or_default()
     );
-    println!("Restart lokaid (or re-initialize) to load the rule into the live guard.");
+    println!("Restart tetonicd (or re-initialize) to load the rule into the live guard.");
     Ok(())
 }
 
@@ -258,7 +258,7 @@ pub async fn run_egress_remove(label: &str) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     if app.remove_egress_allow_rule(label)? {
         println!("Removed egress allow rule `{label}`.");
-        println!("Restart lokaid (or re-initialize) to update the live guard.");
+        println!("Restart tetonicd (or re-initialize) to update the live guard.");
     } else {
         anyhow::bail!("egress allow rule not found: {label}");
     }

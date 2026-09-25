@@ -8,7 +8,8 @@ use tetonic_app::resources::LocalControl;
 
 #[derive(Parser)]
 #[command(
-    name = "lokai control",
+    name = "tetonic control",
+    bin_name = "tetonic control",
     about = "Local operator access to durable organizations and teams (database access is administrative)"
 )]
 pub struct ControlCli {

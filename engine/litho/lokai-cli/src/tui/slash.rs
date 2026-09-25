@@ -15,7 +15,7 @@ pub const PRIMARY: &[&str] = &[
     "/exit",
 ];
 
-pub const LEFTOVER: &[&str] = &["/optimize", "/lokai", "/kill-ollama"];
+pub const LEFTOVER: &[&str] = &["/optimize", "/tetonic", "/kill-ollama"];
 
 pub fn grouped_help() -> &'static str {
     "Session\n\
@@ -39,7 +39,7 @@ pub fn grouped_help() -> &'static str {
 pub fn leftover_help() -> &'static str {
     "These commands are not spawned from the inspector.\n\n\
      /optimize     rebuild the default capacity profile from a terminal\n\
-     /lokai        nested CLI is not spawned here\n\
+     /tetonic        nested CLI is not spawned here\n\
      /kill-ollama  stop Ollama from a terminal if it is wedged\n"
 }
 

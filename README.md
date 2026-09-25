@@ -2,17 +2,15 @@
 
 Tetonic is the sovereign platform for digital autonomous organizations and AI agent execution.
 
-This repository houses the **Tetonic Engine** along with two primary products:
-1. **Lokai** (Product 1): A sandboxed, terminal-native AI coding assistant and editor daemon.
-2. **Mantle** (Product 2): The distributed agent fleet, compute broker, and organization orchestrator.
+This repository houses **Tetonic Engine**, its terminal client and editor daemon, and the runtime, storage and orchestration components being reconciled into the agent infrastructure platform.
 
 Built in Rust across five geological layers (`litho`, `mantle`, `core`, `strata`, and `atmos`), the platform enforces structural security invariants: network egress is denied by default, tool execution is isolated in operating system sandboxes, and file modifications execute in atomic transactions with rollback guarantees.
 
 ---
 
-## Front Door 1: The Lokai Coding Assistant
+## Front Door 1: The Tetonic Coding Assistant
 
-Lokai is the developer-facing application built on the Tetonic platform.
+The `tetonic` client exposes the existing coding interface and local control commands.
 
 ### Installation
 
@@ -30,7 +28,7 @@ irm https://raw.githubusercontent.com/tetonic-labs/tetonic/main/scripts/install.
 
 #### Method 2: Direct Binary Downloads
 
-Pre-built binaries containing both the interactive CLI (`lokai`) and the background daemon (`lokaid`):
+Pre-built binaries containing both the interactive CLI (`tetonic`) and the background daemon (`tetonicd`):
 
 - [Windows (x86_64 .zip)](https://github.com/tetonic-labs/tetonic/releases/latest/download/tetonic-windows-x64.zip)
 - [macOS Apple Silicon (M1/M2/M3/M4 .tar.gz)](https://github.com/tetonic-labs/tetonic/releases/latest/download/tetonic-darwin-arm64.tar.gz)
@@ -48,26 +46,26 @@ git clone https://github.com/tetonic-labs/tetonic.git
 cd tetonic/engine
 cargo build --release -p lokai-cli
 ```
-The compiled binary is placed at `engine/target/release/lokai` (or `lokai.exe` on Windows).
+The compiled binary is placed at `engine/target/release/tetonic` (or `tetonic.exe` on Windows).
 
 ### Launching the Assistant
 
 Launch the interactive Terminal User Interface (TUI):
 ```bash
-lokai
+tetonic
 ```
 
 Or run a single task non-interactively:
 ```bash
-lokai --prompt "Investigate the failing unit tests and propose a fix"
+tetonic "Investigate the failing unit tests and propose a fix"
 ```
 
 ### Supported Inference Providers
 
-Lokai connects to local or hosted models through the Atmos layer:
+Tetonic connects to local or hosted models through the Atmos layer:
 
 - **Local Ollama (Default, Zero Network Egress)**:
-  Fully offline, private execution on your local hardware. Start Ollama (`ollama serve`), then run `lokai`.
+  Fully offline, private execution on your local hardware. Start Ollama (`ollama serve`), then run `tetonic`.
 - **Anthropic (Claude 3.7 Sonnet / 3.5 Sonnet)**:
   Set your API key:
   ```bash
@@ -87,7 +85,7 @@ The Tetonic Engine organizes all capabilities into a **Five-Layer Earth Model**:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ Litho: Developer Workbenches, Lokai CLI/TUI, Editor Daemon  │
+│ Litho: Developer Workbenches, Tetonic CLI/TUI, Editor Daemon  │
 ├─────────────────────────────────────────────────────────────┤
 │ Mantle: Fleets, Run Lifecycles, Broker, Node Coordination   │
 ├─────────────────────────────────────────────────────────────┤
@@ -102,17 +100,17 @@ The Tetonic Engine organizes all capabilities into a **Five-Layer Earth Model**:
 ### Layer Navigation Guide
 
 - **`engine/litho/` (Lithosphere)**: The human interface layer.
-  Hosts the **Lokai** coding assistant: `lokai-cli` (interactive TUI), `lokai-app` (application coordination and prompts), `lokaid` (JSON-RPC daemon for editor integration), and `lokai-tools` (sandboxed coding tools).
+  Hosts the **Tetonic** coding assistant: `lokai-cli` (legacy Cargo package, `tetonic` CLI/TUI), `tetonic-app` (application coordination and prompts), `lokaid` (legacy Cargo package, `tetonicd` editor daemon), and `tetonic-tools` (sandboxed coding tools).
 - **`engine/mantle/` (Mantle)**: The digital autonomous organization layer.
-  Hosts the **Mantle** platform: `lokai-run` (durable run supervision), `lokai-orchestrator` (multi-agent topology and delegation), `lokai-broker` (compute scheduling and queues), `lokai-node` (remote worker tasks), and `lokai-capacity` (hardware profiling).
+  Hosts the **Mantle** platform: `tetonic-run` (durable run supervision), `tetonic-orchestrator` (multi-agent topology and delegation), `tetonic-broker` (compute scheduling and queues), `tetonic-node` (remote worker tasks), and `tetonic-capacity` (hardware profiling).
 - **`engine/core/` (Core)**: The systems kernel.
-  Contains `lokai-core` (pure agent execution loop), `lokai-runtime` (assembly builder), `lokai-sandbox` (OS sandboxes: Windows Job Objects, Linux Landlock, macOS sandbox-exec), `lokai-transaction` (atomic file staging and rollback), and `lokai-secrets` (credential scanning).
+  Contains `tetonic-core` (pure agent execution loop), `tetonic-runtime` (assembly builder), `tetonic-sandbox` (OS sandboxes: Windows Job Objects, Linux Landlock, macOS sandbox-exec), `tetonic-transaction` (atomic file staging and rollback), and `tetonic-secrets` (credential scanning).
 - **`engine/strata/` (Strata)**: The geological memory and persistence layer.
-  Contains `lokai-memory` (SQLite persistence), `lokai-artifact` (content-addressed immutable artifacts), and `lokai-index` (AST code indexing).
+  Contains `tetonic-memory` (SQLite persistence), `tetonic-artifact` (content-addressed immutable artifacts), and `tetonic-index` (AST code indexing).
 - **`engine/atmos/` (Atmosphere)**: The external environment and boundary layer.
-  Contains `lokai-inference` (LLM wire adapters) and `lokai-egress` (strict default-deny network proxy).
+  Contains `tetonic-inference` (LLM wire adapters) and `tetonic-egress` (strict default-deny network proxy).
 - **`engine/tooling/`**: Verification tooling.
-  Contains `lokai-arch-gate` (mechanical architectural invariant enforcement), `lokai-bench`, and `lokai-eval`.
+  Contains `tetonic-arch-gate` (mechanical architectural invariant enforcement), `tetonic-bench`, and `tetonic-eval`.
 
 ---
 
@@ -122,7 +120,7 @@ Tetonic mechanically enforces architectural boundaries, code formatting, and str
 
 ```bash
 cd engine
-cargo run -p lokai-arch-gate -- verify package
+cargo run -p tetonic-arch-gate -- verify package
 ```
 
 For complete contributor details, review [CONTRIBUTING.md](CONTRIBUTING.md) and the [Charter](docs/CHARTER.md).
@@ -131,7 +129,7 @@ For complete contributor details, review [CONTRIBUTING.md](CONTRIBUTING.md) and 
 
 ## License
 
-Tetonic and Lokai are developed by Tetonic Labs LLC under a community and commercial model (similar to Docker Desktop):
+Tetonic is developed by Tetonic Labs LLC under a community and commercial model (similar to Docker Desktop):
 
 - **Free Permitted Uses**: Free for individual developers, non-profit academic research, open-source projects, and small businesses with **10 or fewer software developers** and **less than $2,000,000 USD in annual revenue/ARR**.
 - **Free 30-Day Evaluation**: Any organization of any size may test and evaluate the software internally for 30 days without cost.

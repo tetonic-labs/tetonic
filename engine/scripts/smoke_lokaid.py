@@ -55,7 +55,7 @@ def main() -> int:
     prompt = sys.argv[2] if len(sys.argv) > 2 else "List the files in this workspace, then finish."
 
     here = Path(__file__).resolve().parent
-    exe = "lokaid.exe" if os.name == "nt" else "lokaid"
+    exe = "tetonicd.exe" if os.name == "nt" else "tetonicd"
     bin_path = os.environ.get("LOKAID_BIN", str(here.parent / "target" / "debug" / exe))
     if not Path(bin_path).exists():
         print(f"daemon not found at {bin_path}; build it with `cargo build -p lokaid`", file=sys.stderr)

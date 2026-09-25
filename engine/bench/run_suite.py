@@ -253,13 +253,13 @@ def find_bin() -> str:
     env = os.environ.get("LOKAI_BIN")
     if env:
         return env
-    exe = "lokai.exe" if os.name == "nt" else "lokai"
+    exe = "tetonic.exe" if os.name == "nt" else "tetonic"
     here = Path(__file__).resolve().parent.parent  # engine/
     for prof in ("release", "debug"):
         p = here / "target" / prof / exe
         if p.exists():
             return str(p)
-    raise SystemExit("lokai binary not found; build it: cargo build --release -p lokai-cli")
+    raise SystemExit("tetonic binary not found; build it: cargo build --release -p lokai-cli")
 
 
 def audit_db() -> Path:

@@ -1,14 +1,14 @@
-# Tetonic / Lokai Installer for Windows PowerShell
+# Tetonic Installer for Windows PowerShell
 # Usage:
 #   irm https://raw.githubusercontent.com/tetonic-labs/tetonic/main/scripts/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
 $repo = if ($env:TETONIC_REPO) { $env:TETONIC_REPO } else { "tetonic-labs/tetonic" }
-$asset = "lokai-windows-x64.zip"
-$installDir = Join-Path $HOME ".lokai\bin"
+$asset = "tetonic-windows-x64.zip"
+$installDir = Join-Path $HOME ".tetonic\bin"
 
-Write-Host "==> Installing Lokai for Windows from $repo..." -ForegroundColor Cyan
+Write-Host "==> Installing Tetonic for Windows from $repo..." -ForegroundColor Cyan
 
 $releaseBaseUrl = "https://github.com/$repo/releases/latest/download"
 $downloadUrl = "$releaseBaseUrl/$asset"
@@ -49,8 +49,8 @@ try {
         New-Item -ItemType Directory -Path $installDir -Force | Out-Null
     }
 
-    Copy-Item (Join-Path $extractDir "lokai.exe") (Join-Path $installDir "lokai.exe") -Force
-    Copy-Item (Join-Path $extractDir "lokaid.exe") (Join-Path $installDir "lokaid.exe") -Force
+    Copy-Item (Join-Path $extractDir "tetonic.exe") (Join-Path $installDir "tetonic.exe") -Force
+    Copy-Item (Join-Path $extractDir "tetonicd.exe") (Join-Path $installDir "tetonicd.exe") -Force
 
     # Ensure $installDir is in user PATH
     $userPath = [Environment]::GetEnvironmentVariable("Path", "User")
@@ -62,10 +62,10 @@ try {
 
     Write-Host ""
     Write-Host "==========================================================" -ForegroundColor Green
-    Write-Host "  Lokai installed successfully to $installDir\lokai.exe" -ForegroundColor Green
+    Write-Host "  Tetonic installed successfully to $installDir\tetonic.exe" -ForegroundColor Green
     Write-Host "==========================================================" -ForegroundColor Green
     Write-Host ""
-    Write-Host "Open a new terminal window and run 'lokai --help' to get started." -ForegroundColor Cyan
+    Write-Host "Open a new terminal window and run 'tetonic --help' to get started." -ForegroundColor Cyan
 
 } finally {
     Remove-Item -Path $tempDir -Recurse -Force -ErrorAction SilentlyContinue

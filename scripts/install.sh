@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Tetonic / Lokai Installer for macOS and Linux
+# Tetonic Installer for macOS and Linux
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/tetonic-labs/tetonic/main/scripts/install.sh | bash
 
@@ -21,10 +21,10 @@ case "$OS" in
   Darwin)
     case "$ARCH" in
       arm64)
-        ASSET="lokai-darwin-arm64.tar.gz"
+        ASSET="tetonic-darwin-arm64.tar.gz"
         ;;
       x86_64)
-        ASSET="lokai-darwin-x64.tar.gz"
+        ASSET="tetonic-darwin-x64.tar.gz"
         ;;
       *)
         echo "Error: Unsupported architecture $ARCH on macOS." >&2
@@ -35,10 +35,10 @@ case "$OS" in
   Linux)
     case "$ARCH" in
       x86_64)
-        ASSET="lokai-linux-x64.tar.gz"
+        ASSET="tetonic-linux-x64.tar.gz"
         ;;
       aarch64|arm64)
-        ASSET="lokai-linux-arm64.tar.gz"
+        ASSET="tetonic-linux-arm64.tar.gz"
         ;;
       *)
         echo "Error: Unsupported architecture $ARCH on Linux." >&2
@@ -92,21 +92,21 @@ echo "==> Extracting binaries..."
 tar -xzf "${TMP_DIR}/${ASSET}" -C "$TMP_DIR"
 
 echo "==> Installing binaries to ${INSTALL_DIR}..."
-cp "${TMP_DIR}/lokai" "${INSTALL_DIR}/lokai"
-cp "${TMP_DIR}/lokaid" "${INSTALL_DIR}/lokaid"
-chmod +x "${INSTALL_DIR}/lokai" "${INSTALL_DIR}/lokaid"
+cp "${TMP_DIR}/tetonic" "${INSTALL_DIR}/tetonic"
+cp "${TMP_DIR}/tetonicd" "${INSTALL_DIR}/tetonicd"
+chmod +x "${INSTALL_DIR}/tetonic" "${INSTALL_DIR}/tetonicd"
 
 echo ""
 echo "=========================================================="
-echo "  Lokai installed successfully to ${INSTALL_DIR}/lokai"
+echo "  Tetonic installed successfully to ${INSTALL_DIR}/tetonic"
 echo "=========================================================="
 echo ""
 
-if ! command -v lokai >/dev/null 2>&1; then
+if ! command -v tetonic >/dev/null 2>&1; then
   echo "Note: ${INSTALL_DIR} is not in your PATH."
   echo "Add the following line to your shell profile (~/.bashrc or ~/.zshrc):"
   echo "  export PATH=\"\$PATH:${INSTALL_DIR}\""
   echo ""
 fi
 
-echo "Run 'lokai --help' to get started."
+echo "Run 'tetonic --help' to get started."

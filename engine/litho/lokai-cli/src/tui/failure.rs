@@ -16,7 +16,7 @@ pub fn explain_turn_failure(raw: &str) -> TurnFailureCopy {
             headline: "Turn failed — no model reply.",
             summary: "An enrolled worker is unreachable, and local fallback was blocked before Ollama ran.".into(),
             hint: Some(
-                "Check workers with `lokai estate status`. Remove a dead node with `lokai estate worker remove <label>`."
+                "Check workers with `tetonic estate status`. Remove a dead node with `tetonic estate worker remove <label>`."
                     .into(),
             ),
         };
@@ -26,7 +26,7 @@ pub fn explain_turn_failure(raw: &str) -> TurnFailureCopy {
             headline: "Turn failed — worker unreachable.",
             summary: "An enrolled fabric worker did not respond in time.".into(),
             hint: Some(
-                "Local Ollama should still run. If this repeats, `lokai estate status` and remove the down worker."
+                "Local Ollama should still run. If this repeats, `tetonic estate status` and remove the down worker."
                     .into(),
             ),
         };

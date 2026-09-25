@@ -66,14 +66,13 @@ jobs:
         run: |
           $stage = "target/stage"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
-          Copy-Item "target/${{ matrix.target }}/release/lokai.exe" "$stage/lokai.exe"
-          Copy-Item "target/${{ matrix.target }}/release/lokaid.exe" "$stage/lokaid.exe"
+          Copy-Item "target/${{ matrix.target }}/release/tetonic.exe" "$stage/tetonic.exe"
+          Copy-Item "target/${{ matrix.target }}/release/tetonicd.exe" "$stage/tetonicd.exe"
           Copy-Item "../README.md" "$stage/README.txt"
           Copy-Item "../LICENSE" "$stage/LICENSE.txt"
           
           New-Item -ItemType Directory -Force -Path "target/dist" | Out-Null
           Compress-Archive -Path "$stage/*" -DestinationPath "target/dist/tetonic-${{ matrix.asset_prefix }}.zip" -Force
-          Copy-Item "target/dist/tetonic-${{ matrix.asset_prefix }}.zip" "target/dist/lokai-${{ matrix.asset_prefix }}.zip"
 
       - name: Stage release artifacts (Unix)
         if: "!matrix.is_windows"
@@ -82,14 +81,13 @@ jobs:
           STAGE="target/stage"
           DIST="target/dist"
           mkdir -p "$STAGE" "$DIST"
-          cp "target/${{ matrix.target }}/release/lokai" "$STAGE/lokai"
-          cp "target/${{ matrix.target }}/release/lokaid" "$STAGE/lokaid"
+          cp "target/${{ matrix.target }}/release/tetonic" "$STAGE/tetonic"
+          cp "target/${{ matrix.target }}/release/tetonicd" "$STAGE/tetonicd"
           cp "../README.md" "$STAGE/README.txt"
           cp "../LICENSE" "$STAGE/LICENSE.txt"
-          chmod +x "$STAGE/lokai" "$STAGE/lokaid"
+          chmod +x "$STAGE/tetonic" "$STAGE/tetonicd"
           
           tar -czvf "$DIST/tetonic-${{ matrix.asset_prefix }}.tar.gz" -C "$STAGE" .
-          cp "$DIST/tetonic-${{ matrix.asset_prefix }}.tar.gz" "$DIST/lokai-${{ matrix.asset_prefix }}.tar.gz"
 
       - name: Upload build artifacts
         uses: actions/upload-artifact@v4
@@ -133,12 +131,12 @@ jobs:
           VERSION_CLEAN="${VERSION#v}"
           
           cd dist
-          SHA_DARWIN_ARM64=$(sha256sum lokai-darwin-arm64.tar.gz | awk '{print $1}')
-          SHA_DARWIN_X64=$(sha256sum lokai-darwin-x64.tar.gz | awk '{print $1}')
-          SHA_LINUX_X64=$(sha256sum lokai-linux-x64.tar.gz | awk '{print $1}')
+          SHA_DARWIN_ARM64=$(sha256sum tetonic-darwin-arm64.tar.gz | awk '{print $1}')
+          SHA_DARWIN_X64=$(sha256sum tetonic-darwin-x64.tar.gz | awk '{print $1}')
+          SHA_LINUX_X64=$(sha256sum tetonic-linux-x64.tar.gz | awk '{print $1}')
           
-          cat << 'EOF' > lokai.rb
-          class Lokai < Formula
+          cat << 'EOF' > tetonic.rb
+          class Tetonic < Formula
             desc "Sovereign AI coding assistant and digital autonomous organization engine"
             homepage "https://github.com/tetonic-labs/tetonic"
             version "${VERSION_CLEAN}"
@@ -146,36 +144,36 @@ jobs:
 
             on_macos do
               on_arm do
-                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-darwin-arm64.tar.gz"
+                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/tetonic-darwin-arm64.tar.gz"
                 sha256 "${SHA_DARWIN_ARM64}"
               end
               on_intel do
-                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-darwin-x64.tar.gz"
+                url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/tetonic-darwin-x64.tar.gz"
                 sha256 "${SHA_DARWIN_X64}"
               end
             end
 
             on_linux do
-              url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/lokai-linux-x64.tar.gz"
+              url "https://github.com/tetonic-labs/tetonic/releases/download/${VERSION}/tetonic-linux-x64.tar.gz"
               sha256 "${SHA_LINUX_X64}"
             end
 
             def install
-              bin.install "lokai"
-              bin.install "lokaid"
+              bin.install "tetonic"
+              bin.install "tetonicd"
             end
 
             test do
-              assert_match "lokai", shell_output("#{bin}/lokai --help")
+              assert_match "tetonic", shell_output("#{bin}/tetonic --help")
             end
           end
           EOF
           
-          sed -i "s/\${VERSION_CLEAN}/$VERSION_CLEAN/g" lokai.rb
-          sed -i "s/\${VERSION}/$VERSION/g" lokai.rb
-          sed -i "s/\${SHA_DARWIN_ARM64}/$SHA_DARWIN_ARM64/g" lokai.rb
-          sed -i "s/\${SHA_DARWIN_X64}/$SHA_DARWIN_X64/g" lokai.rb
-          sed -i "s/\${SHA_LINUX_X64}/$SHA_LINUX_X64/g" lokai.rb
+          sed -i "s/\${VERSION_CLEAN}/$VERSION_CLEAN/g" tetonic.rb
+          sed -i "s/\${VERSION}/$VERSION/g" tetonic.rb
+          sed -i "s/\${SHA_DARWIN_ARM64}/$SHA_DARWIN_ARM64/g" tetonic.rb
+          sed -i "s/\${SHA_DARWIN_X64}/$SHA_DARWIN_X64/g" tetonic.rb
+          sed -i "s/\${SHA_LINUX_X64}/$SHA_LINUX_X64/g" tetonic.rb
 
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2

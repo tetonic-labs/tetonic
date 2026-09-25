@@ -1,4 +1,4 @@
-//! `lokai` — the Phase A headless coding agent.
+//! `tetonic` — the Phase A headless coding agent.
 
 mod app_kernel;
 mod args;

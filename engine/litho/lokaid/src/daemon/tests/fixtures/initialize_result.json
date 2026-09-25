@@ -1,7 +1,7 @@
 {
   "protocol_version": 1,
   "daemon_info": {
-    "name": "lokaid",
+    "name": "tetonicd",
     "version": "0.0.0"
   },
   "capabilities": {

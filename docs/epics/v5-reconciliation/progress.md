@@ -79,4 +79,12 @@ Schema 32 adds administrative events. Bootstrap is serialized in one transaction
 
 Initial validation: `cargo test --manifest-path engine/Cargo.toml -p tetonic-memory -p lokai-cli` passed the CLI unit suite, 82 memory library tests and three store-concurrency integration tests. A separate CLI-process integration test exercises the usable local path. No network endpoint, remote client or agent activation is implied by these commands.
 
-Final validation: the separate-process `control_cli` test passed, including rejection of volatile storage, missing/revoked credentials and repeated bootstrap. The architecture gate passed. The CLI unit suite contained 112 passing tests. The local runbook demonstrates the path without writing bearer secrets into command arguments. User documents outside this epic were preserved.
+Final validation: the separate-process `control_cli` test passed, including rejection of volatile storage, missing/revoked credentials and repeated bootstrap. The architecture gate passed. The CLI unit suite contained 112 tests: 110 passed and two were ignored. The local runbook demonstrates the path without writing bearer secrets into command arguments. User documents outside this epic were preserved.
+
+## 2026-09-25 — Retired binary branding correction
+
+Per the product correction, the shipped CLI binary is `tetonic` and the existing stdio daemon is `tetonicd`. `tetonic-server` retains its existing name. CLI help/examples, terminal branding, daemon identification, executable locators, installers, release archives and the local-control runbook now use Tetonic. The release workflow no longer emits duplicate Lokai-named archives. No release was published and no installer was executed against the host.
+
+Legacy Cargo package IDs/source directories (`lokai-cli`, `lokaid`), persisted database/config paths, environment compatibility names and enrollment wire prefixes remain unchanged. These are migration concerns rather than public binary names; renaming them blindly would break stored state or source-path checks. Historical audit inventories remain historical. The generated mock LSP server is test tooling rather than a product binary.
+
+Validation: Cargo metadata exposes `tetonic` and `tetonicd`, with no `lokai`/`lokaid` binary targets. Both binaries built; CLI tests passed (110 passed, two existing ignores), daemon tests passed (48), and the control integration test passed with `CARGO_BIN_EXE_tetonic`. The architecture gate, PowerShell installer AST parse, Git Bash installer syntax check and release/installer reference checks passed. Release YAML was inspected but a YAML parser was unavailable. Packaging was not executed on the cross-platform release matrix.

@@ -195,7 +195,7 @@ fn export_design_frames() {
     let dir = std::env::var("LOKAI_TUI_PREVIEW_DIR").unwrap();
     let mut app = App::test_stub();
     app.model = "local model".into();
-    app.workspace_root = "~/projects/lokai".into();
+    app.workspace_root = "~/projects/tetonic".into();
     let names = ["welcome", "conversation", "compact"]
         .map(str::to_owned)
         .into_iter()

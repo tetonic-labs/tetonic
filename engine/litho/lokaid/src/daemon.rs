@@ -164,7 +164,7 @@ impl Daemon {
                 if !rpc_control_plane_mutations_allowed() {
                     Err(RpcError::new(
                         ErrorCode::InvalidRequest,
-                        "secret/rule.add is disabled when LOKAI_STRICT_RPC is on — use lokai CLI",
+                        "secret/rule.add is disabled when LOKAI_STRICT_RPC is on — use tetonic CLI",
                     ))
                 } else if let (Some(scanner), Ok(services)) = (&self.scanner, self.services()) {
                     match serde_json::from_value::<tetonic_rpc::protocol::AddSecretRuleRequest>(
