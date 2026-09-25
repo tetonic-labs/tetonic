@@ -88,6 +88,7 @@ pub struct DispatchTicket {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct ManagedBinding {
+    pub execution_scope: Option<tetonic_domain::ExecutionScope>,
     pub session_id: Option<tetonic_domain::SessionId>,
     pub run_id: RunId,
     pub task_id: TaskId,

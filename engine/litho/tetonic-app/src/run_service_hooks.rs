@@ -12,10 +12,15 @@ pub(crate) struct ProductRunHooks {
 }
 impl ManagedRunHooks for ProductRunHooks {
     fn started(&self, binding: &ManagedBinding) {
+        // The legacy application sink has no subscriber authorization. Scoped
+        // runs must use a scoped delivery adapter before projecting content here.
+        if binding.execution_scope.is_some() {
+            return;
+        }
         self.bindings
             .lock_recover()
             .insert(binding.attempt_id.clone(), binding.clone());
-        if binding.session_id.is_none() {
+        if binding.execution_scope.is_none() && binding.session_id.is_none() {
             emit(
                 &self.events,
                 ApplicationEvent::run_status(
@@ -29,7 +34,7 @@ impl ManagedRunHooks for ProductRunHooks {
         }
     }
     fn step(&self, binding: &ManagedBinding, step: &tetonic_core::Step) {
-        if binding.session_id.is_none() {
+        if binding.execution_scope.is_none() && binding.session_id.is_none() {
             crate::turn_execution::step_to_events(
                 &self.events,
                 "",
@@ -43,7 +48,9 @@ impl ManagedRunHooks for ProductRunHooks {
     }
     fn terminal(&self, result: &StartIdentityJobResult) {
         let binding = self.bindings.lock_recover().remove(&result.attempt_id);
-        if let Some(binding) = binding.filter(|b| b.session_id.is_none()) {
+        if let Some(binding) =
+            binding.filter(|b| b.execution_scope.is_none() && b.session_id.is_none())
+        {
             emit(
                 &self.events,
                 ApplicationEvent::turn_completed(

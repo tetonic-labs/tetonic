@@ -418,6 +418,7 @@ impl super::service::ManagedRunService {
         }
 
         let binding = ManagedBinding {
+            execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
             session_id: context.session_id.clone(),
             run_id: run_id.clone(),
             task_id: task_id.clone(),

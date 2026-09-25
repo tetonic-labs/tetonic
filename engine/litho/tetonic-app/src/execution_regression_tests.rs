@@ -381,7 +381,7 @@ async fn full_invocation_policy_denies_changes_before_claim_or_inference() {
 }
 
 #[tokio::test]
-async fn registered_general_revision_reaches_existing_managed_executor() {
+async fn registered_general_revision_completes_through_existing_managed_runtime() {
     let tmp = tempfile::tempdir().unwrap();
     let local = crate::resources::LocalControl::open(tmp.path().join("run.db"), "test".into())
         .await
@@ -422,7 +422,8 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         .unwrap();
     // Trusted test composition only: definition conformance is not an employee
     // execution grant. Reuse the real store, admission, claim and executor.
-    let runs = manager(&tmp, Arc::new(Events::default()), false)
+    let legacy_events = Arc::new(Events::default());
+    let runs = manager(&tmp, legacy_events.clone(), false)
         .with_execution_policy(prepared.execution_policy().unwrap());
     let id = IdentityId::new(registered.identity.identity_id);
     let digest = registered.identity.bound_definition_digest;
@@ -522,13 +523,11 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         Some("job-grant")
     );
     let calls = Arc::new(AtomicUsize::new(0));
-    let (tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
     let tools =
         tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
             .with_allowed_tools(["finish".to_string()].into_iter().collect());
     let mut executor = Agent::new(
-        Arc::new(PendingProvider {
-            entered: tx,
+        Arc::new(GeneralFinisher {
             calls: calls.clone(),
         }),
         tools,
@@ -536,20 +535,72 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
     );
     let mut conversation = Conversation::new();
     let mut on_step = |_| {};
-    let execute = runs.execute_bound_attempt(
-        active.attempt_id.clone(),
-        &mut executor,
-        &mut conversation,
-        prepared.invocation().clone(),
-        &mut on_step,
+    let outcome = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        runs.execute_bound_attempt(
+            active.attempt_id.clone(),
+            &mut executor,
+            &mut conversation,
+            prepared.invocation().clone(),
+            &mut on_step,
+        ),
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(outcome, CandidateOutcome::Completed { ref summary, .. } if summary == "GOVERNEDRESULTCANARY")
     );
-    tokio::pin!(execute);
-    tokio::select! {
-        result = &mut execute => panic!("execution ended before inference: {result:?}"),
-        signal = tokio::time::timeout(std::time::Duration::from_secs(3), entered.recv()) => {
-            assert_eq!(signal.unwrap(), Some(()));
-        }
-    }
+    let finalized = runs
+        .managed
+        .finalize(tetonic_run::FinalizeJob {
+            attempt: active.attempt_id.clone(),
+            outcome,
+            policy: None,
+            finish_run: true,
+        })
+        .await
+        .unwrap();
+    assert!(matches!(finalized, CandidateOutcome::Completed { .. }));
+    let snapshot = tetonic_run::RunSupervisor::snapshot(&supervisor, active.run_id.clone())
+        .await
+        .unwrap();
+    assert_eq!(snapshot.state, tetonic_domain::RunState::Succeeded);
+    let receipt = snapshot.tasks[&active.task_id]
+        .accepted_artifact
+        .as_ref()
+        .unwrap();
+    let output_id = tetonic_domain::ArtifactId::new(receipt.artifact_id.clone());
+    let output = contexts
+        .bind_artifacts(
+            credential.expose_secret(),
+            "private".into(),
+            runs.managed.artifacts().clone(),
+        )
+        .await
+        .unwrap();
+    let mut reader = output.open(&output_id).await.unwrap();
+    let mut bytes = [0u8; 1024];
+    let count = reader.read_chunk(&mut bytes).await.unwrap();
+    assert!(String::from_utf8_lossy(&bytes[..count]).contains("GOVERNEDRESULTCANARY"));
+    contexts
+        .create(
+            credential.expose_secret(),
+            "other".into(),
+            crate::resources::ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let other = contexts
+        .bind_artifacts(
+            credential.expose_secret(),
+            "other".into(),
+            runs.managed.artifacts().clone(),
+        )
+        .await
+        .unwrap();
+    assert!(other.open(&output_id).await.is_err());
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let revoked_attempt = runs
         .managed
@@ -615,6 +666,7 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         .authorize(&authorization.scope, &identity, &spec)
         .await
         .is_err());
+    assert!(output.open(&output_id).await.is_err());
 
     assert!(
         runs.managed
@@ -623,6 +675,10 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
             .unwrap()
             .attempts[&active.attempt_id]
             .execution_claimed
+    );
+    assert!(
+        legacy_events.0.lock_recover().is_empty(),
+        "scoped events reached the unscoped product sink"
     );
 }
 
@@ -1096,5 +1152,41 @@ async fn governed_final_output_uses_existing_private_artifact_access() {
                 .unwrap();
             assert!(scoped.open(&id).await.is_err());
         }
+    }
+}
+
+struct GeneralFinisher {
+    calls: Arc<AtomicUsize>,
+}
+#[async_trait::async_trait]
+impl InferenceProvider for GeneralFinisher {
+    async fn chat(
+        &self,
+        request: ChatRequest,
+        _: &mut TokenSink<'_>,
+    ) -> Result<ChatResponse, InferenceError> {
+        self.calls.fetch_add(1, Ordering::SeqCst);
+        assert!(request
+            .messages
+            .iter()
+            .any(|m| m.role == "system" && m.content.contains("Analyze the question")));
+        assert!(request
+            .messages
+            .iter()
+            .any(|m| m.role == "user" && m.content.contains("A question")));
+        assert_eq!(request.tools.len(), 1);
+        assert_eq!(request.tools[0].function.name, "finish");
+        Ok(ChatResponse {
+            message: tetonic_inference::Message::assistant("").with_tool_calls(vec![
+                tetonic_inference::ToolCall {
+                    function: tetonic_inference::FunctionCall {
+                        name: "finish".into(),
+                        arguments: serde_json::json!({"summary":"GOVERNEDRESULTCANARY"}),
+                    },
+                },
+            ]),
+            usage: Default::default(),
+            provenance: Default::default(),
+        })
     }
 }
