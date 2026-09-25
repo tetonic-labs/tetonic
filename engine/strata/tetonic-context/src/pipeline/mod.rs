@@ -91,6 +91,7 @@ impl Default for ExpansionLimits {
 }
 
 pub struct ContextCompiler {
+    access_gate: Option<Arc<dyn crate::interfaces::ContextAccessGate>>,
     pub provider: Arc<dyn ContextSourceProvider>,
     pub artifact_store: Option<Arc<dyn ArtifactStore>>,
     pub secret_scanner: Option<Arc<dyn crate::interfaces::SecretScanner>>,
@@ -105,6 +106,7 @@ impl ContextCompiler {
     pub fn new(provider: Arc<dyn ContextSourceProvider>) -> Self {
         Self {
             provider,
+            access_gate: None,
             artifact_store: None,
             secret_scanner: None,
             handles: Mutex::new(HashMap::new()),
@@ -112,6 +114,22 @@ impl ContextCompiler {
             expansion_admission: admission::Admission::default(),
             revoked_sessions: Mutex::new(Some(HashSet::new())),
         }
+    }
+
+    /// Additional membership gate, not a substitute for a scoped provider or
+    /// workspace/artifact grants. Legacy local composition has no such gate.
+    pub fn with_access_gate(mut self, gate: Arc<dyn crate::interfaces::ContextAccessGate>) -> Self {
+        self.access_gate = Some(gate);
+        self
+    }
+
+    async fn authorize_context(&self, session: &tetonic_domain::SessionId) -> Result<(), String> {
+        if let Some(gate) = &self.access_gate {
+            gate.authorize(session)
+                .await
+                .map_err(|_| "context access denied".to_string())?;
+        }
+        Ok(())
     }
 
     pub fn with_expansion_limits(mut self, limits: ExpansionLimits) -> Self {
@@ -141,6 +159,9 @@ impl ContextCompiler {
         request: ContextRequest,
     ) -> Result<ContextPack, CompilationFailure> {
         let session = request.session_id.clone();
+        self.authorize_context(&session)
+            .await
+            .map_err(CompilationFailure::StageError)?;
         {
             let revoked = self.revoked_sessions.lock().map_err(|_| {
                 CompilationFailure::StageError("revocation registry unavailable".into())
@@ -200,6 +221,9 @@ impl ContextCompiler {
             }
         };
 
+        self.authorize_context(&session)
+            .await
+            .map_err(CompilationFailure::StageError)?;
         // Stage 7: Seal (includes workspace revalidation)
         let store_ref = self.artifact_store.as_ref().map(|s| s.as_ref());
         let scanner_ref = self.secret_scanner.as_ref().map(|s| s.as_ref());
@@ -215,6 +239,9 @@ impl ContextCompiler {
         .await
         .map_err(CompilationFailure::StageError)?;
 
+        self.authorize_context(&session)
+            .await
+            .map_err(CompilationFailure::StageError)?;
         // Register expansion handles for future expand() calls
         {
             // Serialize admission with revocation; a compile that was awaiting
@@ -320,6 +347,7 @@ impl ContextCompiler {
         &self,
         request: &tetonic_domain::ContextExpansionRequest,
     ) -> Result<Vec<ContextEvidence>, String> {
+        self.authorize_context(&request.session_id).await?;
         if request.session_id.0.trim().is_empty()
             || request.run_id.0.trim().is_empty()
             || request.task_id.0.trim().is_empty()
@@ -452,6 +480,7 @@ impl ContextCompiler {
         }
 
         self.check_expansion_size(&results)?;
+        self.authorize_context(&request.session_id).await?;
         // Revocation may race provider/scanner awaits. Do not release the result
         // merely because the handle was valid when retrieval started.
         let handles = self

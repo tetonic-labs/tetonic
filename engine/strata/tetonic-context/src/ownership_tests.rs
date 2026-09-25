@@ -6,6 +6,57 @@ use std::sync::{
 };
 use tetonic_domain::{classify::DataClass, ContextExpansionRequest};
 
+struct LimitedAccess(AtomicUsize);
+#[async_trait::async_trait]
+impl crate::interfaces::ContextAccessGate for LimitedAccess {
+    async fn authorize(&self, _: &tetonic_domain::SessionId) -> Result<(), ()> {
+        self.0
+            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
+            .map(|_| ())
+            .map_err(|_| ())
+    }
+}
+
+#[tokio::test]
+async fn access_revocation_blocks_compilation_and_expansion_results() {
+    let gate = Arc::new(LimitedAccess(AtomicUsize::new(0)));
+    let compiler =
+        ContextCompiler::new(Arc::new(MockProvider::default())).with_access_gate(gate.clone());
+    assert!(compiler
+        .compile(base_request())
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("access denied"));
+    gate.0.store(1, Ordering::SeqCst);
+    assert!(compiler
+        .compile(base_request())
+        .await
+        .unwrap_err()
+        .to_string()
+        .contains("access denied"));
+    assert!(compiler.handles.lock().unwrap().is_empty());
+    let (compiler, request, reads) = fixture().await;
+    let compiler = Arc::try_unwrap(compiler)
+        .ok()
+        .unwrap()
+        .with_access_gate(gate.clone());
+    gate.0.store(0, Ordering::SeqCst);
+    assert!(compiler
+        .expand_pack(&request)
+        .await
+        .unwrap_err()
+        .contains("access denied"));
+    assert_eq!(reads.load(Ordering::SeqCst), 0);
+    gate.0.store(1, Ordering::SeqCst);
+    assert!(compiler
+        .expand_pack(&request)
+        .await
+        .unwrap_err()
+        .contains("access denied"));
+    assert_eq!(reads.load(Ordering::SeqCst), 1);
+}
+
 async fn fixture() -> (
     Arc<ContextCompiler>,
     ContextExpansionRequest,

@@ -96,6 +96,23 @@ mod tests {
 }
 
 impl Store {
+    pub fn context_session_access(
+        &self,
+        actor: &str,
+        context: &str,
+        session: &str,
+    ) -> Result<bool> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
+        let allowed = self.context_access(actor, context)?
+            && self.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1 AND context_id=?2)",
+                params![session, context],
+                |r| r.get::<_, bool>(0),
+            )?;
+        tx.commit()?;
+        Ok(allowed)
+    }
+
     /// Content access is deliberately distinct from metadata administration.
     pub fn context_access(&self, actor: &str, context: &str) -> Result<bool> {
         Ok(self.conn.query_row("SELECT EXISTS(

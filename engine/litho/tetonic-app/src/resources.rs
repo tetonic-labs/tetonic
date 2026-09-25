@@ -13,6 +13,7 @@ pub use local_control::LocalControl;
 mod membership;
 mod administration;
 mod contexts;
+mod context_compiler;
 pub use contexts::ContextService;
 pub use tetonic_memory::ContextOwner;
 pub use tetonic_memory::OrganizationRole;

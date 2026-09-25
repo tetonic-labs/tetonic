@@ -29,3 +29,10 @@ pub trait ContextSourceProvider: Send + Sync {
 }
 
 pub use tetonic_domain::secrets::SecretScanner;
+
+/// Trusted host authorization, independent of model-supplied retrieval input.
+/// Implementations recheck current grants; errors must not contain protected data.
+#[async_trait]
+pub trait ContextAccessGate: Send + Sync {
+    async fn authorize(&self, session: &tetonic_domain::SessionId) -> Result<(), ()>;
+}
