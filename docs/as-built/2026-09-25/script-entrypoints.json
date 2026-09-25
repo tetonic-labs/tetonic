@@ -1,0 +1,187 @@
+[
+  {
+    "file": "engine/bench/infer_gate.py",
+    "line": 236,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/llm_throughput.py",
+    "line": 93,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/long_context.py",
+    "line": 201,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/performance_report.py",
+    "line": 69,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/remote_fabric.py",
+    "line": 162,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/residency_probe.py",
+    "line": 45,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/run_suite.py",
+    "line": 549,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/test_general_tasks.py",
+    "line": 40,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/test_performance_report.py",
+    "line": 81,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/bench/test_verifier_overlay.py",
+    "line": 32,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/bins/adversarial_runner.rs",
+    "line": 5,
+    "entry": "fn main() {"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/windows_net_tests.rs",
+    "line": 7,
+    "entry": "function New-NetFirewallRule {"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/windows_net_tests.rs",
+    "line": 34,
+    "entry": "function Get-NetFirewallRule {{"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/windows_net_tests.rs",
+    "line": 39,
+    "entry": "function Remove-NetFirewallRule {{"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/tests/support/pipe_holder.rs",
+    "line": 3,
+    "entry": "fn main() {"
+  },
+  {
+    "file": "engine/corpus/fixtures/snap-01/src/main.rs",
+    "line": 1,
+    "entry": "fn main() { println!(\"Hello\"); }"
+  },
+  {
+    "file": "engine/corpus/fixtures/snap-03/src/main.rs",
+    "line": 1,
+    "entry": "fn main() {}"
+  },
+  {
+    "file": "engine/corpus/fixtures/snap-05/src/main.rs",
+    "line": 1,
+    "entry": "fn main() { // UNSTAGED CHANGES HERE"
+  },
+  {
+    "file": "engine/corpus/scripts/integrity.py",
+    "line": 24,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/corpus/scripts/reset.py",
+    "line": 21,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/corpus/scripts/scaffold_fixtures.py",
+    "line": 62,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/corpus/scripts/setup.py",
+    "line": 28,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 34,
+    "entry": "async fn main() -> anyhow::Result<()> {"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon/tests/cases.rs",
+    "line": 1041,
+    "entry": "fn main_rs_does_not_special_case_shutdown_before_handle() {"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 32,
+    "entry": "fn main() -> Result<()> {"
+  },
+  {
+    "file": "engine/litho/tetonic-lsp/tests/support/mock_server.rs",
+    "line": 10,
+    "entry": "fn main() {"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "entry": "async fn main() -> anyhow::Result<()> {"
+  },
+  {
+    "file": "engine/scripts/gen_fabric_protocol_doc.py",
+    "line": 172,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/scripts/gen_ts_protocol.py",
+    "line": 210,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/scripts/run_required_tests.py",
+    "line": 32,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/scripts/smoke_lokaid.py",
+    "line": 177,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/scripts/test_required_tests.py",
+    "line": 20,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/scripts/verify_layout_consumer.py",
+    "line": 609,
+    "entry": "if __name__ == \"__main__\":"
+  },
+  {
+    "file": "engine/tooling/tetonic-arch-gate/src/main.rs",
+    "line": 45,
+    "entry": "fn main() {"
+  },
+  {
+    "file": "engine/tooling/tetonic-bench/src/main.rs",
+    "line": 22,
+    "entry": "fn main() -> anyhow::Result<()> {"
+  },
+  {
+    "file": "engine/tooling/tetonic-eval/src/main.rs",
+    "line": 66,
+    "entry": "async fn main() -> anyhow::Result<()> {"
+  },
+  {
+    "file": "scripts/release.py",
+    "line": 161,
+    "entry": "if __name__ == \"__main__\":"
+  }
+]

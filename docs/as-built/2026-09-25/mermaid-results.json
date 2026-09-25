@@ -1,0 +1,253 @@
+{
+  "mermaid_version": "11.12.0",
+  "jsdom_version": "26.1.0",
+  "diagrams": 49,
+  "passed": true,
+  "results": [
+    {
+      "document": "atlas.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 3,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 4,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 5,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 6,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 7,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 8,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 9,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 10,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 11,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 12,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 13,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 14,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 15,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 16,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 17,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 18,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 19,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 20,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 21,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 22,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 23,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 24,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 25,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 26,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 27,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 28,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 29,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 30,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 31,
+      "passed": true
+    },
+    {
+      "document": "atlas.md",
+      "number": 32,
+      "passed": true
+    },
+    {
+      "document": "entrypoints.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "entrypoints.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "execution.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "execution.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "execution.md",
+      "number": 3,
+      "passed": true
+    },
+    {
+      "document": "execution.md",
+      "number": 4,
+      "passed": true
+    },
+    {
+      "document": "operations.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "operations.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "README.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "state.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "state.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "state.md",
+      "number": 3,
+      "passed": true
+    },
+    {
+      "document": "state.md",
+      "number": 4,
+      "passed": true
+    },
+    {
+      "document": "subsystems.md",
+      "number": 1,
+      "passed": true
+    },
+    {
+      "document": "subsystems.md",
+      "number": 2,
+      "passed": true
+    },
+    {
+      "document": "subsystems.md",
+      "number": 3,
+      "passed": true
+    },
+    {
+      "document": "subsystems.md",
+      "number": 4,
+      "passed": true
+    }
+  ]
+}

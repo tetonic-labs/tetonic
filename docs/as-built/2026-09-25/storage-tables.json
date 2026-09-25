@@ -1,0 +1,347 @@
+[
+  {
+    "table": "schema_versions",
+    "file": "engine/mantle/tetonic-node/src/tls_identity/tests.rs",
+    "line": 59
+  },
+  {
+    "table": "worker_tls",
+    "file": "engine/mantle/tetonic-node/src/tls_identity/tests.rs",
+    "line": 61
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 308
+  },
+  {
+    "table": "files",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 320
+  },
+  {
+    "table": "symbols",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 333
+  },
+  {
+    "table": "imports",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 346
+  },
+  {
+    "table": "chunks",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 353
+  },
+  {
+    "table": "vec_chunks",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 385
+  },
+  {
+    "table": "index_metadata",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 405
+  },
+  {
+    "table": "fts_file_rows",
+    "file": "engine/strata/tetonic-index/src/schema.rs",
+    "line": 419
+  },
+  {
+    "table": "issued_capabilities",
+    "file": "engine/strata/tetonic-memory/src/capability.rs",
+    "line": 19
+  },
+  {
+    "table": "capacity_jobs",
+    "file": "engine/strata/tetonic-memory/src/capacity.rs",
+    "line": 130
+  },
+  {
+    "table": "runtime_profiles",
+    "file": "engine/strata/tetonic-memory/src/capacity_tables.rs",
+    "line": 4
+  },
+  {
+    "table": "capacity_bindings",
+    "file": "engine/strata/tetonic-memory/src/capacity_tables.rs",
+    "line": 15
+  },
+  {
+    "table": "compute_reservations",
+    "file": "engine/strata/tetonic-memory/src/compute_reservation.rs",
+    "line": 19
+  },
+  {
+    "table": "durability_probe",
+    "file": "engine/strata/tetonic-memory/src/durability_tests.rs",
+    "line": 49
+  },
+  {
+    "table": "owner_identity",
+    "file": "engine/strata/tetonic-memory/src/estate.rs",
+    "line": 53
+  },
+  {
+    "table": "worker_enrollments",
+    "file": "engine/strata/tetonic-memory/src/estate.rs",
+    "line": 59
+  },
+  {
+    "table": "worker_trust_audit",
+    "file": "engine/strata/tetonic-memory/src/estate.rs",
+    "line": 200
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/migration_tests.rs",
+    "line": 20
+  },
+  {
+    "table": "sentinel",
+    "file": "engine/strata/tetonic-memory/src/migration_tests.rs",
+    "line": 21
+  },
+  {
+    "table": "run_projections",
+    "file": "engine/strata/tetonic-memory/src/migration_tests.rs",
+    "line": 149
+  },
+  {
+    "table": "policy_settings",
+    "file": "engine/strata/tetonic-memory/src/policy.rs",
+    "line": 57
+  },
+  {
+    "table": "projects",
+    "file": "engine/strata/tetonic-memory/src/projects.rs",
+    "line": 36
+  },
+  {
+    "table": "project_memory",
+    "file": "engine/strata/tetonic-memory/src/projects.rs",
+    "line": 43
+  },
+  {
+    "table": "result_dispositions",
+    "file": "engine/strata/tetonic-memory/src/result_disposition.rs",
+    "line": 33
+  },
+  {
+    "table": "worker_behavior_signals",
+    "file": "engine/strata/tetonic-memory/src/result_disposition.rs",
+    "line": 45
+  },
+  {
+    "table": "scheduler_decisions",
+    "file": "engine/strata/tetonic-memory/src/scheduler_decision.rs",
+    "line": 19
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 39
+  },
+  {
+    "table": "sessions",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 51
+  },
+  {
+    "table": "messages",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 61
+  },
+  {
+    "table": "tool_calls",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 72
+  },
+  {
+    "table": "events",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 83
+  },
+  {
+    "table": "egress_log",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 93
+  },
+  {
+    "table": "file_changes",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 117
+  },
+  {
+    "table": "checkpoints",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 138
+  },
+  {
+    "table": "workspace_head",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 148
+  },
+  {
+    "table": "restores",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 154
+  },
+  {
+    "table": "run_projections_v27",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 235
+  },
+  {
+    "table": "agent_identities",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 273
+  },
+  {
+    "table": "run_events",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 334
+  },
+  {
+    "table": "run_command_dedup",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 370
+  },
+  {
+    "table": "run_projections",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 395
+  },
+  {
+    "table": "run_events",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 403
+  },
+  {
+    "table": "run_idempotency",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 412
+  },
+  {
+    "table": "classification_audit",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 438
+  },
+  {
+    "table": "spawn_rollbacks",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 463
+  },
+  {
+    "table": "turn_operations",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 486
+  },
+  {
+    "table": "run_events",
+    "file": "engine/strata/tetonic-memory/src/schema.rs",
+    "line": 628
+  },
+  {
+    "table": "scanner_hmac_key",
+    "file": "engine/strata/tetonic-memory/src/secret_overrides.rs",
+    "line": 88
+  },
+  {
+    "table": "secret_overrides",
+    "file": "engine/strata/tetonic-memory/src/secret_overrides.rs",
+    "line": 93
+  },
+  {
+    "table": "secret_override_audit",
+    "file": "engine/strata/tetonic-memory/src/secret_overrides.rs",
+    "line": 106
+  },
+  {
+    "table": "approvals",
+    "file": "engine/strata/tetonic-memory/src/trust.rs",
+    "line": 36
+  },
+  {
+    "table": "approval_rules",
+    "file": "engine/strata/tetonic-memory/src/trust.rs",
+    "line": 46
+  },
+  {
+    "table": "egress_allow_rules",
+    "file": "engine/strata/tetonic-memory/src/trust.rs",
+    "line": 52
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 71
+  },
+  {
+    "table": "coordinator_pins",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 73
+  },
+  {
+    "table": "worker_tls",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 100
+  },
+  {
+    "table": "ingress_log",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 105
+  },
+  {
+    "table": "ingress_log",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 140
+  },
+  {
+    "table": "fabric_ingress_records",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 158
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 431
+  },
+  {
+    "table": "worker_tls",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 433
+  },
+  {
+    "table": "ingress_log",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 434
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 481
+  },
+  {
+    "table": "worker_tls",
+    "file": "engine/strata/tetonic-memory/src/worker_store.rs",
+    "line": 483
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/worker_tls.rs",
+    "line": 147
+  },
+  {
+    "table": "worker_tls",
+    "file": "engine/strata/tetonic-memory/src/worker_tls.rs",
+    "line": 149
+  },
+  {
+    "table": "schema_versions",
+    "file": "engine/strata/tetonic-memory/src/worker_tls.rs",
+    "line": 174
+  }
+]

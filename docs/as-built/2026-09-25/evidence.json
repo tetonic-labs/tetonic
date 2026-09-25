@@ -1,0 +1,1598 @@
+[
+  {
+    "file": "engine/litho/tetonic-app/src/lib.rs",
+    "line": 124,
+    "anchor": "pub struct Application",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 29,
+    "anchor": "pub struct ComputePlane",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/fleet_api.rs",
+    "line": 102,
+    "anchor": "pub struct FleetManager",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 51,
+    "anchor": "pub struct DurableRunSupervisor",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/session_live.rs",
+    "line": 29,
+    "anchor": "pub struct LiveSession",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 17,
+    "anchor": "struct Request",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 34,
+    "anchor": "async fn main",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 88,
+    "anchor": "async fn serve",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 135,
+    "anchor": "pub async fn run_node_serve",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 157,
+    "anchor": "let brain",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 38,
+    "anchor": "pub fn connect",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 34,
+    "anchor": "async fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 32,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/tooling/tetonic-eval/src/main.rs",
+    "line": 66,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/tooling/tetonic-arch-gate/src/main.rs",
+    "line": 45,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/tooling/tetonic-bench/src/main.rs",
+    "line": 22,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/bins/adversarial_runner.rs",
+    "line": 5,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-lsp/tests/support/mock_server.rs",
+    "line": 10,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 88,
+    "anchor": "async fn serve",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 51,
+    "anchor": "pub fn new",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 100,
+    "anchor": "pub async fn handle",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 76,
+    "anchor": "pub async fn shutdown",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/daemon_bootstrap.rs",
+    "line": 78,
+    "anchor": "impl Application",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 127,
+    "anchor": "methods::CHAT_SEND",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 137,
+    "anchor": "serde_json::from_slice",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-rpc/src/outbound.rs",
+    "line": 55,
+    "anchor": "pub struct OutboundQueue",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/supervise.rs",
+    "line": 65,
+    "anchor": "pub fn run",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 46,
+    "anchor": "let interactive",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 134,
+    "anchor": "bootstrap_cli",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/lokai-cli/src/main.rs",
+    "line": 234,
+    "anchor": "app.close_session",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/cli_bootstrap.rs",
+    "line": 56,
+    "anchor": "impl Application",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/lib.rs",
+    "line": 124,
+    "anchor": "pub struct Application",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 22,
+    "anchor": "pub struct TurnBind",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 168,
+    "anchor": "pub fn install_compute_plane",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 38,
+    "anchor": "pub async fn run_node_enroll",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 135,
+    "anchor": "pub async fn run_node_serve",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 201,
+    "anchor": "pub fn spawn_combined_fabric",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 371,
+    "anchor": "pub async fn run_in_world",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 6,
+    "anchor": "pub struct TraceStore",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": ".github/workflows/engine-ci.yml",
+    "line": 14,
+    "anchor": "jobs:",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/tooling/tetonic-arch-gate/src/main.rs",
+    "line": 45,
+    "anchor": "fn main",
+    "document": "entrypoints.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 583,
+    "anchor": "pub fn submit_chat_turn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/turn_execution.rs",
+    "line": 19,
+    "anchor": "run_orchestrated_turn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/managed/execution.rs",
+    "line": 85,
+    "anchor": "ClaimExecution",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 28,
+    "anchor": "pub struct Agent",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 105,
+    "anchor": "struct OwnedTurn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/identity.rs",
+    "line": 27,
+    "anchor": "pub struct AgentJobSpec",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/managed/execution.rs",
+    "line": 85,
+    "anchor": "ClaimExecution",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 28,
+    "anchor": "pub struct Agent",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/coding_pack.rs",
+    "line": 27,
+    "anchor": "impl",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/turn_execution.rs",
+    "line": 19,
+    "anchor": "run_orchestrated_turn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 29,
+    "anchor": "pub struct ComputePlane",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-broker/src/broker.rs",
+    "line": 57,
+    "anchor": "pub struct DefaultComputeBroker",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/job_ingress.rs",
+    "line": 18,
+    "anchor": "impl JobIngressManager",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/lease_table.rs",
+    "line": 39,
+    "anchor": "impl LeaseTable",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-protocol/src/result_validate.rs",
+    "line": 47,
+    "anchor": "pub fn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-broker/src/broker.rs",
+    "line": 57,
+    "anchor": "pub struct DefaultComputeBroker",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 29,
+    "anchor": "pub struct ComputePlane",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-protocol/src/result_validate.rs",
+    "line": 47,
+    "anchor": "pub fn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/job_ingress.rs",
+    "line": 18,
+    "anchor": "impl JobIngressManager",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/retry.rs",
+    "line": 8,
+    "anchor": "pub fn apply_failure_with_retry",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/action_broker.rs",
+    "line": 21,
+    "anchor": "impl",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/capability_store.rs",
+    "line": 17,
+    "anchor": "pub struct InMemoryCapabilityStore",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-tools/src/lib.rs",
+    "line": 358,
+    "anchor": "pub fn execute_authorized_cancellable",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 58,
+    "anchor": "pub fn platform_backend",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-transaction/src/lib.rs",
+    "line": 3,
+    "anchor": "pub mod",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/action_broker.rs",
+    "line": 62,
+    "anchor": "evaluate_and_issue",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/capability_store.rs",
+    "line": 23,
+    "anchor": "impl",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 46,
+    "anchor": "async fn execute_cancellable",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 371,
+    "anchor": "pub async fn run_in_world",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 38,
+    "anchor": "pub fn connect",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 168,
+    "anchor": "impl Brain for PerceptiveBrain",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/brain.rs",
+    "line": 44,
+    "anchor": "pub struct SingleModelBrain",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 371,
+    "anchor": "pub async fn run_in_world",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 118,
+    "anchor": "decision_window",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 88,
+    "anchor": "with_idle_interval",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 168,
+    "anchor": "impl Brain for PerceptiveBrain",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/experience.rs",
+    "line": 6,
+    "anchor": "struct",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/context_budget.rs",
+    "line": 7,
+    "anchor": "struct",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 178,
+    "anchor": "async fn execute",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 76,
+    "anchor": "let mut pending",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 178,
+    "anchor": "async fn execute",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/lib.rs",
+    "line": 1,
+    "anchor": "pub mod",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/context_budget.rs",
+    "line": 7,
+    "anchor": "struct",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/experience.rs",
+    "line": 6,
+    "anchor": "struct",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/session_live.rs",
+    "line": 29,
+    "anchor": "pub struct LiveSession",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 51,
+    "anchor": "pub struct DurableRunSupervisor",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 198,
+    "anchor": "pub struct SharedStore",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/lease_table.rs",
+    "line": 39,
+    "anchor": "impl LeaseTable",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/experience.rs",
+    "line": 6,
+    "anchor": "struct",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/fleet_api.rs",
+    "line": 102,
+    "anchor": "pub struct FleetManager",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 97,
+    "anchor": "fn run_lock",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 664,
+    "anchor": "pub fn replay_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/run_store.rs",
+    "line": 20,
+    "anchor": "commit_run_command",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 23,
+    "anchor": "pub fn apply_command",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/run.rs",
+    "line": 152,
+    "anchor": "pub struct CommandEnvelope",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/acceptance.rs",
+    "line": 11,
+    "anchor": "pub fn try_accept_completion",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 698,
+    "anchor": "fn apply_accept_artifact",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 115,
+    "anchor": "fn apply_start_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 649,
+    "anchor": "fn apply_cancel_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 792,
+    "anchor": "fn apply_finish_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 664,
+    "anchor": "pub fn replay_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 222,
+    "anchor": "fn apply_create_attempt",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 397,
+    "anchor": "fn apply_start_attempt",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 369,
+    "anchor": "fn apply_claim_execution",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/acceptance.rs",
+    "line": 166,
+    "anchor": "pub fn apply_winner_selection",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/retry.rs",
+    "line": 8,
+    "anchor": "pub fn apply_failure_with_retry",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/retry.rs",
+    "line": 8,
+    "anchor": "pub fn apply_failure_with_retry",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 184,
+    "anchor": "fn apply_mark_task_ready",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 222,
+    "anchor": "fn apply_create_attempt",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 328,
+    "anchor": "fn apply_lease_attempt",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 430,
+    "anchor": "fn apply_record_heartbeat",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/acceptance.rs",
+    "line": 11,
+    "anchor": "pub fn try_accept_completion",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/lease_table.rs",
+    "line": 39,
+    "anchor": "impl LeaseTable",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/role.rs",
+    "line": 152,
+    "anchor": "impl KeeperRegistry",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 62,
+    "anchor": "pub fn new",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 664,
+    "anchor": "pub fn replay_run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/recovery_api.rs",
+    "line": 5,
+    "anchor": "impl Application",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/resume.rs",
+    "line": 16,
+    "anchor": "pub fn rehydrate_messages",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/supervise.rs",
+    "line": 65,
+    "anchor": "pub fn run",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/experience.rs",
+    "line": 6,
+    "anchor": "struct",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/checkpoint.rs",
+    "line": 22,
+    "anchor": "impl CheckpointManager",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/run.rs",
+    "line": 546,
+    "anchor": "pub struct RunSnapshot",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/run_store.rs",
+    "line": 20,
+    "anchor": "commit_run_command",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 175,
+    "anchor": "pub struct Store",
+    "document": "state.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 100,
+    "anchor": "pub async fn handle",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-rpc/src/protocol.rs",
+    "line": 111,
+    "anchor": "pub mod methods",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 25,
+    "anchor": "struct Config",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 180,
+    "anchor": "let health_adapter",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 158,
+    "anchor": "pub fn acknowledge_events",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/lsp_launcher.rs",
+    "line": 19,
+    "anchor": "impl",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 100,
+    "anchor": "pub async fn handle",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 25,
+    "anchor": "struct Config",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 70,
+    "anchor": "fn default_idle_interval",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/daemon_bootstrap.rs",
+    "line": 78,
+    "anchor": "impl Application",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 135,
+    "anchor": "pub async fn run_node_serve",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 413,
+    "anchor": "pub fn reload_inference_services",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-protocol/src/result_validate.rs",
+    "line": 47,
+    "anchor": "pub fn",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 108,
+    "anchor": "serde_json::from_str",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 100,
+    "anchor": "pub async fn handle",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 58,
+    "anchor": "worker_threads",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 105,
+    "anchor": "struct OwnedTurn",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 97,
+    "anchor": "fn run_lock",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 198,
+    "anchor": "pub struct SharedStore",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-rpc/src/outbound.rs",
+    "line": 55,
+    "anchor": "pub struct OutboundQueue",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 44,
+    "anchor": "let (tx, mut rx)",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 9,
+    "anchor": "pub fn record",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/work_scope.rs",
+    "line": 29,
+    "anchor": "pub struct WorkScope",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 76,
+    "anchor": "pub async fn shutdown",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/transition.rs",
+    "line": 649,
+    "anchor": "fn apply_cancel_run",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 133,
+    "anchor": "Some(\"estop\")",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 208,
+    "anchor": "tokio::select!",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/daemon.rs",
+    "line": 76,
+    "anchor": "pub async fn shutdown",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 157,
+    "anchor": "writer.abort",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 46,
+    "anchor": "async fn execute_cancellable",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/action_broker.rs",
+    "line": 62,
+    "anchor": "evaluate_and_issue",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 120,
+    "anchor": "fn validate_working_directory",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 101,
+    "anchor": "with_redactor",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 9,
+    "anchor": "EmptyToolHost",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 371,
+    "anchor": "pub async fn run_in_world",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 58,
+    "anchor": "pub fn platform_backend",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 79,
+    "anchor": "pub(crate) fn build_minimal_env",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 160,
+    "anchor": "pub fn evaluate_outcome",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/node_worker.rs",
+    "line": 38,
+    "anchor": "pub async fn run_node_enroll",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-protocol/src/result_validate.rs",
+    "line": 47,
+    "anchor": "pub fn",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/role.rs",
+    "line": 152,
+    "anchor": "impl KeeperRegistry",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/events.rs",
+    "line": 5,
+    "anchor": "pub",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 101,
+    "anchor": "with_redactor",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/brain.rs",
+    "line": 44,
+    "anchor": "pub struct SingleModelBrain",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 9,
+    "anchor": "pub fn record",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 38,
+    "anchor": "pub fn since",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 9,
+    "anchor": "pub fn record",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 180,
+    "anchor": "let health_adapter",
+    "document": "operations.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 75,
+    "anchor": "async fn main",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/fleet_api.rs",
+    "line": 102,
+    "anchor": "pub struct FleetManager",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs",
+    "line": 103,
+    "anchor": "impl FleetSupervisor",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/role.rs",
+    "line": 152,
+    "anchor": "impl KeeperRegistry",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/operator_control.rs",
+    "line": 99,
+    "anchor": "impl OperatorController",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/thought_stream.rs",
+    "line": 20,
+    "anchor": "pub",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/lib.rs",
+    "line": 3,
+    "anchor": "pub mod",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/fleet_api.rs",
+    "line": 102,
+    "anchor": "pub struct FleetManager",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/fleet_supervisor.rs",
+    "line": 103,
+    "anchor": "impl FleetSupervisor",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/lib.rs",
+    "line": 124,
+    "anchor": "pub struct Application",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 170,
+    "anchor": "let agent",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/fleet.rs",
+    "line": 34,
+    "anchor": "pub struct",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 38,
+    "anchor": "pub fn connect",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 158,
+    "anchor": "pub fn acknowledge_events",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 168,
+    "anchor": "impl Brain for PerceptiveBrain",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-run/src/service.rs",
+    "line": 97,
+    "anchor": "fn run_lock",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 29,
+    "anchor": "pub struct ComputePlane",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/job_ingress.rs",
+    "line": 18,
+    "anchor": "impl JobIngressManager",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/role.rs",
+    "line": 152,
+    "anchor": "impl KeeperRegistry",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/job_ingress.rs",
+    "line": 18,
+    "anchor": "impl JobIngressManager",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/run.rs",
+    "line": 53,
+    "anchor": "pub enum AttemptState",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/context_budget.rs",
+    "line": 7,
+    "anchor": "struct",
+    "document": "limits.md"
+  },
+  {
+    "file": ".github/workflows/engine-ci.yml",
+    "line": 51,
+    "anchor": "Run Core Tests",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 58,
+    "anchor": "pub fn platform_backend",
+    "document": "limits.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/identity.rs",
+    "line": 27,
+    "anchor": "pub struct AgentJobSpec",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-domain/src/work_scope.rs",
+    "line": 29,
+    "anchor": "pub struct WorkScope",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 28,
+    "anchor": "pub struct Agent",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-core/src/agent.rs",
+    "line": 371,
+    "anchor": "pub async fn run_in_world",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/lib.rs",
+    "line": 18,
+    "anchor": "pub use assembly",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/action_broker.rs",
+    "line": 62,
+    "anchor": "evaluate_and_issue",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/executor.rs",
+    "line": 11,
+    "anchor": "pub struct",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/lib.rs",
+    "line": 124,
+    "anchor": "pub struct Application",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/coding_pack.rs",
+    "line": 70,
+    "anchor": "impl SpecialistPack",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/coding_pack.rs",
+    "line": 117,
+    "anchor": "pub fn product_session_host",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/turn.rs",
+    "line": 41,
+    "anchor": "pub struct OrchestratedTurnInput",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/turn.rs",
+    "line": 136,
+    "anchor": "pub async fn run_orchestrated_turn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/spawn_budget.rs",
+    "line": 5,
+    "anchor": "pub struct",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/run_service.rs",
+    "line": 102,
+    "anchor": "pub struct",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-orchestrator/src/turn.rs",
+    "line": 136,
+    "anchor": "pub async fn run_orchestrated_turn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/turn_execution.rs",
+    "line": 19,
+    "anchor": "run_orchestrated_turn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-tools/src/lib.rs",
+    "line": 64,
+    "anchor": "pub struct Tools",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-tools/src/lib.rs",
+    "line": 92,
+    "anchor": "pub fn new",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-tools/src/host.rs",
+    "line": 1,
+    "anchor": "impl",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/mod.rs",
+    "line": 93,
+    "anchor": "pub struct ContextCompiler",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/mod.rs",
+    "line": 139,
+    "anchor": "pub async fn compile",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/mod.rs",
+    "line": 139,
+    "anchor": "pub async fn compile",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/stage7_seal.rs",
+    "line": 28,
+    "anchor": "pub async fn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/mod.rs",
+    "line": 80,
+    "anchor": "impl Default for ExpansionLimits",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-context/src/pipeline/mod.rs",
+    "line": 263,
+    "anchor": "pub async fn compile_shadow",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 54,
+    "anchor": "impl ObservationMemory",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/perceptive_brain.rs",
+    "line": 36,
+    "anchor": "impl DecisionHistory",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/experience.rs",
+    "line": 13,
+    "anchor": "impl",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-index/src/lib.rs",
+    "line": 43,
+    "anchor": "pub struct Index",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-index/src/host.rs",
+    "line": 13,
+    "anchor": "impl CodeIndex for Index",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/coding_pack.rs",
+    "line": 117,
+    "anchor": "pub fn product_session_host",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/cli_index.rs",
+    "line": 69,
+    "anchor": "impl",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 175,
+    "anchor": "pub struct Store",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/resume.rs",
+    "line": 9,
+    "anchor": "pub const RESUME_MESSAGE_CAP",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/resume.rs",
+    "line": 16,
+    "anchor": "pub fn rehydrate_messages",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 198,
+    "anchor": "pub struct SharedStore",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-memory/src/lib.rs",
+    "line": 68,
+    "anchor": "pub enum StoreError",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-artifact/src/store.rs",
+    "line": 15,
+    "anchor": "const MAX_ARTIFACT_SIZE_BYTES",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-artifact/src/store.rs",
+    "line": 36,
+    "anchor": "pub enum ScanPolicy",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-artifact/src/store.rs",
+    "line": 52,
+    "anchor": "impl LocalArtifactStore",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-artifact/src/quarantine.rs",
+    "line": 49,
+    "anchor": "pub fn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/strata/tetonic-artifact/src/gc.rs",
+    "line": 22,
+    "anchor": "pub fn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-transaction/src/service.rs",
+    "line": 559,
+    "anchor": "pub fn commit(",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-transaction/src/service.rs",
+    "line": 171,
+    "anchor": "pub fn abort",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-transaction/src/recovery.rs",
+    "line": 22,
+    "anchor": "pub fn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-transaction/src/service.rs",
+    "line": 559,
+    "anchor": "pub fn commit(",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-sandbox/src/backend/mod.rs",
+    "line": 38,
+    "anchor": "pub trait SandboxBackend",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/lsp_launcher.rs",
+    "line": 41,
+    "anchor": "impl LspProcessLauncher",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-lsp/src/lib.rs",
+    "line": 13,
+    "anchor": "pub use client",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-capacity/src/optimizer.rs",
+    "line": 102,
+    "anchor": "pub async fn run_optimize",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/capacity_service.rs",
+    "line": 72,
+    "anchor": "impl CapacityService for DefaultCapacityService",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-capacity/src/optimizer.rs",
+    "line": 102,
+    "anchor": "pub async fn run_optimize",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/product_submit.rs",
+    "line": 413,
+    "anchor": "pub fn reload_inference_services",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-inference/src/lib.rs",
+    "line": 19,
+    "anchor": "pub mod hosted",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 54,
+    "anchor": "pub async fn",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 118,
+    "anchor": "OllamaProvider::new",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-policy/src/engine.rs",
+    "line": 55,
+    "anchor": "impl PolicyEngine",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-egress/src/lib.rs",
+    "line": 90,
+    "anchor": "pub struct EgressGuard",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-secrets/src/lib.rs",
+    "line": 46,
+    "anchor": "pub fn redact_json_value",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-secrets/src/lib.rs",
+    "line": 38,
+    "anchor": "pub fn redact_text_sync_lossy",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-secrets/src/lib.rs",
+    "line": 81,
+    "anchor": "pub fn install_shared_scanner",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/core/tetonic-telemetry/src/lib.rs",
+    "line": 26,
+    "anchor": "pub use storage",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/litho/lokaid/src/main.rs",
+    "line": 76,
+    "anchor": "init_subscriber",
+    "document": "subsystems.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/observability.rs",
+    "line": 6,
+    "anchor": "pub struct TraceStore",
+    "document": "subsystems.md"
+  }
+]

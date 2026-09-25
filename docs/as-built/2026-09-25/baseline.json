@@ -1,0 +1,96 @@
+{
+  "baseline": "0f722054c691ee90f57391fe8e9fafbe9a99a108",
+  "branch": "feature/domain-pack-decoupling",
+  "tracked_files": 959,
+  "categories": {
+    "documentation/instructions: content excluded from behavioral evidence": 144,
+    "other text/resource: explicit inventory; semantics not inferred": 8,
+    "configuration/schema/workflow/data: structured text scan": 20,
+    "generated dependency lock: resolved inputs, not execution": 2,
+    "Cargo manifest: package/build/dependency configuration": 34,
+    "isolated historical audit probe, not engine production code": 1,
+    "Rust source: whole-file lexical extraction; semantic review varies": 533,
+    "test: verifies selected behavior, not production reachability": 132,
+    "fixture: representative input/adversarial data, not production wiring": 64,
+    "script: whole-file lexical extraction": 20,
+    "generated TypeScript protocol declarations: lexical extraction; generator/schema define provenance": 1
+  },
+  "text_artifacts_scanned": 784,
+  "declarations": 9811,
+  "table_declarations": 69,
+  "binary_targets": [
+    {
+      "name": "tetonic-sandbox-adv",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/core/tetonic-sandbox/bins/adversarial_runner.rs"
+    },
+    {
+      "name": "tetonic-server",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/mantle/tetonic-server/src/main.rs"
+    },
+    {
+      "name": "lokai",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/litho/lokai-cli/src/main.rs"
+    },
+    {
+      "name": "lsp-mock-server",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/litho/tetonic-lsp/tests/support/mock_server.rs"
+    },
+    {
+      "name": "tetonic-eval",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/tooling/tetonic-eval/src/main.rs"
+    },
+    {
+      "name": "lokaid",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/litho/lokaid/src/main.rs"
+    },
+    {
+      "name": "tetonic-arch-gate",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/tooling/tetonic-arch-gate/src/main.rs"
+    },
+    {
+      "name": "tetonic-bench",
+      "kind": [
+        "bin"
+      ],
+      "source": "engine/tooling/tetonic-bench/src/main.rs"
+    }
+  ],
+  "limitations": [
+    "lexical index is not a resolved call graph",
+    "documentation prose excluded from behavioral evidence",
+    "all bytes inventoried; not every statement manually verified",
+    "untracked pre-existing files outside baseline"
+  ],
+  "untracked_at_capture": [
+    "docs/design/buzz-website-notes.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/LOCAL-IMPLEMENTATION.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/README.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-601-tetonic-server-binary.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-602-websocket-world-adapter.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-603-inference-provider-wiring.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-604-agent-lifecycle-world-connection.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-605-twp-alignment-village-brain.md",
+    "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-606-e2e-demo-runner-retirement.md"
+  ]
+}

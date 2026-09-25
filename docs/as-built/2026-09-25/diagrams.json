@@ -1,0 +1,247 @@
+[
+  {
+    "document": "atlas.md",
+    "number": 1,
+    "source": "flowchart LR\n  root[\"tetonic-core\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-inference\"]\n  root -->|normal| d2[\"tetonic-policy\"]\n  root -->|normal| d3[\"tetonic-telemetry\"]\n  root -->|dev| d4[\"tetonic-tools\"]\n  root -->|dev| d5[\"tetonic-transaction\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 2,
+    "source": "flowchart LR\n  root[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 3,
+    "source": "flowchart LR\n  root[\"tetonic-inference\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-egress\"]\n  root -->|normal| d2[\"tetonic-fabric-protocol\"]\n  root -->|normal| d3[\"tetonic-policy\"]\n  root -->|normal| d4[\"tetonic-telemetry\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 4,
+    "source": "flowchart LR\n  root[\"tetonic-egress\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 5,
+    "source": "flowchart LR\n  root[\"tetonic-fabric-protocol\"]\n  root -->|normal| d0[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 6,
+    "source": "flowchart LR\n  root[\"tetonic-policy\"]\n  root -->|normal| d0[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 7,
+    "source": "flowchart LR\n  root[\"tetonic-telemetry\"]\n  root -->|normal| d0[\"tetonic-secrets\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 8,
+    "source": "flowchart LR\n  root[\"tetonic-secrets\"]\n  root -->|normal| d0[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 9,
+    "source": "flowchart LR\n  root[\"tetonic-tools\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-memory\"]\n  root -->|normal| d2[\"tetonic-policy\"]\n  root -->|normal| d3[\"tetonic-sandbox\"]\n  root -->|normal| d4[\"tetonic-secrets\"]\n  root -->|normal| d5[\"tetonic-telemetry\"]\n  root -->|normal| d6[\"tetonic-transaction\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 10,
+    "source": "flowchart LR\n  root[\"tetonic-memory\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-policy\"]\n  root -->|normal| d2[\"tetonic-telemetry\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 11,
+    "source": "flowchart LR\n  root[\"tetonic-sandbox\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-secrets\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 12,
+    "source": "flowchart LR\n  root[\"tetonic-transaction\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-telemetry\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 13,
+    "source": "flowchart LR\n  root[\"tetonic-runtime\"]\n  root -->|normal| d0[\"tetonic-core\"]\n  root -->|normal| d1[\"tetonic-domain\"]\n  root -->|normal| d2[\"tetonic-inference\"]\n  root -->|normal| d3[\"tetonic-memory\"]\n  root -->|normal| d4[\"tetonic-policy\"]\n  root -->|normal| d5[\"tetonic-secrets\"]\n  root -->|dev| d6[\"tetonic-artifact\"]\n  root -->|dev| d7[\"tetonic-context\"]\n  root -->|dev| d8[\"tetonic-egress\"]\n  root -->|dev| d9[\"tetonic-tools\"]\n  root -->|dev| d10[\"tetonic-transaction\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 14,
+    "source": "flowchart LR\n  root[\"tetonic-artifact\"]\n  root -->|normal| d0[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 15,
+    "source": "flowchart LR\n  root[\"tetonic-context\"]\n  root -->|normal| d0[\"tetonic-artifact\"]\n  root -->|normal| d1[\"tetonic-domain\"]\n  root -->|normal| d2[\"tetonic-secrets\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 16,
+    "source": "flowchart LR\n  root[\"tetonic-broker\"]\n  root -->|normal| d0[\"tetonic-domain\"]\n  root -->|normal| d1[\"tetonic-fabric-protocol\"]\n  root -->|normal| d2[\"tetonic-inference\"]\n  root -->|normal| d3[\"tetonic-memory\"]\n  root -->|normal| d4[\"tetonic-run\"]\n  root -->|normal| d5[\"tetonic-telemetry\"]\n  root -->|dev| d6[\"tetonic-secrets\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 17,
+    "source": "flowchart LR\n  root[\"tetonic-run\"]\n  root -->|normal| d0[\"tetonic-artifact\"]\n  root -->|normal| d1[\"tetonic-core\"]\n  root -->|normal| d2[\"tetonic-domain\"]\n  root -->|normal| d3[\"tetonic-memory\"]\n  root -->|normal| d4[\"tetonic-policy\"]\n  root -->|normal| d5[\"tetonic-runtime\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 18,
+    "source": "flowchart LR\n  root[\"tetonic-capacity\"]\n  root -->|normal| d0[\"tetonic-inference\"]\n  root -->|normal| d1[\"tetonic-memory\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 19,
+    "source": "flowchart LR\n  root[\"tetonic-enroll\"]\n  root -->|normal| d0[\"tetonic-egress\"]\n  root -->|dev| d1[\"tetonic-node\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 20,
+    "source": "flowchart LR\n  root[\"tetonic-node\"]\n  root -->|normal| d0[\"tetonic-capacity\"]\n  root -->|normal| d1[\"tetonic-domain\"]\n  root -->|normal| d2[\"tetonic-egress\"]\n  root -->|normal| d3[\"tetonic-enroll\"]\n  root -->|normal| d4[\"tetonic-fabric-client\"]\n  root -->|normal| d5[\"tetonic-fabric-protocol\"]\n  root -->|normal| d6[\"tetonic-inference\"]\n  root -->|normal| d7[\"tetonic-memory\"]\n  root -->|normal| d8[\"tetonic-sandbox\"]\n  root -->|normal| d9[\"tetonic-secrets\"]\n  root -->|dev| d10[\"tetonic-enroll\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 21,
+    "source": "flowchart LR\n  root[\"tetonic-fabric-client\"]\n  root -->|normal| d0[\"tetonic-artifact\"]\n  root -->|normal| d1[\"tetonic-domain\"]\n  root -->|normal| d2[\"tetonic-egress\"]\n  root -->|normal| d3[\"tetonic-enroll\"]\n  root -->|normal| d4[\"tetonic-fabric-protocol\"]\n  root -->|normal| d5[\"tetonic-inference\"]\n  root -->|normal| d6[\"tetonic-memory\"]\n  root -->|normal| d7[\"tetonic-telemetry\"]\n  root -->|normal| d8[\"tetonic-transaction\"]\n  root -->|dev| d9[\"tetonic-run\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 22,
+    "source": "flowchart LR\n  root[\"tetonic-orchestrator\"]\n  root -->|normal| d0[\"tetonic-context\"]\n  root -->|normal| d1[\"tetonic-core\"]\n  root -->|normal| d2[\"tetonic-domain\"]\n  root -->|normal| d3[\"tetonic-inference\"]\n  root -->|normal| d4[\"tetonic-memory\"]\n  root -->|normal| d5[\"tetonic-policy\"]\n  root -->|dev| d6[\"tetonic-index\"]\n  root -->|dev| d7[\"tetonic-runtime\"]\n  root -->|dev| d8[\"tetonic-tools\"]\n  root -->|dev| d9[\"tetonic-transaction\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 23,
+    "source": "flowchart LR\n  root[\"tetonic-index\"]\n  root -->|normal| d0[\"tetonic-domain\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 24,
+    "source": "flowchart LR\n  root[\"tetonic-server\"]\n  root -->|normal| d0[\"tetonic-core\"]\n  root -->|normal| d1[\"tetonic-domain\"]\n  root -->|normal| d2[\"tetonic-egress\"]\n  root -->|normal| d3[\"tetonic-inference\"]\n  root -->|normal| d4[\"tetonic-runtime\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 25,
+    "source": "flowchart LR\n  root[\"lokai-cli\"]\n  root -->|normal| d0[\"tetonic-app\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 26,
+    "source": "flowchart LR\n  root[\"tetonic-app\"]\n  root -->|normal| d0[\"tetonic-artifact\"]\n  root -->|normal| d1[\"tetonic-broker\"]\n  root -->|normal| d2[\"tetonic-capacity\"]\n  root -->|normal| d3[\"tetonic-context\"]\n  root -->|normal| d4[\"tetonic-core\"]\n  root -->|normal| d5[\"tetonic-domain\"]\n  root -->|normal| d6[\"tetonic-egress\"]\n  root -->|normal| d7[\"tetonic-enroll\"]\n  root -->|normal| d8[\"tetonic-fabric-client\"]\n  root -->|normal| d9[\"tetonic-fabric-protocol\"]\n  root -->|normal| d10[\"tetonic-index\"]\n  root -->|normal| d11[\"tetonic-inference\"]\n  root -->|normal| d12[\"tetonic-lsp\"]\n  root -->|normal| d13[\"tetonic-memory\"]\n  root -->|normal| d14[\"tetonic-node\"]\n  root -->|normal| d15[\"tetonic-orchestrator\"]\n  root -->|normal| d16[\"tetonic-policy\"]\n  root -->|normal| d17[\"tetonic-run\"]\n  root -->|normal| d18[\"tetonic-runtime\"]\n  root -->|normal| d19[\"tetonic-sandbox\"]\n  root -->|normal| d20[\"tetonic-secrets\"]\n  root -->|normal| d21[\"tetonic-telemetry\"]\n  root -->|normal| d22[\"tetonic-tools\"]\n  root -->|normal| d23[\"tetonic-transaction\"]\n  root -->|dev| d24[\"tetonic-eval\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 27,
+    "source": "flowchart LR\n  root[\"tetonic-lsp\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 28,
+    "source": "flowchart LR\n  root[\"tetonic-eval\"]\n  root -->|normal| d0[\"tetonic-app\"]\n  root -->|normal| d1[\"tetonic-artifact\"]\n  root -->|normal| d2[\"tetonic-broker\"]\n  root -->|normal| d3[\"tetonic-core\"]\n  root -->|normal| d4[\"tetonic-domain\"]\n  root -->|normal| d5[\"tetonic-inference\"]\n  root -->|normal| d6[\"tetonic-memory\"]\n  root -->|normal| d7[\"tetonic-orchestrator\"]\n  root -->|normal| d8[\"tetonic-policy\"]\n  root -->|normal| d9[\"tetonic-runtime\"]\n  root -->|normal| d10[\"tetonic-sandbox\"]\n  root -->|normal| d11[\"tetonic-secrets\"]\n  root -->|normal| d12[\"tetonic-telemetry\"]\n  root -->|dev| d13[\"tetonic-artifact\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 29,
+    "source": "flowchart LR\n  root[\"lokaid\"]\n  root -->|normal| d0[\"tetonic-app\"]\n  root -->|normal| d1[\"tetonic-rpc\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 30,
+    "source": "flowchart LR\n  root[\"tetonic-rpc\"]\n  root -->|normal| d0[\"tetonic-telemetry\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 31,
+    "source": "flowchart LR\n  root[\"tetonic-arch-gate\"]\n  root -->|normal| d0[\"tetonic-rpc\"]\n  root -->|dev| d1[\"tetonic-artifact\"]\n  root -->|dev| d2[\"tetonic-core\"]\n  root -->|dev| d3[\"tetonic-domain\"]\n  root -->|dev| d4[\"tetonic-egress\"]\n  root -->|dev| d5[\"tetonic-inference\"]\n  root -->|dev| d6[\"tetonic-memory\"]\n  root -->|dev| d7[\"tetonic-policy\"]\n  root -->|dev| d8[\"tetonic-runtime\"]\n  root -->|dev| d9[\"tetonic-tools\"]\n  root -->|dev| d10[\"tetonic-transaction\"]"
+  },
+  {
+    "document": "atlas.md",
+    "number": 32,
+    "source": "flowchart LR\n  root[\"tetonic-bench\"]\n  root -->|normal| d0[\"tetonic-core\"]\n  root -->|normal| d1[\"tetonic-index\"]\n  root -->|normal| d2[\"tetonic-tools\"]"
+  },
+  {
+    "document": "entrypoints.md",
+    "number": 1,
+    "source": "flowchart TD\n  M[lokaid main] -->|flag dispatch| Choice{Mode}\n  Choice -->|print schema| Schema[Print schema and return]\n  Choice -->|supervise| Parent[Re-exec child with restart backoff]\n  Choice -->|node without combined| Worker[Enroll or serve worker]\n  Choice -->|default or combined| RT[Tokio runtime: four workers plus LocalSet]\n  RT -->|open| Audit[(Audit store)]\n  RT -->|construct| Queue[Redacted bounded outbound queue]\n  Queue -.->|wake delivery| Writer[Single stdout writer task]\n  RT -->|optional spawn_local| Fabric[Combined fabric listener]\n  RT -->|construct| Daemon[Daemon: initially no services]\n  Daemon -.->|read framed stdin| Handle[Authenticate and dispatch]\n  Handle -->|initialize awaits bootstrap| App[Application plus EngineServices]\n  Handle -->|EOF / writer exit / shutdown| Drain[Cancel sessions and bounded drain]\n  Drain -->|abort| Writer"
+  },
+  {
+    "document": "entrypoints.md",
+    "number": 2,
+    "source": "flowchart LR\n  C[TOML config] -->|parse and validate| Main[main]\n  Main -->|construct| P[OllamaProvider plus loopback EgressGuard]\n  Main -->|spawn transport task| A[WebSocketWorldAdapter]\n  Main -->|construct| B[PerceptiveBrain wrapping SingleModelBrain]\n  P -->|provider dependency| B\n  Main -->|construct| Agent[Agent with EmptyToolHost]\n  B -->|Brain implementation| Agent\n  Agent -->|await run_in_world| A\n  A -.->|WebSocket| World[External world]\n  B -->|observer events| Trace[Volatile TraceStore]\n  A -->|observer events| Trace\n  Main -.->|spawn HTTP listener and per-connection tasks| Health[Health / debug trace endpoint]\n  Health -->|read| Trace"
+  },
+  {
+    "document": "execution.md",
+    "number": 1,
+    "source": "sequenceDiagram\n  participant Client as CLI or RPC handler\n  participant App as Application / live session\n  participant Runs as Run service / durable supervisor\n  participant DB as Optional SQLite store\n  participant Agent as Local attempt executor / Agent\n  participant Model as Broker-backed provider\n  participant Tools as Authorized tool runtime\n  Client->>App: Submit chat turn or spawn command (local call)\n  App->>App: Admission and acquire conversation ownership\n  App->>Runs: Build identity/job binding and prepare managed execution\n  Runs->>DB: Persist command, event and projection when configured\n  Runs->>Agent: Claim execution and invoke attempt\n  loop Until final answer, cancellation, error or step limit\n    Agent->>Agent: Compile context and request metadata\n    Agent->>Model: Await chat request\n    Model-->>Agent: Stream/deliver response\n    opt Model requests tools\n      Agent->>Tools: Validate and authorize proposed calls\n      Tools-->>Agent: Results or denial/error\n      Agent->>Agent: Append conversation state\n    end\n  end\n  Agent-->>Runs: Attempt outcome\n  Runs->>DB: Record completion/failure through supervisor\n  App->>App: Return conversation, end turn and deliver result\n  App-->>Client: Asynchronous events / final completion"
+  },
+  {
+    "document": "execution.md",
+    "number": 2,
+    "source": "flowchart TD\n  Request[Application ChatRequest with execution identity] -->|await chat| Wrapper[BrokerInferenceProvider]\n  Wrapper -->|submit / admit| Broker[DefaultComputeBroker]\n  Broker -->|read run task attempt and reserve budget| Sup[Supervisor and reservation state]\n  Broker -->|dispatch adapter| Provider[Configured inference provider]\n  Provider -->|local route| Local[OllamaProvider]\n  Provider -->|pooled eligible route| Remote[Remote fabric client]\n  Local -.->|HTTP request / streamed response| O[Local Ollama]\n  Remote -.->|TLS signed fabric request| Ingress[Worker ingress]\n  Ingress -->|validate / deduplicate / lease| WS[(Worker store and live lease table)]\n  Ingress -.->|HTTP infer| WO[Worker Ollama]\n  Ingress -.->|result / stream frames| Remote\n  Remote -->|validate identity lease digests signature| Result[Accepted or rejected result]\n  Result -->|settle / release reservation| Broker"
+  },
+  {
+    "document": "execution.md",
+    "number": 3,
+    "source": "flowchart LR\n  T[Proposed tool action] -->|canonicalize| P[RuntimeActionBroker]\n  P -->|evaluate action| Policy[Policy engine]\n  Policy -->|deny| Deny[No capability / error]\n  Policy -->|approval required| Approve[Attempt approval hook]\n  Approve -->|approved| Cap[Issue scoped single-use capability]\n  Policy -->|allow| Cap\n  Cap -->|register / consume / validate| Exec[Authorized ToolHost]\n  Exec -->|workspace edit| Tx[Transaction staging and journal]\n  Exec -->|process request| Sandbox[Platform sandbox backend]\n  Tx -->|commit / rollback| Files[(Workspace files)]\n  Sandbox -.->|spawn / wait / cancel| Child[OS child process]"
+  },
+  {
+    "document": "execution.md",
+    "number": 4,
+    "source": "sequenceDiagram\n  participant World as External world authority\n  participant Adapter as WebSocket adapter task\n  participant WorldAgent as Agent run_in_world\n  participant Brain as PerceptiveBrain\n  participant Model as SingleModelBrain / Ollama\n  World-->>Adapter: WebSocket perception packet\n  Adapter->>Adapter: Parse, apply stop/connection epoch, add last receipt and cadence signal\n  Adapter-->>WorldAgent: try_send into bounded perception queue\n  WorldAgent->>WorldAgent: Drain backlog, retain latest and apply SensoryFilter\n  WorldAgent->>Brain: Await perceive\n  Brain->>Brain: Scope memory, build bounded context and choose cadence\n  Brain->>Model: Await structured-decision inference over HTTP\n  Model-->>Brain: Deltas and completed response or error\n  alt Valid complete decision\n    Brain-->>Adapter: Queue acknowledgement for included event ids\n    Brain-->>WorldAgent: WorldAction with decision and epoch metadata\n    WorldAgent->>WorldAgent: Validate manifest and emergency stop\n    WorldAgent->>Adapter: Await execute(action)\n    Adapter-->>World: WebSocket action with unique action_id\n    World-->>Adapter: Correlated action_result\n    Adapter-->>WorldAgent: ActionResult or timeout/disconnection error\n  else Timeout / malformed / truncated decision\n    Brain-->>WorldAgent: No valid action / error path\n    Note over Brain,World: No successful-decision acknowledgement from this branch\n  end"
+  },
+  {
+    "document": "operations.md",
+    "number": 1,
+    "source": "flowchart TD\n  Cancel[Application cancel / daemon shutdown] -->|close admission and signal| Scope[WorkScope cancellation]\n  Cancel -->|supervisor command| Run[Canceled run projection]\n  Scope -->|observed at await/check boundaries| Exec[Agent / broker / process work]\n  Exec -->|leases released after cleanup| Quiet[Quiescence]\n  Stop[World E-Stop packet or adapter stop] -->|set switch / invalidate epoch| Epoch[Adapter stop state]\n  Epoch -->|reject stale or stopped action| Gate[Action dispatch gate]\n  Ctrl[Server Ctrl+C] -->|select branch / process return| End[Runtime tasks dropped]"
+  },
+  {
+    "document": "operations.md",
+    "number": 2,
+    "source": "flowchart LR\n  App[Application lifecycle / tool / run events] -->|local callbacks| Audit[(Configured audit / run store)]\n  App -->|event translation| RPC[Notifier and redacted queue]\n  RPC -.->|framed stdio| UI[Editor / client]\n  Brain[World inference request / delta / response / parse] -->|observer callback| Trace[Bounded volatile TraceStore]\n  Adapter[Action submit / result / error] -->|observer callback| Trace\n  Trace -->|payload-free status| Health[Health snapshot]\n  Trace -.->|HTTP cursor polling when enabled| Debug[Raw debug trace consumer]"
+  },
+  {
+    "document": "README.md",
+    "number": 1,
+    "source": "flowchart TB\n  User[CLI user] -->|in-process CLI commands| CLI[lokai process]\n  Editor[Editor client] -.->|async framed JSON-RPC over stdio| D[lokaid coordinator process]\n  CLI -->|constructs| App[Application and coding runtime]\n  D -->|constructs on initialize| App\n  App -->|awaited provider calls| CP[Compute broker and provider routing]\n  CP -.->|HTTP inference| O[Local Ollama process]\n  CP -.->|TLS fabric requests| W[lokaid worker process]\n  W -.->|HTTP inference| WO[Worker Ollama process]\n  App -->|read / serialized write| DB[(Coordinator SQLite stores)]\n  App -->|authorized effects| FS[Workspace and sandboxed children]\n  S[tetonic-server process] -->|constructs| B[PerceptiveBrain and Agent world loop]\n  B -.->|HTTP inference| O\n  B -.->|WebSocket actions / perceptions / receipts| World[External world authority]\n  S -->|owns in RAM| RAM[Experience and trace buffers]"
+  },
+  {
+    "document": "state.md",
+    "number": 1,
+    "source": "flowchart TD\n  Cmd[RunCommand plus envelope] -->|await acquire| Lock[Per-run mutex]\n  Lock -->|load and validate sequence / dedup| Snapshot[Current RunSnapshot]\n  Snapshot -->|apply command| Transition[Transition / DAG / lease / acceptance checks]\n  Transition -->|persistent mode: transactional commit| DB[(Projection plus event plus command dedup)]\n  Transition -->|memory mode| RAM[In-memory projection / events / dedup]\n  DB -->|after commit| Hook[Run event hook]\n  DB -->|read journal / compaction snapshot| Replay[Replay and recovery verification]\n  Replay -->|verified projection or recovery required| Snapshot"
+  },
+  {
+    "document": "state.md",
+    "number": 2,
+    "source": "stateDiagram-v2\n  [*] --> Created: CreateRun\n  Created --> Active: StartRun\n  Created --> Succeeded: FinishRun success\n  Created --> Failed: FinishRun failure\n  Active --> Succeeded: FinishRun success\n  Active --> Failed: FinishRun failure\n  Created --> Canceled: CancelRun or FinishRun canceled\n  Active --> Canceled: CancelRun or FinishRun canceled\n  RecoveryRequired --> Canceled: CancelRun with inspected expected sequence"
+  },
+  {
+    "document": "state.md",
+    "number": 3,
+    "source": "flowchart TD\n  T[Created task] -->|dependency recomputation| B[Blocked or Ready]\n  B -->|Ready plus CreateAttempt| L[Task Leased / Attempt Created]\n  L -->|LeaseAttempt| AL[Attempt Leased]\n  AL -->|StartAttempt plus proof| R[Attempt Running / Task Running]\n  R -->|ClaimExecution once| Dispatch[Executor may run]\n  Dispatch -->|CompleteAttempt validated| Success[Attempt Succeeded / winner selection]\n  Success -->|AcceptArtifact| Accepted[Task Succeeded / artifact reference]\n  Success -->|RejectArtifact| Failure[Verification failure and retry evaluation]\n  AL -->|FailAttempt or ExpireLease| Failure\n  R -->|FailAttempt or ExpireLease| Failure\n  Failure -->|retry policy and side-effect safety permit| Retry[Task Ready with next_retry_at]\n  Failure -->|no retry| TF[Task Failed / dependency propagation]\n  Retry -->|subsequent admitted attempt| L"
+  },
+  {
+    "document": "state.md",
+    "number": 4,
+    "source": "flowchart LR\n  Session[Session identity] -->|associated run id| Run[Run projection]\n  Run -->|contains task records and dependency edges| Task[Task binding and state]\n  Task -->|attempt identity / winner| Attempt[Attempt record and lease]\n  Attempt -->|validated completion| Result[Result digest]\n  Task -->|accepted reference| Artifact[Artifact identity]\n  Artifact -->|resolves separately| CAS[(Artifact content store)]\n  Run -->|sequence and commands| Events[(Run journal and dedup records)]\n  Session -->|separate storage| Messages[(Messages / tool and audit records)]"
+  },
+  {
+    "document": "subsystems.md",
+    "number": 1,
+    "source": "flowchart TD\n  Input[Turn input and root attempt] -->|await| O[run_orchestrated_turn]\n  Pack[CodingPack / definition] -->|roles / schemas / limits| O\n  O -->|local route decision| Route[Primary agent selection]\n  Route -->|factory callback| Agent[Agent plus invocation]\n  Agent -->|RootExecute interface| Managed[Application managed executor]\n  O -->|optional ChildJob admission| Child[Child task / attempt]\n  Child -->|execute and complete via callbacks| Managed\n  O -->|conditional result review| Critic[Critic and optional revision]\n  Managed -->|candidate outcome| Outcome[Turn tracker and final outcome]\n  Critic -->|candidate outcome| Outcome"
+  },
+  {
+    "document": "subsystems.md",
+    "number": 2,
+    "source": "flowchart LR\n  R[ContextRequest] -->|validate session| N[Normalize]\n  N -->|await provider| Retrieve[Retrieve candidates]\n  Retrieve -->|path / classification checks| F[Filter]\n  F -->|score| Rank[Rank]\n  Rank -->|remove duplicates| D[Dedupe]\n  D -->|fit configured budget| B[Budget plus omission records]\n  B -->|await seal| S[ContextPack / optional artifact]\n  S -->|recheck revocation and limits| H[Register expansion handles in RAM]"
+  },
+  {
+    "document": "subsystems.md",
+    "number": 3,
+    "source": "flowchart TD\n  Staged[Staged read/write sets] -->|conflict and approval checks| Lock[Acquire writer lock]\n  Lock -->|persist before applying| Journal[(Commit journal and backups)]\n  Journal -->|apply operations| Apply[Workspace mutation]\n  Apply -->|success| Commit[Committed / result version / artifact]\n  Apply -->|error| Rollback[Attempt rollback]\n  Rollback -->|persist| Recover[RecoveryRequired]"
+  },
+  {
+    "document": "subsystems.md",
+    "number": 4,
+    "source": "flowchart LR\n  Operator[CLI / RPC capacity command] -->|application service| Optimize[Optimizer job]\n  Optimize -.->|await HTTP probes and benchmarks| Ollama[Local inference runtime]\n  Optimize -->|candidate gates and score| Select[Choose / apply recipe]\n  Select -.->|warm and measure applied tag| Ollama\n  Select -->|write profile / binding| Store[(Capacity tables)]\n  Store -->|later reload / admission read| Defaults[Session defaults and gates]"
+  }
+]

@@ -1,0 +1,1779 @@
+[
+  {
+    "name": "tetonic-core",
+    "manifest": "engine/core/tetonic-core/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_core",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-core/src/lib.rs"
+      },
+      {
+        "name": "aud01_characterization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-core/tests/aud01_characterization.rs"
+      },
+      {
+        "name": "sub04_loop",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-core/tests/sub04_loop.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-domain",
+    "manifest": "engine/core/tetonic-domain/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_domain",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-domain/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": []
+  },
+  {
+    "name": "tetonic-inference",
+    "manifest": "engine/atmos/tetonic-inference/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_inference",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/atmos/tetonic-inference/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-protocol",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-egress",
+    "manifest": "engine/atmos/tetonic-egress/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_egress",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/atmos/tetonic-egress/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": []
+  },
+  {
+    "name": "tetonic-fabric-protocol",
+    "manifest": "engine/atmos/tetonic-fabric-protocol/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_fabric_protocol",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/atmos/tetonic-fabric-protocol/src/lib.rs"
+      },
+      {
+        "name": "capability_conformance",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-protocol/tests/capability_conformance.rs"
+      },
+      {
+        "name": "conformance",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-protocol/tests/conformance.rs"
+      },
+      {
+        "name": "fuzz_decode",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-protocol/tests/fuzz_decode.rs"
+      },
+      {
+        "name": "result_integrity",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-protocol/tests/result_integrity.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-policy",
+    "manifest": "engine/core/tetonic-policy/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_policy",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-policy/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-telemetry",
+    "manifest": "engine/core/tetonic-telemetry/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_telemetry",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-telemetry/src/lib.rs"
+      },
+      {
+        "name": "integration_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-telemetry/tests/integration_tests.rs"
+      },
+      {
+        "name": "m6_3_timing_matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-telemetry/tests/m6_3_timing_matrix.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-secrets",
+    "manifest": "engine/core/tetonic-secrets/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_secrets",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-secrets/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-tools",
+    "manifest": "engine/litho/tetonic-tools/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_tools",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/litho/tetonic-tools/src/lib.rs"
+      },
+      {
+        "name": "exec_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-tools/tests/exec_tests.rs"
+      },
+      {
+        "name": "process_executor_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-tools/tests/process_executor_tests.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-sandbox",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-memory",
+    "manifest": "engine/strata/tetonic-memory/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_memory",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/strata/tetonic-memory/src/lib.rs"
+      },
+      {
+        "name": "h2_2_store_concurrency",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/strata/tetonic-memory/tests/h2_2_store_concurrency.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-sandbox",
+    "manifest": "engine/core/tetonic-sandbox/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_sandbox",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-sandbox/src/lib.rs"
+      },
+      {
+        "name": "tetonic-sandbox-adv",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/core/tetonic-sandbox/bins/adversarial_runner.rs"
+      },
+      {
+        "name": "adversarial",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-sandbox/tests/adversarial.rs"
+      },
+      {
+        "name": "audit_20260919",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-sandbox/tests/audit_20260919.rs"
+      },
+      {
+        "name": "h1_3_os_confinement",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-sandbox/tests/h1_3_os_confinement.rs"
+      },
+      {
+        "name": "process_executor_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-sandbox/tests/process_executor_tests.rs"
+      },
+      {
+        "name": "unix_lifecycle",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-sandbox/tests/unix_lifecycle.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-transaction",
+    "manifest": "engine/core/tetonic-transaction/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_transaction",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-transaction/src/lib.rs"
+      },
+      {
+        "name": "audit_20260919",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-transaction/tests/audit_20260919.rs"
+      },
+      {
+        "name": "matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-transaction/tests/matrix.rs"
+      },
+      {
+        "name": "readiness_paths",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-transaction/tests/readiness_paths.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-runtime",
+    "manifest": "engine/core/tetonic-runtime/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_runtime",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/core/tetonic-runtime/src/lib.rs"
+      },
+      {
+        "name": "metadata_graph",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-runtime/tests/metadata_graph.rs"
+      },
+      {
+        "name": "twp_sanity_soak",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/core/tetonic-runtime/tests/twp_sanity_soak.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-artifact",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-context",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-artifact",
+    "manifest": "engine/strata/tetonic-artifact/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_artifact",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/strata/tetonic-artifact/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-context",
+    "manifest": "engine/strata/tetonic-context/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_context",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/strata/tetonic-context/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-artifact",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-broker",
+    "manifest": "engine/mantle/tetonic-broker/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_broker",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-broker/src/lib.rs"
+      },
+      {
+        "name": "admission_matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-broker/tests/admission_matrix.rs"
+      },
+      {
+        "name": "no_v4_dispatch",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-broker/tests/no_v4_dispatch.rs"
+      },
+      {
+        "name": "scheduler_bench",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-broker/tests/scheduler_bench.rs"
+      },
+      {
+        "name": "scheduler_matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-broker/tests/scheduler_matrix.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-protocol",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-run",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-run",
+    "manifest": "engine/mantle/tetonic-run/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_run",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-run/src/lib.rs"
+      },
+      {
+        "name": "cmp02_hop",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/cmp02_hop.rs"
+      },
+      {
+        "name": "execution_claim",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/execution_claim.rs"
+      },
+      {
+        "name": "fault_matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/fault_matrix.rs"
+      },
+      {
+        "name": "harness",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/harness.rs"
+      },
+      {
+        "name": "legacy_event_replay",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/legacy_event_replay.rs"
+      },
+      {
+        "name": "m3_4_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/m3_4_tests.rs"
+      },
+      {
+        "name": "m6_durable_integrity",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/m6_durable_integrity.rs"
+      },
+      {
+        "name": "managed_service_tests",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/managed_service_tests.rs"
+      },
+      {
+        "name": "matrix",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/matrix.rs"
+      },
+      {
+        "name": "workfin01_claim",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-run/tests/workfin01_claim.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-artifact",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-capacity",
+    "manifest": "engine/mantle/tetonic-capacity/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_capacity",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-capacity/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-enroll",
+    "manifest": "engine/mantle/tetonic-enroll/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_enroll",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-enroll/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-node",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-node",
+    "manifest": "engine/mantle/tetonic-node/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_node",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-node/src/lib.rs"
+      },
+      {
+        "name": "aud01_characterization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-node/tests/aud01_characterization.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-capacity",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-enroll",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-client",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-protocol",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-sandbox",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-enroll",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-fabric-client",
+    "manifest": "engine/atmos/tetonic-fabric-client/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_fabric_client",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/atmos/tetonic-fabric-client/src/lib.rs"
+      },
+      {
+        "name": "aud01_characterization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-client/tests/aud01_characterization.rs"
+      },
+      {
+        "name": "audit_20260919",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-client/tests/audit_20260919.rs"
+      },
+      {
+        "name": "result_accept_adversarial",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-fabric-client/tests/result_accept_adversarial.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-artifact",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-enroll",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-protocol",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-run",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-orchestrator",
+    "manifest": "engine/mantle/tetonic-orchestrator/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_orchestrator",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/mantle/tetonic-orchestrator/src/lib.rs"
+      },
+      {
+        "name": "aud01_characterization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/mantle/tetonic-orchestrator/tests/aud01_characterization.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-context",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-index",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-index",
+    "manifest": "engine/strata/tetonic-index/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_index",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/strata/tetonic-index/src/lib.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-server",
+    "manifest": "engine/mantle/tetonic-server/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic-server",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/mantle/tetonic-server/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "lokai-cli",
+    "manifest": "engine/litho/lokai-cli/Cargo.toml",
+    "targets": [
+      {
+        "name": "lokai",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/litho/lokai-cli/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-app",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-app",
+    "manifest": "engine/litho/tetonic-app/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_app",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/litho/tetonic-app/src/lib.rs"
+      },
+      {
+        "name": "approval_binding_regressions",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/approval_binding_regressions.rs"
+      },
+      {
+        "name": "aud01_characterization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/aud01_characterization.rs"
+      },
+      {
+        "name": "cap01_capabilities",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/cap01_capabilities.rs"
+      },
+      {
+        "name": "cli_assembly_parity",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/cli_assembly_parity.rs"
+      },
+      {
+        "name": "code01_definition",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/code01_definition.rs"
+      },
+      {
+        "name": "code02_pins",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/code02_pins.rs"
+      },
+      {
+        "name": "code03_pins",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/code03_pins.rs"
+      },
+      {
+        "name": "comp01_pins",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/comp01_pins.rs"
+      },
+      {
+        "name": "fin03_contracts",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/fin03_contracts.rs"
+      },
+      {
+        "name": "gate01_pins",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/gate01_pins.rs"
+      },
+      {
+        "name": "h2_3_spawn_budget",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/h2_3_spawn_budget.rs"
+      },
+      {
+        "name": "iface02_approval",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/iface02_approval.rs"
+      },
+      {
+        "name": "obs02_envelope",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/obs02_envelope.rs"
+      },
+      {
+        "name": "obs02_finalization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/obs02_finalization.rs"
+      },
+      {
+        "name": "portal01_pins",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/portal01_pins.rs"
+      },
+      {
+        "name": "sub01_loop",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/sub01_loop.rs"
+      },
+      {
+        "name": "sub02_host",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/sub02_host.rs"
+      },
+      {
+        "name": "sub03_isolation",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/sub03_isolation.rs"
+      },
+      {
+        "name": "sub04_compile",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/sub04_compile.rs"
+      },
+      {
+        "name": "v4_audit_corrections",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/v4_audit_corrections.rs"
+      },
+      {
+        "name": "v4_proof_09",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/v4_proof_09.rs"
+      },
+      {
+        "name": "work01_identity",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work01_identity.rs"
+      },
+      {
+        "name": "work02_execution",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work02_execution.rs"
+      },
+      {
+        "name": "work03_door",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work03_door.rs"
+      },
+      {
+        "name": "work04_lifetime",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work04_lifetime.rs"
+      },
+      {
+        "name": "work05_binding",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work05_binding.rs"
+      },
+      {
+        "name": "work06_session",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/work06_session.rs"
+      },
+      {
+        "name": "workfin01_finalization",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/workfin01_finalization.rs"
+      },
+      {
+        "name": "workfin02_terminal",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-app/tests/workfin02_terminal.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-artifact",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-broker",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-capacity",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-context",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-enroll",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-client",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-fabric-protocol",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-index",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-lsp",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-node",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-orchestrator",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-run",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-sandbox",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-eval",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-lsp",
+    "manifest": "engine/litho/tetonic-lsp/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_lsp",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/litho/tetonic-lsp/src/lib.rs"
+      },
+      {
+        "name": "lsp-mock-server",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/litho/tetonic-lsp/tests/support/mock_server.rs"
+      },
+      {
+        "name": "integration",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/litho/tetonic-lsp/tests/integration.rs"
+      }
+    ],
+    "internal_dependencies": []
+  },
+  {
+    "name": "tetonic-eval",
+    "manifest": "engine/tooling/tetonic-eval/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_eval",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/tooling/tetonic-eval/src/lib.rs"
+      },
+      {
+        "name": "tetonic-eval",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/tooling/tetonic-eval/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-app",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-artifact",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-broker",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-orchestrator",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-sandbox",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-secrets",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-artifact",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "lokaid",
+    "manifest": "engine/litho/lokaid/Cargo.toml",
+    "targets": [
+      {
+        "name": "lokaid",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/litho/lokaid/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-app",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-rpc",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-rpc",
+    "manifest": "engine/atmos/tetonic-rpc/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_rpc",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/atmos/tetonic-rpc/src/lib.rs"
+      },
+      {
+        "name": "audit_20260919",
+        "kind": [
+          "test"
+        ],
+        "source": "engine/atmos/tetonic-rpc/tests/audit_20260919.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-telemetry",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-arch-gate",
+    "manifest": "engine/tooling/tetonic-arch-gate/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic_arch_gate",
+        "kind": [
+          "lib"
+        ],
+        "source": "engine/tooling/tetonic-arch-gate/src/lib.rs"
+      },
+      {
+        "name": "tetonic-arch-gate",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/tooling/tetonic-arch-gate/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-rpc",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-artifact",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-core",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-domain",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-egress",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-inference",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-memory",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-policy",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-runtime",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": "dev",
+        "optional": false
+      },
+      {
+        "name": "tetonic-transaction",
+        "kind": "dev",
+        "optional": false
+      }
+    ]
+  },
+  {
+    "name": "tetonic-bench",
+    "manifest": "engine/tooling/tetonic-bench/Cargo.toml",
+    "targets": [
+      {
+        "name": "tetonic-bench",
+        "kind": [
+          "bin"
+        ],
+        "source": "engine/tooling/tetonic-bench/src/main.rs"
+      }
+    ],
+    "internal_dependencies": [
+      {
+        "name": "tetonic-core",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-index",
+        "kind": null,
+        "optional": false
+      },
+      {
+        "name": "tetonic-tools",
+        "kind": null,
+        "optional": false
+      }
+    ]
+  }
+]
