@@ -55,6 +55,11 @@ impl super::service::ManagedRunService {
             }
         }
         if task.binding.execution_scope.as_ref() != active.authorization.as_ref().map(|a| &a.scope)
+            || task.binding.execution_grant_id.as_ref()
+                != active
+                    .authorization
+                    .as_ref()
+                    .and_then(|a| a.grant_id.as_ref())
         {
             return fail("execution authorization binding mismatch".into());
         }

@@ -71,6 +71,15 @@ impl super::service::ManagedRunService {
             ));
         }
         if let Some(authorization) = &context.authorization {
+            if authorization
+                .grant_id
+                .as_ref()
+                .is_some_and(|id| id.trim().is_empty() || id.len() > 256 || id.contains('\0'))
+            {
+                return Err(ManagedRunError::InvalidRequest(
+                    "execution authorization denied".into(),
+                ));
+            }
             let scope = &authorization.scope;
             if self.store.is_none()
                 || [
@@ -204,6 +213,10 @@ impl super::service::ManagedRunService {
                     task_id: task_id.clone(),
                     binding: TaskInputBinding {
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
+                        execution_grant_id: context
+                            .authorization
+                            .as_ref()
+                            .and_then(|a| a.grant_id.clone()),
                         job_spec: Some(job.job_spec.clone()),
                         job_role: job.role.clone(),
                         ..TaskInputBinding::default()
@@ -293,6 +306,10 @@ impl super::service::ManagedRunService {
                     root_task_id: task_id.clone(),
                     root_binding: TaskInputBinding {
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
+                        execution_grant_id: context
+                            .authorization
+                            .as_ref()
+                            .and_then(|a| a.grant_id.clone()),
                         job_spec: Some(job.job_spec.clone()),
                         job_role: job.role.clone(),
                         ..TaskInputBinding::default()

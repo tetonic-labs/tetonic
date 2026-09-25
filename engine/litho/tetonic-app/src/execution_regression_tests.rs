@@ -509,6 +509,18 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         )
         .await
         .unwrap();
+    let reopened = tetonic_memory::SharedStore::open(tmp.path().join("run.db"), 1).unwrap();
+    let supervisor = tetonic_run::DurableRunSupervisor::new(Some(reopened));
+    let snapshot = tetonic_run::RunSupervisor::snapshot(&supervisor, active.run_id.clone())
+        .await
+        .unwrap();
+    assert_eq!(
+        snapshot.tasks[&active.task_id]
+            .binding
+            .execution_grant_id
+            .as_deref(),
+        Some("job-grant")
+    );
     let calls = Arc::new(AtomicUsize::new(0));
     let (tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
     let tools =
@@ -539,6 +551,23 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         }
     }
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let revoked_attempt = runs
+        .managed
+        .admit_with_context(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: identity.clone(),
+                job_spec: spec.clone(),
+                role: None,
+                parent_attempt: None,
+            },
+            tetonic_run::managed::AdmissionContext {
+                authorization: Some(authorization.clone()),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
     resource
         .revoke_execution_grant(credential.expose_secret(), "org".into(), "job-grant".into())
         .await
@@ -549,6 +578,33 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         .await
         .is_err());
 
+    let (revoked_tx, _) = tokio::sync::mpsc::unbounded_channel();
+    let mut revoked_executor = agent(&tmp, calls.clone(), revoked_tx);
+    let denied = tokio::time::timeout(
+        std::time::Duration::from_secs(3),
+        runs.execute_bound_attempt(
+            revoked_attempt.attempt_id.clone(),
+            &mut revoked_executor,
+            &mut Conversation::new(),
+            prepared.invocation().clone(),
+            &mut |_| {},
+        ),
+    )
+    .await
+    .unwrap();
+    assert!(
+        matches!(denied, CandidateOutcome::Failed { ref message } if message == "execution authorization denied")
+    );
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(
+        !runs
+            .managed
+            .inspect_run(&revoked_attempt.run_id)
+            .await
+            .unwrap()
+            .attempts[&revoked_attempt.attempt_id]
+            .execution_claimed
+    );
     local
         .credentials()
         .revoke(credential.credential_id.clone())
@@ -664,6 +720,7 @@ async fn execution_scope_persists_and_revocation_blocks_claim_and_delegation() {
     };
     let context = tetonic_run::managed::AdmissionContext {
         authorization: Some(tetonic_run::managed::AuthorizedExecution {
+            grant_id: Some("test-grant".into()),
             scope: scope.clone(),
             authority: Arc::new(TestExecutionAuthority(allowed.clone())),
         }),

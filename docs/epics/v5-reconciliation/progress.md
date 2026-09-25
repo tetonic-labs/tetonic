@@ -326,3 +326,9 @@ ContextService can compose its real credential/context/identity checks with a st
 Validation: all 101 memory tests passed, including migration crash recovery and rollback. Grant coverage includes restart, unchanged retries, changed capabilities, unauthorized issuance, expiry, membership removal, revocation, no reactivation and injected audit failure. Application suite and architecture validation are recorded after completion below.
 
 Application validation: all 129 library tests and the architecture gate passed, including the managed execution test using the real persisted grant adapter.
+
+## 2026-09-25 — Persist the selected execution grant with the managed task
+
+TaskInputBinding now retains an optional execution_grant_id alongside ExecutionScope. Stored-grant composition attaches the selected ID, admission validates its shape and writes it through the existing run journal, and execution compares it to the active authorization binding before consulting authority. Custom trusted authorities may omit the stored locator; old snapshots default to no locator. The ID is inspection/recovery attribution, not a bearer credential or an implicit authorization. Recovery still needs to rebuild and revalidate the host authority, not trust this identifier alone.
+
+Validation: all seven application execution regressions, the complete tetonic-run unit/integration suite and the architecture gate passed. The real stored-grant integration reopens the database and resolves the exact grant ID from the task snapshot. Its subsequently extended regression also admits another attempt before revocation, revokes the grant through authenticated ResourceService, and proves manager dispatch denies before claim with no additional inference call. That focused test passed. Per-effect enforcement, budget reservations, scoped session/event composition and employee activation remain outstanding.

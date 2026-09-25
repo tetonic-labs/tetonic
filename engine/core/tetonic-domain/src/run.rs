@@ -111,6 +111,9 @@ pub struct ExecutionScope {
 pub struct TaskInputBinding {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_scope: Option<ExecutionScope>,
+    /// Locator for the selected immutable grant, never authority by itself.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub execution_grant_id: Option<String>,
     /// Per-task managed job truth. Omitted for legacy snapshots and Infer tasks.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub job_spec: Option<AgentJobSpec>,
@@ -132,6 +135,7 @@ impl Default for TaskInputBinding {
     fn default() -> Self {
         Self {
             execution_scope: None,
+            execution_grant_id: None,
             job_spec: None,
             job_role: None,
             task_definition_version: 1,

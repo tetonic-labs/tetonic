@@ -146,6 +146,8 @@ pub trait ExecutionAuthority: Send + Sync {
 /// Host-composed binding, never accepted as a deserialized employee request.
 #[derive(Clone)]
 pub struct AuthorizedExecution {
+    /// Optional durable grant locator; custom host authorities may not use stored grants.
+    pub grant_id: Option<String>,
     pub scope: tetonic_domain::ExecutionScope,
     pub authority: Arc<dyn ExecutionAuthority>,
 }

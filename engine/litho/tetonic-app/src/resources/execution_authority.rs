@@ -96,6 +96,7 @@ impl ContextService {
             information_context_id: context,
         };
         Ok(AuthorizedExecution {
+            grant_id: None,
             scope: scope.clone(),
             authority: Arc::new(ScopedAuthority {
                 store: self.store.clone(),

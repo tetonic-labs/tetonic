@@ -96,17 +96,20 @@ impl ContextService {
         definition_digest: String,
         grant_id: String,
     ) -> Result<AuthorizedExecution, ResourceError> {
-        self.bind_execution_authority(
-            credential,
-            org,
-            context,
-            agent_key,
-            definition_digest,
-            Arc::new(StoredGrant {
-                store: self.store.clone(),
-                id: grant_id,
-            }),
-        )
-        .await
+        let mut authorization = self
+            .bind_execution_authority(
+                credential,
+                org,
+                context,
+                agent_key,
+                definition_digest,
+                Arc::new(StoredGrant {
+                    store: self.store.clone(),
+                    id: grant_id.clone(),
+                }),
+            )
+            .await?;
+        authorization.grant_id = Some(grant_id);
+        Ok(authorization)
     }
 }
