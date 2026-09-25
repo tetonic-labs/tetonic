@@ -34,6 +34,8 @@ mod membership_store;
 mod membership_admin;
 mod team_admin;
 mod context_scope;
+mod context_access;
+pub use context_access::ContextOwner;
 mod team_store;
 #[cfg(test)]
 mod migration_tests;

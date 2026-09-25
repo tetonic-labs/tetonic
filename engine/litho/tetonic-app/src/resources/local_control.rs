@@ -46,6 +46,13 @@ impl LocalControl {
         &self.credentials
     }
 
+    pub fn contexts(&self) -> ContextService {
+        ContextService {
+            store: self.store.clone(),
+            verifier: self.credentials.clone(),
+        }
+    }
+
     pub fn resources(&self) -> ResourceService {
         let authority = Arc::new(super::membership::MembershipAuthority {
             store: self.store.clone(),
