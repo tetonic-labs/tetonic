@@ -17,4 +17,3 @@ Acceptance: clean installation and upgrade preserve histories; config validation
 Reuse: REC-501/502 and D01–D15 register. Build required functionality; do not keep old authorities behind permanent flags.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

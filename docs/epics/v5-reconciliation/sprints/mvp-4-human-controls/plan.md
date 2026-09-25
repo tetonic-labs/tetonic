@@ -17,4 +17,3 @@ Acceptance: one view explains a team's real work without one chat tab per agent;
 Reuse: REC-301/302. Complete D01/D04/D05 only after all operator consumers switch; consolidate D10 streams. Preserve useful bounded buffers and security auditing.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

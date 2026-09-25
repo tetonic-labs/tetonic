@@ -49,6 +49,7 @@ for doc in HERE.rglob('*.md'):
         assert resolved.exists() or resolved == HERE/'validation.json', (doc, target)
         links += 1
     assert all(line.rstrip() == line for line in text.splitlines()), doc
+    assert text.endswith('\n') and not text.endswith('\n\n'), doc
 result = dict(files_hashed=len(rows), baseline_tree_coverage='exact', workspace_packages=len(workspace_packages), local_links_checked=links,
               mvp_tickets=len(ticket_ids), mvp_ticket_references='resolved',
               runtime_tests='not run: audit/planning files only',

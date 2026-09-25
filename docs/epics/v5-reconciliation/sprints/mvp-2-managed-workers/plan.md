@@ -17,4 +17,3 @@ Acceptance: one lifecycle works for both workloads; no mandatory coding identity
 Reuse: REC-201/202 plus coding extraction from REC-502. Remove D07/D08 only after live parity; retain useful adapters and test fixtures.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

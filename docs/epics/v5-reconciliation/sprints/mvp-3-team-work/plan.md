@@ -17,4 +17,3 @@ Acceptance: asking a peer cannot reset the originating budget or escape stop sco
 Retire D03 budget/workpad authority only when replacements work; D14 session-only lineage replaced. Preserve generic spawn safeguards, not coding-specialist policy as the platform default.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

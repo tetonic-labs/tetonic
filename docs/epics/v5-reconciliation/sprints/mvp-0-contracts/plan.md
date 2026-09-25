@@ -17,4 +17,3 @@ Acceptance: reproducible baseline commands/results and source evidence; behavior
 Reuse: REC-001/002. Removal: stop advertising prototype guarantees; no blind deletion before consumers migrate.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

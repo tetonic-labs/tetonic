@@ -17,4 +17,3 @@ Acceptance: publish the supported envelope and limitations, install/upgrade/rest
 Exit: coherent MVP with evidence, not broad feature-count completion. Further scale, backends and integrations require measured need.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

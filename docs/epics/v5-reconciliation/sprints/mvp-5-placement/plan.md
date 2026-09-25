@@ -17,4 +17,3 @@ Acceptance: stale workers cannot obtain new mediated effects or commit outcomes 
 Reuse: REC-401/402; replace D06 prototype ownership after parity. Production multi-controller correctness is exercised in sprint 7 before HA claims.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-

@@ -17,4 +17,3 @@ Acceptance: place a unique secret in private history; team execution inputs, too
 Reuse: identity store, artifact/context interfaces, provenance patterns. Retire D02/D11 after cutover; start D01/D15 replacement. Nonlocal multi-tenant exposure remains gated on complete boundary tests.
 
 Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
-
