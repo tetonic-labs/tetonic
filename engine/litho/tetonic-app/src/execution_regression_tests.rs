@@ -983,3 +983,118 @@ async fn finalization_revocation_prevents_verify_or_commit_and_records_failure()
         assert_eq!(snapshot.state, tetonic_domain::RunState::Failed);
     }
 }
+
+#[tokio::test]
+async fn governed_final_output_uses_existing_private_artifact_access() {
+    for fail_binding in [false, true] {
+        let tmp = tempfile::tempdir().unwrap();
+        let local = crate::resources::LocalControl::open(tmp.path().join("run.db"), "test".into())
+            .await
+            .unwrap();
+        local
+            .bootstrap("alice".into(), "org".into(), "Org".into())
+            .await
+            .unwrap();
+        let credential = local
+            .credentials()
+            .issue("alice".into(), 3600)
+            .await
+            .unwrap();
+        let contexts = local.contexts();
+        for context in ["private", "other"] {
+            contexts
+                .create(
+                    credential.expose_secret(),
+                    context.into(),
+                    crate::resources::ContextOwner::Private {
+                        org_id: "org".into(),
+                    },
+                )
+                .await
+                .unwrap();
+        }
+        let runs = manager(&tmp, Arc::new(Events::default()), false);
+        let cmd = command();
+        let binding = runs
+            .managed
+            .admit_with_context(
+                &runs.managed.reserve_dispatch().id,
+                tetonic_run::AdmitJob {
+                    identity: cmd.identity,
+                    job_spec: cmd.job_spec,
+                    role: None,
+                    parent_attempt: None,
+                },
+                tetonic_run::managed::AdmissionContext {
+                    authorization: Some(tetonic_run::managed::AuthorizedExecution {
+                        grant_id: None,
+                        scope: tetonic_domain::ExecutionScope {
+                            principal_id: "alice".into(),
+                            organization_id: "org".into(),
+                            information_context_id: "private".into(),
+                        },
+                        authority: Arc::new(TestExecutionAuthority(Arc::new(
+                            std::sync::atomic::AtomicBool::new(true),
+                        ))),
+                    }),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        if fail_binding {
+            let conn = rusqlite::Connection::open(tmp.path().join("run.db")).unwrap();
+            conn.execute_batch("CREATE TRIGGER fail_output_binding BEFORE INSERT ON context_artifacts BEGIN SELECT RAISE(ABORT,'injected'); END;").unwrap();
+        }
+        let outcome = runs
+            .managed
+            .finalize(tetonic_run::FinalizeJob {
+                attempt: binding.attempt_id.clone(),
+                outcome: CandidateOutcome::Completed {
+                    summary: "PRIVATEOUTPUTCANARY".into(),
+                    kind: tetonic_domain::CompletionKind::Answer,
+                },
+                policy: None,
+                finish_run: true,
+            })
+            .await
+            .unwrap();
+        let snapshot = runs.managed.inspect_run(&binding.run_id).await.unwrap();
+        let receipt = &snapshot.tasks[&binding.task_id].accepted_artifact;
+        if fail_binding {
+            assert!(matches!(outcome, CandidateOutcome::Failed { .. }));
+            assert_eq!(snapshot.state, tetonic_domain::RunState::Failed);
+            assert!(receipt.is_none());
+        } else {
+            assert!(matches!(outcome, CandidateOutcome::Completed { .. }));
+            let id = tetonic_domain::ArtifactId::new(receipt.as_ref().unwrap().artifact_id.clone());
+            let scoped = contexts
+                .bind_artifacts(
+                    credential.expose_secret(),
+                    "private".into(),
+                    runs.managed.artifacts().clone(),
+                )
+                .await
+                .unwrap();
+            let foreign = contexts
+                .bind_artifacts(
+                    credential.expose_secret(),
+                    "other".into(),
+                    runs.managed.artifacts().clone(),
+                )
+                .await
+                .unwrap();
+            let mut reader = scoped.open(&id).await.unwrap();
+            let mut bytes = [0u8; 1024];
+            let count = reader.read_chunk(&mut bytes).await.unwrap();
+            assert!(String::from_utf8_lossy(&bytes[..count]).contains("PRIVATEOUTPUTCANARY"));
+            assert!(foreign.open(&id).await.is_err());
+            local
+                .credentials()
+                .revoke(credential.credential_id.clone())
+                .await
+                .unwrap();
+            assert!(scoped.open(&id).await.is_err());
+        }
+    }
+}

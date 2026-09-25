@@ -254,6 +254,38 @@ impl super::service::ManagedRunService {
                     {
                         return Ok(denied);
                     }
+                    if let Some(authorization) = &active.authorization {
+                        let scope = authorization.scope.clone();
+                        let artifact_id = sealed.artifact_id.0.clone();
+                        let store = self.store.as_ref().ok_or_else(|| {
+                            ManagedRunError::InternalViolation(
+                                "scoped output requires durable storage".into(),
+                            )
+                        })?;
+                        let bound = store
+                            .write(move |db| {
+                                db.bind_new_context_artifact(
+                                    &scope.principal_id,
+                                    &scope.information_context_id,
+                                    &artifact_id,
+                                )
+                            })
+                            .await;
+                        if !matches!(bound, Ok(Ok(()))) {
+                            let message = "output context binding failed".to_string();
+                            self.fail_and_finish(
+                                &active,
+                                seq,
+                                FailureClass::PolicyDenied,
+                                &message,
+                                job.finish_run,
+                            )
+                            .await?;
+                            let outcome = CandidateOutcome::Failed { message };
+                            self.deliver_terminal(&active, outcome.clone());
+                            return Ok(outcome);
+                        }
+                    }
                     let _complete_res = self
                         .supervisor
                         .handle(RunCommand::CompleteAttempt(CompleteAttempt {
