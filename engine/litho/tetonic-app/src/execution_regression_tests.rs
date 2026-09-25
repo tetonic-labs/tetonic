@@ -379,3 +379,110 @@ async fn full_invocation_policy_denies_changes_before_claim_or_inference() {
         );
     }
 }
+
+#[tokio::test]
+async fn registered_general_revision_reaches_existing_managed_executor() {
+    let tmp = tempfile::tempdir().unwrap();
+    let local = crate::resources::LocalControl::open(tmp.path().join("run.db"), "test".into())
+        .await
+        .unwrap();
+    local
+        .bootstrap("admin".into(), "org".into(), "Org".into())
+        .await
+        .unwrap();
+    let credential = local
+        .credentials()
+        .issue("admin".into(), 3600)
+        .await
+        .unwrap();
+    let resource = local.resources();
+    let registered = resource
+        .register_agent(
+            credential.expose_secret(),
+            "org".into(),
+            "agent".into(),
+            "general".into(),
+            serde_json::json!({"instructions":"Analyze the question"}),
+        )
+        .await
+        .unwrap();
+    let prepared = resource
+        .prepare_general_revision(
+            credential.expose_secret(),
+            "org".into(),
+            "agent".into(),
+            registered.identity.bound_definition_digest.clone(),
+            "A question".into(),
+            crate::resources::HarnessPreparationLimits {
+                max_steps: 2,
+                max_input_bytes: 1024,
+            },
+        )
+        .await
+        .unwrap();
+    // Trusted test composition only: definition conformance is not an employee
+    // execution grant. Reuse the real store, admission, claim and executor.
+    let runs = manager(&tmp, Arc::new(Events::default()), false)
+        .with_execution_policy(prepared.execution_policy().unwrap());
+    let id = IdentityId::new(registered.identity.identity_id);
+    let digest = registered.identity.bound_definition_digest;
+    let identity = runs
+        .managed
+        .store()
+        .unwrap()
+        .read(move |db| tetonic_run::get_identity_revision(db, &id, &digest))
+        .await
+        .unwrap()
+        .unwrap()
+        .unwrap();
+    let spec = AgentJobSpec {
+        identity_id: identity.id.clone(),
+        definition_digest: identity.bound_definition_digest.clone(),
+        input_digest: job_input_digest(&prepared.invocation().user_input),
+        capability_bindings: vec![],
+        artifact_bindings: vec![],
+        recovery_id: "general-job".into(),
+    };
+    let active = runs
+        .begin_job_run(None, &identity, spec, None)
+        .await
+        .unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let (tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
+    let tools =
+        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
+            .with_allowed_tools(["finish".to_string()].into_iter().collect());
+    let mut executor = Agent::new(
+        Arc::new(PendingProvider {
+            entered: tx,
+            calls: calls.clone(),
+        }),
+        tools,
+        AgentConfig::default(),
+    );
+    let mut conversation = Conversation::new();
+    let mut on_step = |_| {};
+    let execute = runs.execute_bound_attempt(
+        active.attempt_id.clone(),
+        &mut executor,
+        &mut conversation,
+        prepared.invocation().clone(),
+        &mut on_step,
+    );
+    tokio::pin!(execute);
+    tokio::select! {
+        result = &mut execute => panic!("execution ended before inference: {result:?}"),
+        signal = tokio::time::timeout(std::time::Duration::from_secs(3), entered.recv()) => {
+            assert_eq!(signal.unwrap(), Some(()));
+        }
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    assert!(
+        runs.managed
+            .inspect_run(&active.run_id)
+            .await
+            .unwrap()
+            .attempts[&active.attempt_id]
+            .execution_claimed
+    );
+}

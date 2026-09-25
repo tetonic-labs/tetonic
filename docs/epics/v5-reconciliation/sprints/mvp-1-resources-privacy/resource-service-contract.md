@@ -1,8 +1,8 @@
 # Resource service boundary — MVP-101
 
-Status: service boundary, persistent membership authority, local bearer verification and local operator bootstrap implemented; remote transport integration and authorized membership administration remain required. See the [local operator runbook](local-control-runbook.md).
+Status: service boundary, persistent membership authority, local bearer verification and local operator bootstrap implemented; authorized membership administration and organization-owned agent definition revisions are also implemented; remote transport integration remains required. See the [local operator runbook](local-control-runbook.md).
 
-The Application composes ResourceService from the same SharedStore used by its managed run service. Missing storage is an error; no in-memory substitute or separate control database is created. The service currently creates and reads organizations and teams. It does not activate agents, allocate budgets, or grant access to execution, tools or knowledge.
+The Application composes ResourceService from the same SharedStore used by its managed run service. Missing storage is an error; no in-memory substitute or separate control database is created. The service creates and reads organizations and teams, administers membership, and registers/publishes immutable organization-owned agent definitions. It does not activate agents, allocate budgets, or grant access to execution, tools or knowledge.
 
 Every operation, including an exact retry, asks an explicitly supplied ResourceAuthority to authenticate a credential and authorize an exact typed action. Organization creation is a separate action from team creation. A read of one team must not imply access to every team in that organization. The authority is a trusted server composition dependency, never selected by a request or agent. There is no default allow provider.
 
@@ -26,17 +26,17 @@ Schema 30 adds enabled principals, a platform-administrator bit, organization ro
 
 These roles grant no execution, tool, budget, private conversation or knowledge permissions. A disabled principal fails every operation. Removing organization membership cascades removal of explicit team memberships; rejoining the organization does not restore those memberships. The durable owner reference is retained, so an owner who rejoins regains owner metadata access unless ownership is explicitly transferred. There is no transfer endpoint yet. Revoking an explicit team membership does not override a separate owner or organization-administrator entitlement.
 
-Migration preserves existing teams but invents no principals or memberships. Bootstrap must explicitly provision the first principal and organization administrator. Store mutation methods are trusted internal provisioning primitives; exposing them directly would bypass the service boundary. Membership administration still needs authenticated operations, top-down policy ceilings and audit events before transport exposure.
+Migration preserves existing teams but invents no principals or memberships. Bootstrap must explicitly provision the first principal and organization administrator. Store mutation methods are trusted internal provisioning primitives; exposing them directly would bypass the service boundary. Authenticated membership administration is implemented. Execution capability grants and top-down execution policy ceilings remain separate work before scoped activation.
 
 ## Required before transport exposure
 
 - Remote credential delivery and authenticated administrator operations; the existing bootstrap/issuance path is restricted to local database operators. Enterprise SSO remains a separate adapter.
-- Authorized administration of the persisted memberships, plus capability grants and top-down policy limits.
+- Execution capability grants and top-down policy limits; metadata membership administration alone does not authorize execution.
 - Audit records for administrative mutations and grant changes, without recording credentials.
 - Request bounds and supported transport/session security.
 - Transport-level integration tests, beyond the local verifier/resource-service integration test.
 
-The existing fleet dispatcher is not routed through this service yet. Do not dual-write its maps or call it behind an authenticated facade and imply that execution is reconciled. Resource migration, immutable agent definition revisions, managed activation and operator control cutover remain separate acceptance obligations in the epic.
+The existing fleet dispatcher is not routed through this service yet. Do not dual-write its maps or call it behind an authenticated facade and imply that execution is reconciled. Resource migrations and immutable agent definition revisions are implemented; managed activation and operator control cutover remain outstanding acceptance obligations in the epic.
 
 ## Local credential profile
 

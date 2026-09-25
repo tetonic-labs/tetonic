@@ -1,6 +1,6 @@
 # Sprint 1 — Durable teams, identities and information boundaries
 
-Status: durable resources, local credentials and the first local operator CLI are implemented; organization and team metadata membership administration are implemented; agent revisions, remote authentication/UI and privacy work remain pending. Depends on the preceding MVP sprint's applicable contracts; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria. See [implementation progress](../../progress.md) and the [local control runbook](local-control-runbook.md).
+Status: durable resources, local credentials and the first local operator CLI are implemented; organization and team metadata membership administration, organization-owned agent registration and immutable definition revisions are implemented. Remote authentication/UI and complete execution-context privacy remain pending. Depends on the preceding MVP sprint's applicable contracts; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria. See [implementation progress](../../progress.md) and the [local control runbook](local-control-runbook.md).
 
 ## MVP-101 — Persist and authorize organization, team and agent resources
 

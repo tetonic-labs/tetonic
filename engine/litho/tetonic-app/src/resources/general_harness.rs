@@ -30,9 +30,76 @@ pub struct HarnessPreparationLimits {
 /// Configuration prepared for later authorized admission. Requested tools must
 /// still be resolved against effective grants and installed tool capabilities.
 pub struct PreparedAgentRevision {
-    pub identity: tetonic_memory::AgentIdentityRow,
-    pub invocation: tetonic_domain::AgentInvocation,
-    pub requested_tools: Vec<String>,
+    identity: tetonic_memory::AgentIdentityRow,
+    invocation: tetonic_domain::AgentInvocation,
+    requested_tools: Vec<String>,
+}
+
+impl PreparedAgentRevision {
+    pub fn identity(&self) -> &tetonic_memory::AgentIdentityRow {
+        &self.identity
+    }
+
+    pub fn invocation(&self) -> &tetonic_domain::AgentInvocation {
+        &self.invocation
+    }
+
+    pub fn requested_tools(&self) -> &[String] {
+        &self.requested_tools
+    }
+
+    /// Definition conformance only, never an execution authorization. The host
+    /// must additionally authorize the initiating principal, context and every
+    /// requested capability before admission and protected effects.
+    /// No role overlays, artifacts or extra executable tools are implicit.
+    pub fn execution_policy(&self) -> Result<tetonic_run::ExecutionPolicy, ResourceError> {
+        let row = &self.identity;
+        let expected_identity = tetonic_domain::AgentIdentity {
+            id: tetonic_domain::IdentityId::new(row.identity_id.clone()),
+            owning_application: row.owning_application.clone(),
+            bound_definition_digest: row.bound_definition_digest.clone(),
+            privilege_class: row.privilege_class.clone(),
+            toolset_subscriptions: serde_json::from_str(&row.toolset_subscriptions_json)
+                .map_err(|_| ResourceError::Invalid)?,
+            context_bindings: serde_json::from_str(&row.context_bindings_json)
+                .map_err(|_| ResourceError::Invalid)?,
+            recovery_id: row.recovery_id.clone(),
+        };
+        let expected_invocation = self.invocation.clone();
+        let requested = self.requested_tools.clone();
+        let mut host_tools = requested.clone();
+        if !host_tools.contains(&expected_invocation.completion_tool) {
+            host_tools.push(expected_invocation.completion_tool.clone());
+        }
+        Ok(Arc::new(
+            move |identity, spec, role, advertised, invocation| {
+                if identity != Some(&expected_identity)
+                    || spec.identity_id != expected_identity.id
+                    || spec.definition_digest != expected_identity.bound_definition_digest
+                    || spec.input_digest
+                        != tetonic_run::job_input_digest(&expected_invocation.user_input)
+                    || invocation != &expected_invocation
+                    || role.is_some()
+                    || !spec.artifact_bindings.is_empty()
+                    || !same_names(&spec.capability_bindings, &requested)
+                    || !same_names(advertised, &host_tools)
+                {
+                    return Err("execution does not match prepared general revision".into());
+                }
+                Ok(())
+            },
+        ))
+    }
+}
+
+fn same_names(actual: &[String], expected: &[String]) -> bool {
+    actual.len() == expected.len()
+        && actual
+            .iter()
+            .collect::<std::collections::HashSet<_>>()
+            .len()
+            == actual.len()
+        && actual.iter().all(|name| expected.contains(name))
 }
 
 impl ResourceService {
@@ -167,6 +234,84 @@ mod tests {
         assert_eq!(prepared.requested_tools, vec!["recall"]);
         assert_eq!(prepared.identity.toolset_subscriptions_json, "[]");
         assert_eq!(prepared.identity.privilege_class, "unconfigured");
+        let policy = prepared.execution_policy().unwrap();
+        let row = prepared.identity();
+        let identity = tetonic_domain::AgentIdentity {
+            id: tetonic_domain::IdentityId::new(row.identity_id.clone()),
+            owning_application: row.owning_application.clone(),
+            bound_definition_digest: row.bound_definition_digest.clone(),
+            privilege_class: row.privilege_class.clone(),
+            toolset_subscriptions: vec![],
+            context_bindings: vec![],
+            recovery_id: row.recovery_id.clone(),
+        };
+        let spec = tetonic_domain::AgentJobSpec {
+            identity_id: identity.id.clone(),
+            definition_digest: identity.bound_definition_digest.clone(),
+            input_digest: tetonic_run::job_input_digest(&prepared.invocation().user_input),
+            capability_bindings: prepared.requested_tools().to_vec(),
+            artifact_bindings: vec![],
+            recovery_id: "test-job".into(),
+        };
+        let advertised = vec!["finish".into(), "recall".into()];
+        assert!(policy(
+            Some(&identity),
+            &spec,
+            None,
+            &advertised,
+            prepared.invocation()
+        )
+        .is_ok());
+        for names in [
+            vec!["finish".into()],
+            vec!["finish".into(), "run_shell".into()],
+            vec!["finish".into(), "recall".into(), "run_shell".into()],
+            vec!["recall".into(), "recall".into()],
+        ] {
+            assert!(policy(Some(&identity), &spec, None, &names, prepared.invocation()).is_err());
+        }
+        let mut changed = prepared.invocation().clone();
+        changed.instructions = "replacement".into();
+        assert!(policy(Some(&identity), &spec, None, &advertised, &changed).is_err());
+        assert!(policy(None, &spec, None, &advertised, prepared.invocation()).is_err());
+        assert!(policy(
+            Some(&identity),
+            &spec,
+            Some("coder"),
+            &advertised,
+            prepared.invocation()
+        )
+        .is_err());
+        let mut changed_spec = spec.clone();
+        changed_spec.capability_bindings.clear();
+        assert!(policy(
+            Some(&identity),
+            &changed_spec,
+            None,
+            &advertised,
+            prepared.invocation()
+        )
+        .is_err());
+        changed_spec = spec.clone();
+        changed_spec.input_digest = "other-task".into();
+        assert!(policy(
+            Some(&identity),
+            &changed_spec,
+            None,
+            &advertised,
+            prepared.invocation()
+        )
+        .is_err());
+        let mut changed_identity = identity.clone();
+        changed_identity.privilege_class = "admin".into();
+        assert!(policy(
+            Some(&changed_identity),
+            &spec,
+            None,
+            &advertised,
+            prepared.invocation()
+        )
+        .is_err());
         let limits = || HarnessPreparationLimits {
             max_steps: 8,
             max_input_bytes: 1024,
