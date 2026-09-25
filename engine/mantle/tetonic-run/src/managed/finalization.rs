@@ -46,6 +46,13 @@ impl super::service::ManagedRunService {
 
         let mut seq = seq;
         if matches!(job.outcome, CandidateOutcome::Completed { .. }) {
+            if let Some(denied) = self
+                .deny_revoked_finalization(&active, job.finish_run)
+                .await?
+            {
+                return Ok(denied);
+            }
+
             self.heartbeat(&attempt_id).await?;
             let claim = self
                 .supervisor
@@ -107,6 +114,12 @@ impl super::service::ManagedRunService {
                             )
                         })?;
                         let scope = active.work_scope.clone();
+                        if let Some(denied) = self
+                            .deny_revoked_finalization(&active, job.finish_run)
+                            .await?
+                        {
+                            return Ok(denied);
+                        }
                         let verified = tokio::task::spawn_blocking(move || {
                             let _lease = lease;
                             if scope.is_canceled() {
@@ -166,6 +179,12 @@ impl super::service::ManagedRunService {
                                 )
                             })?;
                             let scope = active.work_scope.clone();
+                            if let Some(denied) = self
+                                .deny_revoked_finalization(&active, job.finish_run)
+                                .await?
+                            {
+                                return Ok(denied);
+                            }
                             let committed = tokio::task::spawn_blocking(move || {
                                 let _lease = lease;
                                 if scope.is_canceled() {
@@ -217,12 +236,24 @@ impl super::service::ManagedRunService {
                         }
                     }
 
+                    if let Some(denied) = self
+                        .deny_revoked_finalization(&active, job.finish_run)
+                        .await?
+                    {
+                        return Ok(denied);
+                    }
                     // Attestation & sealing
                     let bytes = encode_candidate_bytes(&job.outcome)?;
                     let sealed =
                         seal_output_set(&self.artifacts, &run_id, &task_id, &attempt_id, bytes)
                             .await?;
 
+                    if let Some(denied) = self
+                        .deny_revoked_finalization(&active, job.finish_run)
+                        .await?
+                    {
+                        return Ok(denied);
+                    }
                     let _complete_res = self
                         .supervisor
                         .handle(RunCommand::CompleteAttempt(CompleteAttempt {
@@ -365,6 +396,48 @@ impl super::service::ManagedRunService {
             hooks.terminal(&result);
         });
         self.complete_attempt_join(result);
+    }
+
+    /// Revocation denies new finalization work, but terminal failure recording
+    /// remains permitted so the attempt cannot be stranded as running.
+    async fn deny_revoked_finalization(
+        &self,
+        active: &super::lifetime::ActiveAttempt,
+        finish_run: bool,
+    ) -> Result<Option<CandidateOutcome>, ManagedRunError> {
+        let snapshot = self.inspect_run(&active.binding.run_id).await?;
+        let task = snapshot
+            .tasks
+            .get(&active.binding.task_id)
+            .ok_or_else(|| ManagedRunError::InternalViolation("durable task missing".into()))?;
+        let binding_matches = task.binding.execution_scope.as_ref()
+            == active.authorization.as_ref().map(|a| &a.scope)
+            && task.binding.execution_grant_id.as_ref()
+                == active
+                    .authorization
+                    .as_ref()
+                    .and_then(|a| a.grant_id.as_ref());
+        let allowed = if binding_matches {
+            match &active.authorization {
+                Some(auth) => auth
+                    .authority
+                    .authorize(&auth.scope, &active.identity, &active.binding.job_spec)
+                    .await
+                    .is_ok(),
+                None => true,
+            }
+        } else {
+            false
+        };
+        if allowed {
+            return Ok(None);
+        }
+        let message = "execution authorization denied during finalization".to_string();
+        self.fail_and_finish(active, 0, FailureClass::PolicyDenied, &message, finish_run)
+            .await?;
+        let outcome = CandidateOutcome::Failed { message };
+        self.deliver_terminal(active, outcome.clone());
+        Ok(Some(outcome))
     }
 
     async fn fail_and_finish(

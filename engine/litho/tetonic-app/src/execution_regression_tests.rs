@@ -886,3 +886,100 @@ async fn revocation_during_inference_blocks_the_returned_tool_action() {
         .iter()
         .any(|step| matches!(step, tetonic_core::Step::ToolCall { .. })));
 }
+
+struct RevokingFinalizationDriver {
+    authority: Arc<std::sync::atomic::AtomicBool>,
+    verifies: Arc<AtomicUsize>,
+    commits: Arc<AtomicUsize>,
+}
+impl tetonic_run::FinalizationEffectDriver for RevokingFinalizationDriver {
+    fn bind_effect_identity(
+        &self,
+        _: &tetonic_domain::TaskId,
+        _: &tetonic_domain::AttemptId,
+    ) -> Result<(), String> {
+        Ok(())
+    }
+    fn run_verify(
+        &self,
+        _: &str,
+        _: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<(), (String, Option<String>)> {
+        self.verifies.fetch_add(1, Ordering::SeqCst);
+        self.authority.store(false, Ordering::SeqCst);
+        Ok(())
+    }
+    fn commit_workspace(&self) -> Result<Option<tetonic_domain::CommitResult>, String> {
+        self.commits.fetch_add(1, Ordering::SeqCst);
+        Ok(None)
+    }
+}
+#[tokio::test]
+async fn finalization_revocation_prevents_verify_or_commit_and_records_failure() {
+    for revoke_before in [true, false] {
+        let tmp = tempfile::tempdir().unwrap();
+        let runs = manager(&tmp, Arc::new(Events::default()), false);
+        let allowed = Arc::new(std::sync::atomic::AtomicBool::new(true));
+        let cmd = command();
+        let binding = runs
+            .managed
+            .admit_with_context(
+                &runs.managed.reserve_dispatch().id,
+                tetonic_run::AdmitJob {
+                    identity: cmd.identity,
+                    job_spec: cmd.job_spec,
+                    role: None,
+                    parent_attempt: None,
+                },
+                tetonic_run::managed::AdmissionContext {
+                    authorization: Some(tetonic_run::managed::AuthorizedExecution {
+                        grant_id: None,
+                        scope: tetonic_domain::ExecutionScope {
+                            principal_id: "alice".into(),
+                            organization_id: "org".into(),
+                            information_context_id: "private".into(),
+                        },
+                        authority: Arc::new(TestExecutionAuthority(allowed.clone())),
+                    }),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        if revoke_before {
+            allowed.store(false, Ordering::SeqCst);
+        }
+        let verifies = Arc::new(AtomicUsize::new(0));
+        let commits = Arc::new(AtomicUsize::new(0));
+        let outcome = runs
+            .managed
+            .finalize(tetonic_run::FinalizeJob {
+                attempt: binding.attempt_id.clone(),
+                outcome: CandidateOutcome::Completed {
+                    summary: "done".into(),
+                    kind: tetonic_domain::CompletionKind::Answer,
+                },
+                policy: Some(tetonic_run::FinalizationPolicy {
+                    effect_driver: Some(Arc::new(RevokingFinalizationDriver {
+                        authority: allowed,
+                        verifies: verifies.clone(),
+                        commits: commits.clone(),
+                    })),
+                    verify_cmd: Some("verify".into()),
+                }),
+                finish_run: true,
+            })
+            .await
+            .unwrap();
+        assert!(
+            matches!(outcome,CandidateOutcome::Failed { ref message } if message=="execution authorization denied during finalization")
+        );
+        assert_eq!(
+            verifies.load(Ordering::SeqCst),
+            if revoke_before { 0 } else { 1 }
+        );
+        assert_eq!(commits.load(Ordering::SeqCst), 0);
+        let snapshot = runs.managed.inspect_run(&binding.run_id).await.unwrap();
+        assert_eq!(snapshot.state, tetonic_domain::RunState::Failed);
+    }
+}
