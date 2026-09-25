@@ -3,6 +3,13 @@ use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 impl Store {
     pub(crate) fn migrate_context_messages_v36(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=36)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("ALTER TABLE messages ADD COLUMN author_principal_id TEXT REFERENCES control_principals(principal_id);
         ALTER TABLE messages ADD COLUMN client_message_id TEXT;
         CREATE UNIQUE INDEX idx_messages_client_id ON messages(session_id,client_message_id) WHERE client_message_id IS NOT NULL;")?;

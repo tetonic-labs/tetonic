@@ -200,6 +200,7 @@ impl Store {
         self.migrate_identity_revisions_v34()?;
         self.migrate_context_scope_v35()?;
         self.migrate_context_messages_v36()?;
+        self.migrate_context_artifacts_v37()?;
         Ok(())
     }
 
