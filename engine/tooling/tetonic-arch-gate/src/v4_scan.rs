@@ -116,8 +116,8 @@ fn check_iface_001(root: &Path) -> Vec<Violation> {
     ];
     let mut out = Vec::new();
     for rel in [
-        "litho/lokai-cli/src",
-        "litho/lokaid/src",
+        "litho/tetonic-cli/src",
+        "litho/tetonicd/src",
         "tooling/lokai-eval/src",
         "tooling/tetonic-eval/src",
     ] {

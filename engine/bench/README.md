@@ -7,7 +7,7 @@ End-to-end graded tasks (T1–T7) that measure real agent capability: read → e
 From `engine/` (requires built `lokai` binary and Ollama with a tool-capable model):
 
 ```bash
-cargo build --release -p lokai-cli
+cargo build --release -p tetonic-cli
 python bench/run_suite.py --out bench/results.json
 ```
 

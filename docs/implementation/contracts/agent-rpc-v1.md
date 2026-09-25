@@ -165,7 +165,7 @@ Built in `engine/crates/lokai-rpc` (transport + types) and `engine/bins/lokaid` 
 - **Approvals:** `run_shell` is gated through an async approval hook in the agent loop; the daemon emits `event/approval_request` and pauses on a `oneshot` until `approval/respond` (a dropped channel / cancel resolves to deny — the loop never hangs). Read-only tools are not gated.
 - **Egress:** the daemon snapshots the guard's activity log around each run, **persists to `egress_log`**, and streams the delta as `event/egress`.
 - **Not yet implemented:** `shutdown` returns `NotImplemented` (-32000). Reserved namespaces: **`estate/*`** (**B11**), **`circle/*`** + `event/plan` (**B12**). Full Circle **D1** policy mode beyond estate stub.
-- **Tested:** framing round-trip + protocol (de)serialization unit tests; an in-process integration test drives the full dispatch + notification stream (and the approval deny round-trip) with a mock provider — **no Ollama required**. A live smoke client (`engine/scripts/smoke_lokaid.py`) drives a real one-turn run.
+- **Tested:** framing round-trip + protocol (de)serialization unit tests; an in-process integration test drives the full dispatch + notification stream (and the approval deny round-trip) with a mock provider — **no Ollama required**. A live smoke client (`engine/scripts/smoke_tetonicd.py`) drives a real one-turn run.
 
 ### Error codes (stable)
 

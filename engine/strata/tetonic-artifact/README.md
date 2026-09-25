@@ -34,7 +34,7 @@ Full distributed CAS / cross-coordinator dedupe remains out of scope (epic 8).
 | `ensure_quota_for_write` | Checks physical object usage + incoming against budget without running GC |
 | `ArtifactGcConfig` | Default 1 GiB; override with `LOKAI_ARTIFACT_QUOTA_BYTES` |
 
-Production caller: `DefaultInitializationService::bootstrap_runtime` (shared by CLI and `lokaid` initialize).
+Production caller: `DefaultInitializationService::bootstrap_runtime` (shared by CLI and `tetonicd` initialize).
 
 `ProjectHistory` / `SecurityAudit` / `UserPinned` are never auto-deleted.
 A missing liveness inventory authorizes no sealed-object deletion. A future run/

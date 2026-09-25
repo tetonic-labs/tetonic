@@ -3,7 +3,7 @@
 //! notification with the emitting `(session_id, agent_id)` and a per-session
 //! monotonic `seq`.
 //!
-//! The actual request/dispatch loop lives in the daemon (`lokaid`) because it
+//! The actual request/dispatch loop lives in the daemon (`tetonicd`) because it
 //! needs to spawn per-run tasks on a single-threaded `LocalSet` — keeping that
 //! out of this crate lets `lokai-rpc` stay engine-free and trivially testable.
 

@@ -1817,46 +1817,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ceec5bc11778974d1bcb055b18002eba7f4b3518b6a0081b3af5f21666da9ad"
 
 [[package]]
-name = "lokai-cli"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "base64 0.22.1",
- "chrono",
- "clap",
- "crossterm",
- "directories",
- "ratatui",
- "serde_json",
- "tempfile",
- "tetonic-app",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "lokaid"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "directories",
- "regex",
- "serde",
- "serde_json",
- "subtle",
- "tetonic-app",
- "tetonic-rpc",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
-]
-
-[[package]]
 name = "lru"
 version = "0.18.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3633,6 +3593,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "tetonic-cli"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "base64 0.22.1",
+ "chrono",
+ "clap",
+ "crossterm",
+ "directories",
+ "ratatui",
+ "serde_json",
+ "tempfile",
+ "tetonic-app",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+]
+
+[[package]]
 name = "tetonic-context"
 version = "0.1.0"
 dependencies = [
@@ -4143,6 +4123,26 @@ dependencies = [
  "tetonic-domain",
  "tetonic-telemetry",
  "thiserror 2.0.18",
+]
+
+[[package]]
+name = "tetonicd"
+version = "0.0.0"
+dependencies = [
+ "anyhow",
+ "async-trait",
+ "chrono",
+ "directories",
+ "regex",
+ "serde",
+ "serde_json",
+ "subtle",
+ "tetonic-app",
+ "tetonic-rpc",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "uuid",
 ]
 
 [[package]]

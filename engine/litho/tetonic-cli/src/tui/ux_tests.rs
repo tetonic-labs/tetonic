@@ -317,7 +317,7 @@ fn export_ux_frames() {
                 input::handle_paste(&mut app, "An unfinished draft stays here.");
                 app.pending_approval = Some(PendingApproval {
                     detail:
-                        "cargo test -p lokai-cli\n\nRun the affected CLI tests in the workspace."
+                        "cargo test -p tetonic-cli\n\nRun the affected CLI tests in the workspace."
                             .into(),
                     ..pending(false)
                 });

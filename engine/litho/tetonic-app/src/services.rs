@@ -3,7 +3,7 @@
 //! Session authority (R1): `DefaultSessionService` + `SessionLiveStore` own
 //! conversation, cancel, pending approvals, and spawn tracking.
 //! `RunSupervisor` is the sole authority for run/task/attempt transitions.
-//! Transport adapters (`lokaid`, CLI) keep in-flight RPC bookkeeping only.
+//! Transport adapters (`tetonicd`, CLI) keep in-flight RPC bookkeeping only.
 //!
 //! Approvals: grant/deny is recorded in the audit store (`lokai.db`) via
 //! `DefaultApprovalService` — the single store both CLI and daemon read.

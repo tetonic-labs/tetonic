@@ -4,7 +4,7 @@
 //! This crate is intentionally engine-free: it owns only the **transport**
 //! (LSP-style `Content-Length` framing over stdio) and the **protocol types**
 //! (JSON-RPC 2.0 envelope + the v1 method params/results and notification
-//! payloads). The daemon (`lokaid`) wires these to the actual agent loop; a
+//! payloads). The daemon (`tetonicd`) wires these to the actual agent loop; a
 //! future editor generates its TypeScript client from the same `JsonSchema`
 //! derives, so the two sides cannot drift.
 //!
@@ -32,7 +32,7 @@ pub use server::{channel_pair, writer_task, Notifier};
 /// Emit the full v1 protocol as a single JSON Schema bundle: one shared
 /// `definitions` map holding every request param/result and notification payload
 /// type. This is the **source of truth** the editor's TypeScript client is
-/// generated from (`lokaid --print-schema` → `scripts/gen_ts_protocol.py`).
+/// generated from (`tetonicd --print-schema` → `scripts/gen_ts_protocol.py`).
 /// Deriving it from the Rust types means the two sides cannot drift.
 pub fn schema_bundle() -> serde_json::Value {
     let mut generator = schemars::gen::SchemaGenerator::default();

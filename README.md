@@ -37,14 +37,14 @@ Pre-built binaries containing both the interactive CLI (`tetonic`) and the backg
 
 #### Method 3: Install via Cargo
 ```bash
-cargo install --git https://github.com/tetonic-labs/tetonic lokai-cli
+cargo install --git https://github.com/tetonic-labs/tetonic tetonic-cli
 ```
 
 #### Method 4: Build from Source
 ```bash
 git clone https://github.com/tetonic-labs/tetonic.git
 cd tetonic/engine
-cargo build --release -p lokai-cli
+cargo build --release -p tetonic-cli
 ```
 The compiled binary is placed at `engine/target/release/tetonic` (or `tetonic.exe` on Windows).
 
@@ -100,7 +100,7 @@ The Tetonic Engine organizes all capabilities into a **Five-Layer Earth Model**:
 ### Layer Navigation Guide
 
 - **`engine/litho/` (Lithosphere)**: The human interface layer.
-  Hosts the **Tetonic** coding assistant: `lokai-cli` (legacy Cargo package, `tetonic` CLI/TUI), `tetonic-app` (application coordination and prompts), `lokaid` (legacy Cargo package, `tetonicd` editor daemon), and `tetonic-tools` (sandboxed coding tools).
+  Hosts the **Tetonic** coding assistant: `tetonic-cli` (`tetonic` CLI/TUI), `tetonic-app` (application coordination and prompts), `tetonicd` (`tetonicd` editor daemon), and `tetonic-tools` (sandboxed coding tools).
 - **`engine/mantle/` (Mantle)**: The digital autonomous organization layer.
   Hosts the **Mantle** platform: `tetonic-run` (durable run supervision), `tetonic-orchestrator` (multi-agent topology and delegation), `tetonic-broker` (compute scheduling and queues), `tetonic-node` (remote worker tasks), and `tetonic-capacity` (hardware profiling).
 - **`engine/core/` (Core)**: The systems kernel.

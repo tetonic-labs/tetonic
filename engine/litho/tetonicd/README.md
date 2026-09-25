@@ -1,6 +1,6 @@
-# lokaid
+# tetonicd
 
-Editor-spawned daemon: thin JSON-RPC transport adapter over stdin/stdout. All application behavior delegates to `lokai-app`; lokaid authenticates, decodes, translates, invokes, encodes, and streams.
+Editor-spawned daemon: thin JSON-RPC transport adapter over stdin/stdout. All application behavior delegates to `lokai-app`; tetonicd authenticates, decodes, translates, invokes, encodes, and streams.
 
 ## Modes
 
@@ -87,13 +87,13 @@ Golden fixtures and compatibility tests: `daemon/tests/protocol_golden.rs`, `dae
 
 ## Dependencies
 
-Direct deps are strictly `lokai-app` and `lokai-rpc` (plus external runtime crates). All 17 core engine crates are isolated behind the `Application` facade. Production agents are assembled inside `lokai-app` turn execution via `EngineRuntime::assemble_agent` — not in lokaid handlers. The compute plane is wired by `lokai_app`; the daemon handles stdio RPC dispatch.
+Direct deps are strictly `lokai-app` and `lokai-rpc` (plus external runtime crates). All 17 core engine crates are isolated behind the `Application` facade. Production agents are assembled inside `lokai-app` turn execution via `EngineRuntime::assemble_agent` — not in tetonicd handlers. The compute plane is wired by `lokai_app`; the daemon handles stdio RPC dispatch.
 
 ## Tests
 
-`cargo test -p lokaid` — in-process tests: RPC auth, streaming, approvals, orchestration, session resume, egress/policy gates, golden protocol fixtures, M0-4 parity. No Ollama required.
+`cargo test -p tetonicd` — in-process tests: RPC auth, streaming, approvals, orchestration, session resume, egress/policy gates, golden protocol fixtures, M0-4 parity. No Ollama required.
 
-Smoke: `engine/scripts/smoke_lokaid.py` (live one-turn run).
+Smoke: `engine/scripts/smoke_tetonicd.py` (live one-turn run).
 
 ## Related docs
 

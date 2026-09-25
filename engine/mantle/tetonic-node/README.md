@@ -4,7 +4,7 @@ Worker fabric ingress — the only crate that binds fabric listen ports. mTLS, d
 
 ## Role in the stack
 
-Runs on worker machines via `lokaid --node`. Accepts inference jobs from the coordinator over mutually authenticated TLS. Scheduler preempts Circle work when owner activity is signaled (N1.1).
+Runs on worker machines via `tetonicd --node`. Accepts inference jobs from the coordinator over mutually authenticated TLS. Scheduler preempts Circle work when owner activity is signaled (N1.1).
 
 ## Modules
 

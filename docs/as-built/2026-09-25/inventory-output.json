@@ -38,7 +38,7 @@
       "kind": [
         "bin"
       ],
-      "source": "engine/litho/lokai-cli/src/main.rs"
+      "source": "engine/litho/tetonic-cli/src/main.rs"
     },
     {
       "name": "lsp-mock-server",
@@ -59,7 +59,7 @@
       "kind": [
         "bin"
       ],
-      "source": "engine/litho/lokaid/src/main.rs"
+      "source": "engine/litho/tetonicd/src/main.rs"
     },
     {
       "name": "tetonic-arch-gate",

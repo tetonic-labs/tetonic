@@ -1136,14 +1136,14 @@
   },
   {
     "name": "lokai-cli",
-    "manifest": "engine/litho/lokai-cli/Cargo.toml",
+    "manifest": "engine/litho/tetonic-cli/Cargo.toml",
     "targets": [
       {
         "name": "lokai",
         "kind": [
           "bin"
         ],
-        "source": "engine/litho/lokai-cli/src/main.rs"
+        "source": "engine/litho/tetonic-cli/src/main.rs"
       }
     ],
     "internal_dependencies": [
@@ -1619,14 +1619,14 @@
   },
   {
     "name": "lokaid",
-    "manifest": "engine/litho/lokaid/Cargo.toml",
+    "manifest": "engine/litho/tetonicd/Cargo.toml",
     "targets": [
       {
         "name": "lokaid",
         "kind": [
           "bin"
         ],
-        "source": "engine/litho/lokaid/src/main.rs"
+        "source": "engine/litho/tetonicd/src/main.rs"
       }
     ],
     "internal_dependencies": [

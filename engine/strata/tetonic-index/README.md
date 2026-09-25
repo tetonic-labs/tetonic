@@ -19,7 +19,7 @@ Built by CLI (`lokai --index`) or auto at daemon init. When present, `lokai-tool
 
 ## Semantic search scope
 
-`semantic_search` is available from **`lokai-cli`** (`--search --semantic`) and benches — **not** an agent tool in v1 (sync tool loop; embeddings are async/CLI-driven). Corpora ≤ 4000 vectors use exact cosine; larger workspaces build an in-memory HNSW index on demand (LRU cache, max 8 graphs) and rebuild when embeddings change.
+`semantic_search` is available from **`tetonic-cli`** (`--search --semantic`) and benches — **not** an agent tool in v1 (sync tool loop; embeddings are async/CLI-driven). Corpora ≤ 4000 vectors use exact cosine; larger workspaces build an in-memory HNSW index on demand (LRU cache, max 8 graphs) and rebuild when embeddings change.
 
 ## Dependencies
 

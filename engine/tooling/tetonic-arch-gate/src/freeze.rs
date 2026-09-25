@@ -260,7 +260,7 @@ fn is_worker_infer_assembly(rel_path: &str) -> bool {
     let n = norm(rel_path);
     n.ends_with("mantle/lokai-node/src/fabric.rs")
         || n.ends_with("mantle/tetonic-node/src/fabric.rs")
-        || n.ends_with("litho/lokaid/src/node.rs")
+        || n.ends_with("litho/tetonicd/src/node.rs")
 }
 
 /// M7: no empty worker Infer/capacity `EgressGuard::new()`, no legacy chat env.
@@ -295,18 +295,18 @@ fn token_prefix_needle() -> String {
     format!("{}{}", "LOKAI_RPC_TOKEN", "=")
 }
 
-fn is_lokaid_src(rel_path: &str) -> bool {
-    norm(rel_path).contains("litho/lokaid/")
+fn is_tetonicd_src(rel_path: &str) -> bool {
+    norm(rel_path).contains("litho/tetonicd/")
 }
 
-/// M8: lokaid handlers do not skip to execute_turn;
-/// production lokaid does not eprintln the token prefix.
+/// M8: tetonicd handlers do not skip to execute_turn;
+/// production tetonicd does not eprintln the token prefix.
 pub fn app_door_new(root: &Path) -> Vec<Violation> {
     let token = token_prefix_needle();
     let mut out = Vec::new();
     for path in collect_rs_files(root) {
         let rel_path = rel(root, &path);
-        if skip_freeze_rel(&rel_path) || !is_lokaid_src(&rel_path) {
+        if skip_freeze_rel(&rel_path) || !is_tetonicd_src(&rel_path) {
             continue;
         }
         let text = production_text(&std::fs::read_to_string(&path).unwrap_or_default());
@@ -315,7 +315,7 @@ pub fn app_door_new(root: &Path) -> Vec<Violation> {
                 rule: "app_door_new",
                 path: path.clone(),
                 detail:
-                    "lokaid must call RunService::run_turn, not turn_execution::execute_turn (M8)"
+                    "tetonicd must call RunService::run_turn, not turn_execution::execute_turn (M8)"
                         .into(),
             });
         }
@@ -323,7 +323,7 @@ pub fn app_door_new(root: &Path) -> Vec<Violation> {
             out.push(Violation {
                 rule: "app_door_new",
                 path: path.clone(),
-                detail: "production lokaid must not eprintln the RPC token prefix (M8)".into(),
+                detail: "production tetonicd must not eprintln the RPC token prefix (M8)".into(),
             });
         }
     }
@@ -408,7 +408,7 @@ pub fn product_boundary_new(root: &Path) -> Vec<Violation> {
     out
 }
 
-const INSPECT_RUN_HANDLER: &str = "litho/lokaid/src/daemon/handlers/run.rs";
+const INSPECT_RUN_HANDLER: &str = "litho/tetonicd/src/daemon/handlers/run.rs";
 const INSPECT_EVAL_RECOVERY: &str = "tooling/lokai-eval/src/recovery.rs";
 const INSPECT_EVAL_RECOVERY_TETONIC: &str = "tooling/tetonic-eval/src/recovery.rs";
 
@@ -638,7 +638,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write(
             &dir.path()
-                .join("litho/lokaid/src/daemon/handlers/initialize.rs"),
+                .join("litho/tetonicd/src/daemon/handlers/initialize.rs"),
             "let guard = Arc::new(EgressGuard::new());\n",
         );
         let v = egress_hygiene_new(dir.path());
@@ -657,10 +657,10 @@ mod tests {
     }
 
     #[test]
-    fn app_door_catches_execute_turn_in_lokaid() {
+    fn app_door_catches_execute_turn_in_tetonicd() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/lokaid/src/daemon/handlers/chat.rs"),
+            &dir.path().join("litho/tetonicd/src/daemon/handlers/chat.rs"),
             "app.turn_execution::execute_turn(req).await\n",
         );
         let v = app_door_new(dir.path());
@@ -669,12 +669,12 @@ mod tests {
     }
 
     #[test]
-    fn app_door_catches_token_prefix_in_lokaid() {
+    fn app_door_catches_token_prefix_in_tetonicd() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/lokaid/src/main.rs"),
+            &dir.path().join("litho/tetonicd/src/main.rs"),
             &format!(
-                "eprintln!(\"lokaid: {}{{}}\", token);\n",
+                "eprintln!(\"tetonicd: {}{{}}\", token);\n",
                 token_prefix_needle()
             ),
         );
@@ -698,7 +698,7 @@ mod tests {
     fn app_door_allows_token_env_read_without_prefix() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/lokaid/src/daemon/config.rs"),
+            &dir.path().join("litho/tetonicd/src/daemon/config.rs"),
             "std::env::var(\"LOKAI_RPC_TOKEN\")\n",
         );
         let v = app_door_new(dir.path());
@@ -706,10 +706,10 @@ mod tests {
     }
 
     #[test]
-    fn app_door_skips_lokaid_tests() {
+    fn app_door_skips_tetonicd_tests() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/lokaid/src/daemon/tests/cases.rs"),
+            &dir.path().join("litho/tetonicd/src/daemon/tests/cases.rs"),
             "turn_execution::execute_turn\n",
         );
         let v = app_door_new(dir.path());
@@ -777,7 +777,7 @@ mod tests {
     fn inspect_door_catches_snapshot_in_run_handler() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/lokaid/src/daemon/handlers/run.rs"),
+            &dir.path().join("litho/tetonicd/src/daemon/handlers/run.rs"),
             "app.supervisor.snapshot(id).await\n",
         );
         let v = inspect_door_new(dir.path());
@@ -813,7 +813,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         write(
             &dir.path()
-                .join("litho/lokaid/src/daemon/tests/protocol_golden.rs"),
+                .join("litho/tetonicd/src/daemon/tests/protocol_golden.rs"),
             "!src.contains(\".supervisor.snapshot\")\n",
         );
         let v = inspect_door_new(dir.path());

@@ -3,25 +3,25 @@
 use crate::{collect_rs_files, is_allowed_subprocess, rel, Violation};
 use std::path::Path;
 
-pub fn check_lokaid_session_authority(root: &Path) -> Vec<Violation> {
+pub fn check_tetonicd_session_authority(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let daemon = root.join("litho/lokaid/src/daemon.rs");
+    let daemon = root.join("litho/tetonicd/src/daemon.rs");
     let daemon_text = std::fs::read_to_string(&daemon).unwrap_or_default();
     if daemon_text.contains("sessions: HashMap") || daemon_text.contains("SessionState") {
         out.push(Violation {
-            rule: "lokaid_session_authority",
+            rule: "tetonicd_session_authority",
             path: daemon,
             detail: "Daemon must not own a SessionState HashMap; live sessions live in lokai-app"
                 .into(),
         });
     }
-    let dir = root.join("litho/lokaid/src/daemon/handlers");
+    let dir = root.join("litho/tetonicd/src/daemon/handlers");
     for path in collect_rs_files(&dir) {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         for pat in ["SessionState {", "sessions.insert", "convo.borrow"] {
             if text.contains(pat) {
                 out.push(Violation {
-                    rule: "lokaid_session_authority",
+                    rule: "tetonicd_session_authority",
                     path: path.clone(),
                     detail: format!(
                         "handlers must not mutate conversation/session slots directly (`{pat}`)"
@@ -37,14 +37,14 @@ pub fn check_lokaid_session_authority(root: &Path) -> Vec<Violation> {
 /// Display/logging in capacity CLI, node banner, and fabric mapping remain allowed.
 pub fn check_no_gates_ok_turn_abort(root: &Path) -> Vec<Violation> {
     const ALLOW: &[&str] = &[
-        "litho/lokai-cli/src/capacity.rs",
-        "litho/lokaid/src/node.rs",
-        "litho/lokaid/src/daemon/compute.rs",
-        "litho/lokaid/src/daemon/helpers.rs",
-        "litho/lokaid/src/daemon/handlers/capacity.rs",
+        "litho/tetonic-cli/src/capacity.rs",
+        "litho/tetonicd/src/node.rs",
+        "litho/tetonicd/src/daemon/compute.rs",
+        "litho/tetonicd/src/daemon/helpers.rs",
+        "litho/tetonicd/src/daemon/handlers/capacity.rs",
     ];
     let mut out = Vec::new();
-    for crate_rel in ["litho/lokai-cli/src", "litho/lokaid/src"] {
+    for crate_rel in ["litho/tetonic-cli/src", "litho/tetonicd/src"] {
         let dir = root.join(crate_rel);
         for path in collect_rs_files(&dir) {
             let rel_path = rel(root, &path);
@@ -176,7 +176,7 @@ pub fn check_outbound_secret_scanner(root: &Path) -> Vec<Violation> {
 /// H3-1: resume cap lives in lokai-app. A copy in bins/ is the B3 divergence.
 pub fn check_no_duplicate_resume_cap(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    for crate_rel in ["litho/lokai-cli/src", "litho/lokaid/src"] {
+    for crate_rel in ["litho/tetonic-cli/src", "litho/tetonicd/src"] {
         let dir = root.join(crate_rel);
         for path in collect_rs_files(&dir) {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -199,7 +199,7 @@ pub fn check_no_duplicate_enrollment_helpers(root: &Path) -> Vec<Violation> {
         r"(?m)^\s*(pub\s+)?fn\s+(reload_enrollment_egress|load_or_create_coordinator)\s*\(",
     )
     .expect("regex");
-    for crate_rel in ["litho/lokai-cli/src", "litho/lokaid/src"] {
+    for crate_rel in ["litho/tetonic-cli/src", "litho/tetonicd/src"] {
         let dir = root.join(crate_rel);
         for path in collect_rs_files(&dir) {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
@@ -287,7 +287,7 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "cli bootstrap must call the shared compute-plane builder".into(),
         });
     }
-    let session = root.join("litho/lokai-cli/src/session.rs");
+    let session = root.join("litho/tetonic-cli/src/session.rs");
     let session_text = std::fs::read_to_string(&session).unwrap_or_default();
     if session_text.contains("compute_broker: None") {
         out.push(Violation {
@@ -315,7 +315,7 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
 
 /// R3-2: leftover CLI commands must be labeled infrastructure-only.
 pub fn check_cli_infra_leftovers(root: &Path) -> Vec<Violation> {
-    let path = root.join("litho/lokai-cli/src/offline.rs");
+    let path = root.join("litho/tetonic-cli/src/offline.rs");
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     if !text.contains("infrastructure-only") {
         vec![Violation {
@@ -331,7 +331,7 @@ pub fn check_cli_infra_leftovers(root: &Path) -> Vec<Violation> {
 
 /// R3-2: TUI inspector must not spawn subprocesses.
 pub fn check_cli_inspector_no_command(root: &Path) -> Vec<Violation> {
-    let path = root.join("litho/lokai-cli/src/chat.rs");
+    let path = root.join("litho/tetonic-cli/src/chat.rs");
     let text = std::fs::read_to_string(&path).unwrap_or_default();
     if text.contains("Command::new") {
         vec![Violation {
@@ -655,7 +655,7 @@ pub fn check_async_sync_calls(root: &Path) -> Vec<Violation> {
             || rel_path.ends_with("_tests.rs")
             || rel_path.contains("lokai-app")
             || rel_path.contains("tetonic-app")
-            || rel_path.contains("lokai-cli")
+            || rel_path.contains("tetonic-cli")
             || rel_path.contains("tetonic-tools")
             || rel_path.contains("lokai-tools")
             || rel_path.contains("lokai-arch-gate")
@@ -740,8 +740,8 @@ pub fn check_no_mutex_store(root: &Path) -> Vec<Violation> {
     out
 }
 
-/// ARCH-V4-PORTAL-001: Portals (lokai-cli and lokaid) must depend only on lokai-app
-/// (and rpc for lokaid stdio IPC). Direct imports and dependencies on core crates
+/// ARCH-V4-PORTAL-001: Portals (tetonic-cli and tetonicd) must depend only on lokai-app
+/// (and rpc for tetonicd stdio IPC). Direct imports and dependencies on core crates
 /// (substrate, compute, capabilities, infrastructure, manager, or mantle/orchestrator)
 /// are strictly forbidden.
 pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
@@ -793,7 +793,7 @@ pub fn check_portal_decoupling(root: &Path) -> Vec<Violation> {
         ("tetonic-eval", "tetonic_eval"),
     ];
 
-    let portals = [("litho/lokai-cli", false), ("litho/lokaid", true)];
+    let portals = [("litho/tetonic-cli", false), ("litho/tetonicd", true)];
 
     for (portal_rel, allows_rpc) in portals {
         let portal_dir = root.join(portal_rel);

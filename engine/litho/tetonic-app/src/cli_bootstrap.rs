@@ -1,4 +1,4 @@
-//! CLI application bootstrap — single entry point for lokai-cli.
+//! CLI application bootstrap — single entry point for tetonic-cli.
 //!
 //! Encapsulates all egress guard setup, compute plane assembly, database opening,
 //! and session startup behind the product facade.

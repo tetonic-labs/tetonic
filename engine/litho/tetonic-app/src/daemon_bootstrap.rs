@@ -1,4 +1,4 @@
-//! Daemon application bootstrap — entry point for lokaid.
+//! Daemon application bootstrap — entry point for tetonicd.
 //!
 //! Encapsulates workspace initialization, egress guard configuration,
 //! compute plane setup, model discovery, and application kernel wiring.

@@ -1,4 +1,4 @@
-//! `lokaid` — the local-only agent daemon the editor spawns.
+//! `tetonicd` — the local-only agent daemon the editor spawns.
 //!
 //! It owns the request/dispatch loop and wires the engine (default-deny egress
 //! guard, local Ollama provider, workspace-scoped tools, the single-agent loop,
@@ -86,7 +86,7 @@ fn main() -> Result<()> {
 }
 
 async fn serve() -> Result<()> {
-    let root_span = tracing::info_span!("lokaid_root");
+    let root_span = tracing::info_span!("tetonicd_root");
     let _root_enter = root_span.enter();
     tetonic_app::tetonic_telemetry::inject_context(
         tetonic_app::tetonic_telemetry::TraceContext::default(),

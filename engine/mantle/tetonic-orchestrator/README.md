@@ -4,7 +4,7 @@ Session orchestration between RPC/CLI and the agent loop: briefing, routing, spe
 
 ## Role in the stack
 
-`lokaid` and the **`lokai` CLI** both call `run_orchestrated_turn` from this crate (`turn.rs`) for `chat/send` / `--orchestrate auto`. `SessionHost` runs at session start; `agent/spawn` and in-loop `spawn_agent` use `run_spawned_specialist`. Does not perform inference or tool I/O itself.
+`tetonicd` and the **`lokai` CLI** both call `run_orchestrated_turn` from this crate (`turn.rs`) for `chat/send` / `--orchestrate auto`. `SessionHost` runs at session start; `agent/spawn` and in-loop `spawn_agent` use `run_spawned_specialist`. Does not perform inference or tool I/O itself.
 
 ## Modules
 

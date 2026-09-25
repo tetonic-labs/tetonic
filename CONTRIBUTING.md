@@ -13,7 +13,7 @@ Lokai enforces strict mechanical boundaries across all 31 engine packages. These
 | **Egress Isolation** | Network HTTP calls via `reqwest` are forbidden everywhere except inside `lokai-egress`. | `ARCH-NET-001` |
 | **Sandboxed Execution** | Child processes must be spawned via `lokai-sandbox` executors, never directly through `std::process::Command`. | `ARCH-PROC-001` |
 | **Transactional Staging** | Workspace file modifications must flow through `lokai-transaction` to ensure atomic staging and rollback. | `ARCH-FS-001` |
-| **Single Engine Kernel** | `lokai-app`, `lokai-cli`, and `lokaid` must not instantiate independent execution loops; all runs flow through the kernel in `lokai-core`. | `ARCH-APP-001` |
+| **Single Engine Kernel** | `lokai-app`, `tetonic-cli`, and `tetonicd` must not instantiate independent execution loops; all runs flow through the kernel in `lokai-core`. | `ARCH-APP-001` |
 | **Clean Layer Boundaries** | Dependencies must respect the five Earth layers: Litho, Mantle, Core, Strata, and Atmos. | `lokai-arch-gate` |
 
 ---
@@ -22,7 +22,7 @@ Lokai enforces strict mechanical boundaries across all 31 engine packages. These
 
 - **Formatting**: All Rust code must be formatted using standard `cargo fmt`.
 - **Clippy**: All code must compile cleanly with `-D warnings`. No new warning debt is permitted.
-- **Error Handling**: Library crates use strongly typed errors via `thiserror`. Application and binary entry points (`lokai-cli`, `lokaid`, `lokai-arch-gate`) may use `anyhow`.
+- **Error Handling**: Library crates use strongly typed errors via `thiserror`. Application and binary entry points (`tetonic-cli`, `tetonicd`, `lokai-arch-gate`) may use `anyhow`.
 - **No Panics in Dispatch**: Production agent loops, tool handlers, and RPC paths must never use unhandled `.unwrap()` or `.expect()` calls.
 - **Async Concurrency**: Never perform blocking filesystem operations inside Tokio worker threads. Never re-introduce monolithic mutex locks over persistent stores.
 

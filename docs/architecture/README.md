@@ -32,9 +32,9 @@ Tetonic is built around a five-layer Earth model that isolates user interfaces (
 
 ### 1. Litho (`engine/litho/`)
 The interface layer between human developers and the agent engine.
-- [`lokai-cli`](../../engine/litho/lokai-cli): Interactive terminal user interface (Ratatui-based).
+- [`lokai-cli`](../../engine/litho/tetonic-cli): Interactive terminal user interface (Ratatui-based).
 - [`lokai-app`](../../engine/litho/lokai-app): Application service layer, product definitions, and agent prompts.
-- [`lokaid`](../../engine/litho/lokaid): Background daemon exposing JSON-RPC over stdio for IDE integration.
+- [`lokaid`](../../engine/litho/tetonicd): Background daemon exposing JSON-RPC over stdio for IDE integration.
 - [`lokai-lsp`](../../engine/litho/lokai-lsp): Language Server Protocol client.
 - [`lokai-tools`](../../engine/litho/lokai-tools): Concrete coding tool implementations bound to sandboxed executors.
 

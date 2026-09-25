@@ -1,6 +1,6 @@
 //! Facade methods on Application for CLI offline, index, memory, and capacity operations.
 //!
-//! Keeps portals (lokai-cli) completely decoupled from underlying storage,
+//! Keeps portals (tetonic-cli) completely decoupled from underlying storage,
 //! capabilities, and compute crates.
 
 use std::path::{Path, PathBuf};

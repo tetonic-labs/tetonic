@@ -1,19 +1,19 @@
 #!/usr/bin/env python3
-"""Live smoke test for the lokaid daemon.
+"""Live smoke test for the tetonicd daemon.
 
-Spawns `lokaid`, speaks the agent-rpc-v1 stdio JSON-RPC protocol
+Spawns `tetonicd`, speaks the agent-rpc-v1 stdio JSON-RPC protocol
 (Content-Length framing), drives a real one-turn agent run against the local
 Ollama, and prints the streamed notifications. Use it to eyeball the daemon
 end-to-end; the deterministic, Ollama-free coverage lives in the Rust tests
-(`cargo test -p lokaid`).
+(`cargo test -p tetonicd`).
 
 Usage:
-    python smoke_lokaid.py <workspace_dir> [prompt]
+    python smoke_tetonicd.py <workspace_dir> [prompt]
 
 Env:
     LOKAI_MODEL    model to use (default: the daemon's default)
     LOKAI_OLLAMA   Ollama base url (default: http://localhost:11434)
-    LOKAID_BIN     path to the lokaid binary (default: ../target/debug/lokaid[.exe])
+    LOKAID_BIN     path to the tetonicd binary (default: ../target/debug/tetonicd[.exe])
 """
 import json
 import os
@@ -58,7 +58,7 @@ def main() -> int:
     exe = "tetonicd.exe" if os.name == "nt" else "tetonicd"
     bin_path = os.environ.get("LOKAID_BIN", str(here.parent / "target" / "debug" / exe))
     if not Path(bin_path).exists():
-        print(f"daemon not found at {bin_path}; build it with `cargo build -p lokaid`", file=sys.stderr)
+        print(f"daemon not found at {bin_path}; build it with `cargo build -p tetonicd`", file=sys.stderr)
         return 1
 
     print(f"# spawning {bin_path}\n# workspace: {workspace}\n")

@@ -17,12 +17,12 @@ pub fn arch_id(rule: &str) -> &'static str {
         "file_size" => "ARCH-SIZE-001",
         "unguarded_remote_dispatch" => "ARCH-INFER-001",
         "compute_broker_wiring" => "ARCH-INFER-002",
-        "lokaid_session_authority" => "ARCH-APP-001",
+        "tetonicd_session_authority" => "ARCH-APP-001",
         "app_workflow_delegation" => "ARCH-APP-002",
         "cli_workflow_delegation" => "ARCH-APP-003",
-        "lokaid_no_direct_orchestration" => "ARCH-APP-004",
+        "tetonicd_no_direct_orchestration" => "ARCH-APP-004",
         "cli_no_direct_orchestration" => "ARCH-APP-005",
-        "lokaid_no_capacity_workflow" => "ARCH-APP-006",
+        "tetonicd_no_capacity_workflow" => "ARCH-APP-006",
         "no_gates_ok_turn_abort" => "ARCH-APP-007",
         "no_duplicate_resume_cap" => "ARCH-APP-008",
         "no_duplicate_enrollment_helpers" => "ARCH-APP-009",
@@ -74,7 +74,7 @@ pub fn arch_why(rule: &str) -> &'static str {
             "Empty worker Infer EgressGuard or LOKAI_FABRIC_LEGACY_CHAT_ONLY reopens I14 / DEL-014. Coordinator new()+reload is out of this tripwire."
         }
         "app_door_new" => {
-            "lokaid execute_turn, serve.py INSECURE, or production token-prefix eprintln reopens the M8 door mutants. Does not prove INV-APP-001 ESTABLISHED."
+            "tetonicd execute_turn, serve.py INSECURE, or production token-prefix eprintln reopens the M8 door mutants. Does not prove INV-APP-001 ESTABLISHED."
         }
         "inspect_door_new" => {
             "Daemon run handlers or eval recovery calling .supervisor.snapshot / resume_from_sequence skips the M10 inspect door. Does not prove INV-APP-001 ESTABLISHED. fabric_run_bridge snapshot is out of this tripwire."
@@ -122,7 +122,7 @@ pub fn arch_how(rule: &str) -> &'static str {
             "Pin worker Infer/capacity via EgressGuard::pinned_to_inference_url. Do not read LOKAI_FABRIC_LEGACY_CHAT_ONLY. Coordinator enroll may still new() then allow_node."
         }
         "app_door_new" => {
-            "Call RunService::run_turn from lokaid handlers. Do not eprintln the RPC token prefix."
+            "Call RunService::run_turn from tetonicd handlers. Do not eprintln the RPC token prefix."
         }
         "inspect_door_new" => {
             "Call inspect_run / resume_events from handlers/run.rs and lokai-eval recovery.rs. Do not restore .supervisor.snapshot there. Do not ban snapshot workspace-wide."

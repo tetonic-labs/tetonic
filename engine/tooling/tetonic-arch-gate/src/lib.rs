@@ -108,7 +108,7 @@ fn is_allowed_subprocess(rel_path: &str) -> bool {
         "tooling/tetonic-arch-gate/",
         "tooling/lokai-eval/",
         "tooling/tetonic-eval/",
-        "litho/lokaid/src/supervise.rs",
+        "litho/tetonicd/src/supervise.rs",
     ];
     let norm = rel_path.replace("tetonic-", "lokai-");
     ALLOW
@@ -174,7 +174,7 @@ pub fn check_reqwest(root: &Path) -> Vec<Violation> {
 pub fn check_production_runtime(root: &Path) -> Vec<Violation> {
     let re = regex::Regex::new(r"Agent::(new|with_tokenizer)\s*\(").expect("regex");
     let mut out = Vec::new();
-    for bin in ["litho/lokaid/src", "litho/lokai-cli/src"] {
+    for bin in ["litho/tetonicd/src", "litho/tetonic-cli/src"] {
         let dir = root.join(bin);
         for path in collect_rs_files(&dir) {
             let rel_path = rel(root, &path);
@@ -184,7 +184,7 @@ pub fn check_production_runtime(root: &Path) -> Vec<Violation> {
             let text = std::fs::read_to_string(&path).unwrap_or_default();
             if text.contains("MockProvider") || text.contains("mod tests") {
                 // skip test helpers in same file: only flag if outside #[cfg(test)] blocks is hard;
-                // lokaid production paths use assemble_agent only today.
+                // tetonicd production paths use assemble_agent only today.
             }
             if re.is_match(&text) && !text.contains("#[cfg(test)]") {
                 // Heuristic: production files with Agent::new and no test module
@@ -221,10 +221,10 @@ pub fn check_policy_deps(root: &Path) -> Vec<Violation> {
     }
 }
 
-/// Every method listed in `schema_bundle().methods` must be handled in lokaid dispatch.
+/// Every method listed in `schema_bundle().methods` must be handled in tetonicd dispatch.
 pub fn check_schema_methods(root: &Path) -> Vec<Violation> {
-    let daemon = root.join("litho/lokaid/src/daemon.rs");
-    let main_rs = root.join("litho/lokaid/src/main.rs");
+    let daemon = root.join("litho/tetonicd/src/daemon.rs");
+    let main_rs = root.join("litho/tetonicd/src/main.rs");
     let text = format!(
         "{}\n{}",
         std::fs::read_to_string(&daemon).unwrap_or_default(),
@@ -263,7 +263,7 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     "strata/tetonic-memory/src/lib.rs",
     "atmos/lokai-inference/src/lib.rs",
     "atmos/tetonic-inference/src/lib.rs",
-    "litho/lokai-cli/src/main.rs",
+    "litho/tetonic-cli/src/main.rs",
     "core/lokai-core/src/agent.rs",
     "core/tetonic-core/src/agent.rs",
     // Owner: M5-3. Reason: pooled dispatch tests cover trust downgrade,
@@ -338,8 +338,8 @@ pub fn check_app_layer_deps(root: &Path) -> Vec<Violation> {
     let cargo_text = std::fs::read_to_string(&cargo_path).unwrap_or_default();
     if cargo_text.contains("lokai-rpc")
         || cargo_text.contains("tetonic-rpc")
-        || cargo_text.contains("lokaid")
-        || cargo_text.contains("lokai-cli")
+        || cargo_text.contains("tetonicd")
+        || cargo_text.contains("tetonic-cli")
     {
         out.push(Violation {
             rule: "app_layer_deps",
@@ -376,12 +376,12 @@ pub fn check_app_layer_deps(root: &Path) -> Vec<Violation> {
 /// M1-2: migrated RPC handlers must delegate workflow decisions to `services.app`.
 pub fn check_app_workflow_delegation(root: &Path) -> Vec<Violation> {
     const HANDLERS: &[&str] = &[
-        "litho/lokaid/src/daemon/handlers/session.rs",
-        "litho/lokaid/src/daemon/handlers/policy.rs",
-        "litho/lokaid/src/daemon/handlers/misc.rs",
-        "litho/lokaid/src/daemon/handlers/chat.rs",
-        "litho/lokaid/src/daemon/handlers/agent.rs",
-        "litho/lokaid/src/daemon/handlers/capacity.rs",
+        "litho/tetonicd/src/daemon/handlers/session.rs",
+        "litho/tetonicd/src/daemon/handlers/policy.rs",
+        "litho/tetonicd/src/daemon/handlers/misc.rs",
+        "litho/tetonicd/src/daemon/handlers/chat.rs",
+        "litho/tetonicd/src/daemon/handlers/agent.rs",
+        "litho/tetonicd/src/daemon/handlers/capacity.rs",
     ];
     let app_re = regex::Regex::new(r"services\s*\.\s*app|\.app\s*\.").expect("regex");
     let mut out = Vec::new();
@@ -403,10 +403,10 @@ pub fn check_app_workflow_delegation(root: &Path) -> Vec<Violation> {
 /// M1-3: CLI agent path must delegate to lokai-app; no direct orchestration or agent assembly.
 pub fn check_cli_workflow_delegation(root: &Path) -> Vec<Violation> {
     const FILES: &[&str] = &[
-        "litho/lokai-cli/src/main.rs",
-        "litho/lokai-cli/src/chat.rs",
-        "litho/lokai-cli/src/estate.rs",
-        "litho/lokai-cli/src/capacity.rs",
+        "litho/tetonic-cli/src/main.rs",
+        "litho/tetonic-cli/src/chat.rs",
+        "litho/tetonic-cli/src/estate.rs",
+        "litho/tetonic-cli/src/capacity.rs",
     ];
     let app_re = regex::Regex::new(
         r"tetonic_app::|\.runs\.|\.sessions\.|\.estate\.|\.capacity\.|\.approvals\.",
@@ -428,13 +428,13 @@ pub fn check_cli_workflow_delegation(root: &Path) -> Vec<Violation> {
     out
 }
 
-pub fn check_lokaid_no_direct_orchestration(root: &Path) -> Vec<Violation> {
+pub fn check_tetonicd_no_direct_orchestration(root: &Path) -> Vec<Violation> {
     let re = regex::Regex::new(
         r"run_orchestrated_turn\s*\(|run_spawned_specialist\s*\(|assemble_agent\s*\(|build_agent_standalone\s*\(",
     )
     .expect("regex");
     let mut out = Vec::new();
-    let dir = root.join("litho/lokaid/src/daemon/handlers");
+    let dir = root.join("litho/tetonicd/src/daemon/handlers");
     for path in collect_rs_files(&dir) {
         let rel_path = rel(root, &path);
         if rel_path.contains("/tests/") || rel_path.ends_with("_tests.rs") {
@@ -443,9 +443,9 @@ pub fn check_lokaid_no_direct_orchestration(root: &Path) -> Vec<Violation> {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         if re.is_match(&text) {
             out.push(Violation {
-                rule: "lokaid_no_direct_orchestration",
+                rule: "tetonicd_no_direct_orchestration",
                 path: path.clone(),
-                detail: "lokaid handlers must delegate orchestration to lokai-app RunService"
+                detail: "tetonicd handlers must delegate orchestration to lokai-app RunService"
                     .into(),
             });
         }
@@ -453,18 +453,18 @@ pub fn check_lokaid_no_direct_orchestration(root: &Path) -> Vec<Violation> {
     out
 }
 
-pub fn check_lokaid_handlers_no_profile_store(root: &Path) -> Vec<Violation> {
+pub fn check_tetonicd_handlers_no_profile_store(root: &Path) -> Vec<Violation> {
     let re = regex::Regex::new(
         r"ProfileStore::new|(?:tetonic_capacity|tetonic_capacity)::run_optimize\s*\(",
     )
     .expect("regex");
     let mut out = Vec::new();
-    let dir = root.join("litho/lokaid/src/daemon/handlers");
+    let dir = root.join("litho/tetonicd/src/daemon/handlers");
     for path in collect_rs_files(&dir) {
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         if re.is_match(&text) {
             out.push(Violation {
-                rule: "lokaid_no_capacity_workflow",
+                rule: "tetonicd_no_capacity_workflow",
                 path: path.clone(),
                 detail: "capacity workflow must delegate to lokai-app CapacityService".into(),
             });
@@ -476,7 +476,7 @@ pub fn check_lokaid_handlers_no_profile_store(root: &Path) -> Vec<Violation> {
 pub fn check_cli_no_direct_orchestration(root: &Path) -> Vec<Violation> {
     let re = regex::Regex::new(r"run_orchestrated_turn\s*\(|assemble_agent\s*\(").expect("regex");
     let mut out = Vec::new();
-    let dir = root.join("litho/lokai-cli/src");
+    let dir = root.join("litho/tetonic-cli/src");
     for path in collect_rs_files(&dir) {
         let rel_path = rel(root, &path);
         if rel_path.contains("/tests/") || rel_path.ends_with("_tests.rs") {
@@ -488,7 +488,7 @@ pub fn check_cli_no_direct_orchestration(root: &Path) -> Vec<Violation> {
                 rule: "cli_no_direct_orchestration",
                 path: path.clone(),
                 detail:
-                    "lokai-cli must not invoke run_orchestrated_turn or assemble_agent directly"
+                    "tetonic-cli must not invoke run_orchestrated_turn or assemble_agent directly"
                         .into(),
             });
         }
@@ -502,7 +502,7 @@ pub fn check_unguarded_remote_dispatch(root: &Path) -> Vec<Violation> {
     let allow_remote_new = &[
         "litho/lokai-app/src/compute_plane.rs",
         "litho/tetonic-app/src/compute_plane.rs",
-        "litho/lokaid/src/daemon/compute.rs",
+        "litho/tetonicd/src/daemon/compute.rs",
         "atmos/lokai-inference/src/pooled.rs",
         "atmos/tetonic-inference/src/pooled.rs",
     ];
@@ -530,7 +530,7 @@ pub fn check_unguarded_remote_dispatch(root: &Path) -> Vec<Violation> {
         }
         if pooled_new.is_match(production_text)
             && !production_text.contains("with_dispatch_guard")
-            && rel_path.contains("litho/lokaid/")
+            && rel_path.contains("litho/tetonicd/")
             && !rel_path.contains("/tests/")
         {
             out.push(Violation {
@@ -586,7 +586,7 @@ pub fn check_workspace_mutations(root: &Path) -> Vec<Violation> {
         "std::fs::write(",
         "std::fs::remove_file(",
     ];
-    let offline = root.join("litho/lokai-cli/src/offline.rs");
+    let offline = root.join("litho/tetonic-cli/src/offline.rs");
     if offline.exists() {
         let text = freeze::production_text(&std::fs::read_to_string(&offline).unwrap_or_default());
         for pat in cli_forbidden {
@@ -616,8 +616,8 @@ pub fn run_all(root: &Path) -> Vec<Violation> {
     v.extend(check_app_workflow_delegation(root));
     v.extend(check_cli_workflow_delegation(root));
     v.extend(check_cli_no_direct_orchestration(root));
-    v.extend(check_lokaid_no_direct_orchestration(root));
-    v.extend(check_lokaid_handlers_no_profile_store(root));
+    v.extend(check_tetonicd_no_direct_orchestration(root));
+    v.extend(check_tetonicd_handlers_no_profile_store(root));
     v.extend(check_unguarded_remote_dispatch(root));
     v.extend(check_workspace_mutations(root));
     v.extend(check_run_state_mutations(root));
@@ -630,7 +630,7 @@ pub fn run_all(root: &Path) -> Vec<Violation> {
     v.extend(check_git_via_process_broker(root));
     v.extend(check_lsp_via_process_broker(root));
     v.extend(check_cli_infra_leftovers(root));
-    v.extend(check_lokaid_session_authority(root));
+    v.extend(check_tetonicd_session_authority(root));
     v.extend(check_no_gates_ok_turn_abort(root));
     v.extend(check_no_duplicate_resume_cap(root));
     v.extend(check_no_duplicate_enrollment_helpers(root));

@@ -18,8 +18,8 @@ pub const GRANDFATHER_ANYHOW: &[&str] = &[
 
 /// Bins (and only these) may take a direct `anyhow` dependency.
 pub const ALLOW_ANYHOW: &[&str] = &[
-    "lokai-cli",
-    "lokaid",
+    "tetonic-cli",
+    "tetonicd",
     "lokai-eval",
     "tetonic-eval",
     "lokai-bench",
@@ -113,7 +113,7 @@ pub fn check_anyhow_direct(engine_root: &Path) -> Vec<Finding> {
                 cargo,
                 format!("package `{name}` declares a direct `anyhow` dependency"),
                 "Library/runtime crates must use typed errors (`thiserror`). `anyhow` is for binary top-level context only.",
-                "Remove `anyhow` from this Cargo.toml. Convert call sites to `thiserror`. Bins lokai-cli, lokaid, lokai-eval, tetonic-eval, lokai-bench, tetonic-bench may keep anyhow. Existing grandfathered crates are listed in docs/engineering/QUALITY-DEBT.md: do not copy that pattern.",
+                "Remove `anyhow` from this Cargo.toml. Convert call sites to `thiserror`. Bins tetonic-cli, tetonicd, lokai-eval, tetonic-eval, lokai-bench, tetonic-bench may keep anyhow. Existing grandfathered crates are listed in docs/engineering/QUALITY-DEBT.md: do not copy that pattern.",
             ));
         }
     }
@@ -247,11 +247,11 @@ mod tests {
     #[test]
     fn anyhow_allowed_on_cli() {
         let dir = tempfile::tempdir().unwrap();
-        let crate_dir = dir.path().join("litho/lokai-cli");
+        let crate_dir = dir.path().join("litho/tetonic-cli");
         fs::create_dir_all(&crate_dir).unwrap();
         fs::write(
             crate_dir.join("Cargo.toml"),
-            "[package]\nname = \"lokai-cli\"\n[dependencies]\nanyhow = \"1\"\n",
+            "[package]\nname = \"tetonic-cli\"\n[dependencies]\nanyhow = \"1\"\n",
         )
         .unwrap();
         assert!(check_anyhow_direct(dir.path()).is_empty());

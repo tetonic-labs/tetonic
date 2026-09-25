@@ -59,7 +59,7 @@ jobs:
                      -p tetonic-transaction \
                      -p tetonic-egress \
                      -p tetonic-telemetry \
-                     -p lokai-cli \
+                     -p tetonic-cli \
                      -p tetonic-app
 
   build-matrix:
@@ -83,4 +83,4 @@ jobs:
           workspaces: engine
 
       - name: Build release binaries
-        run: cargo build --release -p lokai-cli -p lokaid
+        run: cargo build --release -p tetonic-cli -p tetonicd

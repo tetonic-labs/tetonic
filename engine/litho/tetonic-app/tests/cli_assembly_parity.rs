@@ -28,7 +28,7 @@ fn runtime_default_policy_allows_mutations() {
 
 #[tokio::test]
 async fn cli_compute_plane_broker_is_some_and_secret_stays_local() {
-    let dir = std::env::temp_dir().join(format!("lokai-cli-plane-{}", std::process::id()));
+    let dir = std::env::temp_dir().join(format!("tetonic-cli-plane-{}", std::process::id()));
     let _ = std::fs::create_dir_all(&dir);
     let plane = build_compute_plane(ComputePlaneRequest {
         guard: Arc::new(EgressGuard::new()),

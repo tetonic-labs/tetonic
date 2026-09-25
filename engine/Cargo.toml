@@ -43,7 +43,7 @@ zstd = "0.13"
 tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
 
 # Lean release profile: small, fast, static-friendly binary.
-# `panic = "abort"` is paired with `lokaid --supervise` (H3-3): abort kills
+# `panic = "abort"` is paired with `tetonicd --supervise` (H3-3): abort kills
 # in-flight Infer/shell; the supervisor restarts and rehydrates from lokai.db.
 # Do not switch to unwind to "save" live sessions in-process.
 [profile.release]

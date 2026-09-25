@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 """Generate the editor's TypeScript protocol types from the daemon's schema.
 
-The Rust types in `lokai-rpc` are the single source of truth. `lokaid
+The Rust types in `lokai-rpc` are the single source of truth. `tetonicd
 --print-schema` dumps them as a JSON Schema bundle; this script turns that
 bundle into a `protocol.ts` the editor's JSON-RPC client imports. Because both
 sides are derived from the same Rust definitions, they cannot drift.
 
 Usage (from the `engine/` directory):
 
-    cargo run -q -p lokaid -- --print-schema | python scripts/gen_ts_protocol.py
+    cargo run -q -p tetonicd -- --print-schema | python scripts/gen_ts_protocol.py
     # or, against an already-dumped file:
     python scripts/gen_ts_protocol.py --in schema.json --out clients/ts/protocol.ts
 
@@ -150,9 +150,9 @@ def emit_const_object(name: str, entries: dict, value_is_string: bool) -> str:
 
 def generate(bundle: dict) -> str:
     out: list[str] = []
-    out.append("// Code generated from `lokaid --print-schema`. DO NOT EDIT.")
+    out.append("// Code generated from `tetonicd --print-schema`. DO NOT EDIT.")
     out.append("// Source of truth: engine/crates/lokai-rpc (Rust). Regenerate with")
-    out.append("// `cargo run -q -p lokaid -- --print-schema | python scripts/gen_ts_protocol.py`.")
+    out.append("// `cargo run -q -p tetonicd -- --print-schema | python scripts/gen_ts_protocol.py`.")
     out.append("")
     out.append(f"export const PROTOCOL_VERSION = {bundle.get('protocol_version', 1)} as const;")
     out.append("")

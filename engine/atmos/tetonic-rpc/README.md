@@ -4,7 +4,7 @@ Editor ↔ daemon boundary: LSP-style stdio framing and JSON-RPC v1 protocol typ
 
 ## Role in the stack
 
-`lokaid` is the only consumer at runtime. `engine/clients/ts/protocol.ts` is generated from these types. Keeps the fork/CLI and daemon decoupled from agent internals.
+`tetonicd` is the only consumer at runtime. `engine/clients/ts/protocol.ts` is generated from these types. Keeps the fork/CLI and daemon decoupled from agent internals.
 
 ## Modules
 
@@ -49,7 +49,7 @@ None (foundation crate).
 Regenerate TS client:
 
 ```bash
-cargo run -q -p lokaid -- --print-schema | python scripts/gen_ts_protocol.py
+cargo run -q -p tetonicd -- --print-schema | python scripts/gen_ts_protocol.py
 ```
 
 ## Related docs

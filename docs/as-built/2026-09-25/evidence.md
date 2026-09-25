@@ -27,8 +27,8 @@ These anchors were resolved against actual source text. A citation records the s
 | [README.md](README.md) | [engine/mantle/tetonic-orchestrator/src/fleet.rs:86](../../../engine/mantle/tetonic-orchestrator/src/fleet.rs#L86) | `pub fn record_tokens` |
 | [README.md](README.md) | [engine/litho/tetonic-app/src/lib.rs:124](../../../engine/litho/tetonic-app/src/lib.rs#L124) | `pub struct Application` |
 | [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
-| [README.md](README.md) | [engine/litho/lokai-cli/src/main.rs:34](../../../engine/litho/lokai-cli/src/main.rs#L34) | `async fn main` |
-| [README.md](README.md) | [engine/litho/lokaid/src/main.rs:88](../../../engine/litho/lokaid/src/main.rs#L88) | `async fn serve` |
+| [README.md](README.md) | [engine/litho/tetonic-cli/src/main.rs:34](../../../engine/litho/tetonic-cli/src/main.rs#L34) | `async fn main` |
+| [README.md](README.md) | [engine/litho/tetonicd/src/main.rs:88](../../../engine/litho/tetonicd/src/main.rs#L88) | `async fn serve` |
 | [README.md](README.md) | [engine/litho/tetonic-app/src/node_worker.rs:135](../../../engine/litho/tetonic-app/src/node_worker.rs#L135) | `pub async fn run_node_serve` |
 | [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:157](../../../engine/mantle/tetonic-server/src/main.rs#L157) | `let brain` |
 | [README.md](README.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:38](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L38) | `pub fn connect` |
@@ -40,26 +40,26 @@ These anchors were resolved against actual source text. A citation records the s
 | [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:114](../../../engine/mantle/tetonic-server/src/main.rs#L114) | `EgressGuard::loopback_inference` |
 | [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:123](../../../engine/mantle/tetonic-server/src/main.rs#L123) | `world_url.scheme()` |
 | [README.md](README.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:70](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L70) | `connect_async(&url)` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokai-cli/src/main.rs:34](../../../engine/litho/lokai-cli/src/main.rs#L34) | `async fn main` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/main.rs:32](../../../engine/litho/lokaid/src/main.rs#L32) | `fn main` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-cli/src/main.rs:34](../../../engine/litho/tetonic-cli/src/main.rs#L34) | `async fn main` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/main.rs:32](../../../engine/litho/tetonicd/src/main.rs#L32) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/tooling/tetonic-eval/src/main.rs:66](../../../engine/tooling/tetonic-eval/src/main.rs#L66) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/tooling/tetonic-arch-gate/src/main.rs:45](../../../engine/tooling/tetonic-arch-gate/src/main.rs#L45) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/tooling/tetonic-bench/src/main.rs:22](../../../engine/tooling/tetonic-bench/src/main.rs#L22) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/core/tetonic-sandbox/bins/adversarial_runner.rs:5](../../../engine/core/tetonic-sandbox/bins/adversarial_runner.rs#L5) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-lsp/tests/support/mock_server.rs:10](../../../engine/litho/tetonic-lsp/tests/support/mock_server.rs#L10) | `fn main` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/main.rs:88](../../../engine/litho/lokaid/src/main.rs#L88) | `async fn serve` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/daemon.rs:51](../../../engine/litho/lokaid/src/daemon.rs#L51) | `pub fn new` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/daemon.rs:100](../../../engine/litho/lokaid/src/daemon.rs#L100) | `pub async fn handle` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/daemon.rs:76](../../../engine/litho/lokaid/src/daemon.rs#L76) | `pub async fn shutdown` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/main.rs:88](../../../engine/litho/tetonicd/src/main.rs#L88) | `async fn serve` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/daemon.rs:51](../../../engine/litho/tetonicd/src/daemon.rs#L51) | `pub fn new` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/daemon.rs:100](../../../engine/litho/tetonicd/src/daemon.rs#L100) | `pub async fn handle` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/daemon.rs:76](../../../engine/litho/tetonicd/src/daemon.rs#L76) | `pub async fn shutdown` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-app/src/daemon_bootstrap.rs:78](../../../engine/litho/tetonic-app/src/daemon_bootstrap.rs#L78) | `impl Application` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/daemon.rs:127](../../../engine/litho/lokaid/src/daemon.rs#L127) | `methods::CHAT_SEND` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/main.rs:137](../../../engine/litho/lokaid/src/main.rs#L137) | `serde_json::from_slice` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/daemon.rs:127](../../../engine/litho/tetonicd/src/daemon.rs#L127) | `methods::CHAT_SEND` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/main.rs:137](../../../engine/litho/tetonicd/src/main.rs#L137) | `serde_json::from_slice` |
 | [entrypoints.md](entrypoints.md) | [engine/atmos/tetonic-rpc/src/outbound.rs:55](../../../engine/atmos/tetonic-rpc/src/outbound.rs#L55) | `pub struct OutboundQueue` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/supervise.rs:65](../../../engine/litho/lokaid/src/supervise.rs#L65) | `pub fn run` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokai-cli/src/main.rs:46](../../../engine/litho/lokai-cli/src/main.rs#L46) | `let interactive` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokai-cli/src/main.rs:134](../../../engine/litho/lokai-cli/src/main.rs#L134) | `bootstrap_cli` |
-| [entrypoints.md](entrypoints.md) | [engine/litho/lokai-cli/src/main.rs:234](../../../engine/litho/lokai-cli/src/main.rs#L234) | `app.close_session` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonicd/src/supervise.rs:65](../../../engine/litho/tetonicd/src/supervise.rs#L65) | `pub fn run` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-cli/src/main.rs:46](../../../engine/litho/tetonic-cli/src/main.rs#L46) | `let interactive` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-cli/src/main.rs:134](../../../engine/litho/tetonic-cli/src/main.rs#L134) | `bootstrap_cli` |
+| [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-cli/src/main.rs:234](../../../engine/litho/tetonic-cli/src/main.rs#L234) | `app.close_session` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-app/src/cli_bootstrap.rs:56](../../../engine/litho/tetonic-app/src/cli_bootstrap.rs#L56) | `impl Application` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-app/src/lib.rs:124](../../../engine/litho/tetonic-app/src/lib.rs#L124) | `pub struct Application` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/tetonic-app/src/product_submit.rs:22](../../../engine/litho/tetonic-app/src/product_submit.rs#L22) | `pub struct TurnBind` |
@@ -153,20 +153,20 @@ These anchors were resolved against actual source text. A citation records the s
 | [state.md](state.md) | [engine/mantle/tetonic-run/src/service.rs:664](../../../engine/mantle/tetonic-run/src/service.rs#L664) | `pub fn replay_run` |
 | [state.md](state.md) | [engine/litho/tetonic-app/src/recovery_api.rs:5](../../../engine/litho/tetonic-app/src/recovery_api.rs#L5) | `impl Application` |
 | [state.md](state.md) | [engine/litho/tetonic-app/src/resume.rs:16](../../../engine/litho/tetonic-app/src/resume.rs#L16) | `pub fn rehydrate_messages` |
-| [state.md](state.md) | [engine/litho/lokaid/src/supervise.rs:65](../../../engine/litho/lokaid/src/supervise.rs#L65) | `pub fn run` |
+| [state.md](state.md) | [engine/litho/tetonicd/src/supervise.rs:65](../../../engine/litho/tetonicd/src/supervise.rs#L65) | `pub fn run` |
 | [state.md](state.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
 | [state.md](state.md) | [engine/mantle/tetonic-server/src/experience.rs:6](../../../engine/mantle/tetonic-server/src/experience.rs#L6) | `struct` |
 | [state.md](state.md) | [engine/core/tetonic-core/src/checkpoint.rs:22](../../../engine/core/tetonic-core/src/checkpoint.rs#L22) | `impl CheckpointManager` |
 | [state.md](state.md) | [engine/core/tetonic-domain/src/run.rs:546](../../../engine/core/tetonic-domain/src/run.rs#L546) | `pub struct RunSnapshot` |
 | [state.md](state.md) | [engine/strata/tetonic-memory/src/run_store.rs:20](../../../engine/strata/tetonic-memory/src/run_store.rs#L20) | `commit_run_command` |
 | [state.md](state.md) | [engine/strata/tetonic-memory/src/lib.rs:175](../../../engine/strata/tetonic-memory/src/lib.rs#L175) | `pub struct Store` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/daemon.rs:100](../../../engine/litho/lokaid/src/daemon.rs#L100) | `pub async fn handle` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/daemon.rs:100](../../../engine/litho/tetonicd/src/daemon.rs#L100) | `pub async fn handle` |
 | [operations.md](operations.md) | [engine/atmos/tetonic-rpc/src/protocol.rs:111](../../../engine/atmos/tetonic-rpc/src/protocol.rs#L111) | `pub mod methods` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:25](../../../engine/mantle/tetonic-server/src/main.rs#L25) | `struct Config` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:180](../../../engine/mantle/tetonic-server/src/main.rs#L180) | `let health_adapter` |
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:158](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L158) | `pub fn acknowledge_events` |
 | [operations.md](operations.md) | [engine/litho/tetonic-app/src/lsp_launcher.rs:19](../../../engine/litho/tetonic-app/src/lsp_launcher.rs#L19) | `impl` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/daemon.rs:100](../../../engine/litho/lokaid/src/daemon.rs#L100) | `pub async fn handle` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/daemon.rs:100](../../../engine/litho/tetonicd/src/daemon.rs#L100) | `pub async fn handle` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:25](../../../engine/mantle/tetonic-server/src/main.rs#L25) | `struct Config` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:70](../../../engine/mantle/tetonic-server/src/main.rs#L70) | `fn default_idle_interval` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
@@ -175,8 +175,8 @@ These anchors were resolved against actual source text. A citation records the s
 | [operations.md](operations.md) | [engine/litho/tetonic-app/src/product_submit.rs:413](../../../engine/litho/tetonic-app/src/product_submit.rs#L413) | `pub fn reload_inference_services` |
 | [operations.md](operations.md) | [engine/atmos/tetonic-fabric-protocol/src/result_validate.rs:47](../../../engine/atmos/tetonic-fabric-protocol/src/result_validate.rs#L47) | `pub fn` |
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:108](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L108) | `serde_json::from_str` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/daemon.rs:100](../../../engine/litho/lokaid/src/daemon.rs#L100) | `pub async fn handle` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/main.rs:58](../../../engine/litho/lokaid/src/main.rs#L58) | `worker_threads` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/daemon.rs:100](../../../engine/litho/tetonicd/src/daemon.rs#L100) | `pub async fn handle` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/main.rs:58](../../../engine/litho/tetonicd/src/main.rs#L58) | `worker_threads` |
 | [operations.md](operations.md) | [engine/litho/tetonic-app/src/product_submit.rs:105](../../../engine/litho/tetonic-app/src/product_submit.rs#L105) | `struct OwnedTurn` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-run/src/service.rs:97](../../../engine/mantle/tetonic-run/src/service.rs#L97) | `fn run_lock` |
 | [operations.md](operations.md) | [engine/strata/tetonic-memory/src/lib.rs:198](../../../engine/strata/tetonic-memory/src/lib.rs#L198) | `pub struct SharedStore` |
@@ -184,16 +184,16 @@ These anchors were resolved against actual source text. A citation records the s
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:44](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L44) | `let (tx, mut rx)` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/observability.rs:9](../../../engine/mantle/tetonic-server/src/observability.rs#L9) | `pub fn record` |
 | [operations.md](operations.md) | [engine/core/tetonic-domain/src/work_scope.rs:29](../../../engine/core/tetonic-domain/src/work_scope.rs#L29) | `pub struct WorkScope` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/daemon.rs:76](../../../engine/litho/lokaid/src/daemon.rs#L76) | `pub async fn shutdown` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/daemon.rs:76](../../../engine/litho/tetonicd/src/daemon.rs#L76) | `pub async fn shutdown` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-run/src/transition.rs:649](../../../engine/mantle/tetonic-run/src/transition.rs#L649) | `fn apply_cancel_run` |
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:133](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L133) | `Some("estop")` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:208](../../../engine/mantle/tetonic-server/src/main.rs#L208) | `tokio::select!` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/daemon.rs:76](../../../engine/litho/lokaid/src/daemon.rs#L76) | `pub async fn shutdown` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/main.rs:157](../../../engine/litho/lokaid/src/main.rs#L157) | `writer.abort` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/daemon.rs:76](../../../engine/litho/tetonicd/src/daemon.rs#L76) | `pub async fn shutdown` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/main.rs:157](../../../engine/litho/tetonicd/src/main.rs#L157) | `writer.abort` |
 | [operations.md](operations.md) | [engine/core/tetonic-sandbox/src/backend/mod.rs:46](../../../engine/core/tetonic-sandbox/src/backend/mod.rs#L46) | `async fn execute_cancellable` |
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/action_broker.rs:62](../../../engine/core/tetonic-runtime/src/action_broker.rs#L62) | `evaluate_and_issue` |
 | [operations.md](operations.md) | [engine/core/tetonic-sandbox/src/backend/mod.rs:120](../../../engine/core/tetonic-sandbox/src/backend/mod.rs#L120) | `fn validate_working_directory` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/main.rs:101](../../../engine/litho/lokaid/src/main.rs#L101) | `with_redactor` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/main.rs:101](../../../engine/litho/tetonicd/src/main.rs#L101) | `with_redactor` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/main.rs:9](../../../engine/mantle/tetonic-server/src/main.rs#L9) | `EmptyToolHost` |
 | [operations.md](operations.md) | [engine/core/tetonic-core/src/agent.rs:371](../../../engine/core/tetonic-core/src/agent.rs#L371) | `pub async fn run_in_world` |
 | [operations.md](operations.md) | [engine/core/tetonic-sandbox/src/backend/mod.rs:58](../../../engine/core/tetonic-sandbox/src/backend/mod.rs#L58) | `pub fn platform_backend` |
@@ -203,7 +203,7 @@ These anchors were resolved against actual source text. A citation records the s
 | [operations.md](operations.md) | [engine/atmos/tetonic-fabric-protocol/src/result_validate.rs:47](../../../engine/atmos/tetonic-fabric-protocol/src/result_validate.rs#L47) | `pub fn` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-node/src/role.rs:152](../../../engine/mantle/tetonic-node/src/role.rs#L152) | `impl KeeperRegistry` |
 | [operations.md](operations.md) | [engine/litho/tetonic-app/src/events.rs:5](../../../engine/litho/tetonic-app/src/events.rs#L5) | `pub` |
-| [operations.md](operations.md) | [engine/litho/lokaid/src/main.rs:101](../../../engine/litho/lokaid/src/main.rs#L101) | `with_redactor` |
+| [operations.md](operations.md) | [engine/litho/tetonicd/src/main.rs:101](../../../engine/litho/tetonicd/src/main.rs#L101) | `with_redactor` |
 | [operations.md](operations.md) | [engine/core/tetonic-runtime/src/brain.rs:44](../../../engine/core/tetonic-runtime/src/brain.rs#L44) | `pub struct SingleModelBrain` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/observability.rs:9](../../../engine/mantle/tetonic-server/src/observability.rs#L9) | `pub fn record` |
 | [operations.md](operations.md) | [engine/mantle/tetonic-server/src/observability.rs:38](../../../engine/mantle/tetonic-server/src/observability.rs#L38) | `pub fn since` |
@@ -319,5 +319,5 @@ These anchors were resolved against actual source text. A citation records the s
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-secrets/src/lib.rs:38](../../../engine/core/tetonic-secrets/src/lib.rs#L38) | `pub fn redact_text_sync_lossy` |
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-secrets/src/lib.rs:81](../../../engine/core/tetonic-secrets/src/lib.rs#L81) | `pub fn install_shared_scanner` |
 | [subsystems.md](subsystems.md) | [engine/core/tetonic-telemetry/src/lib.rs:26](../../../engine/core/tetonic-telemetry/src/lib.rs#L26) | `pub use storage` |
-| [subsystems.md](subsystems.md) | [engine/litho/lokaid/src/main.rs:76](../../../engine/litho/lokaid/src/main.rs#L76) | `init_subscriber` |
+| [subsystems.md](subsystems.md) | [engine/litho/tetonicd/src/main.rs:76](../../../engine/litho/tetonicd/src/main.rs#L76) | `init_subscriber` |
 | [subsystems.md](subsystems.md) | [engine/mantle/tetonic-server/src/observability.rs:6](../../../engine/mantle/tetonic-server/src/observability.rs#L6) | `pub struct TraceStore` |

@@ -11,7 +11,7 @@ Single-agent tool loop: advertise tools → call model → execute tools → fee
 
 ## Role in the stack
 
-Sits between **inference** (`lokai-inference`) and composition (`lokai-runtime`). Both `lokai-cli` and `lokaid` assemble an `Agent` from this crate. The orchestrator (`lokai-orchestrator`) wraps the same loop with routing and specialist overlays — it does not replace this crate. Capability implementations (`lokai-tools`, `lokai-transaction`) are wired by composition, not by this crate.
+Sits between **inference** (`lokai-inference`) and composition (`lokai-runtime`). Both `tetonic-cli` and `tetonicd` assemble an `Agent` from this crate. The orchestrator (`lokai-orchestrator`) wraps the same loop with routing and specialist overlays — it does not replace this crate. Capability implementations (`lokai-tools`, `lokai-transaction`) are wired by composition, not by this crate.
 
 ## Public API
 

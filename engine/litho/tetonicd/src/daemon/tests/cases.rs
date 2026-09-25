@@ -49,7 +49,7 @@ fn rpc_initialize_rejects_wrong_token() {
         let err = daemon
             .initialize(json!({
                 "protocol_version": 1,
-                "workspace_root": std::env::temp_dir().join("lokaid-rpc-auth-test").display().to_string(),
+                "workspace_root": std::env::temp_dir().join("tetonicd-rpc-auth-test").display().to_string(),
                 "rpc_token": "wrong"
             }))
             .await
@@ -812,7 +812,7 @@ fn session_end_persists_and_allows_fresh_start() {
         .unwrap();
     rt.block_on(local.run_until(async {
         let store = SharedStore::open(":memory:", 1).unwrap();
-        let dir = std::env::temp_dir().join(format!("lokaid-end-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("tetonicd-end-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let root = dir.to_string_lossy().to_string();
         let (mut daemon, _rx) = daemon_with_store_and_mock(store.clone(), root.clone(), vec![]);
@@ -845,7 +845,7 @@ fn session_resume_recovery_required_when_mid_execution() {
         .unwrap();
     rt.block_on(local.run_until(async {
         let store = SharedStore::open(":memory:", 1).unwrap();
-        let dir = std::env::temp_dir().join(format!("lokaid-recovery-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("tetonicd-recovery-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let root = dir.to_string_lossy().to_string();
         let sid = store
@@ -893,7 +893,7 @@ fn session_resume_loads_audit_messages() {
         .unwrap();
     rt.block_on(local.run_until(async {
         let store = SharedStore::open(":memory:", 1).unwrap();
-        let dir = std::env::temp_dir().join(format!("lokaid-resume-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("tetonicd-resume-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let root = dir.to_string_lossy().to_string();
         let sid = {
@@ -1111,7 +1111,7 @@ fn empty_rpc_token_env_generates_and_does_not_mean_no_auth() {
         let err = daemon
             .initialize(json!({
                 "protocol_version": 1,
-                "workspace_root": std::env::temp_dir().join("lokaid-empty-token").display().to_string(),
+                "workspace_root": std::env::temp_dir().join("tetonicd-empty-token").display().to_string(),
                 "rpc_token": ""
             }))
             .await

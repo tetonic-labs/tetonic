@@ -26,8 +26,8 @@ fn temp_engine() -> (tempfile::TempDir, PathBuf) {
         &root.join("core/lokai-domain/src/tool_host.rs"),
         "pub trait ToolHost {}\n",
     );
-    write(&root.join("litho/lokai-cli/src/main.rs"), "fn main() {}\n");
-    write(&root.join("litho/lokaid/src/main.rs"), "fn main() {}\n");
+    write(&root.join("litho/tetonic-cli/src/main.rs"), "fn main() {}\n");
+    write(&root.join("litho/tetonicd/src/main.rs"), "fn main() {}\n");
     write(
         &root.join("tooling/lokai-eval/src/main.rs"),
         "fn main() {}\n",
@@ -87,7 +87,7 @@ fn dep_001_trips_runtime_transaction() {
 fn iface_001_trips_take_conversation() {
     let (_keep, root) = temp_engine();
     write(
-        &root.join("litho/lokai-cli/src/chat.rs"),
+        &root.join("litho/tetonic-cli/src/chat.rs"),
         "fn go() { take_conversation(); }\n",
     );
     let v = check_iface_001(&root);
@@ -98,7 +98,7 @@ fn iface_001_trips_take_conversation() {
 fn iface_001_ignores_bare_run_supervisor() {
     let (_keep, root) = temp_engine();
     write(
-        &root.join("litho/lokai-cli/src/failure.rs"),
+        &root.join("litho/tetonic-cli/src/failure.rs"),
         "const E: &str = \"provider: RunSupervisor snapshot\";\n",
     );
     assert!(check_iface_001(&root).is_empty());

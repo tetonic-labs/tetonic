@@ -1,7 +1,7 @@
 //! Turn workflow state machine (AC2-6).
 //!
 //! Operational persistence is driven by [`TurnOpsHook`] callbacks wired from
-//! `lokaid` into [`crate::Agent`].
+//! `tetonicd` into [`crate::Agent`].
 
 use std::sync::Arc;
 

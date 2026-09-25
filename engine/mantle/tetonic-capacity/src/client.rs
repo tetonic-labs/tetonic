@@ -17,7 +17,7 @@ pub enum ClientError {
     Ollama(String),
 }
 
-/// Capacity-plane view of the local inference runtime. Construct in lokaid/CLI
+/// Capacity-plane view of the local inference runtime. Construct in tetonicd/CLI
 /// with [`OllamaInferenceClient::new`] (wraps [`OllamaProvider`] + egress guard).
 #[async_trait]
 pub trait InferenceClient: Send + Sync {

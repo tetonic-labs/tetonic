@@ -126,13 +126,13 @@
     "document": "README.md"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 34,
     "anchor": "async fn main",
     "document": "README.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 88,
     "anchor": "async fn serve",
     "document": "README.md"
@@ -204,13 +204,13 @@
     "document": "README.md"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 34,
     "anchor": "async fn main",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 32,
     "anchor": "fn main",
     "document": "entrypoints.md"
@@ -252,25 +252,25 @@
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 88,
     "anchor": "async fn serve",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 51,
     "anchor": "pub fn new",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 100,
     "anchor": "pub async fn handle",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 76,
     "anchor": "pub async fn shutdown",
     "document": "entrypoints.md"
@@ -282,13 +282,13 @@
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 127,
     "anchor": "methods::CHAT_SEND",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 137,
     "anchor": "serde_json::from_slice",
     "document": "entrypoints.md"
@@ -300,25 +300,25 @@
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokaid/src/supervise.rs",
+    "file": "engine/litho/tetonicd/src/supervise.rs",
     "line": 65,
     "anchor": "pub fn run",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 46,
     "anchor": "let interactive",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 134,
     "anchor": "bootstrap_cli",
     "document": "entrypoints.md"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 234,
     "anchor": "app.close_session",
     "document": "entrypoints.md"
@@ -882,7 +882,7 @@
     "document": "state.md"
   },
   {
-    "file": "engine/litho/lokaid/src/supervise.rs",
+    "file": "engine/litho/tetonicd/src/supervise.rs",
     "line": 65,
     "anchor": "pub fn run",
     "document": "state.md"
@@ -924,7 +924,7 @@
     "document": "state.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 100,
     "anchor": "pub async fn handle",
     "document": "operations.md"
@@ -960,7 +960,7 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 100,
     "anchor": "pub async fn handle",
     "document": "operations.md"
@@ -1014,13 +1014,13 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 100,
     "anchor": "pub async fn handle",
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 58,
     "anchor": "worker_threads",
     "document": "operations.md"
@@ -1068,7 +1068,7 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 76,
     "anchor": "pub async fn shutdown",
     "document": "operations.md"
@@ -1092,13 +1092,13 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon.rs",
+    "file": "engine/litho/tetonicd/src/daemon.rs",
     "line": 76,
     "anchor": "pub async fn shutdown",
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 157,
     "anchor": "writer.abort",
     "document": "operations.md"
@@ -1122,7 +1122,7 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 101,
     "anchor": "with_redactor",
     "document": "operations.md"
@@ -1182,7 +1182,7 @@
     "document": "operations.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 101,
     "anchor": "with_redactor",
     "document": "operations.md"
@@ -1878,7 +1878,7 @@
     "document": "subsystems.md"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 76,
     "anchor": "init_subscriber",
     "document": "subsystems.md"

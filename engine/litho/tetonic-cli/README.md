@@ -1,8 +1,8 @@
-# lokai-cli
+# tetonic-cli
 
 Phase A headless CLI (`tetonic`): single-agent runs, interactive chat, audit/history, time-travel, code index, project memory, orchestration, and `lokai estate` fleet commands.
 
-Package name is **`lokai-cli`**; the binary on PATH is **`tetonic`**.
+Package name is **`tetonic-cli`**; the binary on PATH is **`tetonic`**.
 
 ## Entry points
 
@@ -141,7 +141,7 @@ time.
 
 ## Tests
 
-`cargo test -p lokai-cli` — CLI arg parsing, explain heuristics, runtime/policy wiring, shared compute-plane assembly (broker Some, Secret local-only), TUI transcript vs activity, slash Tab cycle, approval Always/high-risk, status phases, failure copy (stale caps, hop-lease miss, GPU spill, capacity warn-and-proceed). Orchestration integration is covered by `lokai-orchestrator` and `tetonicd`.
+`cargo test -p tetonic-cli` — CLI arg parsing, explain heuristics, runtime/policy wiring, shared compute-plane assembly (broker Some, Secret local-only), TUI transcript vs activity, slash Tab cycle, approval Always/high-risk, status phases, failure copy (stale caps, hop-lease miss, GPU spill, capacity warn-and-proceed). Orchestration integration is covered by `lokai-orchestrator` and `tetonicd`.
 
 ## Related docs
 

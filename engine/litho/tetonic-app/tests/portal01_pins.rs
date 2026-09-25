@@ -117,7 +117,7 @@ fn portal01_arm_turn_join_before_submit() {
     let src = crate_src("src/product_submit.rs");
     assert!(src.contains("pub fn arm_turn_join("));
     assert!(src.contains("TurnFinish"));
-    let cli = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let cli = crate_src("../../litho/tetonic-cli/src/chat.rs");
     let one_shot = fn_body(&cli, "pub async fn run_one_shot(");
     source_order(one_shot, "arm_turn_join", "submit_chat_turn");
     let eval = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
@@ -156,7 +156,7 @@ fn portal01_app_root_execute_still_local() {
 fn portal01_host_not_built_from_cli_turn_context() {
     let src = crate_src("src/product_submit.rs");
     assert!(!src.contains("CliTurnContext"));
-    let cli = crate_src("../../litho/lokai-cli/src/session.rs");
+    let cli = crate_src("../../litho/tetonic-cli/src/session.rs");
     assert!(!cli.contains("fn turn_host"));
 }
 
@@ -204,7 +204,7 @@ fn portal01_audit_factory_is_store_projection_not_wrap() {
 
 #[test]
 fn portal01_cli_chat_no_take_restore() {
-    let owned = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let owned = crate_src("../../litho/tetonic-cli/src/chat.rs");
     let src = production_prefix(&owned);
     assert!(!src.contains("take_conversation"));
     assert!(!src.contains("restore_conversation"));
@@ -212,14 +212,14 @@ fn portal01_cli_chat_no_take_restore() {
 
 #[test]
 fn portal01_cli_chat_no_turn_spawn_local() {
-    let src = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let src = crate_src("../../litho/tetonic-cli/src/chat.rs");
     assert!(!src.contains("runs.run_turn"));
     assert!(!src.contains("execute_turn"));
 }
 
 #[test]
 fn portal01_cli_one_shot_does_not_await_run_turn() {
-    let src = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let src = crate_src("../../litho/tetonic-cli/src/chat.rs");
     let body = fn_body(&src, "pub async fn run_one_shot(");
     assert!(body.contains("arm_turn_join"));
     assert!(body.contains("submit_chat_turn"));
@@ -228,34 +228,34 @@ fn portal01_cli_one_shot_does_not_await_run_turn() {
 
 #[test]
 fn portal01_cli_turn_host_gone() {
-    let src = crate_src("../../litho/lokai-cli/src/session.rs");
+    let src = crate_src("../../litho/tetonic-cli/src/session.rs");
     assert!(!src.contains("TurnExecutionHost"));
     assert!(!src.contains("fn turn_host"));
 }
 
 #[test]
 fn portal01_cli_no_admit_chat_turn() {
-    let chat = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let chat = crate_src("../../litho/tetonic-cli/src/chat.rs");
     assert!(!chat.contains("admit_chat_turn"));
     assert!(!chat.contains("admit_cli_turn"));
 }
 
 #[test]
 fn portal01_cli_no_end_turn() {
-    let chat = crate_src("../../litho/lokai-cli/src/chat.rs");
+    let chat = crate_src("../../litho/tetonic-cli/src/chat.rs");
     assert!(!chat.contains("end_turn"));
 }
 
 #[test]
 fn portal01_daemon_chat_no_spawn_local() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/chat.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
     assert!(!src.contains("spawn_local"));
     assert!(src.contains("submit_chat_turn"));
 }
 
 #[test]
 fn portal01_daemon_chat_no_take_restore() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/chat.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
     assert!(!src.contains("take_conversation"));
     assert!(!src.contains("restore_conversation"));
 }
@@ -269,13 +269,13 @@ fn portal01_fabric_spawn_local_untouched() {
 
 #[test]
 fn portal01_daemon_spawn_no_coding_pack_parse() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/agent.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
     assert!(!src.contains("CodingPack"));
 }
 
 #[test]
 fn portal01_daemon_spawn_no_execute_spawn_call() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/agent.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
     assert!(!src.contains("execute_spawn"));
     assert!(src.contains("submit_spawn"));
 }
@@ -302,18 +302,18 @@ fn portal01_no_live_session_pending_oneshot() {
 
 #[test]
 fn portal01_cli_no_approval_oneshot() {
-    let kernel = crate_src("../../litho/lokai-cli/src/app_kernel.rs");
+    let kernel = crate_src("../../litho/tetonic-cli/src/app_kernel.rs");
     assert!(!kernel.contains("oneshot::Sender<bool>"));
     assert!(!kernel.contains("impl ApprovalWaiter"));
-    let tui = crate_src("../../litho/lokai-cli/src/tui/mod.rs");
+    let tui = crate_src("../../litho/tetonic-cli/src/tui/mod.rs");
     assert!(!tui.contains("approval_tx"));
 }
 
 #[test]
 fn portal01_daemon_no_rpc_approval_waiter() {
-    let chat = crate_src("../../litho/lokaid/src/daemon/handlers/chat.rs");
-    let agent = crate_src("../../litho/lokaid/src/daemon/handlers/agent.rs");
-    let misc = crate_src("../../litho/lokaid/src/daemon/handlers/misc.rs");
+    let chat = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
+    let agent = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
+    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
     assert!(!chat.contains("RpcApprovalWaiter"));
     assert!(!agent.contains("RpcApprovalWaiter"));
     assert!(!misc.contains("take_pending"));
@@ -321,9 +321,9 @@ fn portal01_daemon_no_rpc_approval_waiter() {
 
 #[test]
 fn portal01_approval_ux_respond_remains() {
-    let tui = crate_src("../../litho/lokai-cli/src/tui/mod.rs");
+    let tui = crate_src("../../litho/tetonic-cli/src/tui/mod.rs");
     assert!(tui.contains("approvals.respond") || tui.contains("svc.respond"));
-    let misc = crate_src("../../litho/lokaid/src/daemon/handlers/misc.rs");
+    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
     assert!(misc.contains("approvals"));
     assert!(misc.contains("respond("));
 }
@@ -347,7 +347,7 @@ fn portal01_cancel_run_does_not_require_session() {
 
 #[test]
 fn portal01_daemon_toolcall_rpc_mapped() {
-    let src = crate_src("../../litho/lokaid/src/daemon/events.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/events.rs");
     assert!(src.contains("ApplicationEvent::ToolCall"));
     assert!(src.contains("events::TOOL_CALL"));
     assert!(src.contains("ApplicationEvent::ToolResult"));
@@ -427,8 +427,8 @@ fn portal01_supervisor_field_remains() {
     let src = crate_src("src/lib.rs");
     assert!(src.contains("supervisor: Arc<dyn tetonic_run::RunSupervisor>"));
     assert!(!src.contains("pub supervisor: Arc<dyn tetonic_run::RunSupervisor>"));
-    let cli = crate_src("../../litho/lokai-cli/src/main.rs");
-    let daemon = crate_src("../../litho/lokaid/src/daemon/handlers/initialize.rs");
+    let cli = crate_src("../../litho/tetonic-cli/src/main.rs");
+    let daemon = crate_src("../../litho/tetonicd/src/daemon/handlers/initialize.rs");
     assert!(!cli.contains("RunSupervisor"));
     assert!(!daemon.contains("RunSupervisor"));
 }
@@ -464,7 +464,7 @@ fn portal01_arch_iface_001_still_planted() {
 
 #[test]
 fn portal01_readme_not_terminal_only_claim() {
-    let src = crate_src("../../litho/lokai-cli/README.md");
+    let src = crate_src("../../litho/tetonic-cli/README.md");
     assert!(!src.contains("The CLI owns terminal rendering only."));
 }
 

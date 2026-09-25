@@ -1,6 +1,6 @@
-// Code generated from `lokaid --print-schema`. DO NOT EDIT.
+// Code generated from `tetonicd --print-schema`. DO NOT EDIT.
 // Source of truth: engine/crates/lokai-rpc (Rust). Regenerate with
-// `cargo run -q -p lokaid -- --print-schema | python scripts/gen_ts_protocol.py`.
+// `cargo run -q -p tetonicd -- --print-schema | python scripts/gen_ts_protocol.py`.
 
 export const PROTOCOL_VERSION = 1 as const;
 
@@ -295,7 +295,7 @@ export interface FabricStatusResult {
 export interface InitializeParams {
   client_info?: ClientInfo | null;
   protocol_version: number;
-  /** Session token printed by `lokaid` on stderr at startup (SEC-003). */
+  /** Session token printed by `tetonicd` on stderr at startup (SEC-003). */
   rpc_token: string;
   workspace_root: string;
 }

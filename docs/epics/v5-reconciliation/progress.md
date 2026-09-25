@@ -88,3 +88,11 @@ Per the product correction, the shipped CLI binary is `tetonic` and the existing
 Legacy Cargo package IDs/source directories (`lokai-cli`, `lokaid`), persisted database/config paths, environment compatibility names and enrollment wire prefixes remain unchanged. These are migration concerns rather than public binary names; renaming them blindly would break stored state or source-path checks. Historical audit inventories remain historical. The generated mock LSP server is test tooling rather than a product binary.
 
 Validation: Cargo metadata exposes `tetonic` and `tetonicd`, with no `lokai`/`lokaid` binary targets. Both binaries built; CLI tests passed (110 passed, two existing ignores), daemon tests passed (48), and the control integration test passed with `CARGO_BIN_EXE_tetonic`. The architecture gate, PowerShell installer AST parse, Git Bash installer syntax check and release/installer reference checks passed. Release YAML was inspected but a YAML parser was unavailable. Packaging was not executed on the cross-platform release matrix.
+
+## 2026-09-25 — Source folder and package branding
+
+The naming correction now includes source folders and Cargo package IDs: `engine/litho/tetonic-cli` (package `tetonic-cli`, binary `tetonic`) and `engine/litho/tetonicd` (package/binary `tetonicd`). The daemon smoke script is `engine/scripts/smoke_tetonicd.py`. Build commands, release/CI selectors, source-path tests, architecture checks, generated-protocol comments and active documentation references were migrated. This supersedes the preceding decision to retain legacy package IDs.
+
+Historical audit inventories retain their original baseline paths/hashes; historical prose is not rewritten into evidence of a newer tree. Documentation source links now resolve to the renamed folders. The `.lokai` malicious-project security fixture and persisted user-data/config names remain legacy-format compatibility cases, not product source package names. The user's checkout directory is outside the versioned source rename.
+
+Validation: renamed CLI/daemon suites, CLI process integration and all 89 architecture-checker unit tests passed; the live architecture gate and epic documentation links passed. All six selected application integration suites that pin CLI, composition, gate, portal and work source paths passed against the renamed folders.

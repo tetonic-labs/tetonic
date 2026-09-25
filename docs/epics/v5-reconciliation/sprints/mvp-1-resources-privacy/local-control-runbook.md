@@ -1,6 +1,6 @@
 # Local operator control preview
 
-This is a local administration path inside the existing `tetonic` CLI. It creates durable organization/team metadata without starting a model, coding runtime or agent session. It does not yet start a managed team of agents. The CLI binary is `tetonic`; the legacy Cargo package ID is still `lokai-cli`.
+This is a local administration path inside the existing `tetonic` CLI. It creates durable organization/team metadata without starting a model, coding runtime or agent session. It does not yet start a managed team of agents. The CLI binary is `tetonic` and its Cargo package/source folder is `tetonic-cli`.
 
 The operator chooses an explicit database and deployment audience. Filesystem access to this database is administrative authority: these commands are not a remote employee client and the database must not be shared with untrusted users. Schema upgrades use the existing backup/migration machinery. This is the single-machine SQLite profile, not an HA deployment or a network-shared database.
 
@@ -9,7 +9,7 @@ The operator chooses an explicit database and deployment audience. Filesystem ac
 From the repository root, build the CLI:
 
 ```powershell
-cargo build --manifest-path engine/Cargo.toml -p lokai-cli
+cargo build --manifest-path engine/Cargo.toml -p tetonic-cli
 $controlArgs = @('control', '--database', '.\tetonic-control.db', '--audience', 'local-preview')
 ```
 
@@ -48,4 +48,4 @@ Bootstrap and credential issuance are separate operations. If issuance/output de
 
 Membership administration, operator identity in administrative audit, organization policy ceilings, remote transport, end-user UI and managed team activation remain pending. Local issuance/revocation rely on the operator's database access, not an authenticated remote role. Do not expose those provisioning methods as unauthenticated network routes.
 
-Verification: `cargo test --manifest-path engine/Cargo.toml -p lokai-cli --test control_cli` runs bootstrap, takeover rejection, credential issuance, team creation/read in separate CLI processes, missing-credential rejection and persisted revocation against a temporary database. It never prints the generated secret. Storage tests additionally cover concurrent bootstrap and rollback if the audit write fails.
+Verification: `cargo test --manifest-path engine/Cargo.toml -p tetonic-cli --test control_cli` runs bootstrap, takeover rejection, credential issuance, team creation/read in separate CLI processes, missing-credential rejection and persisted revocation against a temporary database. It never prints the generated secret. Storage tests additionally cover concurrent bootstrap and rollback if the audit write fails.

@@ -4,7 +4,7 @@ Local-only audit and memory store (`lokai.db`): sessions, transcripts, tool call
 
 ## Role in the stack
 
-Optional but expected in production: `lokaid` and `lokai-cli` attach an `AuditSink` backed by `Store`. Time-travel (checkpoint/undo/redo) reads the file-change timeline from here.
+Optional but expected in production: `tetonicd` and `tetonic-cli` attach an `AuditSink` backed by `Store`. Time-travel (checkpoint/undo/redo) reads the file-change timeline from here.
 
 Production sharing uses [`SharedStore`](src/lib.rs) (H2-2): a dedicated writer thread + `mpsc` queue, WAL, and a pool of read-only connections. Async callers use `.write` / `.read` (reads run in `spawn_blocking`). Store wait times export as `store.wait` / `store_op` via `lokai-telemetry`.
 

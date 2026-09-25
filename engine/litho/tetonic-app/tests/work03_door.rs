@@ -413,7 +413,7 @@ fn work03_broker_has_no_session_as_run() {
 
 #[test]
 fn work03_session_cancel_uses_current_run_id() {
-    let misc = crate_src("../../litho/lokaid/src/daemon/handlers/misc.rs");
+    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
     assert!(misc.contains("services.app.cancel_session_broker_jobs(&p.session_id)"));
     let src = crate_src("src/product_submit.rs");
     assert!(src.contains("broker.cancel_session_jobs(session_id)"));

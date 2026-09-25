@@ -120,7 +120,7 @@ pub(crate) fn build_supervisor(
 }
 
 /// Central Application Kernel — owns service implementations and their shared
-/// dependencies.  Transport adapters (`lokaid`, CLI) hold an `Arc<Application>`
+/// dependencies.  Transport adapters (`tetonicd`, CLI) hold an `Arc<Application>`
 /// and delegate orchestration decisions to its services.
 pub struct Application {
     pub init: Arc<dyn InitializationService>,

@@ -43,7 +43,7 @@ pub(super) fn daemon_with_mock(
 ) -> (Daemon, mpsc::UnboundedReceiver<String>, PathBuf) {
     std::env::remove_var("LOKAI_LLM_ROUTER");
     let unique = format!(
-        "lokaid-test-{}-{}",
+        "tetonicd-test-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -81,7 +81,7 @@ pub(super) fn daemon_with_mock(
 pub(super) fn daemon_with_mock_recording(turns: Vec<ScriptTurn>) -> DaemonRecordingFixture {
     std::env::remove_var("LOKAI_LLM_ROUTER");
     let unique = format!(
-        "lokaid-parity-{}-{}",
+        "tetonicd-parity-{}-{}",
         std::process::id(),
         std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)

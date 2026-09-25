@@ -58,7 +58,7 @@ jobs:
           workspaces: engine
 
       - name: Build release binaries
-        run: cargo build --release --target ${{ matrix.target }} -p lokai-cli -p lokaid
+        run: cargo build --release --target ${{ matrix.target }} -p tetonic-cli -p tetonicd
 
       - name: Stage release artifacts (Windows)
         if: matrix.is_windows

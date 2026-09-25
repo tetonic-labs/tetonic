@@ -15,7 +15,7 @@ fn cli_inspector_does_not_spawn_command() {
     let root = engine_root();
     assert!(
         check_cli_inspector_no_command(&root).is_empty(),
-        "lokai-cli chat.rs must not call Command::new"
+        "tetonic-cli chat.rs must not call Command::new"
     );
 }
 
@@ -57,7 +57,7 @@ fn subprocess_check_catches_disallowed_file() {
 #[test]
 fn gates_ok_turn_abort_fails_gate() {
     let dir = tempfile::tempdir().unwrap();
-    let chat = dir.path().join("litho/lokai-cli/src/chat.rs");
+    let chat = dir.path().join("litho/tetonic-cli/src/chat.rs");
     std::fs::create_dir_all(chat.parent().unwrap()).unwrap();
     std::fs::write(&chat, "if !doc.status.gates_ok { abort_turn(); }\n").unwrap();
     let v = check_no_gates_ok_turn_abort(dir.path());
@@ -68,7 +68,7 @@ fn gates_ok_turn_abort_fails_gate() {
 #[test]
 fn gates_ok_display_is_allowed() {
     let dir = tempfile::tempdir().unwrap();
-    let cap = dir.path().join("litho/lokai-cli/src/capacity.rs");
+    let cap = dir.path().join("litho/tetonic-cli/src/capacity.rs");
     std::fs::create_dir_all(cap.parent().unwrap()).unwrap();
     std::fs::write(&cap, "println!(\"gates_ok={}\", wire.gates_ok);\n").unwrap();
     let v = check_no_gates_ok_turn_abort(dir.path());
@@ -78,7 +78,7 @@ fn gates_ok_display_is_allowed() {
 #[test]
 fn duplicate_resume_cap_in_bins_fails_gate() {
     let dir = tempfile::tempdir().unwrap();
-    let resume = dir.path().join("litho/lokaid/src/daemon/resume.rs");
+    let resume = dir.path().join("litho/tetonicd/src/daemon/resume.rs");
     std::fs::create_dir_all(resume.parent().unwrap()).unwrap();
     std::fs::write(&resume, "pub const RESUME_MESSAGE_CAP: u32 = 200;\n").unwrap();
     let v = check_no_duplicate_resume_cap(dir.path());
@@ -89,7 +89,7 @@ fn duplicate_resume_cap_in_bins_fails_gate() {
 #[test]
 fn duplicate_enrollment_helper_in_bins_fails_gate() {
     let dir = tempfile::tempdir().unwrap();
-    let path = dir.path().join("litho/lokai-cli/src/estate.rs");
+    let path = dir.path().join("litho/tetonic-cli/src/estate.rs");
     std::fs::create_dir_all(path.parent().unwrap()).unwrap();
     std::fs::write(
             &path,
@@ -104,7 +104,7 @@ fn duplicate_enrollment_helper_in_bins_fails_gate() {
 #[test]
 fn workspace_mutations_catches_cli_raw_write() {
     let dir = tempfile::tempdir().unwrap();
-    let offline = dir.path().join("litho/lokai-cli/src/offline.rs");
+    let offline = dir.path().join("litho/tetonic-cli/src/offline.rs");
     std::fs::create_dir_all(offline.parent().unwrap()).unwrap();
     std::fs::write(
         &offline,
@@ -119,7 +119,7 @@ fn workspace_mutations_catches_cli_raw_write() {
 #[test]
 fn workspace_mutations_allows_cli_jailed_write() {
     let dir = tempfile::tempdir().unwrap();
-    let offline = dir.path().join("litho/lokai-cli/src/offline.rs");
+    let offline = dir.path().join("litho/tetonic-cli/src/offline.rs");
     std::fs::create_dir_all(offline.parent().unwrap()).unwrap();
     std::fs::write(
         &offline,

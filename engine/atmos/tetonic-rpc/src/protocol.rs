@@ -175,7 +175,7 @@ pub mod events {
 pub struct InitializeParams {
     pub protocol_version: u32,
     pub workspace_root: String,
-    /// Session token printed by `lokaid` on stderr at startup (SEC-003).
+    /// Session token printed by `tetonicd` on stderr at startup (SEC-003).
     pub rpc_token: String,
     #[serde(default)]
     pub client_info: Option<ClientInfo>,

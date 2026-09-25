@@ -180,10 +180,10 @@ fn comp01_public_run_service_has_no_turn_execution_host() {
 }
 
 #[test]
-fn comp01_cli_lokaid_eval_have_no_turn_execution_host() {
+fn comp01_cli_tetonicd_eval_have_no_turn_execution_host() {
     for rel in [
-        "../../litho/lokai-cli/src/main.rs",
-        "../../litho/lokaid/src/daemon/handlers/initialize.rs",
+        "../../litho/tetonic-cli/src/main.rs",
+        "../../litho/tetonicd/src/daemon/handlers/initialize.rs",
         "../../tooling/tetonic-eval/src/kernel.rs",
     ] {
         let src = crate_src(rel);
@@ -192,7 +192,7 @@ fn comp01_cli_lokaid_eval_have_no_turn_execution_host() {
             "{rel} must not name TurnExecutionHost"
         );
     }
-    let parity = crate_src("../../litho/lokaid/src/daemon/tests/parity.rs");
+    let parity = crate_src("../../litho/tetonicd/src/daemon/tests/parity.rs");
     assert!(!parity.contains("TurnExecutionHost"));
 }
 
@@ -212,7 +212,7 @@ fn comp01_application_supervisor_not_pub() {
 
 #[test]
 fn comp01_cli_no_supervisor_clone() {
-    let src = crate_src("../../litho/lokai-cli/src/main.rs");
+    let src = crate_src("../../litho/tetonic-cli/src/main.rs");
     assert!(!src.contains("app.supervisor"));
     assert!(!src.contains("build_supervisor"));
     assert!(!src.contains("RunSupervisor"));
@@ -224,7 +224,7 @@ fn comp01_cli_no_supervisor_clone() {
 
 #[test]
 fn comp01_daemon_no_build_supervisor() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/initialize.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/initialize.rs");
     assert!(!src.contains("build_supervisor"));
     assert!(!src.contains("from_bootstrap_with_supervisor"));
     assert!(!src.contains("app.supervisor"));
@@ -322,7 +322,7 @@ fn comp01_host_construction_lives_in_app() {
     let submit = crate_src("src/product_submit.rs");
     assert!(submit.contains("build_session_host"));
     assert!(submit.contains("TurnExecutionHost"));
-    let parity = crate_src("../../litho/lokaid/src/daemon/tests/parity.rs");
+    let parity = crate_src("../../litho/tetonicd/src/daemon/tests/parity.rs");
     assert!(!parity.contains("TurnExecutionHost"));
 }
 

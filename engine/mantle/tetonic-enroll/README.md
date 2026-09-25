@@ -4,7 +4,7 @@ Worker enrollment handshake: one-time code + shared-secret HMAC proof + Ed25519 
 
 ## Role in the stack
 
-Coordinator runs `run_enrollment_server` during `lokaid --node --enroll`. Worker completes via `lokai estate enroll`. Successful enrollment adds egress allow rules and persists TLS cert to `lokai-memory`.
+Coordinator runs `run_enrollment_server` during `tetonicd --node --enroll`. Worker completes via `lokai estate enroll`. Successful enrollment adds egress allow rules and persists TLS cert to `lokai-memory`.
 
 ## Key API
 

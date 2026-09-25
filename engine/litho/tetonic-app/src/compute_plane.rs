@@ -37,7 +37,7 @@ pub struct ComputePlane {
     pub worker_activity_targets: Vec<(IpAddr, u16, Vec<u8>)>,
 }
 
-/// Inputs shared by `lokai-cli` and `lokaid`.
+/// Inputs shared by `tetonic-cli` and `tetonicd`.
 pub struct ComputePlaneRequest {
     pub guard: Arc<EgressGuard>,
     pub ollama_base: String,

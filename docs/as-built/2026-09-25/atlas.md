@@ -1024,7 +1024,7 @@ This package-level graph is entirely local build configuration; it has no persis
 
 ## lokai-cli
 
-Manifest: [engine/litho/lokai-cli/Cargo.toml](../../../engine/litho/lokai-cli/Cargo.toml).
+Manifest: [engine/litho/tetonic-cli/Cargo.toml](../../../engine/litho/tetonic-cli/Cargo.toml).
 
 ```mermaid
 flowchart LR
@@ -1036,49 +1036,49 @@ This package-level graph is entirely local build configuration; it has no persis
 
 | Target | Kind | Entry source |
 |---|---|---|
-| lokai | bin | [engine/litho/lokai-cli/src/main.rs](../../../engine/litho/lokai-cli/src/main.rs) |
+| lokai | bin | [engine/litho/tetonic-cli/src/main.rs](../../../engine/litho/tetonic-cli/src/main.rs) |
 
 | Source file | Declarations (lexical) | Control/storage markers |
 |---|---:|---:|
-| [src/app_kernel.rs](../../../engine/litho/lokai-cli/src/app_kernel.rs) | 14 | 14 |
-| [src/args.rs](../../../engine/litho/lokai-cli/src/args.rs) | 1 | 0 |
-| [src/banner.rs](../../../engine/litho/lokai-cli/src/banner.rs) | 1 | 0 |
-| [src/capacity.rs](../../../engine/litho/lokai-cli/src/capacity.rs) | 14 | 21 |
-| [src/chat.rs](../../../engine/litho/lokai-cli/src/chat.rs) | 9 | 20 |
-| [src/estate.rs](../../../engine/litho/lokai-cli/src/estate.rs) | 15 | 18 |
-| [src/event_queue.rs](../../../engine/litho/lokai-cli/src/event_queue.rs) | 18 | 5 |
-| [src/help.rs](../../../engine/litho/lokai-cli/src/help.rs) | 3 | 0 |
-| [src/main.rs](../../../engine/litho/lokai-cli/src/main.rs) | 16 | 18 |
-| [src/offline.rs](../../../engine/litho/lokai-cli/src/offline.rs) | 6 | 7 |
-| [src/printer.rs](../../../engine/litho/lokai-cli/src/printer.rs) | 8 | 0 |
-| [src/session.rs](../../../engine/litho/lokai-cli/src/session.rs) | 2 | 0 |
-| [src/signal.rs](../../../engine/litho/lokai-cli/src/signal.rs) | 3 | 3 |
-| [src/terminal_task.rs](../../../engine/litho/lokai-cli/src/terminal_task.rs) | 12 | 17 |
-| [src/tests/mod.rs](../../../engine/litho/lokai-cli/src/tests/mod.rs) | 8 | 0 |
-| [src/tui/approval.rs](../../../engine/litho/lokai-cli/src/tui/approval.rs) | 10 | 1 |
-| [src/tui/clipboard.rs](../../../engine/litho/lokai-cli/src/tui/clipboard.rs) | 8 | 2 |
-| [src/tui/composer.rs](../../../engine/litho/lokai-cli/src/tui/composer.rs) | 3 | 0 |
-| [src/tui/events.rs](../../../engine/litho/lokai-cli/src/tui/events.rs) | 14 | 1 |
-| [src/tui/failure.rs](../../../engine/litho/lokai-cli/src/tui/failure.rs) | 12 | 1 |
-| [src/tui/input.rs](../../../engine/litho/lokai-cli/src/tui/input.rs) | 17 | 1 |
-| [src/tui/input_tests.rs](../../../engine/litho/lokai-cli/src/tui/input_tests.rs) | 8 | 0 |
-| [src/tui/interaction.rs](../../../engine/litho/lokai-cli/src/tui/interaction.rs) | 9 | 0 |
-| [src/tui/markdown.rs](../../../engine/litho/lokai-cli/src/tui/markdown.rs) | 11 | 1 |
-| [src/tui/mod.rs](../../../engine/litho/lokai-cli/src/tui/mod.rs) | 39 | 18 |
-| [src/tui/models.rs](../../../engine/litho/lokai-cli/src/tui/models.rs) | 18 | 5 |
-| [src/tui/overlays.rs](../../../engine/litho/lokai-cli/src/tui/overlays.rs) | 2 | 0 |
-| [src/tui/preferences.rs](../../../engine/litho/lokai-cli/src/tui/preferences.rs) | 5 | 1 |
-| [src/tui/response_theme.rs](../../../engine/litho/lokai-cli/src/tui/response_theme.rs) | 0 | 0 |
-| [src/tui/retention.rs](../../../engine/litho/lokai-cli/src/tui/retention.rs) | 7 | 1 |
-| [src/tui/scheduling.rs](../../../engine/litho/lokai-cli/src/tui/scheduling.rs) | 12 | 4 |
-| [src/tui/slash.rs](../../../engine/litho/lokai-cli/src/tui/slash.rs) | 12 | 1 |
-| [src/tui/status.rs](../../../engine/litho/lokai-cli/src/tui/status.rs) | 15 | 1 |
-| [src/tui/submission_tests.rs](../../../engine/litho/lokai-cli/src/tui/submission_tests.rs) | 3 | 3 |
-| [src/tui/terminal_lifecycle.rs](../../../engine/litho/lokai-cli/src/tui/terminal_lifecycle.rs) | 27 | 7 |
-| [src/tui/transcript.rs](../../../engine/litho/lokai-cli/src/tui/transcript.rs) | 31 | 1 |
-| [src/tui/ui.rs](../../../engine/litho/lokai-cli/src/tui/ui.rs) | 21 | 2 |
-| [src/tui/ui_tests.rs](../../../engine/litho/lokai-cli/src/tui/ui_tests.rs) | 14 | 1 |
-| [src/tui/ux_tests.rs](../../../engine/litho/lokai-cli/src/tui/ux_tests.rs) | 18 | 1 |
+| [src/app_kernel.rs](../../../engine/litho/tetonic-cli/src/app_kernel.rs) | 14 | 14 |
+| [src/args.rs](../../../engine/litho/tetonic-cli/src/args.rs) | 1 | 0 |
+| [src/banner.rs](../../../engine/litho/tetonic-cli/src/banner.rs) | 1 | 0 |
+| [src/capacity.rs](../../../engine/litho/tetonic-cli/src/capacity.rs) | 14 | 21 |
+| [src/chat.rs](../../../engine/litho/tetonic-cli/src/chat.rs) | 9 | 20 |
+| [src/estate.rs](../../../engine/litho/tetonic-cli/src/estate.rs) | 15 | 18 |
+| [src/event_queue.rs](../../../engine/litho/tetonic-cli/src/event_queue.rs) | 18 | 5 |
+| [src/help.rs](../../../engine/litho/tetonic-cli/src/help.rs) | 3 | 0 |
+| [src/main.rs](../../../engine/litho/tetonic-cli/src/main.rs) | 16 | 18 |
+| [src/offline.rs](../../../engine/litho/tetonic-cli/src/offline.rs) | 6 | 7 |
+| [src/printer.rs](../../../engine/litho/tetonic-cli/src/printer.rs) | 8 | 0 |
+| [src/session.rs](../../../engine/litho/tetonic-cli/src/session.rs) | 2 | 0 |
+| [src/signal.rs](../../../engine/litho/tetonic-cli/src/signal.rs) | 3 | 3 |
+| [src/terminal_task.rs](../../../engine/litho/tetonic-cli/src/terminal_task.rs) | 12 | 17 |
+| [src/tests/mod.rs](../../../engine/litho/tetonic-cli/src/tests/mod.rs) | 8 | 0 |
+| [src/tui/approval.rs](../../../engine/litho/tetonic-cli/src/tui/approval.rs) | 10 | 1 |
+| [src/tui/clipboard.rs](../../../engine/litho/tetonic-cli/src/tui/clipboard.rs) | 8 | 2 |
+| [src/tui/composer.rs](../../../engine/litho/tetonic-cli/src/tui/composer.rs) | 3 | 0 |
+| [src/tui/events.rs](../../../engine/litho/tetonic-cli/src/tui/events.rs) | 14 | 1 |
+| [src/tui/failure.rs](../../../engine/litho/tetonic-cli/src/tui/failure.rs) | 12 | 1 |
+| [src/tui/input.rs](../../../engine/litho/tetonic-cli/src/tui/input.rs) | 17 | 1 |
+| [src/tui/input_tests.rs](../../../engine/litho/tetonic-cli/src/tui/input_tests.rs) | 8 | 0 |
+| [src/tui/interaction.rs](../../../engine/litho/tetonic-cli/src/tui/interaction.rs) | 9 | 0 |
+| [src/tui/markdown.rs](../../../engine/litho/tetonic-cli/src/tui/markdown.rs) | 11 | 1 |
+| [src/tui/mod.rs](../../../engine/litho/tetonic-cli/src/tui/mod.rs) | 39 | 18 |
+| [src/tui/models.rs](../../../engine/litho/tetonic-cli/src/tui/models.rs) | 18 | 5 |
+| [src/tui/overlays.rs](../../../engine/litho/tetonic-cli/src/tui/overlays.rs) | 2 | 0 |
+| [src/tui/preferences.rs](../../../engine/litho/tetonic-cli/src/tui/preferences.rs) | 5 | 1 |
+| [src/tui/response_theme.rs](../../../engine/litho/tetonic-cli/src/tui/response_theme.rs) | 0 | 0 |
+| [src/tui/retention.rs](../../../engine/litho/tetonic-cli/src/tui/retention.rs) | 7 | 1 |
+| [src/tui/scheduling.rs](../../../engine/litho/tetonic-cli/src/tui/scheduling.rs) | 12 | 4 |
+| [src/tui/slash.rs](../../../engine/litho/tetonic-cli/src/tui/slash.rs) | 12 | 1 |
+| [src/tui/status.rs](../../../engine/litho/tetonic-cli/src/tui/status.rs) | 15 | 1 |
+| [src/tui/submission_tests.rs](../../../engine/litho/tetonic-cli/src/tui/submission_tests.rs) | 3 | 3 |
+| [src/tui/terminal_lifecycle.rs](../../../engine/litho/tetonic-cli/src/tui/terminal_lifecycle.rs) | 27 | 7 |
+| [src/tui/transcript.rs](../../../engine/litho/tetonic-cli/src/tui/transcript.rs) | 31 | 1 |
+| [src/tui/ui.rs](../../../engine/litho/tetonic-cli/src/tui/ui.rs) | 21 | 2 |
+| [src/tui/ui_tests.rs](../../../engine/litho/tetonic-cli/src/tui/ui_tests.rs) | 14 | 1 |
+| [src/tui/ux_tests.rs](../../../engine/litho/tetonic-cli/src/tui/ux_tests.rs) | 18 | 1 |
 
 ## tetonic-app
 
@@ -1327,7 +1327,7 @@ This package-level graph is entirely local build configuration; it has no persis
 
 ## lokaid
 
-Manifest: [engine/litho/lokaid/Cargo.toml](../../../engine/litho/lokaid/Cargo.toml).
+Manifest: [engine/litho/tetonicd/Cargo.toml](../../../engine/litho/tetonicd/Cargo.toml).
 
 ```mermaid
 flowchart LR
@@ -1340,41 +1340,41 @@ This package-level graph is entirely local build configuration; it has no persis
 
 | Target | Kind | Entry source |
 |---|---|---|
-| lokaid | bin | [engine/litho/lokaid/src/main.rs](../../../engine/litho/lokaid/src/main.rs) |
+| lokaid | bin | [engine/litho/tetonicd/src/main.rs](../../../engine/litho/tetonicd/src/main.rs) |
 
 | Source file | Declarations (lexical) | Control/storage markers |
 |---|---:|---:|
-| [src/daemon.rs](../../../engine/litho/lokaid/src/daemon.rs) | 14 | 23 |
-| [src/daemon/config.rs](../../../engine/litho/lokaid/src/daemon/config.rs) | 5 | 4 |
-| [src/daemon/events.rs](../../../engine/litho/lokaid/src/daemon/events.rs) | 3 | 0 |
-| [src/daemon/handlers/agent.rs](../../../engine/litho/lokaid/src/daemon/handlers/agent.rs) | 1 | 0 |
-| [src/daemon/handlers/capacity.rs](../../../engine/litho/lokaid/src/daemon/handlers/capacity.rs) | 11 | 6 |
-| [src/daemon/handlers/chat.rs](../../../engine/litho/lokaid/src/daemon/handlers/chat.rs) | 1 | 0 |
-| [src/daemon/handlers/fabric.rs](../../../engine/litho/lokaid/src/daemon/handlers/fabric.rs) | 3 | 2 |
-| [src/daemon/handlers/initialize.rs](../../../engine/litho/lokaid/src/daemon/handlers/initialize.rs) | 1 | 1 |
-| [src/daemon/handlers/internal.rs](../../../engine/litho/lokaid/src/daemon/handlers/internal.rs) | 2 | 0 |
-| [src/daemon/handlers/misc.rs](../../../engine/litho/lokaid/src/daemon/handlers/misc.rs) | 4 | 1 |
-| [src/daemon/handlers/mod.rs](../../../engine/litho/lokaid/src/daemon/handlers/mod.rs) | 12 | 0 |
-| [src/daemon/handlers/policy.rs](../../../engine/litho/lokaid/src/daemon/handlers/policy.rs) | 7 | 3 |
-| [src/daemon/handlers/prelude.rs](../../../engine/litho/lokaid/src/daemon/handlers/prelude.rs) | 0 | 0 |
-| [src/daemon/handlers/run.rs](../../../engine/litho/lokaid/src/daemon/handlers/run.rs) | 3 | 3 |
-| [src/daemon/handlers/secrets.rs](../../../engine/litho/lokaid/src/daemon/handlers/secrets.rs) | 4 | 2 |
-| [src/daemon/handlers/session.rs](../../../engine/litho/lokaid/src/daemon/handlers/session.rs) | 6 | 2 |
-| [src/daemon/helpers.rs](../../../engine/litho/lokaid/src/daemon/helpers.rs) | 5 | 0 |
-| [src/daemon/placement.rs](../../../engine/litho/lokaid/src/daemon/placement.rs) | 3 | 0 |
-| [src/daemon/rpc/egress.rs](../../../engine/litho/lokaid/src/daemon/rpc/egress.rs) | 0 | 0 |
-| [src/daemon/rpc/map.rs](../../../engine/litho/lokaid/src/daemon/rpc/map.rs) | 1 | 0 |
-| [src/daemon/rpc/mod.rs](../../../engine/litho/lokaid/src/daemon/rpc/mod.rs) | 2 | 0 |
-| [src/daemon/tests/cases.rs](../../../engine/litho/lokaid/src/daemon/tests/cases.rs) | 35 | 76 |
-| [src/daemon/tests/harness.rs](../../../engine/litho/lokaid/src/daemon/tests/harness.rs) | 10 | 12 |
-| [src/daemon/tests/inference.rs](../../../engine/litho/lokaid/src/daemon/tests/inference.rs) | 1 | 1 |
-| [src/daemon/tests/mod.rs](../../../engine/litho/lokaid/src/daemon/tests/mod.rs) | 5 | 0 |
-| [src/daemon/tests/parity.rs](../../../engine/litho/lokaid/src/daemon/tests/parity.rs) | 6 | 10 |
-| [src/daemon/tests/protocol_golden.rs](../../../engine/litho/lokaid/src/daemon/tests/protocol_golden.rs) | 10 | 0 |
-| [src/daemon/types.rs](../../../engine/litho/lokaid/src/daemon/types.rs) | 3 | 5 |
-| [src/main.rs](../../../engine/litho/lokaid/src/main.rs) | 5 | 9 |
-| [src/node.rs](../../../engine/litho/lokaid/src/node.rs) | 2 | 2 |
-| [src/supervise.rs](../../../engine/litho/lokaid/src/supervise.rs) | 13 | 4 |
+| [src/daemon.rs](../../../engine/litho/tetonicd/src/daemon.rs) | 14 | 23 |
+| [src/daemon/config.rs](../../../engine/litho/tetonicd/src/daemon/config.rs) | 5 | 4 |
+| [src/daemon/events.rs](../../../engine/litho/tetonicd/src/daemon/events.rs) | 3 | 0 |
+| [src/daemon/handlers/agent.rs](../../../engine/litho/tetonicd/src/daemon/handlers/agent.rs) | 1 | 0 |
+| [src/daemon/handlers/capacity.rs](../../../engine/litho/tetonicd/src/daemon/handlers/capacity.rs) | 11 | 6 |
+| [src/daemon/handlers/chat.rs](../../../engine/litho/tetonicd/src/daemon/handlers/chat.rs) | 1 | 0 |
+| [src/daemon/handlers/fabric.rs](../../../engine/litho/tetonicd/src/daemon/handlers/fabric.rs) | 3 | 2 |
+| [src/daemon/handlers/initialize.rs](../../../engine/litho/tetonicd/src/daemon/handlers/initialize.rs) | 1 | 1 |
+| [src/daemon/handlers/internal.rs](../../../engine/litho/tetonicd/src/daemon/handlers/internal.rs) | 2 | 0 |
+| [src/daemon/handlers/misc.rs](../../../engine/litho/tetonicd/src/daemon/handlers/misc.rs) | 4 | 1 |
+| [src/daemon/handlers/mod.rs](../../../engine/litho/tetonicd/src/daemon/handlers/mod.rs) | 12 | 0 |
+| [src/daemon/handlers/policy.rs](../../../engine/litho/tetonicd/src/daemon/handlers/policy.rs) | 7 | 3 |
+| [src/daemon/handlers/prelude.rs](../../../engine/litho/tetonicd/src/daemon/handlers/prelude.rs) | 0 | 0 |
+| [src/daemon/handlers/run.rs](../../../engine/litho/tetonicd/src/daemon/handlers/run.rs) | 3 | 3 |
+| [src/daemon/handlers/secrets.rs](../../../engine/litho/tetonicd/src/daemon/handlers/secrets.rs) | 4 | 2 |
+| [src/daemon/handlers/session.rs](../../../engine/litho/tetonicd/src/daemon/handlers/session.rs) | 6 | 2 |
+| [src/daemon/helpers.rs](../../../engine/litho/tetonicd/src/daemon/helpers.rs) | 5 | 0 |
+| [src/daemon/placement.rs](../../../engine/litho/tetonicd/src/daemon/placement.rs) | 3 | 0 |
+| [src/daemon/rpc/egress.rs](../../../engine/litho/tetonicd/src/daemon/rpc/egress.rs) | 0 | 0 |
+| [src/daemon/rpc/map.rs](../../../engine/litho/tetonicd/src/daemon/rpc/map.rs) | 1 | 0 |
+| [src/daemon/rpc/mod.rs](../../../engine/litho/tetonicd/src/daemon/rpc/mod.rs) | 2 | 0 |
+| [src/daemon/tests/cases.rs](../../../engine/litho/tetonicd/src/daemon/tests/cases.rs) | 35 | 76 |
+| [src/daemon/tests/harness.rs](../../../engine/litho/tetonicd/src/daemon/tests/harness.rs) | 10 | 12 |
+| [src/daemon/tests/inference.rs](../../../engine/litho/tetonicd/src/daemon/tests/inference.rs) | 1 | 1 |
+| [src/daemon/tests/mod.rs](../../../engine/litho/tetonicd/src/daemon/tests/mod.rs) | 5 | 0 |
+| [src/daemon/tests/parity.rs](../../../engine/litho/tetonicd/src/daemon/tests/parity.rs) | 6 | 10 |
+| [src/daemon/tests/protocol_golden.rs](../../../engine/litho/tetonicd/src/daemon/tests/protocol_golden.rs) | 10 | 0 |
+| [src/daemon/types.rs](../../../engine/litho/tetonicd/src/daemon/types.rs) | 3 | 5 |
+| [src/main.rs](../../../engine/litho/tetonicd/src/main.rs) | 5 | 9 |
+| [src/node.rs](../../../engine/litho/tetonicd/src/node.rs) | 2 | 2 |
+| [src/supervise.rs](../../../engine/litho/tetonicd/src/supervise.rs) | 13 | 4 |
 
 ## tetonic-rpc
 

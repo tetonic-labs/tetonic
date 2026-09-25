@@ -44,7 +44,7 @@ pub fn explain_turn_failure(raw: &str) -> TurnFailureCopy {
         return TurnFailureCopy {
             headline: "Turn failed — the run journal missed this hop.",
             summary: "Local inference never started because the hop lease could not find this turn's run.".into(),
-            hint: Some("Rebuild this CLI (`cargo run -p lokai-cli`) — hop lease now creates a missing run instead of aborting.".into()),
+            hint: Some("Rebuild this CLI (`cargo run -p tetonic-cli`) — hop lease now creates a missing run instead of aborting.".into()),
         };
     }
     if lower.contains("egress") {

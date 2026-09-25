@@ -38,7 +38,7 @@ fail closed when no supervisor is bound. Ineligible placement still `continue`s
 | Type | Role |
 |------|------|
 | `ComputeBroker` / `DefaultComputeBroker` | submit / cancel / status / `chat_admitted` |
-| `BrokerInferenceProvider` | `InferenceProvider` facade used by CLI and lokaid; H1-1 outbound secret scan |
+| `BrokerInferenceProvider` | `InferenceProvider` facade used by CLI and tetonicd; H1-1 outbound secret scan |
 | `schedule_infer_chat` / `decide` | placement-gated weighted ranking |
 | `revalidate_hop_placement` | fresh `evaluate_placement` per failover hop |
 | `MemoryReservationStore` | Durable compute reservations in `lokai.db`. After restart, `recover_reservations` **cancels** active rows (H3-3: the holder process is gone). |

@@ -259,7 +259,7 @@ def find_bin() -> str:
         p = here / "target" / prof / exe
         if p.exists():
             return str(p)
-    raise SystemExit("tetonic binary not found; build it: cargo build --release -p lokai-cli")
+    raise SystemExit("tetonic binary not found; build it: cargo build --release -p tetonic-cli")
 
 
 def audit_db() -> Path:

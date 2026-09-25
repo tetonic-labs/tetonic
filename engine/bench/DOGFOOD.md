@@ -7,7 +7,7 @@ Manual checklist for **PL1 / product loop** sprint. Run from `engine/` with Olla
 ## Setup
 
 ```powershell
-cargo build -p lokai-cli
+cargo build -p tetonic-cli
 .\target\debug\lokai.exe --index --workspace .
 ```
 

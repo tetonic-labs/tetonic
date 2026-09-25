@@ -110,17 +110,17 @@
     "entry": "if __name__ == \"__main__\":"
   },
   {
-    "file": "engine/litho/lokai-cli/src/main.rs",
+    "file": "engine/litho/tetonic-cli/src/main.rs",
     "line": 34,
     "entry": "async fn main() -> anyhow::Result<()> {"
   },
   {
-    "file": "engine/litho/lokaid/src/daemon/tests/cases.rs",
+    "file": "engine/litho/tetonicd/src/daemon/tests/cases.rs",
     "line": 1041,
     "entry": "fn main_rs_does_not_special_case_shutdown_before_handle() {"
   },
   {
-    "file": "engine/litho/lokaid/src/main.rs",
+    "file": "engine/litho/tetonicd/src/main.rs",
     "line": 32,
     "entry": "fn main() -> Result<()> {"
   },

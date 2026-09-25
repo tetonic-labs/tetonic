@@ -1,7 +1,7 @@
 //! Live session registry owned by `lokai-app` (R1-1).
 //!
 //! Conversation, cancel, and spawn tracking live here.
-//! Transport adapters (`lokaid`, CLI) hold RPC/stdio handles only.
+//! Transport adapters (`tetonicd`, CLI) hold RPC/stdio handles only.
 //! Approval parking lives on `ApprovalService` (PORTAL-01).
 
 use std::collections::HashMap;

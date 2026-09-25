@@ -25,7 +25,7 @@ engine/
 
 | Layer | Packages | Primary Responsibility |
 |---|---|---|
-| **Litho** (`litho/`) | `lokai-cli`, `lokai-app`, `lokaid`, `lokai-lsp`, `lokai-tools` | Terminal user interface, REPL, application service host, JSON-RPC daemon, LSP client, and coding tool execution. |
+| **Litho** (`litho/`) | `tetonic-cli`, `lokai-app`, `tetonicd`, `lokai-lsp`, `lokai-tools` | Terminal user interface, REPL, application service host, JSON-RPC daemon, LSP client, and coding tool execution. |
 | **Mantle** (`mantle/`) | `lokai-run`, `lokai-orchestrator`, `lokai-broker`, `lokai-node`, `lokai-enroll`, `lokai-capacity` | Attempt lifecycle state machines, multi-agent coordination, compute scheduling, remote worker fabric, and hardware capacity detection. |
 | **Core** (`core/`) | `lokai-core`, `lokai-runtime`, `lokai-sandbox`, `lokai-transaction`, `lokai-secrets`, `lokai-domain`, `lokai-policy`, `lokai-telemetry` | Neutral agent execution loop, OS process sandboxing, atomic file staging and rollback, secret scanning, domain primitives, and audit telemetry. |
 | **Strata** (`strata/`) | `lokai-memory`, `lokai-artifact`, `lokai-context`, `lokai-index` | Durable SQLite storage, content-addressed artifact repository, token-budgeted context assembly, and AST code indexing. |
@@ -38,7 +38,7 @@ engine/
 
 The lifecycle of an autonomous turn flows across layers through explicit contracts:
 
-1. **Submit**: The user interaction enters via `litho/lokai-cli` or editor RPC into `litho/lokai-app`.
+1. **Submit**: The user interaction enters via `litho/tetonic-cli` or editor RPC into `litho/lokai-app`.
 2. **Admit**: The run supervisor (`mantle/lokai-run`) admits the attempt, registers an attempt ID, and manages lifecycle tracking.
 3. **Assemble**: The runtime builder (`core/lokai-runtime`) constructs the agent execution bundle with the required tools, system prompts, and policies.
 4. **Loop**: The agent kernel (`core/lokai-core`) executes the turn step-by-step, streaming thoughts and evaluating tool proposals.

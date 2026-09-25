@@ -17,5 +17,5 @@ cargo test -p lokai-orchestrator briefing_delimits
 cargo test -p lokai-tools split_verify_rejects
 cargo test -p lokai-memory zstd_rejects
 cargo test -p lokai-inference tls13_rejects
-cargo test -p lokaid strict_rpc
+cargo test -p tetonicd strict_rpc
 ```

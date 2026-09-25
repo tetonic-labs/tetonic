@@ -56,7 +56,7 @@ Decision: allocate distinct persistent agent identities from a reusable coding d
 
 ## F08 — Configuration and node role vocabularies overlap without wiring (high)
 
-[`engine_config.rs`](../../../engine/core/tetonic-domain/src/engine_config.rs) declares standalone/coordinator/runner and storage modes including distributed DB and moveable volume. The experiment server parses independent local structs and explicitly rejects modes other than standalone. [`lokaid/main.rs`](../../../engine/litho/lokaid/src/main.rs) chooses coordinator/node/combined behavior through command flags.
+[`engine_config.rs`](../../../engine/core/tetonic-domain/src/engine_config.rs) declares standalone/coordinator/runner and storage modes including distributed DB and moveable volume. The experiment server parses independent local structs and explicitly rejects modes other than standalone. [`lokaid/main.rs`](../../../engine/litho/tetonicd/src/main.rs) chooses coordinator/node/combined behavior through command flags.
 
 Decision: establish one implemented server schema; reject unsupported modes, version it, and separate operator config from agent definitions. Provide a one-time import for experiment config. Delete duplicate parsers after cutover. Do not ship unimplemented modes based on enum availability.
 
@@ -74,7 +74,7 @@ Decision: reuse these controls, add trusted tenant/principal/assignment context 
 
 ## F11 — Legacy-named code remains on live paths (medium)
 
-`compute_plane.rs` imports RemoteNodeProvider; [`tetonic-fabric-client/lib.rs`](../../../engine/atmos/tetonic-fabric-client/src/lib.rs) exports legacy modules. [`lokaid/main.rs`](../../../engine/litho/lokaid/src/main.rs) hosts stdio RPC plus node/combined paths. [Engine CI](../../../.github/workflows/engine-ci.yml) builds lokai-cli and lokaid; the actual [release workflow](../../../.github/workflows/release.yml) also packages those binaries.
+`compute_plane.rs` imports RemoteNodeProvider; [`tetonic-fabric-client/lib.rs`](../../../engine/atmos/tetonic-fabric-client/src/lib.rs) exports legacy modules. [`lokaid/main.rs`](../../../engine/litho/tetonicd/src/main.rs) hosts stdio RPC plus node/combined paths. [Engine CI](../../../.github/workflows/engine-ci.yml) builds lokai-cli and lokaid; the actual [release workflow](../../../.github/workflows/release.yml) also packages those binaries.
 
 Decision: do not delete based on naming. Migrate transport callers and delivery assets together. Preserve database history readers until a supported migration/export path exists. Remove compatibility only with an explicit supported-version decision.
 

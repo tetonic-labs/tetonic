@@ -148,7 +148,7 @@ fn code03_execute_spawn_still_turn_none() {
 
 #[test]
 fn code03_daemon_agent_spawn_rpc_untouched() {
-    let src = crate_src("../../litho/lokaid/src/daemon/handlers/agent.rs");
+    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
     assert!(src.contains("fn agent_spawn"));
     assert!(src.contains("submit_spawn"));
     assert!(!src.contains("execute_spawn"));
