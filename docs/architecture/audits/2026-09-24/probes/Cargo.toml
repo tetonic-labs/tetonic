@@ -1,0 +1,15 @@
+[package]
+name = "tetonic-architecture-audit-probes"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+tetonic-domain = { path = "../../../../../engine/core/tetonic-domain" }
+tetonic-core = { path = "../../../../../engine/core/tetonic-core" }
+tetonic-node = { path = "../../../../../engine/mantle/tetonic-node" }
+tetonic-orchestrator = { path = "../../../../../engine/mantle/tetonic-orchestrator" }
+serde_json = "1"
+tempfile = "3"

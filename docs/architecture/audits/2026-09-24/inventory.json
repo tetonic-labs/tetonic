@@ -1,0 +1,386 @@
+{
+  "baseline": "eae7db27315b145bfad82921426ff44960d11c4b",
+  "crates": [
+    {
+      "crate": "tetonic-core",
+      "layer": "core",
+      "rust_files": 18,
+      "rust_lines_including_tests": 5641,
+      "internal_dependencies": [
+        "tetonic-inference",
+        "tetonic-policy",
+        "tetonic-telemetry",
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-domain",
+      "layer": "core",
+      "rust_files": 31,
+      "rust_lines_including_tests": 5829,
+      "internal_dependencies": []
+    },
+    {
+      "crate": "tetonic-policy",
+      "layer": "core",
+      "rust_files": 9,
+      "rust_lines_including_tests": 1807,
+      "internal_dependencies": [
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-runtime",
+      "layer": "core",
+      "rust_files": 16,
+      "rust_lines_including_tests": 3444,
+      "internal_dependencies": [
+        "tetonic-core",
+        "tetonic-domain",
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-policy",
+        "tetonic-secrets"
+      ]
+    },
+    {
+      "crate": "tetonic-sandbox",
+      "layer": "core",
+      "rust_files": 28,
+      "rust_lines_including_tests": 7414,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-secrets"
+      ]
+    },
+    {
+      "crate": "tetonic-secrets",
+      "layer": "core",
+      "rust_files": 10,
+      "rust_lines_including_tests": 1911,
+      "internal_dependencies": [
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-telemetry",
+      "layer": "core",
+      "rust_files": 13,
+      "rust_lines_including_tests": 1689,
+      "internal_dependencies": [
+        "tetonic-secrets"
+      ]
+    },
+    {
+      "crate": "tetonic-transaction",
+      "layer": "core",
+      "rust_files": 19,
+      "rust_lines_including_tests": 5118,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "tetonic-broker",
+      "layer": "mantle",
+      "rust_files": 34,
+      "rust_lines_including_tests": 10056,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-inference",
+        "tetonic-fabric-protocol",
+        "tetonic-run",
+        "tetonic-memory",
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "tetonic-capacity",
+      "layer": "mantle",
+      "rust_files": 21,
+      "rust_lines_including_tests": 3160,
+      "internal_dependencies": [
+        "tetonic-memory",
+        "tetonic-inference"
+      ]
+    },
+    {
+      "crate": "tetonic-enroll",
+      "layer": "mantle",
+      "rust_files": 10,
+      "rust_lines_including_tests": 1704,
+      "internal_dependencies": [
+        "tetonic-egress"
+      ]
+    },
+    {
+      "crate": "tetonic-node",
+      "layer": "mantle",
+      "rust_files": 19,
+      "rust_lines_including_tests": 5387,
+      "internal_dependencies": [
+        "tetonic-secrets",
+        "tetonic-enroll",
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-egress",
+        "tetonic-capacity",
+        "tetonic-fabric-client",
+        "tetonic-fabric-protocol",
+        "tetonic-domain",
+        "tetonic-sandbox"
+      ]
+    },
+    {
+      "crate": "tetonic-orchestrator",
+      "layer": "mantle",
+      "rust_files": 20,
+      "rust_lines_including_tests": 5122,
+      "internal_dependencies": [
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-policy",
+        "tetonic-core",
+        "tetonic-domain",
+        "tetonic-context"
+      ]
+    },
+    {
+      "crate": "tetonic-run",
+      "layer": "mantle",
+      "rust_files": 35,
+      "rust_lines_including_tests": 8438,
+      "internal_dependencies": [
+        "tetonic-artifact",
+        "tetonic-core",
+        "tetonic-runtime",
+        "tetonic-policy",
+        "tetonic-domain",
+        "tetonic-memory"
+      ]
+    },
+    {
+      "crate": "tetonic-server",
+      "layer": "mantle",
+      "rust_files": 5,
+      "rust_lines_including_tests": 817,
+      "internal_dependencies": [
+        "tetonic-core",
+        "tetonic-domain",
+        "tetonic-runtime",
+        "tetonic-inference",
+        "tetonic-egress"
+      ]
+    },
+    {
+      "crate": "tetonic-artifact",
+      "layer": "strata",
+      "rust_files": 7,
+      "rust_lines_including_tests": 2323,
+      "internal_dependencies": [
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-context",
+      "layer": "strata",
+      "rust_files": 17,
+      "rust_lines_including_tests": 4395,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-artifact",
+        "tetonic-secrets"
+      ]
+    },
+    {
+      "crate": "tetonic-index",
+      "layer": "strata",
+      "rust_files": 12,
+      "rust_lines_including_tests": 3526,
+      "internal_dependencies": [
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-memory",
+      "layer": "strata",
+      "rust_files": 26,
+      "rust_lines_including_tests": 8044,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-policy",
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "tetonic-egress",
+      "layer": "atmos",
+      "rust_files": 4,
+      "rust_lines_including_tests": 1459,
+      "internal_dependencies": []
+    },
+    {
+      "crate": "tetonic-fabric-client",
+      "layer": "atmos",
+      "rust_files": 21,
+      "rust_lines_including_tests": 6467,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-fabric-protocol",
+        "tetonic-egress",
+        "tetonic-enroll",
+        "tetonic-inference",
+        "tetonic-transaction",
+        "tetonic-artifact",
+        "tetonic-memory",
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "tetonic-fabric-protocol",
+      "layer": "atmos",
+      "rust_files": 30,
+      "rust_lines_including_tests": 4999,
+      "internal_dependencies": [
+        "tetonic-domain"
+      ]
+    },
+    {
+      "crate": "tetonic-inference",
+      "layer": "atmos",
+      "rust_files": 21,
+      "rust_lines_including_tests": 10172,
+      "internal_dependencies": [
+        "tetonic-domain",
+        "tetonic-egress",
+        "tetonic-fabric-protocol",
+        "tetonic-policy",
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "tetonic-rpc",
+      "layer": "atmos",
+      "rust_files": 7,
+      "rust_lines_including_tests": 2208,
+      "internal_dependencies": [
+        "tetonic-telemetry"
+      ]
+    },
+    {
+      "crate": "lokai-cli",
+      "layer": "litho",
+      "rust_files": 39,
+      "rust_lines_including_tests": 9721,
+      "internal_dependencies": [
+        "tetonic-app"
+      ]
+    },
+    {
+      "crate": "lokaid",
+      "layer": "litho",
+      "rust_files": 31,
+      "rust_lines_including_tests": 4243,
+      "internal_dependencies": [
+        "tetonic-rpc",
+        "tetonic-app"
+      ]
+    },
+    {
+      "crate": "tetonic-app",
+      "layer": "litho",
+      "rust_files": 85,
+      "rust_lines_including_tests": 33110,
+      "internal_dependencies": [
+        "tetonic-core",
+        "tetonic-domain",
+        "tetonic-policy",
+        "tetonic-secrets",
+        "tetonic-runtime",
+        "tetonic-telemetry",
+        "tetonic-memory",
+        "tetonic-inference",
+        "tetonic-orchestrator",
+        "tetonic-run",
+        "tetonic-context",
+        "tetonic-tools",
+        "tetonic-transaction",
+        "tetonic-index",
+        "tetonic-lsp",
+        "tetonic-sandbox",
+        "tetonic-capacity",
+        "tetonic-enroll",
+        "tetonic-egress",
+        "tetonic-node",
+        "tetonic-fabric-client",
+        "tetonic-broker",
+        "tetonic-fabric-protocol",
+        "tetonic-artifact"
+      ]
+    },
+    {
+      "crate": "tetonic-lsp",
+      "layer": "litho",
+      "rust_files": 13,
+      "rust_lines_including_tests": 2095,
+      "internal_dependencies": []
+    },
+    {
+      "crate": "tetonic-tools",
+      "layer": "litho",
+      "rust_files": 21,
+      "rust_lines_including_tests": 4879,
+      "internal_dependencies": [
+        "tetonic-policy",
+        "tetonic-memory",
+        "tetonic-telemetry",
+        "tetonic-domain",
+        "tetonic-sandbox",
+        "tetonic-secrets",
+        "tetonic-transaction"
+      ]
+    },
+    {
+      "crate": "tetonic-arch-gate",
+      "layer": "tooling",
+      "rust_files": 14,
+      "rust_lines_including_tests": 5091,
+      "internal_dependencies": [
+        "tetonic-rpc"
+      ]
+    },
+    {
+      "crate": "tetonic-bench",
+      "layer": "tooling",
+      "rust_files": 1,
+      "rust_lines_including_tests": 298,
+      "internal_dependencies": [
+        "tetonic-index",
+        "tetonic-tools",
+        "tetonic-core"
+      ]
+    },
+    {
+      "crate": "tetonic-eval",
+      "layer": "tooling",
+      "rust_files": 22,
+      "rust_lines_including_tests": 4380,
+      "internal_dependencies": [
+        "tetonic-telemetry",
+        "tetonic-app",
+        "tetonic-memory",
+        "tetonic-policy",
+        "tetonic-runtime",
+        "tetonic-broker",
+        "tetonic-inference",
+        "tetonic-sandbox",
+        "tetonic-secrets",
+        "tetonic-domain",
+        "tetonic-core",
+        "tetonic-orchestrator",
+        "tetonic-artifact"
+      ]
+    }
+  ]
+}
