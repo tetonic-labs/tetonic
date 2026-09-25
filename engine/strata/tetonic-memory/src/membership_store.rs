@@ -148,7 +148,7 @@ mod tests {
         {
             let store = Store::open(&path).unwrap();
             seed(&store);
-            store.conn.execute_batch("DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals; DELETE FROM schema_versions WHERE version=30;").unwrap();
+            store.conn.execute_batch("DROP TABLE control_credential_events; DROP TABLE control_credentials; DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals; DELETE FROM schema_versions WHERE version>=30;").unwrap();
         }
         let store = Store::open(path).unwrap();
         assert!(store.get_team("a", "team").unwrap().is_some());
@@ -171,6 +171,13 @@ pub enum ControlPermission {
 
 impl Store {
     pub(crate) fn migrate_memberships_v30(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=30)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS control_principals (
                 principal_id TEXT PRIMARY KEY NOT NULL,

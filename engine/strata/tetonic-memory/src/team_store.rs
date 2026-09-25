@@ -220,7 +220,7 @@ mod tests {
             store
                 .conn
                 .execute_batch(
-                    "DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals;
+                    "DROP TABLE control_credential_events; DROP TABLE control_credentials; DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals;
                 DROP TABLE teams; DROP TABLE organizations;
                 DELETE FROM schema_versions WHERE version >= 29;
                 INSERT INTO agent_identities VALUES

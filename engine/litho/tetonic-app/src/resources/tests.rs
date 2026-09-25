@@ -254,6 +254,82 @@ fn volatile_application_cannot_compose_resource_service() {
 
 struct VerifiedAlice;
 
+#[tokio::test]
+async fn local_credentials_authenticate_real_resource_operations_and_revoke_independently() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("local-auth.db");
+    let store = SharedStore::open(&path, 1).unwrap();
+    store
+        .write(|db| -> Result<(), StoreError> {
+            db.put_control_principal("local/alice", true, false)?;
+            db.create_organization(&OrganizationRow {
+                org_id: "a".into(),
+                name: "A".into(),
+            })?;
+            db.set_organization_member(
+                "a",
+                "local/alice",
+                tetonic_memory::OrganizationRole::TeamCreator,
+            )
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    let application = app(dir.path(), Some(store));
+    let verifier = Arc::new(application.local_credentials("engine-a".into()).unwrap());
+    assert!(verifier.issue("local/alice".into(), 0).await.is_err());
+    assert!(verifier.issue("local/alice".into(), 86401).await.is_err());
+    assert!(verifier.issue("unknown".into(), 60).await.is_err());
+    let key = verifier.issue("local/alice".into(), 3600).await.unwrap();
+    let second = verifier.issue("local/alice".into(), 3600).await.unwrap();
+    assert_ne!(key.expose_secret(), second.expose_secret());
+    assert!(!format!("{key:?}").contains(key.expose_secret()));
+    let service = application
+        .membership_resource_service(verifier.clone())
+        .unwrap();
+    let team = service
+        .create_team(
+            key.expose_secret(),
+            "a".into(),
+            "team".into(),
+            "Team".into(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(team.owner_principal_id, "local/alice");
+    assert!(application
+        .local_credentials("engine-b".into())
+        .unwrap()
+        .verify(key.expose_secret())
+        .await
+        .is_err());
+    for bad in ["local/alice", "ttc_", "ttc_forged"] {
+        assert!(matches!(
+            service.get_team(bad, "a".into(), "team".into()).await,
+            Err(ResourceError::Denied)
+        ));
+    }
+    verifier.revoke(key.credential_id.clone()).await.unwrap();
+    assert!(matches!(
+        service
+            .get_team(key.expose_secret(), "a".into(), "team".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(service
+        .get_team(second.expose_secret(), "a".into(), "team".into())
+        .await
+        .unwrap()
+        .is_some());
+    let reopened = app(dir.path(), Some(SharedStore::open(path, 1).unwrap()));
+    let reopened_verifier = reopened.local_credentials("engine-a".into()).unwrap();
+    assert!(reopened_verifier.verify(key.expose_secret()).await.is_err());
+    assert!(reopened_verifier
+        .verify(second.expose_secret())
+        .await
+        .is_ok());
+}
+
 #[async_trait]
 impl CredentialVerifier for VerifiedAlice {
     async fn verify(&self, credential: &str) -> Result<AuthorizedPrincipal, AccessError> {

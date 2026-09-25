@@ -1,6 +1,6 @@
 # Resource service boundary — MVP-101
 
-Status: service boundary and persistent membership authority implemented; production credential verification and authorized membership administration remain required.
+Status: service boundary, persistent membership authority and local bearer verification implemented; operator bootstrap, transport integration and authorized membership administration remain required.
 
 The Application composes ResourceService from the same SharedStore used by its managed run service. Missing storage is an error; no in-memory substitute or separate control database is created. The service currently creates and reads organizations and teams. It does not activate agents, allocate budgets, or grant access to execution, tools or knowledge.
 
@@ -12,7 +12,7 @@ Authorization occurs before resource lookup. Denied requests cannot distinguish 
 
 ## Persistent membership authority
 
-`Application::membership_resource_service` binds a CredentialVerifier to the application's own store. Verification establishes a stable issuer-qualified employee principal; the single-statement storage decision checks its enabled state and current memberships on every operation. The verifier is still an integration contract, not an implemented login protocol. Worker certificates are not employee credentials.
+`Application::membership_resource_service` binds a CredentialVerifier to the application's own store. Verification establishes a stable issuer-qualified employee principal; the single-statement storage decision checks its enabled state and current memberships on every operation. LocalCredentials implements the verifier for locally issued bearer credentials. Enterprise identity providers remain an integration contract, not an implemented login protocol. Worker certificates are not employee credentials.
 
 Schema 30 adds enabled principals, a platform-administrator bit, organization roles, and explicit team membership. Initial metadata permissions are:
 
@@ -30,10 +30,20 @@ Migration preserves existing teams but invents no principals or memberships. Boo
 
 ## Required before transport exposure
 
-- A real credential verifier with expiry/revocation handling and an explicit local bootstrap path.
+- An explicit local bootstrap and credential delivery path; enterprise SSO remains a separate adapter.
 - Authorized administration of the persisted memberships, plus capability grants and top-down policy limits.
 - Audit records for administrative mutations and grant changes, without recording credentials.
 - Request bounds and supported transport/session security.
-- Integration tests against a real credential verifier. The persistent authority is tested through the service with a test verifier, not real login/session infrastructure.
+- Transport-level integration tests, beyond the local verifier/resource-service integration test.
 
 The existing fleet dispatcher is not routed through this service yet. Do not dual-write its maps or call it behind an authenticated facade and imply that execution is reconciled. Resource migration, immutable agent definition revisions, managed activation and operator control cutover remain separate acceptance obligations in the epic.
+
+## Local credential profile
+
+`Application::local_credentials` uses the same store and a required deployment audience. Trusted provisioning can issue a credential only for an existing enabled principal. Issuance grants no memberships or platform role. Credentials have a requested lifetime of 1–86,400 seconds, independent random secrets, and a separate public identifier for revocation. The secret is returned in memory for protected delivery; Debug output redacts it. Database rows contain a domain-separated SHA-256 digest, never the bearer value. The random source is the existing UUID v4 dependency's OS random generator, with two independent UUIDs per secret.
+
+Verification rejects malformed/unknown secrets, the wrong audience, not-yet-valid or expired credentials, revocation and disabled principals. It uses current wall-clock UTC and persisted state without an allow cache; operators must maintain correct clocks. A restarted service can still verify an unexpired credential and rejects a revoked one. Separate credentials can be revoked independently.
+
+Issuance and first revocation append credential lifecycle events in the same database transaction. Event failure rolls back the mutation and returns failure. Those events record the credential's principal, not an authenticated administrative actor: full administrator audit and authorized remote issuance are still unimplemented. The public Rust provisioning methods are trusted host-code operations, not transport endpoints. Exposing them to request payloads would be a privilege bypass.
+
+Deployment audience must be stable for a deployment and changed for a separately restored/cloned deployment if credentials should not carry over. Deliver bearer values only through protected local output or authenticated encrypted transport. No HTTP login, refresh protocol, token file persistence, retention cleanup or TLS listener is introduced by this slice. Revocation rejects subsequent verification; it does not retroactively cancel already admitted mutations or executions.

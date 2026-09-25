@@ -60,3 +60,13 @@ Application::membership_resource_service composes this persistent authority with
 Storage validation: all 77 tetonic-memory library tests passed, including v29 upgrade, scoped permissions, durable revocation and the existing migration failure/crash matrix. Build commands continue using per-command incremental/debug settings to limit artifact growth.
 
 Application validation: all five `resources::tests` passed. The architecture gate passed. After adding administrator/demotion assertions, the three membership storage tests passed again. Production credential verification is not covered by these tests and is not implemented by this slice.
+
+## 2026-09-25 — Local control credentials
+
+Schema 31 stores credential hashes, audience, issuance/expiry times, revocation and transactional lifecycle events. Application::local_credentials supplies a real local verifier to the membership resource service. Issuing a credential requires an existing enabled principal and grants no role. Per-command provisioning stays internal; no unauthenticated issuance endpoint was added. Existing sha2 moved from the application's dev dependencies to runtime dependencies; UUID v4 is reused for random secrets.
+
+The current service contract specifies lifetime limits, hash-only persistence, audience isolation, independent revocation, redacted Debug output and remaining bootstrap/transport/admin-audit work. The v30 migration now checks its marker, preserving the upgrade chain. Older fixture databases explicitly remove the newer credential tables before simulating their historical schema.
+
+Validation so far: all 80 memory library tests passed, covering time boundaries, wrong audience, disabled principals, restart persistence, independent revocation state, v30 migration preservation and atomic rollback when credential-event writes fail. This does not establish an end-user login experience or complete MVP-101.
+
+Final slice validation: all six application resource tests passed, including real local credential issuance through team creation/read, wrong-audience denial, independent revoke and service recomposition. The architecture gate, focused rustfmt, whitespace and documentation-link checks passed. No HTTP endpoint or external identity provider was tested or added.

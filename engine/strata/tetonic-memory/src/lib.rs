@@ -28,6 +28,7 @@ mod compute_reservation;
 mod durability_tests;
 mod estate;
 mod identity_store;
+mod control_credentials;
 mod membership_store;
 mod team_store;
 #[cfg(test)]
@@ -54,6 +55,7 @@ pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
 pub use identity_store::AgentIdentityRow;
+pub use control_credentials::ControlCredentialRow;
 pub use membership_store::{ControlPermission, OrganizationRole};
 pub use team_store::{OrganizationRow, TeamRow};
 pub use recall::RecallHit;
@@ -1490,8 +1492,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals;
-                    DELETE FROM schema_versions WHERE version = 30;")
+                .execute_batch("DROP TABLE control_credential_events; DROP TABLE control_credentials;
+                    DELETE FROM schema_versions WHERE version = 31;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1519,8 +1521,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals;
-                    DELETE FROM schema_versions WHERE version = 30;")
+                .execute_batch("DROP TABLE control_credential_events; DROP TABLE control_credentials;
+                    DELETE FROM schema_versions WHERE version = 31;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);
