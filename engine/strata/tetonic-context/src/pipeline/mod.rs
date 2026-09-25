@@ -542,6 +542,7 @@ impl tetonic_domain::ContextCompiler for ContextCompiler {
         };
         let pack = self.compile(request).await.map_err(|e| e.to_string())?;
         Ok(tetonic_domain::CompiledContext {
+            stored_artifact_id: pack.stored_artifact_id,
             run_id: pack.run_id,
             task_id: pack.task_id,
             workspace_version: pack.workspace_version,

@@ -111,6 +111,7 @@ pub async fn seal(
     let now = Utc::now();
     let mut pack = ContextPack {
         context_pack_id: ArtifactId::new("pending"),
+        stored_artifact_id: None,
         schema_version: 1,
         run_id: request.run_id.clone(),
         task_id: request.task_id.clone(),
@@ -165,10 +166,11 @@ pub async fn seal(
             .write_chunk(&bytes)
             .await
             .map_err(|e| format!("artifact write_chunk: {e}"))?;
-        let _meta = writer
+        let meta = writer
             .seal()
             .await
             .map_err(|e| format!("artifact seal: {e}"))?;
+        pack.stored_artifact_id = Some(meta.artifact_id);
     }
 
     Ok(pack)

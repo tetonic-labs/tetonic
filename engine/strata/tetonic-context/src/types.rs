@@ -42,7 +42,12 @@ pub struct ContextRequest {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ContextPack {
+    /// Logical pack identity; not a backing-store locator.
     pub context_pack_id: ArtifactId,
+    /// Receipt added after sealing. Absent inside the stored payload itself and
+    /// for packs compiled without persistence; use this ID for ArtifactStore I/O.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stored_artifact_id: Option<ArtifactId>,
     pub schema_version: u32,
     pub run_id: RunId,
     pub task_id: TaskId,

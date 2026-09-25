@@ -804,6 +804,67 @@ pub mod tests {
         assert!(result.unwrap_err().contains("workspace changed"));
     }
 
+    #[tokio::test]
+    async fn persisted_pack_receipt_opens_exact_sealed_content() {
+        use tetonic_domain::artifact::ArtifactStore;
+        let dir = tempfile::tempdir().unwrap();
+        let store = Arc::new(
+            tetonic_artifact::LocalArtifactStore::new(
+                dir.path(),
+                tetonic_artifact::ScanPolicy::Scan(Arc::new(|_| false)),
+            )
+            .unwrap(),
+        );
+        let compiler = ContextCompiler::new(Arc::new(MockProvider::default()))
+            .with_artifact_store(store.clone());
+        let pack = compiler.compile(base_request()).await.unwrap();
+        let id = pack.stored_artifact_id.as_ref().unwrap();
+        assert_ne!(id, &pack.context_pack_id);
+        let metadata = store.metadata(id).await.unwrap();
+        let mut reader = store.open(id).await.unwrap();
+        let mut bytes = Vec::new();
+        loop {
+            let mut chunk = [0; 1024];
+            let n = reader.read_chunk(&mut chunk).await.unwrap();
+            if n == 0 {
+                break;
+            }
+            bytes.extend_from_slice(&chunk[..n]);
+        }
+        assert_eq!(bytes.len() as u64, metadata.size_bytes);
+        let persisted: crate::types::ContextPack = serde_json::from_slice(&bytes).unwrap();
+        assert!(persisted.stored_artifact_id.is_none());
+        let mut without_receipt = pack.clone();
+        without_receipt.stored_artifact_id = None;
+        assert_eq!(
+            serde_json::to_value(persisted).unwrap(),
+            serde_json::to_value(without_receipt).unwrap()
+        );
+        let unpersisted = ContextCompiler::new(Arc::new(MockProvider::default()))
+            .compile(base_request())
+            .await
+            .unwrap();
+        assert!(unpersisted.stored_artifact_id.is_none());
+        let request = base_request();
+        let compiled = tetonic_domain::ContextCompiler::compile(
+            &compiler,
+            tetonic_domain::ContextCompileRequest {
+                session_id: request.session_id,
+                run_id: request.run_id,
+                task_id: request.task_id,
+                objective: request.objective,
+                workspace_version: request.workspace_version,
+                data_class_ceiling: request.data_class_ceiling,
+            },
+        )
+        .await
+        .unwrap();
+        assert!(store
+            .open(compiled.stored_artifact_id.as_ref().unwrap())
+            .await
+            .is_ok());
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // R4-3: context seal scans with ScannerEngine
     // ─────────────────────────────────────────────────────────────────────────

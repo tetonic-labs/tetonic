@@ -37,6 +37,8 @@ pub struct CompiledEvidence {
 
 #[derive(Debug, Clone)]
 pub struct CompiledContext {
+    /// Backing-store receipt, distinct from logical pack identity.
+    pub stored_artifact_id: Option<crate::ids::ArtifactId>,
     pub run_id: RunId,
     pub task_id: TaskId,
     pub workspace_version: WorkspaceVersion,
