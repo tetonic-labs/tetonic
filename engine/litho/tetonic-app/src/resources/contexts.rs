@@ -146,6 +146,44 @@ mod tests {
         .await
         .unwrap();
         local
+            .credentials()
+            .revoke(alice.credential_id.clone())
+            .await
+            .unwrap();
+        tokio::task::spawn_blocking(move || {
+            let denied = bound.execute("recall", &serde_json::json!({"query":"PRIVATECANARY"}));
+            assert!(!denied.ok);
+            assert!(!denied.content.contains("PRIVATECANARY"));
+        })
+        .await
+        .unwrap();
+        let replacement = local
+            .credentials()
+            .issue("alice".into(), 3600)
+            .await
+            .unwrap();
+        let bound = service
+            .bind_recall(
+                replacement.expose_secret(),
+                "private".into(),
+                tetonic_tools::Tools::new(
+                    tetonic_tools::Workspace::new(dir.path()).unwrap(),
+                    false,
+                ),
+            )
+            .await
+            .unwrap();
+        let check = bound.clone();
+        tokio::task::spawn_blocking(move || {
+            assert!(
+                check
+                    .execute("recall", &serde_json::json!({"query":"PRIVATECANARY"}))
+                    .ok
+            );
+        })
+        .await
+        .unwrap();
+        local
             .resources()
             .set_organization_member(admin.expose_secret(), "org".into(), "alice".into(), None)
             .await
@@ -197,7 +235,7 @@ impl ContextService {
     }
 
     /// Bind recall to one authorized context. Does not activate an agent or
-    /// authorize other tools. Credential verification is admission-time only.
+    /// authorize other tools. Credential validity is rechecked by the bound synchronous adapter.
     pub async fn bind_recall(
         &self,
         credential: &str,
@@ -214,7 +252,16 @@ impl ContextService {
         if !allowed {
             return Err(ResourceError::Denied);
         }
-        Ok(tools.with_context_memory(self.store.path().to_path_buf(), actor.principal_id, context))
+        let credential_check = self
+            .verifier
+            .memory_credential_check(credential)
+            .ok_or(ResourceError::Denied)?;
+        Ok(tools.with_context_memory(
+            self.store.path().to_path_buf(),
+            actor.principal_id,
+            context,
+            credential_check,
+        ))
     }
 
     pub async fn recall(

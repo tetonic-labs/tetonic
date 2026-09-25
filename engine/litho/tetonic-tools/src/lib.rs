@@ -14,6 +14,7 @@ mod host;
 mod orchestration;
 mod retrieval;
 mod memory;
+pub use memory::MemoryCredentialCheck;
 mod sink;
 mod types;
 mod workspace;
@@ -72,7 +73,7 @@ pub struct Tools {
     /// Path to `lokai.db` for episodic recall (T8).
     memory_db: Option<PathBuf>,
     /// Trusted host binding; never populated from model tool arguments.
-    recall_scope: Option<(String, String)>,
+    recall_scope: Option<memory::ScopedMemory>,
     /// Current session id (excluded from recall hits).
     session_id: Option<String>,
     /// Language-server tools (rust-analyzer / pyright subprocess).

@@ -111,6 +111,17 @@ impl LocalCredentials {
 
 #[async_trait]
 impl CredentialVerifier for LocalCredentials {
+    fn memory_credential_check(
+        &self,
+        credential: &str,
+    ) -> Option<tetonic_tools::MemoryCredentialCheck> {
+        let digest = secret_hash(credential);
+        let audience = self.audience.clone();
+        Some(Arc::new(
+            move |db, expected| matches!(db.control_credential_principal(&digest, &audience, chrono::Utc::now().timestamp()), Ok(Some(actor)) if actor == expected),
+        ))
+    }
+
     async fn verify(&self, credential: &str) -> Result<AuthorizedPrincipal, AccessError> {
         let value = credential.strip_prefix("ttc_").ok_or(AccessError)?;
         if value.len() != 64 || !value.bytes().all(|b| b.is_ascii_hexdigit()) {

@@ -7,6 +7,15 @@ use tetonic_memory::ControlPermission;
 /// This establishes identity only; the store decides resource access separately.
 #[async_trait]
 pub trait CredentialVerifier: Send + Sync {
+    /// Optional synchronous lifetime check for recall. Unsupported adapters deny
+    /// recall binding rather than silently retaining admission-only authority.
+    fn memory_credential_check(
+        &self,
+        _credential: &str,
+    ) -> Option<tetonic_tools::MemoryCredentialCheck> {
+        None
+    }
+
     async fn verify(&self, credential: &str) -> Result<AuthorizedPrincipal, AccessError>;
 }
 

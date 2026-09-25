@@ -1,6 +1,25 @@
 //! Memory configuration, read-only connections, and bound recall dispatch.
 use super::*;
 
+/// Trusted synchronous credential check against the authoritative read-only store.
+/// Implementations must fail closed and must not call an async runtime recursively.
+pub type MemoryCredentialCheck = Arc<dyn Fn(&tetonic_memory::Store, &str) -> bool + Send + Sync>;
+
+pub(super) struct ScopedMemory {
+    actor: String,
+    context: String,
+    credential: MemoryCredentialCheck,
+}
+impl Clone for ScopedMemory {
+    fn clone(&self) -> Self {
+        Self {
+            actor: self.actor.clone(),
+            context: self.context.clone(),
+            credential: self.credential.clone(),
+        }
+    }
+}
+
 thread_local! {
     static MEMORY_CACHE: RefCell<HashMap<PathBuf, Rc<tetonic_memory::Store>>> = RefCell::new(HashMap::new());
 }
@@ -30,9 +49,14 @@ impl Tools {
         memory_db: PathBuf,
         actor: String,
         context: String,
+        credential: MemoryCredentialCheck,
     ) -> Self {
         self.memory_db = Some(memory_db);
-        self.recall_scope = Some((actor, context));
+        self.recall_scope = Some(ScopedMemory {
+            actor,
+            context,
+            credential,
+        });
         self
     }
 
@@ -65,8 +89,16 @@ impl Tools {
                 error
             }
         })?;
-        if let Some((actor, context)) = &self.recall_scope {
-            retrieval::recall_context(&store, actor, context, args)
+        if let Some(scope) = &self.recall_scope {
+            let denied = || ToolError::Other("context recall unavailable or access denied".into());
+            if !(scope.credential)(&store, &scope.actor) {
+                return Err(denied());
+            }
+            let result = retrieval::recall_context(&store, &scope.actor, &scope.context, args)?;
+            if !(scope.credential)(&store, &scope.actor) {
+                return Err(denied());
+            }
+            Ok(result)
         } else {
             retrieval::recall(&store, &self.ws, self.session_id.as_deref(), args)
         }
