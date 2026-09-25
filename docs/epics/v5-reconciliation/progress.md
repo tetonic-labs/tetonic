@@ -112,3 +112,13 @@ Added authenticated `add-team-member` / `remove-team-member` CLI and resource-se
 Schema 33 adds `team_id` to administrative audit events while preserving earlier records. The previous migration now skips an already-applied marker; legacy downgrade test fixtures remove newer schema artifacts before replay. Existing automatic pre-migration backup, rollback and crash-recovery machinery remains in use.
 
 Validation: all 87 memory tests, six application resource tests, both separate-process CLI scenarios and the architecture gate passed. Evidence covers team scope, nonmember denial, owner removal, transactional audit failure, version-32 upgrade preservation, and explicit grant/read/revoke/deny through real CLI processes. MVP-102 context isolation remains unimplemented; these metadata grants must not be reused as implicit authority to personal knowledge or execution.
+
+## 2026-09-25 — Preserve admitted identity revisions
+
+Managed admission previously overwrote one identity row, while execution compared its admitted identity to that latest row. A later definition revision could invalidate previously admitted work. Schema 34 now retains immutable identity snapshots keyed by identity ID and definition digest, backfills the existing row, and updates the latest projection atomically. Reusing the same key with different attributes is rejected. Managed execution resolves its job-bound revision instead of the latest projection.
+
+This is a migration of the existing managed execution path, not a disconnected resource API. The new application regression admits revision one, persists revision two, verifies revision one reaches inference, then cancels it. Updating a definition is not cancellation; use the explicit cancellation path. Existing execution policy checks remain in place.
+
+This is only part of MVP-101: snapshots are not complete serialized harness/definition payloads, digest generation is still caller-owned, and organization-scoped agent creation, revision selection controls and private/team context isolation remain pending. Migration can preserve only the latest pre-upgrade identity row; older overwritten revisions cannot be reconstructed from this table.
+
+Validation: 88 memory tests (including upgrade/crash/backup checks), all 11 managed-service integration tests, all three application execution regressions and the architecture gate passed. The missing-identity regression initially waited on inference because it still deleted the old projection; it now removes the authoritative revision table and uses a bounded timeout. The regression verifies missing revisions deny before policy/inference, and explicit cancellation still stops work after a newer revision is published.

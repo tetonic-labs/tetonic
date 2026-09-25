@@ -23,7 +23,7 @@ pub use dag::{
     task_is_locked, topo_sort_tasks, would_create_cycle,
 };
 pub use idempotency::{binding_input_digest, job_input_digest, task_idempotency_digest};
-pub use identity::{get_identity, put_identity, IdentityError};
+pub use identity::{get_identity_revision, get_identity, put_identity, IdentityError};
 pub use infer_admission::{
     add_hop_task, cancel_hop, create_hop_attempt, ensure_hop_run, fail_hop,
     hop_job_spec_must_be_none, hop_run_classified, hop_task_leaseable, lease_hop, start_hop,

@@ -38,6 +38,22 @@ pub fn get_identity(
     let row = store
         .get_agent_identity(&id.0)
         .map_err(|e| IdentityError::Persist(e.to_string()))?;
+    decode_identity(row)
+}
+
+pub fn get_identity_revision(
+    store: &Store,
+    id: &IdentityId,
+    digest: &str,
+) -> Result<Option<AgentIdentity>, IdentityError> {
+    decode_identity(
+        store
+            .get_agent_identity_revision(&id.0, digest)
+            .map_err(|e| IdentityError::Persist(e.to_string()))?,
+    )
+}
+
+fn decode_identity(row: Option<AgentIdentityRow>) -> Result<Option<AgentIdentity>, IdentityError> {
     let Some(row) = row else {
         return Ok(None);
     };

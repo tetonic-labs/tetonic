@@ -1499,8 +1499,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("ALTER TABLE control_admin_events DROP COLUMN team_id;
-                    DELETE FROM schema_versions WHERE version = 33;")
+                .execute_batch("DROP TABLE agent_identity_revisions;
+                    DELETE FROM schema_versions WHERE version = 34;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1528,8 +1528,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("ALTER TABLE control_admin_events DROP COLUMN team_id;
-                    DELETE FROM schema_versions WHERE version = 33;")
+                .execute_batch("DROP TABLE agent_identity_revisions;
+                    DELETE FROM schema_versions WHERE version = 34;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);

@@ -4,7 +4,7 @@ use crate::{Result, Store, StoreError};
 use rusqlite::Connection;
 use std::path::{Path, PathBuf};
 
-pub const SCHEMA_TARGET_VERSION: i64 = 33;
+pub const SCHEMA_TARGET_VERSION: i64 = 34;
 
 pub fn is_ephemeral_db_path(path: &Path) -> bool {
     let s = path.to_string_lossy();

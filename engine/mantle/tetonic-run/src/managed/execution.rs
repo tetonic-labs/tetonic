@@ -45,7 +45,11 @@ impl super::service::ManagedRunService {
         }
         if let Some(store) = &self.store {
             let id = binding.job_spec.identity_id.clone();
-            match store.read(move |db| crate::get_identity(db, &id)).await {
+            let digest = binding.job_spec.definition_digest.clone();
+            match store
+                .read(move |db| crate::get_identity_revision(db, &id, &digest))
+                .await
+            {
                 Ok(Ok(Some(identity))) if identity == active.identity => {}
                 _ => return fail("durable identity missing or changed".into()),
             }

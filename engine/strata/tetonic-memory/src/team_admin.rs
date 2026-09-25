@@ -3,6 +3,13 @@ use rusqlite::{params, Transaction, TransactionBehavior};
 
 impl Store {
     pub(crate) fn migrate_team_admin_v33(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=33)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn
             .execute_batch("ALTER TABLE control_admin_events ADD COLUMN team_id TEXT;")?;
         self.conn.execute(
@@ -54,7 +61,7 @@ mod tests {
         {
             let db = Store::open(&path).unwrap();
             db.bootstrap_control("admin", "a", "A").unwrap();
-            db.conn.execute_batch("ALTER TABLE control_admin_events DROP COLUMN team_id; DELETE FROM schema_versions WHERE version=33;").unwrap();
+            db.conn.execute_batch("DROP TABLE agent_identity_revisions; ALTER TABLE control_admin_events DROP COLUMN team_id; DELETE FROM schema_versions WHERE version>=33;").unwrap();
         }
         let db = Store::open(&path).unwrap();
         assert!(db

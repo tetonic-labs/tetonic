@@ -124,6 +124,64 @@ fn agent(
         AgentConfig::default(),
     )
 }
+
+#[tokio::test]
+async fn admitted_attempt_executes_its_revision_after_identity_update() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let cmd = command();
+    let binding = runs
+        .managed
+        .admit(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: cmd.identity.clone(),
+                job_spec: cmd.job_spec.clone(),
+                role: None,
+                parent_attempt: None,
+            },
+        )
+        .await
+        .unwrap();
+    let mut newer = cmd.identity.clone();
+    newer.bound_definition_digest = "definition-v2".into();
+    newer.context_bindings = vec!["different-context".into()];
+    runs.managed
+        .store()
+        .unwrap()
+        .write(move |db| tetonic_run::put_identity(db, &newer))
+        .await
+        .unwrap()
+        .unwrap();
+    let (tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut executor = agent(&tmp, calls.clone(), tx);
+    let mut conversation = Conversation::default();
+    let mut on_step = |_| {};
+    let execution = runs.managed.execute_attempt(
+        binding.attempt_id,
+        &mut executor,
+        &mut conversation,
+        cmd.invocation,
+        &mut on_step,
+    );
+    tokio::pin!(execution);
+    tokio::select! {
+        outcome = &mut execution => panic!("old revision was rejected before inference: {outcome:?}"),
+        received = entered.recv() => assert!(received.is_some()),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => panic!("inference was never reached"),
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 1);
+    runs.cancel_run(CancelByRunCommand {
+        run_id: binding.run_id.0,
+    })
+    .await
+    .unwrap();
+    let outcome = tokio::time::timeout(std::time::Duration::from_secs(3), execution)
+        .await
+        .unwrap();
+    assert!(matches!(outcome, CandidateOutcome::Canceled { .. }));
+}
 #[tokio::test]
 async fn cancel_detached_and_localset_start_resolves_waiter_and_cleans_registry() {
     for (detached, reject_cancel) in [(false, false), (true, false), (true, true)] {
@@ -213,9 +271,11 @@ async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities()
         // the actual manager and its registry to exercise execution-time reads.
         let conn = rusqlite::Connection::open(tmp.path().join("run.db")).unwrap();
         if missing_store {
-            conn.execute("DROP TABLE agent_identities", []).unwrap();
+            conn.execute("DROP TABLE agent_identity_revisions", [])
+                .unwrap();
         } else {
-            conn.execute("DELETE FROM agent_identities", []).unwrap();
+            conn.execute("DELETE FROM agent_identity_revisions", [])
+                .unwrap();
         }
         let policy_calls = Arc::new(AtomicUsize::new(0));
         let counter = policy_calls.clone();
@@ -226,15 +286,18 @@ async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities()
         let calls = Arc::new(AtomicUsize::new(0));
         let (tx, _) = tokio::sync::mpsc::unbounded_channel();
         let mut executor = agent(&tmp, calls.clone(), tx);
-        let outcome = runs
-            .execute_bound_attempt(
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            runs.execute_bound_attempt(
                 attempt.clone(),
                 &mut executor,
                 &mut Conversation::new(),
                 cmd.invocation,
                 &mut |_| {},
-            )
-            .await;
+            ),
+        )
+        .await
+        .unwrap();
         assert!(matches!(outcome, CandidateOutcome::Failed { .. }));
         assert_eq!(calls.load(Ordering::SeqCst), 0);
         assert_eq!(policy_calls.load(Ordering::SeqCst), 0);
