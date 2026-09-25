@@ -35,6 +35,7 @@ mod membership_admin;
 mod team_admin;
 mod context_scope;
 mod context_access;
+mod context_history;
 pub use context_access::ContextOwner;
 mod team_store;
 #[cfg(test)]
@@ -1508,7 +1509,7 @@ mod tests {
             store.remove_context_schema_for_test();
             store
                 .conn
-                .execute_batch("DELETE FROM schema_versions WHERE version = 35;")
+                .execute_batch("DELETE FROM schema_versions WHERE version >= 35;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1537,7 +1538,7 @@ mod tests {
             store.remove_context_schema_for_test();
             store
                 .conn
-                .execute_batch("DELETE FROM schema_versions WHERE version = 35;")
+                .execute_batch("DELETE FROM schema_versions WHERE version >= 35;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);

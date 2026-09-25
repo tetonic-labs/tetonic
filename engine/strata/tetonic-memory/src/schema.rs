@@ -1,4 +1,4 @@
-//! Schema migrations for `lokai.db` (v1–v35).
+//! Schema migrations for `lokai.db` (v1–v36).
 
 use rusqlite::params;
 
@@ -199,6 +199,7 @@ impl Store {
         self.migrate_team_admin_v33()?;
         self.migrate_identity_revisions_v34()?;
         self.migrate_context_scope_v35()?;
+        self.migrate_context_messages_v36()?;
         Ok(())
     }
 

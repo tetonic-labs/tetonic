@@ -4,6 +4,13 @@ use crate::{Result, Store, StoreError};
 
 impl Store {
     pub(crate) fn migrate_context_scope_v35(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=35)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("CREATE TABLE information_contexts (
             context_id TEXT PRIMARY KEY NOT NULL,
             kind TEXT NOT NULL CHECK(kind IN ('legacy_local','private','team')),
@@ -52,7 +59,7 @@ impl Store {
 
     #[cfg(test)]
     pub(crate) fn remove_context_schema_for_test(&self) {
-        self.conn.execute_batch("DROP TRIGGER session_context_exists; DROP TRIGGER session_context_immutable; DROP TRIGGER information_context_immutable; DROP TRIGGER information_context_in_use; DROP INDEX idx_sessions_context; ALTER TABLE sessions DROP COLUMN context_id; DROP TABLE information_contexts;").unwrap();
+        self.conn.execute_batch("DROP INDEX idx_messages_client_id; ALTER TABLE messages DROP COLUMN client_message_id; ALTER TABLE messages DROP COLUMN author_principal_id; DROP TRIGGER session_context_exists; DROP TRIGGER session_context_immutable; DROP TRIGGER information_context_immutable; DROP TRIGGER information_context_in_use; DROP INDEX idx_sessions_context; ALTER TABLE sessions DROP COLUMN context_id; DROP TABLE information_contexts;").unwrap();
     }
 }
 
@@ -148,7 +155,7 @@ mod tests {
                 .unwrap();
             db.remove_context_schema_for_test();
             db.conn
-                .execute("DELETE FROM schema_versions WHERE version=35", [])
+                .execute("DELETE FROM schema_versions WHERE version>=35", [])
                 .unwrap();
         }
         let db = Store::open(&path).unwrap();

@@ -62,6 +62,61 @@ mod tests {
                 .await,
             Err(ResourceError::Denied)
         ));
+        service
+            .open_history(alice.expose_secret(), "private".into(), "discussion".into())
+            .await
+            .unwrap();
+        let append = || {
+            service.append_message(
+                alice.expose_secret(),
+                "private".into(),
+                "discussion".into(),
+                "request-1".into(),
+                "PRIVATECANARY".into(),
+            )
+        };
+        let first = append().await.unwrap();
+        assert_eq!(append().await.unwrap(), first);
+        assert!(service
+            .append_message(
+                alice.expose_secret(),
+                "private".into(),
+                "discussion".into(),
+                "request-1".into(),
+                "changed".into()
+            )
+            .await
+            .is_err());
+        let rows = service
+            .transcript(
+                alice.expose_secret(),
+                "private".into(),
+                "discussion".into(),
+                20,
+            )
+            .await
+            .unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].2, "PRIVATECANARY");
+        assert!(service
+            .transcript(
+                admin.expose_secret(),
+                "private".into(),
+                "discussion".into(),
+                20
+            )
+            .await
+            .is_err());
+        assert!(service
+            .append_message(
+                admin.expose_secret(),
+                "private".into(),
+                "discussion".into(),
+                "attack".into(),
+                "intrusion".into()
+            )
+            .await
+            .is_err());
         local
             .credentials()
             .revoke(alice.credential_id.clone())
@@ -88,6 +143,42 @@ mod tests {
 }
 
 impl ContextService {
+    pub async fn open_history(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.open_context_history(&actor.principal_id, &context, &session))
+            .await??;
+        Ok(())
+    }
+
+    pub async fn append_message(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+        request: String,
+        content: String,
+    ) -> Result<i64, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.append_context_message(
+                    &actor.principal_id,
+                    &context,
+                    &session,
+                    &request,
+                    &content,
+                )
+            })
+            .await??)
+    }
+
     pub async fn create(
         &self,
         credential: &str,
