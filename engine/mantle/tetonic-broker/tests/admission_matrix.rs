@@ -718,3 +718,135 @@ async fn submit_without_supervisor_fails_closed() {
         .expect_err("submit must fail closed without supervisor");
     assert!(matches!(err, ComputeBrokerError::SupervisorRequired));
 }
+
+// Capacity released by any terminal path must be reusable in every scope.
+#[test]
+fn terminal_reservations_release_project_capacity_once() {
+    let request = ResourceRequest::default();
+    let mut limits = BudgetLimits::default();
+    limits.max_memory_bytes_global = request.memory_bytes;
+    let budgets = HierarchicalBudgetLedger::new(limits);
+    for (index, terminal) in [
+        ReservationState::Released,
+        ReservationState::Canceled,
+        ReservationState::Expired,
+        ReservationState::OverBudget,
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let reservation = budgets
+            .reserve(
+                &RunId::new("run"),
+                &TaskId::new("task"),
+                &AttemptId::new(format!("attempt-{index}")),
+                Some("project"),
+                ReservationTarget::Local,
+                &request,
+                false,
+                Utc::now(),
+            )
+            .unwrap();
+        budgets
+            .transition(&reservation.reservation_id, terminal)
+            .unwrap();
+        budgets.release(&reservation.reservation_id, ReservationState::Released);
+        assert_eq!(
+            budgets.get(&reservation.reservation_id).unwrap().state,
+            terminal
+        );
+        assert_eq!(budgets.active_count(), 0);
+    }
+    assert!(budgets
+        .reserve(
+            &RunId::new("run"),
+            &TaskId::new("task"),
+            &AttemptId::new("last"),
+            Some("project"),
+            ReservationTarget::Local,
+            &request,
+            false,
+            Utc::now(),
+        )
+        .is_ok());
+}
+
+#[test]
+fn repeated_over_budget_cleanup_preserves_other_reservations() {
+    let mut limits = BudgetLimits::default();
+    limits.max_concurrent_inference = 2;
+    let budgets = HierarchicalBudgetLedger::new(limits);
+    let reserve = |attempt: &str| {
+        budgets.reserve(
+            &RunId::new("run"),
+            &TaskId::new("task"),
+            &AttemptId::new(attempt),
+            None,
+            ReservationTarget::Local,
+            &ResourceRequest::default(),
+            false,
+            Utc::now(),
+        )
+    };
+    let first = reserve("first").unwrap();
+    reserve("second").unwrap();
+    let mut actual = first.resources.clone();
+    actual.token_budget += 1;
+    assert_eq!(
+        budgets.enforce_actual_usage(&first.attempt_id, &actual),
+        Err(BudgetReject::OverBudget)
+    );
+    reserve("replacement").unwrap();
+    budgets.release(&first.reservation_id, ReservationState::Released);
+    budgets
+        .transition(&first.reservation_id, ReservationState::Running)
+        .unwrap();
+    assert_eq!(
+        budgets.get(&first.reservation_id).unwrap().state,
+        ReservationState::OverBudget
+    );
+    assert!(matches!(
+        reserve("excess"),
+        Err(BudgetReject::WorkerConcurrencyLimit)
+    ));
+    assert_eq!(budgets.active_count(), 2);
+}
+
+#[test]
+fn reservation_expiry_releases_project_capacity() {
+    let request = ResourceRequest::default();
+    let mut limits = BudgetLimits::default();
+    limits.max_memory_bytes_global = request.memory_bytes;
+    limits.reservation_ttl = std::time::Duration::from_secs(1);
+    let budgets = HierarchicalBudgetLedger::new(limits);
+    let now = Utc::now();
+    let first = budgets
+        .reserve(
+            &RunId::new("run"),
+            &TaskId::new("task"),
+            &AttemptId::new("first"),
+            Some("project"),
+            ReservationTarget::Local,
+            &request,
+            false,
+            now,
+        )
+        .unwrap();
+    budgets
+        .reserve(
+            &RunId::new("run"),
+            &TaskId::new("task"),
+            &AttemptId::new("second"),
+            Some("project"),
+            ReservationTarget::Local,
+            &request,
+            false,
+            now + Duration::seconds(2),
+        )
+        .unwrap();
+    assert_eq!(
+        budgets.get(&first.reservation_id).unwrap().state,
+        ReservationState::Expired
+    );
+    assert_eq!(budgets.active_count(), 1);
+}

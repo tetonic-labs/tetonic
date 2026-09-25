@@ -215,6 +215,7 @@ struct BudgetState {
     workers: HashMap<String, ScopeUsage>,
     reservations: HashMap<String, ResourceReservation>,
     by_attempt: HashMap<String, String>,
+    reservation_projects: HashMap<String, String>,
     epoch: u64,
 }
 
@@ -235,6 +236,7 @@ impl HierarchicalBudgetLedger {
                 workers: HashMap::new(),
                 reservations: HashMap::new(),
                 by_attempt: HashMap::new(),
+                reservation_projects: HashMap::new(),
                 epoch: 1,
             }),
         }
@@ -443,6 +445,10 @@ impl HierarchicalBudgetLedger {
             state: ReservationState::Reserved,
             speculative,
         };
+        if let Some(project) = project_id {
+            g.reservation_projects
+                .insert(reservation_id.0.clone(), project.to_owned());
+        }
         g.by_attempt
             .insert(attempt_id.0.clone(), reservation_id.0.clone());
         g.reservations
@@ -456,12 +462,28 @@ impl HierarchicalBudgetLedger {
         state: ReservationState,
     ) -> Result<(), BudgetReject> {
         let mut g = self.inner.lock().unwrap();
+        if !g.reservations.contains_key(&reservation_id.0) {
+            return Err(BudgetReject::UnknownReservation);
+        }
+        if matches!(
+            state,
+            ReservationState::Released
+                | ReservationState::Expired
+                | ReservationState::Canceled
+                | ReservationState::OverBudget
+        ) {
+            drop_reservation_locked(&mut g, reservation_id, state);
+            return Ok(());
+        }
         let Some(rec) = g.reservations.get_mut(&reservation_id.0) else {
             return Err(BudgetReject::UnknownReservation);
         };
         if matches!(
             rec.state,
-            ReservationState::Released | ReservationState::Expired | ReservationState::Canceled
+            ReservationState::Released
+                | ReservationState::Expired
+                | ReservationState::Canceled
+                | ReservationState::OverBudget
         ) {
             return Ok(());
         }
@@ -471,38 +493,7 @@ impl HierarchicalBudgetLedger {
 
     pub fn release(&self, reservation_id: &ReservationId, terminal: ReservationState) {
         let mut g = self.inner.lock().unwrap();
-        let Some(rec) = g.reservations.get(&reservation_id.0).cloned() else {
-            return;
-        };
-        if matches!(
-            rec.state,
-            ReservationState::Released | ReservationState::Expired | ReservationState::Canceled
-        ) {
-            return;
-        }
-        reverse_usage(
-            &mut g.global,
-            &rec.resources,
-            rec.speculative,
-            &rec.attempt_id,
-        );
-        if let Some(u) = g.runs.get_mut(&rec.run_id.0) {
-            reverse_usage(u, &rec.resources, rec.speculative, &rec.attempt_id);
-        }
-        if let Some(u) = g.tasks.get_mut(&rec.task_id.0) {
-            reverse_usage(u, &rec.resources, rec.speculative, &rec.attempt_id);
-        }
-        let worker_key = match &rec.target_scope {
-            ReservationTarget::Local => "local".to_string(),
-            ReservationTarget::Worker { worker_id } => worker_id.0.clone(),
-        };
-        if let Some(u) = g.workers.get_mut(&worker_key) {
-            reverse_usage(u, &rec.resources, rec.speculative, &rec.attempt_id);
-        }
-        if let Some(rec_mut) = g.reservations.get_mut(&reservation_id.0) {
-            rec_mut.state = terminal;
-        }
-        g.by_attempt.remove(&rec.attempt_id.0);
+        drop_reservation_locked(&mut g, reservation_id, terminal);
     }
 
     pub fn release_attempt(&self, attempt_id: &AttemptId, terminal: ReservationState) {
@@ -653,7 +644,10 @@ fn drop_reservation_locked(g: &mut BudgetState, rid: &ReservationId, terminal: R
     };
     if matches!(
         rec.state,
-        ReservationState::Released | ReservationState::Expired | ReservationState::Canceled
+        ReservationState::Released
+            | ReservationState::Expired
+            | ReservationState::Canceled
+            | ReservationState::OverBudget
     ) {
         return;
     }
@@ -675,6 +669,11 @@ fn drop_reservation_locked(g: &mut BudgetState, rid: &ReservationId, terminal: R
     };
     if let Some(u) = g.workers.get_mut(&worker_key) {
         reverse_usage(u, &rec.resources, rec.speculative, &rec.attempt_id);
+    }
+    if let Some(project) = g.reservation_projects.remove(&rid.0) {
+        if let Some(usage) = g.projects.get_mut(&project) {
+            reverse_usage(usage, &rec.resources, rec.speculative, &rec.attempt_id);
+        }
     }
     if let Some(rec_mut) = g.reservations.get_mut(&rid.0) {
         rec_mut.state = terminal;
