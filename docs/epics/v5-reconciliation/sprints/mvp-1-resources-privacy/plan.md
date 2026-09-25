@@ -10,6 +10,8 @@ Acceptance: duplicate creation is harmless; restart retains resources; roles onl
 
 ## MVP-102 — Implement scoped context and explicit knowledge sharing
 
+Implementation sequence and current source boundaries: [context isolation cutover](context-isolation-cutover.md).
+
 Provide private and team history/knowledge/artifact grants. Retrieval, context assembly, caches, model-session handles, streams and errors all obey the execution scope. Personal-agent team participation creates a separate authorized working context. Explicit publication includes provenance and destination authorization.
 
 Acceptance: place a unique secret in private history; team execution inputs, tools, logs and outputs cannot retrieve it without authorized publication. Membership revocation blocks future retrieval. Guessed IDs and summaries cannot bypass scope. Do not promise privacy against infrastructure administrators without a separate threat model.

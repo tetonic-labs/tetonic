@@ -1,0 +1,62 @@
+# MVP-102 — Context isolation cutover
+
+Status: implementation contract and source inventory, not implemented privacy. Traced against commit `9169f63`. The local control API currently administers metadata; it does not authorize sessions, inference inputs or knowledge. This document identifies the connected cutover needed before exposing those operations to multiple employees.
+
+## What the current code actually does
+
+Paths below are relative to the repository root. Symbols identify the source of each finding.
+
+| Surface | Current source and behavior | Required cutover |
+| --- | --- | --- |
+| Session admission | `engine/litho/tetonic-app/src/commands.rs::StartSessionCommand` is deserializable and carries workspace/session options, not a verified employee or information scope. | Add a separate trusted authorization argument, never a caller-supplied set of roles. Local legacy composition must be explicit. |
+| Resume | `engine/litho/tetonic-app/src/services.rs::DefaultSessionService::start_session` checks the stored workspace before reopening and loading messages. | Retain workspace checks; additionally authorize the exact persisted context before status, history or recovery payload reads. Unknown/inaccessible IDs must have the same external response. |
+| History | `engine/strata/tetonic-memory/src/lib.rs::{transcript,list_messages_for_resume,count_messages_for_resume,find_latest_session_for_workspace,list_recent_sessions}` uses IDs/workspaces without employee membership. Resume excludes rolled-back spawn messages. | Scoped queries and scoped listings; preserve rollback exclusion. Do not let automatic latest-session selection cross contexts. |
+| Recall | `engine/litho/tetonic-tools/src/retrieval.rs::recall` calls `engine/strata/tetonic-memory/src/recall.rs::recall_history`. FTS searches prior sessions by workspace, excluding the current session and system messages. | Filter authorized context in SQL before snippets/ranking/limits; derive context from the bound tool instance, not model arguments. |
+| Briefing summaries | `engine/mantle/tetonic-orchestrator/src/briefing.rs` calls `recent_finish_outcomes` and `load_project_context`. | Briefing and summaries obey the same scope as raw messages. Disabling recall alone is insufficient. |
+| Project knowledge | `engine/strata/tetonic-memory/src/projects.rs::{load_project_context,add_project_note,consolidate_session,consolidate_session_explicit}` resolves project memory through the workspace/project. `engine/mantle/tetonic-orchestrator/src/host.rs::on_session_start` injects it. | Scope notes/digests and consolidation outputs. A private session must not automatically contribute to a shared project digest. |
+| Live conversations | `engine/litho/tetonic-app/src/session_live.rs::SessionLiveStore` indexes live sessions by session ID; `LiveSession` holds conversation, plan, compiler references and cancellation state. | Persist immutable session-to-context binding; authorize before registry lookup/use. Joining a team creates a separate conversation, even for the same agent identity. |
+| Context cache | `engine/strata/tetonic-context/src/cache.rs::CacheKey` hashes the entire serialized `ContextRequest`, including session/run/task, workspace and policy inputs. It is not merely a workspace-key cache. `types.rs::ContextRequest` lacks employee/team grants or revocation generation. | Preserve the full key; add trusted scope and grant-generation inputs. Reauthorize before cache return. An old authorization generation must not remain usable after removal. |
+| Context provider | `engine/strata/tetonic-context/src/interfaces.rs::ContextSourceProvider` methods are implicitly bound to their provider instance. `workspace.rs::get_project_memory` reads repository instruction files; it does not currently retrieve the SQLite project-memory database. | Construct providers for one authorized execution context. Keep repository file grants separate from personal/team knowledge grants. Do not mislabel repository instructions as private agent memory. |
+| Artifact reads | `engine/strata/tetonic-artifact/src/store.rs::{open,metadata}` validates artifact IDs and content integrity. These methods accept no employee identity; producer lineage is not authorization. | Use an authorized artifact facade before bytes or metadata are read; check source scope and explicit publication destination. Keep the low-level store internal to trusted composition. |
+| Events | `engine/litho/tetonic-app/src/events.rs::FanoutEventSink` forwards every event to each configured sink. Some events carry session/run/node identifiers rather than an information scope. | Bind events to durable scope and authorize subscriptions/replay. Resolve scope for node-only events. Do not wire an unrestricted fanout sink to a multiuser UI. |
+| Local inspection | `engine/litho/tetonic-app/src/cli_facade.rs::{list_recent_sessions,session_transcript}` exposes trusted local store reads to offline CLI. | Retain a documented local-operator path; remote employee interfaces must not reuse it as an authenticated history API. |
+
+Existing path jails, data classification, egress rules, artifact seals and secret scanning are valuable independent controls. None establishes personal/team authorization. This trace does not assert an exploitable remote endpoint exists today; it identifies why existing local APIs cannot simply be put behind a shared UI.
+
+## Binding and authority decisions
+
+Use a stable information-context identifier separate from agent identity, team identity, session ID and filesystem path. A context is either private to a principal within an organization, shared with a team in that organization, or explicitly legacy-local. Each session binds to exactly one context for its lifetime. Moving or adding an agent to a team never changes the context on an existing session.
+
+Authentication produces a verified principal. Durable policy decides whether that principal may create/read/write a context and whether an activation may consume it. Metadata administrator rights are not automatically private-content rights. Shared-team content may initially follow current enabled organization plus team membership/ownership; any administrative inspection exception must be explicit and audited. Infrastructure database/filesystem access remains outside the employee confidentiality boundary.
+
+Accepted work records context ID, identity revision, origin principal and the grant generation at admission. Stored generations are evidence, not perpetual authorization: each future retrieval/effect boundary checks current grants. Grant updates and generation changes are transactional. Revocation cannot erase text already sent to a model or human; invalidate future cache/provider use, stop new protected retrieval, and apply the separately specified cancellation policy to in-flight work.
+
+Do not accept an arbitrary private source alongside a team destination and trust output filtering. The execution's input authority is limited to its destination context plus explicitly published/granted sources. Authorized publication creates a new destination-owned record with source identifier/digest, publisher, destination, time and approved content. A generated summary is still a disclosure; it is not an authorization bypass.
+
+## Implementation sequence and removal gates
+
+1. **Durable context binding and migration.** Add context records and immutable session bindings in the existing store. Migrate existing histories and project memory to explicit legacy-local scope without guessing employee ownership. Preserve IDs and backup/crash-recovery guarantees. Reject newer schemas in older writers. Test same workspace with two private contexts and one team context.
+2. **One authorized history path.** Compose a trusted context-access service with current credentials/memberships. Cut session start/resume/history/listing and live-registry access over together. The old local APIs stay explicitly legacy-local and cannot read newly scoped sessions. Do not expose scoped session execution until these checks are wired.
+3. **Retrieval and consolidation.** Bind recall tools, briefing, project notes and digest writers to context. Filter before FTS snippets or summaries exist. Prevent private-to-shared digest consolidation. Test a canary in both raw history and a derived summary.
+4. **Context compilation and artifacts.** Carry context and current authority through compiler/provider construction, cache lookup, expansion handles and artifact access. Scope must be checked before returning metadata, not just artifact bytes. Inventory provider-specific conversation/session reuse before claiming it is isolated; this trace did not establish all provider semantics.
+5. **Events and publication.** Scope live streams, durable replay, diagnostic content and approvals. Add explicit publication with provenance and destination authorization. Remove raw data APIs from employee-facing adapters only after callers use the authorized service.
+6. **End-to-end proof.** Run private and team attempts for the same agent on the same workspace through a capturing inference provider and actual retrieval tools. Cover restart, resume, cache hits, membership changes and concurrent work. Only then enable nonlocal multiuser exposure of these paths.
+
+These are linked implementation steps for MVP-102, not additional parallel backlogs or a replacement for MVP-101 agent resources. Do not build a second history store or an unconnected privacy-only API to make isolated tests pass.
+
+## Required adversarial evidence
+
+| Scenario | Observable result |
+| --- | --- |
+| Same agent and workspace, different private/team contexts | Private canary absent from team inference requests, tool outputs, briefing, summaries, artifacts and subscriber events. |
+| Guessed session/artifact/expansion IDs | Denial before protected content or existence-bearing metadata is returned. |
+| Team member removed after a cached context pack exists | Next retrieval/cache lookup denied; no fallback to legacy context. |
+| Team member removed while retrieval is queued | Authorization decision has a documented linearization point; a stale admitted grant cannot be silently treated as current. |
+| Resume after restart | Exact stored context restored and reauthorized; private conversation is never rebound to a team. |
+| Private note consolidated into a digest | Digest remains private unless explicit publication succeeds. |
+| Agent attempts to share a paraphrase | Source authority/destination policy still required; summaries do not strip provenance restrictions. |
+| Shared filesystem contains the private database or credentials | Execution resource grants deny direct access; otherwise the deployment cannot claim this boundary. |
+| Store/policy unavailable | Retrieval denies without leaking payloads into errors, logs or fallback prompts. |
+| Legacy upgrade | Existing local histories remain available through the local operator profile; no inferred organization/team ownership. |
+
+Open design detail: which organization roles may request exceptional private-content inspection. Until a concrete audited policy exists, normal organization metadata administration must not imply that access.
