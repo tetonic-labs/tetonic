@@ -601,6 +601,13 @@ pub(crate) fn validate_coding_execution(
     max_steps: usize,
 ) -> Result<(), String> {
     let role_str = role.unwrap_or("coder");
+    let def = CodingAgentDefinition::production();
+    if spec.definition_digest != def.definition_digest() {
+        return Err("unsupported coding definition revision".into());
+    }
+    if !PRODUCTION_ROLES.contains(&role_str) {
+        return Err("unsupported coding role".into());
+    }
     if let Some(identity) = identity {
         if !identity.toolset_subscriptions.iter().any(|s| s == role_str) {
             return Err(format!(
@@ -608,8 +615,7 @@ pub(crate) fn validate_coding_execution(
             ));
         }
     }
-    let def = CodingAgentDefinition::production();
-    if spec.definition_digest == def.definition_digest() {
+    {
         let role_id = RoleId::new(role_str);
         if let Some(allowed) = def.allowed_tools(&role_id) {
             for tool in advertised {
@@ -624,4 +630,45 @@ pub(crate) fn validate_coding_execution(
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod execution_policy_tests {
+    use super::*;
+
+    fn job(digest: String) -> AgentJobSpec {
+        AgentJobSpec {
+            identity_id: IdentityId::new("test"),
+            definition_digest: digest,
+            input_digest: "input".into(),
+            capability_bindings: vec![],
+            artifact_bindings: vec![],
+            recovery_id: "test".into(),
+        }
+    }
+
+    #[test]
+    fn unsupported_revisions_cannot_bypass_coding_tool_and_step_policy() {
+        let mut spec = job(CodingAgentDefinition::production().definition_digest());
+        assert!(
+            validate_coding_execution(None, &spec, Some("planner"), &["read_file".into()], 8)
+                .is_ok()
+        );
+        assert!(
+            validate_coding_execution(None, &spec, Some("planner"), &["run_shell".into()], 8)
+                .is_err()
+        );
+        assert!(validate_coding_execution(None, &spec, Some("planner"), &[], 9).is_err());
+        assert!(validate_coding_execution(None, &spec, Some("invented"), &[], 1).is_err());
+        spec.definition_digest = "unrecognized-revision".into();
+        assert!(validate_coding_execution(
+            None,
+            &spec,
+            Some("planner"),
+            &["run_shell".into()],
+            100
+        )
+        .is_err());
+        assert!(validate_coding_execution(None, &spec, Some("coder"), &[], 1).is_err());
+    }
 }

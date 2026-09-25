@@ -1578,3 +1578,33 @@ fn work05_invariants_remain_unestablished() {
         "INV-V4-CMP-001 must not be ESTABLISHED before GATE-02"
     );
 }
+
+#[tokio::test]
+async fn unknown_but_matching_definition_revision_never_reaches_inference() {
+    let (app, _tmp) = make_app();
+    let provider = Arc::new(CountingProvider::new());
+    let host = CountingHost::new();
+    let mut agent = make_agent(provider.clone(), host.clone());
+    let (mut identity, mut spec) = identity_and_spec("test input");
+    identity.bound_definition_digest = "unknown-but-consistent".into();
+    spec.definition_digest = identity.bound_definition_digest.clone();
+    let result = app
+        .runs
+        .start_identity_job(
+            StartIdentityJobCommand {
+                identity,
+                job_spec: spec,
+                invocation: empty_invocation("test input"),
+            },
+            &mut agent,
+        )
+        .await;
+    if let Ok(result) = result {
+        assert!(matches!(
+            result.outcome,
+            tetonic_domain::CandidateOutcome::Failed { .. }
+        ));
+    }
+    assert_eq!(provider.chat_calls.load(Ordering::SeqCst), 0);
+    assert_eq!(host.tool_calls.load(Ordering::SeqCst), 0);
+}
