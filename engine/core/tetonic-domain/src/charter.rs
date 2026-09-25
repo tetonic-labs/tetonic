@@ -21,7 +21,7 @@ static STEER_SEQ: AtomicU64 = AtomicU64::new(1);
 pub enum OperationalBoundary {
     /// Disallow any action matching this exact name or verb.
     ForbiddenAction { action_kind: String },
-    /// Restrict permitted action namespaces (e.g. only "staging.*" or "read.*").
+    /// Restrict permitted namespace names (e.g. "staging" or "read").
     NamespaceAllowlist { allowed: Vec<String> },
     /// Disallow mutating files or paths matching this pattern.
     PathFilter { pattern: String, allow: bool },
@@ -80,7 +80,10 @@ impl IntentCharter {
         self
     }
 
-    /// Authoritatively evaluates a proposed action against the charter's boundaries.
+    /// Checks boundaries that can be evaluated from the action verb alone.
+    /// Path/resource rules require the runtime policy and budget services; this
+    /// helper rejects rather than silently approving rules it cannot enforce.
+    /// Success here does not grant a runtime capability.
     pub fn evaluate_action(&self, action: &WorldAction) -> Result<(), WorldError> {
         for boundary in &self.operational_boundaries {
             match boundary {
@@ -96,19 +99,25 @@ impl IntentCharter {
                     }
                 }
                 OperationalBoundary::NamespaceAllowlist { allowed } => {
-                    if let Some((ns, _)) = action.kind.split_once('.') {
-                        if !allowed.iter().any(|a| a == ns) {
-                            return Err(WorldError::ActionRejected {
-                                kind: action.kind.clone(),
-                                reason: format!(
-                                    "action namespace '{ns}' is not in charter allowlist {:?}",
-                                    allowed
-                                ),
-                            });
-                        }
+                    let namespace = action
+                        .kind
+                        .split_once('.')
+                        .filter(|(ns, verb)| !ns.is_empty() && !verb.is_empty());
+                    if !namespace.is_some_and(|(ns, _)| allowed.iter().any(|a| a == ns)) {
+                        return Err(WorldError::ActionRejected {
+                            kind: action.kind.clone(),
+                            reason: "action requires a permitted namespace".into(),
+                        });
                     }
                 }
-                _ => {}
+                OperationalBoundary::PathFilter { .. }
+                | OperationalBoundary::ResourceCap { .. } => {
+                    return Err(WorldError::ActionRejected {
+                        kind: action.kind.clone(),
+                        reason: "charter boundary requires runtime policy or budget enforcement"
+                            .into(),
+                    });
+                }
             }
         }
 
@@ -127,7 +136,10 @@ impl IntentCharter {
     /// Synthesize concise markdown context suitable for agent deliberation prompts.
     pub fn render_prompt_context(&self) -> String {
         let mut out = format!("## Mission Charter: {}\n\n", self.charter_id);
-        out.push_str(&format!("**Strategic Intent:** {}\n\n", self.strategic_intent));
+        out.push_str(&format!(
+            "**Strategic Intent:** {}\n\n",
+            self.strategic_intent
+        ));
 
         if !self.invariants.is_empty() {
             out.push_str("**Safety Invariants:**\n");
@@ -264,6 +276,57 @@ mod tests {
     }
 
     #[test]
+    fn namespace_allowlist_rejects_unscoped_and_malformed_verbs() {
+        let charter = IntentCharter::new("test", "read only").with_boundary(
+            OperationalBoundary::NamespaceAllowlist {
+                allowed: vec!["read".into()],
+            },
+        );
+        for kind in ["delete", "read", "read.", ".read", "write.file"] {
+            let action = WorldAction::bare(
+                kind,
+                BrainPathway::Reflexive {
+                    model: "test".into(),
+                },
+            );
+            assert!(charter.evaluate_action(&action).is_err(), "accepted {kind}");
+        }
+        let action = WorldAction::bare(
+            "read.file",
+            BrainPathway::Reflexive {
+                model: "test".into(),
+            },
+        );
+        assert!(charter.evaluate_action(&action).is_ok());
+    }
+
+    #[test]
+    fn verb_only_evaluator_cannot_approve_path_or_resource_rules() {
+        let action = WorldAction::bare(
+            "read.file",
+            BrainPathway::Reflexive {
+                model: "test".into(),
+            },
+        );
+        for boundary in [
+            OperationalBoundary::PathFilter {
+                pattern: "private/**".into(),
+                allow: false,
+            },
+            OperationalBoundary::ResourceCap {
+                metric: "tokens".into(),
+                max_limit: 0,
+            },
+        ] {
+            let charter = IntentCharter::new("test", "bounded work").with_boundary(boundary);
+            assert!(matches!(
+                charter.evaluate_action(&action),
+                Err(WorldError::ActionRejected { .. })
+            ));
+        }
+    }
+
+    #[test]
     fn test_steering_vector_to_world_event() {
         let steer = SteeringVector::critical("Halt scaling; diagnose latency spike")
             .with_boundary_adjustment(OperationalBoundary::ForbiddenAction {
@@ -274,6 +337,12 @@ mod tests {
         assert_eq!(event.kind, "steering.course_correction");
         assert_eq!(event.urgency, Urgency::Critical);
         assert_eq!(event.source, Some("operator".into()));
-        assert!(event.payload.get("directive").unwrap().as_str().unwrap().contains("Halt scaling"));
+        assert!(event
+            .payload
+            .get("directive")
+            .unwrap()
+            .as_str()
+            .unwrap()
+            .contains("Halt scaling"));
     }
 }
