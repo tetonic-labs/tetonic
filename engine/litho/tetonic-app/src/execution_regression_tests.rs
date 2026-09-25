@@ -611,6 +611,80 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .await
         .unwrap();
     assert_eq!(inspected.state, tetonic_domain::RunState::Succeeded);
+    let first_page = contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+            0,
+            2,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert_eq!(first_page.len(), 2);
+    let cursor = first_page.last().unwrap().sequence;
+    let next_page = contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+            cursor,
+            100,
+        )
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(!next_page.is_empty());
+    assert!(next_page.iter().all(|event| event.sequence > cursor));
+    let compacted_run = active.run_id.0.clone();
+    runs.managed
+        .store()
+        .unwrap()
+        .write(move |db| db.compact_run_events(&compacted_run, 3))
+        .await
+        .unwrap()
+        .unwrap();
+    let gap = contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+            1,
+            10,
+        )
+        .await
+        .unwrap()
+        .unwrap_err();
+    assert_eq!(gap.requested_after, 1);
+    assert!(gap.earliest_available > 1);
+
+    assert!(contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "other".into(),
+            active.run_id.0.clone(),
+            0,
+            10
+        )
+        .await
+        .is_err());
+    assert!(contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+            0,
+            1001
+        )
+        .await
+        .is_err());
+
     assert!(contexts
         .inspect_run(
             credential.expose_secret(),
@@ -706,6 +780,18 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .await
         .is_err());
     assert!(output.open(&output_id).await.is_err());
+    assert!(contexts
+        .replay_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+            0,
+            10
+        )
+        .await
+        .is_err());
+
     assert!(contexts
         .inspect_run(
             credential.expose_secret(),

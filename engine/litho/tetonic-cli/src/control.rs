@@ -25,6 +25,19 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Replay authorized governed lifecycle events; credential on stdin.
+    ReplayRun {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        run: String,
+        #[arg(long, default_value_t = 0)]
+        after: u64,
+        #[arg(long, default_value_t = 100)]
+        limit: u32,
+    },
     /// Inspect a governed run through current context membership; credential on stdin.
     InspectRun {
         #[arg(long)]
@@ -151,6 +164,15 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
+        Command::ReplayRun { org, context, run, after, limit } => {
+            let credential = credential_from_stdin().await?;
+            let replay = control.contexts().replay_run(&credential, org, context, run, after, limit).await?;
+            let output = match replay {
+                Ok(events) => serde_json::json!({"events":events}),
+                Err(gap) => serde_json::json!({"gap":gap}),
+            };
+            println!("{output}");
+        }
         Command::InspectRun { org, context, run } => {
             let credential = credential_from_stdin().await?;
             let snapshot = control.contexts().inspect_run(&credential, org, context, run).await?;

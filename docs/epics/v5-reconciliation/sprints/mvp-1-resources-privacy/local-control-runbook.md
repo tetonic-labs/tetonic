@@ -129,4 +129,12 @@ For a run already admitted by a trusted governed host, use a current credential 
 $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs inspect-run --org acme --context '<context-id>' --run '<run-id>'
 ```
 
-Replace the IDs with the actual admitted context and run. This prints the authoritative run snapshot, including task scope, selected grant ID, states and output receipts. Every task must belong to that exact organization/context. Legacy, mixed-context, unknown and unauthorized runs deny without returning the snapshot. Revoking execution permission does not remove otherwise-authorized access to completed results; expired/revoked credentials or removed content membership deny inspection. This is local operator tooling, not a remote login or an agent launch command. Live subscriptions and event replay are not exposed here.
+Replace the IDs with the actual admitted context and run. This prints the authoritative run snapshot, including task scope, selected grant ID, states and output receipts. Every task must belong to that exact organization/context. Legacy, mixed-context, unknown and unauthorized runs deny without returning the snapshot. Revoking execution permission does not remove otherwise-authorized access to completed results; expired/revoked credentials or removed content membership deny inspection. This is local operator tooling, not a remote login or an agent launch command. Live subscriptions are not exposed here; retained journal replay is described below.
+
+Replay retained lifecycle events for the same governed run:
+
+```powershell
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs replay-run --org acme --context '<context-id>' --run '<run-id>' --after 0 --limit 100
+```
+
+The result contains either `events` or `gap`. Continue using the last returned event's `sequence` as `--after`. Limits must be 1–1000. A gap reports unavailable retained history; inspect the current snapshot instead of treating missing events as success. This replays the durable lifecycle journal, not model tokens or a live subscription. The existing backend currently loads the retained journal internally, so the response limit is not an internal memory bound.

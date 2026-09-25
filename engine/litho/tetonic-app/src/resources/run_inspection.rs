@@ -41,6 +41,42 @@ impl ContextService {
         Ok(snapshot)
     }
 
+    /// Replay the existing durable lifecycle journal; this is not model-token streaming.
+    /// Returns the supervisor's retention gap unchanged, never inventing missing events.
+    pub async fn replay_run(
+        &self,
+        credential: &str,
+        organization: String,
+        context: String,
+        run: String,
+        after: u64,
+        limit: u32,
+    ) -> Result<
+        Result<Vec<tetonic_domain::RunEventEnvelope>, tetonic_domain::ReplayGap>,
+        ResourceError,
+    > {
+        if !(1..=1000).contains(&limit) {
+            return Err(ResourceError::Invalid);
+        }
+        self.inspect_run(
+            credential,
+            organization.clone(),
+            context.clone(),
+            run.clone(),
+        )
+        .await?;
+        let supervisor = tetonic_run::DurableRunSupervisor::new(Some(self.store.clone()));
+        let replay = supervisor
+            .resume_from_sequence(RunId::new(run.clone()), after, limit)
+            .await
+            .map_err(|_| ResourceError::Denied)?;
+        // A task added during the read may introduce another scope. Revalidate
+        // the entire run before returning any event or retention metadata.
+        self.inspect_run(credential, organization, context, run)
+            .await?;
+        Ok(replay)
+    }
+
     async fn authorize_run_context(
         &self,
         actor: &str,
