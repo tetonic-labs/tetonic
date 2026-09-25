@@ -7,7 +7,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tetonic_memory::{OrganizationRow, SharedStore, StoreError, TeamRow};
 
+mod local_control;
 mod local_credentials;
+pub use local_control::LocalControl;
 mod membership;
 pub use local_credentials::{IssuedCredential, LocalCredentials};
 pub use membership::CredentialVerifier;

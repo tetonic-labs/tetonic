@@ -1829,6 +1829,7 @@ dependencies = [
  "directories",
  "ratatui",
  "serde_json",
+ "tempfile",
  "tetonic-app",
  "tokio",
  "tracing",

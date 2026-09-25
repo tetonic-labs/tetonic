@@ -31,8 +31,8 @@ impl std::fmt::Debug for IssuedCredential {
 /// Bound to a deployment audience and the application's store. This is a local
 /// API credential path, not enterprise SSO, a password verifier or a worker key.
 pub struct LocalCredentials {
-    store: SharedStore,
-    audience: String,
+    pub(super) store: SharedStore,
+    pub(super) audience: String,
 }
 
 fn secret_hash(secret: &str) -> Vec<u8> {

@@ -80,4 +80,7 @@ EXAMPLES:
 
   Fleet enrollment
     lokai estate enroll --help
+
+  Local organization/team administration (no model)
+    lokai control --help
 "#;

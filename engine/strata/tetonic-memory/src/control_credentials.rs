@@ -221,7 +221,7 @@ mod tests {
         {
             let db = Store::open(&path).unwrap();
             db.put_control_principal("local/alice", true, true).unwrap();
-            db.conn.execute_batch("DROP TABLE control_credential_events; DROP TABLE control_credentials; DELETE FROM schema_versions WHERE version=31;").unwrap();
+            db.conn.execute_batch("DROP TABLE control_admin_events; DROP TABLE control_credential_events; DROP TABLE control_credentials; DELETE FROM schema_versions WHERE version>=31;").unwrap();
         }
         let db = Store::open(path).unwrap();
         assert!(db

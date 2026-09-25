@@ -70,3 +70,13 @@ The current service contract specifies lifetime limits, hash-only persistence, a
 Validation so far: all 80 memory library tests passed, covering time boundaries, wrong audience, disabled principals, restart persistence, independent revocation state, v30 migration preservation and atomic rollback when credential-event writes fail. This does not establish an end-user login experience or complete MVP-101.
 
 Final slice validation: all six application resource tests passed, including real local credential issuance through team creation/read, wrong-audience denial, independent revoke and service recomposition. The architecture gate, focused rustfmt, whitespace and documentation-link checks passed. No HTTP endpoint or external identity provider was tested or added.
+
+## 2026-09-25 — Local operator vertical slice
+
+The existing lokai CLI now exposes `control` commands for one-time bootstrap, local credential issuance/revocation and authenticated team creation/inspection. It composes the same resource, credential and membership implementations from a chosen SharedStore without starting Application's coding runtime. LocalControl is a composition facade, not another lifecycle manager or persistence authority. The [runbook](sprints/mvp-1-resources-privacy/local-control-runbook.md) provides a PowerShell walkthrough and trust limits.
+
+Schema 32 adds administrative events. Bootstrap is serialized in one transaction and refuses any already initialized control principal set. The bootstrap event labels the actor as a local operator without pretending an employee identity was authenticated. Audit failure rolls back all initialization; concurrent bootstrap attempts have one winner. Credential issuance is a separate recoverable step. Existing membership/credential APIs remain internal provisioning doors until authenticated administration is added.
+
+Initial validation: `cargo test --manifest-path engine/Cargo.toml -p tetonic-memory -p lokai-cli` passed the CLI unit suite, 82 memory library tests and three store-concurrency integration tests. A separate CLI-process integration test exercises the usable local path. No network endpoint, remote client or agent activation is implied by these commands.
+
+Final validation: the separate-process `control_cli` test passed, including rejection of volatile storage, missing/revoked credentials and repeated bootstrap. The architecture gate passed. The CLI unit suite contained 112 passing tests. The local runbook demonstrates the path without writing bearer secrets into command arguments. User documents outside this epic were preserved.

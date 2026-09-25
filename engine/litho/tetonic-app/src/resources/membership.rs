@@ -10,9 +10,9 @@ pub trait CredentialVerifier: Send + Sync {
     async fn verify(&self, credential: &str) -> Result<AuthorizedPrincipal, AccessError>;
 }
 
-struct MembershipAuthority {
-    store: SharedStore,
-    verifier: Arc<dyn CredentialVerifier>,
+pub(super) struct MembershipAuthority {
+    pub(super) store: SharedStore,
+    pub(super) verifier: Arc<dyn CredentialVerifier>,
 }
 
 #[async_trait]

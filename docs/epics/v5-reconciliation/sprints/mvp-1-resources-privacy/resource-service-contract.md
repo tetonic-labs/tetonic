@@ -1,6 +1,6 @@
 # Resource service boundary — MVP-101
 
-Status: service boundary, persistent membership authority and local bearer verification implemented; operator bootstrap, transport integration and authorized membership administration remain required.
+Status: service boundary, persistent membership authority, local bearer verification and local operator bootstrap implemented; remote transport integration and authorized membership administration remain required. See the [local operator runbook](local-control-runbook.md).
 
 The Application composes ResourceService from the same SharedStore used by its managed run service. Missing storage is an error; no in-memory substitute or separate control database is created. The service currently creates and reads organizations and teams. It does not activate agents, allocate budgets, or grant access to execution, tools or knowledge.
 
@@ -30,7 +30,7 @@ Migration preserves existing teams but invents no principals or memberships. Boo
 
 ## Required before transport exposure
 
-- An explicit local bootstrap and credential delivery path; enterprise SSO remains a separate adapter.
+- Remote credential delivery and authenticated administrator operations; the existing bootstrap/issuance path is restricted to local database operators. Enterprise SSO remains a separate adapter.
 - Authorized administration of the persisted memberships, plus capability grants and top-down policy limits.
 - Audit records for administrative mutations and grant changes, without recording credentials.
 - Request bounds and supported transport/session security.

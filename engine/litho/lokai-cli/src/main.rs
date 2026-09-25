@@ -5,6 +5,7 @@ mod args;
 mod banner;
 mod capacity;
 mod chat;
+mod control;
 mod estate;
 mod event_queue;
 mod help;
@@ -40,6 +41,11 @@ async fn main() -> anyhow::Result<()> {
         let mut argv: Vec<String> = std::env::args().collect();
         argv.remove(1);
         return estate::dispatch(estate::EstateCli::parse_from(argv)).await;
+    }
+    if std::env::args().nth(1).as_deref() == Some("control") {
+        let mut argv: Vec<String> = std::env::args().collect();
+        argv.remove(1);
+        return control::dispatch(control::ControlCli::parse_from(argv)).await;
     }
     let args = Args::parse();
     let task = args.prompt.join(" ");
