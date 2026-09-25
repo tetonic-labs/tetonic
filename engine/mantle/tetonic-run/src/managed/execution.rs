@@ -60,7 +60,7 @@ impl super::service::ManagedRunService {
             &binding.job_spec,
             active.role.as_deref(),
             &advertised,
-            invocation.max_steps,
+            &invocation,
         ) {
             return fail(error);
         }

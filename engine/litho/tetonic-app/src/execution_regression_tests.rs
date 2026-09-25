@@ -306,3 +306,76 @@ async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities()
         );
     }
 }
+
+#[tokio::test]
+async fn full_invocation_policy_denies_changes_before_claim_or_inference() {
+    for field in [
+        "instructions",
+        "completion",
+        "discipline",
+        "explain",
+        "nudge",
+        "steps",
+    ] {
+        let tmp = tempfile::tempdir().unwrap();
+        let cmd = command();
+        let expected = cmd.invocation.clone();
+        let policy_calls = Arc::new(AtomicUsize::new(0));
+        let counter = policy_calls.clone();
+        let runs = manager(&tmp, Arc::new(Events::default()), false).with_execution_policy(
+            Arc::new(move |_, _, _, _, invocation| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                if invocation != &expected {
+                    return Err("invocation differs from prepared revision".into());
+                }
+                Ok(())
+            }),
+        );
+        let active = runs
+            .begin_job_run(None, &cmd.identity, cmd.job_spec, None)
+            .await
+            .unwrap();
+        let mut invocation = cmd.invocation;
+        match field {
+            "instructions" => invocation.instructions = "replacement instructions".into(),
+            "completion" => invocation.completion_tool = "other".into(),
+            "discipline" => invocation.discipline.finish_min_chars = Some(100),
+            "explain" => invocation.explain_turn = true,
+            "nudge" => invocation.empty_tool_nudge = true,
+            "steps" => invocation.max_steps = 1,
+            _ => unreachable!(),
+        }
+        let calls = Arc::new(AtomicUsize::new(0));
+        let (tx, _) = tokio::sync::mpsc::unbounded_channel();
+        let mut executor = agent(&tmp, calls.clone(), tx);
+        let outcome = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            runs.execute_bound_attempt(
+                active.attempt_id.clone(),
+                &mut executor,
+                &mut Conversation::new(),
+                invocation,
+                &mut |_| {},
+            ),
+        )
+        .await
+        .unwrap();
+        assert!(
+            matches!(outcome, CandidateOutcome::Failed { ref message }
+            if message == "invocation differs from prepared revision"),
+            "{field}: {outcome:?}"
+        );
+        assert_eq!(policy_calls.load(Ordering::SeqCst), 1, "{field}");
+        assert_eq!(calls.load(Ordering::SeqCst), 0, "{field}");
+        assert!(
+            !runs
+                .managed
+                .inspect_run(&active.run_id)
+                .await
+                .unwrap()
+                .attempts[&active.attempt_id]
+                .execution_claimed,
+            "{field}"
+        );
+    }
+}

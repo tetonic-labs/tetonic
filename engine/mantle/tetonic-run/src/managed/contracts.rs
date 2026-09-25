@@ -28,14 +28,16 @@ pub struct StartIdentityJobResult {
     pub outcome: CandidateOutcome,
 }
 
-/// Product-supplied validation; manager owns invocation and enforcement timing.
+/// Product-supplied validation of the complete invocation before execution is claimed.
+/// The manager supplies the actual invocation; policy implementations decide which
+/// fields must match their pinned harness definition and effective grants.
 pub type ExecutionPolicy = Arc<
     dyn Fn(
             Option<&AgentIdentity>,
             &AgentJobSpec,
             Option<&str>,
             &[String],
-            usize,
+            &AgentInvocation,
         ) -> Result<(), String>
         + Send
         + Sync,
