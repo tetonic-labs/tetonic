@@ -260,6 +260,12 @@ async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities()
     for missing_store in [false, true] {
         let tmp = tempfile::tempdir().unwrap();
         let mut runs = manager(&tmp, Arc::new(Events::default()), false);
+        let policy_calls = Arc::new(AtomicUsize::new(0));
+        let counter = policy_calls.clone();
+        runs = runs.with_execution_policy(Arc::new(move |_, _, _, _, _| {
+            counter.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }));
         let cmd = command();
         let active = runs
             .begin_job_run(None, &cmd.identity, cmd.job_spec, None)
@@ -277,12 +283,6 @@ async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities()
             conn.execute("DELETE FROM agent_identity_revisions", [])
                 .unwrap();
         }
-        let policy_calls = Arc::new(AtomicUsize::new(0));
-        let counter = policy_calls.clone();
-        runs = runs.with_execution_policy(Arc::new(move |_, _, _, _, _| {
-            counter.fetch_add(1, Ordering::SeqCst);
-            Ok(())
-        }));
         let calls = Arc::new(AtomicUsize::new(0));
         let (tx, _) = tokio::sync::mpsc::unbounded_channel();
         let mut executor = agent(&tmp, calls.clone(), tx);
@@ -485,4 +485,69 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
             .attempts[&active.attempt_id]
             .execution_claimed
     );
+}
+
+#[tokio::test]
+async fn admitted_policy_cannot_be_replaced_by_dispatching_through_another_handle() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let policy_calls = Arc::new(AtomicUsize::new(0));
+    let mut admitted = Vec::new();
+    for label in ["first", "second"] {
+        let counter = policy_calls.clone();
+        let admission = runs
+            .managed
+            .as_ref()
+            .clone()
+            .with_execution_policy(Arc::new(move |_, _, _, _, _| {
+                counter.fetch_add(1, Ordering::SeqCst);
+                Err(format!("pinned {label}"))
+            }));
+        let cmd = command();
+        let binding = admission
+            .admit(
+                &admission.reserve_dispatch().id,
+                tetonic_run::AdmitJob {
+                    identity: cmd.identity,
+                    job_spec: cmd.job_spec,
+                    role: None,
+                    parent_attempt: None,
+                },
+            )
+            .await
+            .unwrap();
+        admitted.push((label, binding, cmd.invocation));
+    }
+    // This handle still has the permissive test default. Neither admitted
+    // validator may be replaced by that default or the other agent's policy.
+    let calls = Arc::new(AtomicUsize::new(0));
+    for (label, binding, invocation) in admitted {
+        let (tx, _) = tokio::sync::mpsc::unbounded_channel();
+        let mut executor = agent(&tmp, calls.clone(), tx);
+        let result = tokio::time::timeout(
+            std::time::Duration::from_secs(3),
+            runs.execute_bound_attempt(
+                binding.attempt_id.clone(),
+                &mut executor,
+                &mut Conversation::new(),
+                invocation,
+                &mut |_| {},
+            ),
+        )
+        .await
+        .unwrap();
+        assert!(matches!(result, CandidateOutcome::Failed { ref message }
+            if message == &format!("pinned {label}")));
+        assert!(
+            !runs
+                .managed
+                .inspect_run(&binding.run_id)
+                .await
+                .unwrap()
+                .attempts[&binding.attempt_id]
+                .execution_claimed
+        );
+    }
+    assert_eq!(policy_calls.load(Ordering::SeqCst), 2);
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
 }

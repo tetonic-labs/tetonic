@@ -55,7 +55,7 @@ impl super::service::ManagedRunService {
             }
         }
         let advertised = agent.advertised_tool_names();
-        if let Err(error) = (self.execution_policy)(
+        if let Err(error) = (active.execution_policy)(
             Some(&active.identity),
             &binding.job_spec,
             active.role.as_deref(),

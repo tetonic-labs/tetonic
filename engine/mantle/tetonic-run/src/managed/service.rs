@@ -71,6 +71,9 @@ impl ManagedRunService {
         &self.artifacts
     }
 
+    /// Selects validation for future admissions through this service handle.
+    /// Active attempts retain their admission-time validator even when dispatched
+    /// through another clone. This does not freeze the validator's live grant checks.
     pub fn with_execution_policy(mut self, policy: ExecutionPolicy) -> Self {
         self.execution_policy = policy;
         self

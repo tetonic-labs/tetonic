@@ -377,6 +377,7 @@ impl super::service::ManagedRunService {
                     work_scope: Default::default(),
                     binding: binding.clone(),
                     identity: job.identity,
+                    execution_policy: self.execution_policy.clone(),
                     role: job.role,
                     parent_attempt: job.parent_attempt,
                     task_handle: task.clone(),
