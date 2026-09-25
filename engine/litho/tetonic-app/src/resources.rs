@@ -234,3 +234,5 @@ mod general_harness;
 pub use general_harness::{HarnessPreparationLimits, PreparedAgentRevision};
 
 mod execution_authority;
+
+mod execution_grants;

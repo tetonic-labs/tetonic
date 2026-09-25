@@ -5,6 +5,13 @@ use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 impl Store {
     pub(crate) fn migrate_agent_definitions_v39(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=39)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("CREATE TABLE agent_definition_revisions (
             identity_id TEXT NOT NULL, definition_digest TEXT NOT NULL,
             definition_json TEXT NOT NULL,
@@ -220,7 +227,7 @@ mod tests {
                     &serde_json::json!({"instructions":"preserved"}),
                 )
                 .unwrap();
-            db.conn.execute_batch("DROP TRIGGER organization_agent_immutable; ALTER TABLE organization_agents ADD COLUMN definition_json TEXT NOT NULL DEFAULT ''; UPDATE organization_agents SET definition_json=(SELECT definition_json FROM agent_definition_revisions d WHERE d.identity_id=organization_agents.identity_id AND d.definition_digest=organization_agents.definition_digest); CREATE TRIGGER organization_agent_immutable BEFORE UPDATE ON organization_agents BEGIN SELECT RAISE(ABORT,'immutable'); END; DROP TABLE agent_definition_revisions; DELETE FROM schema_versions WHERE version=39;").unwrap();
+            db.conn.execute_batch("DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TRIGGER organization_agent_immutable; ALTER TABLE organization_agents ADD COLUMN definition_json TEXT NOT NULL DEFAULT ''; UPDATE organization_agents SET definition_json=(SELECT definition_json FROM agent_definition_revisions d WHERE d.identity_id=organization_agents.identity_id AND d.definition_digest=organization_agents.definition_digest); CREATE TRIGGER organization_agent_immutable BEFORE UPDATE ON organization_agents BEGIN SELECT RAISE(ABORT,'immutable'); END; DROP TABLE agent_definition_revisions; DELETE FROM schema_versions WHERE version>=39;").unwrap();
         }
         let db = Store::open(&path).unwrap();
         assert_eq!(

@@ -454,15 +454,14 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         )
         .await
         .unwrap();
-    let grant_allowed = Arc::new(std::sync::atomic::AtomicBool::new(false));
     let authorization = contexts
-        .bind_execution_authority(
+        .bind_stored_execution_grant(
             credential.expose_secret(),
             "org".into(),
             "private".into(),
             "agent".into(),
             identity.bound_definition_digest.clone(),
-            Arc::new(TestExecutionAuthority(grant_allowed.clone())),
+            "job-grant".into(),
         )
         .await
         .unwrap();
@@ -472,7 +471,20 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         .authorize(&authorization.scope, &identity, &spec)
         .await
         .is_err());
-    grant_allowed.store(true, Ordering::SeqCst);
+    let grant = tetonic_memory::ExecutionGrant {
+        grant_id: "job-grant".into(),
+        scope: authorization.scope.clone(),
+        job: spec.clone(),
+        expires_at: std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64
+            + 3600,
+    };
+    resource
+        .issue_execution_grant(credential.expose_secret(), grant)
+        .await
+        .unwrap();
     let mut substituted = authorization.scope.clone();
     substituted.organization_id = "other-org".into();
     assert!(authorization
@@ -527,13 +539,16 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         }
     }
     assert_eq!(calls.load(Ordering::SeqCst), 1);
-    grant_allowed.store(false, Ordering::SeqCst);
+    resource
+        .revoke_execution_grant(credential.expose_secret(), "org".into(), "job-grant".into())
+        .await
+        .unwrap();
     assert!(authorization
         .authority
         .authorize(&authorization.scope, &identity, &spec)
         .await
         .is_err());
-    grant_allowed.store(true, Ordering::SeqCst);
+
     local
         .credentials()
         .revoke(credential.credential_id.clone())

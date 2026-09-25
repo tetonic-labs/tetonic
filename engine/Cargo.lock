@@ -3858,6 +3858,7 @@ dependencies = [
  "chrono",
  "fs2",
  "rusqlite",
+ "serde",
  "serde_json",
  "sha2",
  "tempfile",

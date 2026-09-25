@@ -203,6 +203,7 @@ impl Store {
         self.migrate_context_artifacts_v37()?;
         self.migrate_org_agents_v38()?;
         self.migrate_agent_definitions_v39()?;
+        self.migrate_execution_grants_v40()?;
         Ok(())
     }
 

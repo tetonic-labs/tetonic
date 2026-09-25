@@ -1567,3 +1567,6 @@ mod tests {
 
 mod worker_tls;
 pub use worker_tls::{WorkerTlsIdentity, WorkerTlsKey};
+
+mod execution_grants;
+pub use execution_grants::ExecutionGrant;
