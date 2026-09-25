@@ -107,6 +107,28 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(first, retry);
+        let published = resources
+            .publish_agent_revision(
+                issued.expose_secret(),
+                "org".into(),
+                "researcher".into(),
+                "general".into(),
+                serde_json::json!({"instructions":"revised"}),
+            )
+            .await
+            .unwrap();
+        assert_eq!(first.identity.identity_id, published.identity.identity_id);
+        let selected = resources
+            .get_agent_revision(
+                issued.expose_secret(),
+                "org".into(),
+                "researcher".into(),
+                published.identity.bound_definition_digest.clone(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(selected, Some(published));
+
         assert_eq!(
             resources
                 .get_agent(issued.expose_secret(), "org".into(), "researcher".into())
@@ -123,5 +145,63 @@ mod tests {
             .get_agent(issued.expose_secret(), "org".into(), "researcher".into())
             .await
             .is_err());
+    }
+}
+
+impl ResourceService {
+    /// Publish a revision without changing the registration's default or activating it.
+    pub async fn publish_agent_revision(
+        &self,
+        credential: &str,
+        org: String,
+        key: String,
+        harness: String,
+        configuration: serde_json::Value,
+    ) -> Result<tetonic_memory::RegisteredAgent, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ManageOrganization {
+                    org_id: org.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.publish_organization_agent_revision(
+                    &actor.principal_id,
+                    &org,
+                    &key,
+                    &harness,
+                    &configuration,
+                )
+            })
+            .await??)
+    }
+
+    pub async fn get_agent_revision(
+        &self,
+        credential: &str,
+        org: String,
+        key: String,
+        digest: String,
+    ) -> Result<Option<tetonic_memory::RegisteredAgent>, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ReadOrganization {
+                    org_id: org.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .read(move |db| {
+                db.get_organization_agent_revision(&actor.principal_id, &org, &key, &digest)
+            })
+            .await??)
     }
 }

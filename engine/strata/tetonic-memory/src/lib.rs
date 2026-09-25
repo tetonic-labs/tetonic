@@ -29,6 +29,7 @@ mod durability_tests;
 mod estate;
 mod identity_store;
 mod organization_agents;
+mod organization_agent_revisions;
 pub use organization_agents::RegisteredAgent;
 mod control_credentials;
 mod control_bootstrap;

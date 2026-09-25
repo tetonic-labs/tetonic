@@ -12,6 +12,13 @@ pub struct RegisteredAgent {
 
 impl Store {
     pub(crate) fn migrate_org_agents_v38(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=38)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("CREATE TABLE organization_agents (
             org_id TEXT NOT NULL REFERENCES organizations(org_id),
             agent_key TEXT NOT NULL, identity_id TEXT NOT NULL UNIQUE,
@@ -37,24 +44,7 @@ impl Store {
         harness: &str,
         configuration: &serde_json::Value,
     ) -> Result<RegisteredAgent> {
-        if [key, harness]
-            .iter()
-            .any(|s| s.trim().is_empty() || s.len() > 256 || s.contains('\0'))
-            || !configuration.is_object()
-        {
-            return Err(StoreError::InvalidControlResource(
-                "agent definition".into(),
-            ));
-        }
-        let definition_json =
-            serde_json::json!({"schema_version":1,"harness":harness,"configuration":configuration})
-                .to_string();
-        if definition_json.len() > 65536 {
-            return Err(StoreError::InvalidControlResource(
-                "agent definition size".into(),
-            ));
-        }
-        let digest = format!("sha256:{:x}", Sha256::digest(definition_json.as_bytes()));
+        let (definition_json, digest) = definition_payload(key, harness, configuration)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         if !self.control_access(actor, ControlPermission::ManageOrganization, org, "")? {
             return Err(StoreError::ControlAccessDenied);
@@ -77,14 +67,14 @@ impl Store {
             recovery_id: id,
         };
         self.put_agent_identity_in_transaction(&identity)?;
+        self.insert_agent_definition(&identity, &definition_json, actor)?;
         self.conn.execute(
-            "INSERT INTO organization_agents VALUES(?1,?2,?3,?4,?5,?6,?7)",
+            "INSERT INTO organization_agents VALUES(?1,?2,?3,?4,?5,?6)",
             params![
                 org,
                 key,
                 identity.identity_id,
                 digest,
-                definition_json,
                 actor,
                 crate::util::now()
             ],
@@ -111,9 +101,13 @@ impl Store {
         Ok(result)
     }
 
-    fn registered_agent_unchecked(&self, org: &str, key: &str) -> Result<Option<RegisteredAgent>> {
+    pub(crate) fn registered_agent_unchecked(
+        &self,
+        org: &str,
+        key: &str,
+    ) -> Result<Option<RegisteredAgent>> {
         let row: Option<(String,String,String)> = self.conn.query_row(
-            "SELECT identity_id,definition_digest,definition_json FROM organization_agents WHERE org_id=?1 AND agent_key=?2",
+            "SELECT a.identity_id,a.definition_digest,d.definition_json FROM organization_agents a JOIN agent_definition_revisions d ON d.identity_id=a.identity_id AND d.definition_digest=a.definition_digest WHERE a.org_id=?1 AND a.agent_key=?2",
             params![org,key], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
         row.map(|(id, digest, definition_json)| {
             let identity = self
@@ -194,4 +188,30 @@ mod tests {
             original
         );
     }
+}
+
+pub(super) fn definition_payload(
+    key: &str,
+    harness: &str,
+    configuration: &serde_json::Value,
+) -> Result<(String, String)> {
+    if [key, harness]
+        .iter()
+        .any(|s| s.trim().is_empty() || s.len() > 256 || s.contains('\0'))
+        || !configuration.is_object()
+    {
+        return Err(StoreError::InvalidControlResource(
+            "agent definition".into(),
+        ));
+    }
+    let definition_json =
+        serde_json::json!({"schema_version":1,"harness":harness,"configuration":configuration})
+            .to_string();
+    if definition_json.len() > 65536 {
+        return Err(StoreError::InvalidControlResource(
+            "agent definition size".into(),
+        ));
+    }
+    let digest = format!("sha256:{:x}", Sha256::digest(definition_json.as_bytes()));
+    Ok((definition_json, digest))
 }

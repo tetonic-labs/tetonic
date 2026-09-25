@@ -114,7 +114,7 @@ mod tests {
                 .unwrap();
             db.conn
                 .execute_batch(
-                    "DROP TABLE organization_agents; DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version>=37;",
+                    "DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version>=37;",
                 )
                 .unwrap();
         }
