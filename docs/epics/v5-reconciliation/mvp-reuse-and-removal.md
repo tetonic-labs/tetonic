@@ -24,6 +24,8 @@ This is a product-aligned disposition, not permission for blind deletion. See th
 
 ## Additional source checks during MVP planning
 
+These findings describe the planning baseline. Subsequent corrections and their remaining limits are recorded in [implementation progress](progress.md).
+
 - [charter.rs](../../../engine/core/tetonic-domain/src/charter.rs): `evaluate_action` handles forbidden verbs and namespace checks, but PathFilter and ResourceCap fall through; a verb without a dot also avoids the namespace branch. Treat the charter as declarative intent until compiled into enforced policy. Do not reuse its name/comment as security evidence.
 - [dag.rs](../../../engine/mantle/tetonic-run/src/dag.rs): dependency cycle and readiness helpers are useful foundations, not an implemented persistent team scheduler.
 - [spawn_budget.rs](../../../engine/litho/tetonic-app/src/spawn_budget.rs): existing child reservations are tied to run/session accounting. Extend attribution across requests to existing agents as well as new children.

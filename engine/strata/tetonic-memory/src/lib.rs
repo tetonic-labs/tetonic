@@ -28,6 +28,7 @@ mod compute_reservation;
 mod durability_tests;
 mod estate;
 mod identity_store;
+mod team_store;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
@@ -52,6 +53,7 @@ pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
 pub use identity_store::AgentIdentityRow;
+pub use team_store::{OrganizationRow, TeamRow};
 pub use recall::RecallHit;
 pub use trust::{ApprovalRow, EgressAllowRow};
 
@@ -91,6 +93,10 @@ pub enum StoreError {
     CapabilityRevoked,
     #[error("capability expired")]
     CapabilityExpired,
+    #[error("invalid control resource: {0}")]
+    InvalidControlResource(String),
+    #[error("control resource already exists with different attributes")]
+    ControlResourceConflict,
 }
 
 pub type Result<T> = std::result::Result<T, StoreError>;
@@ -1482,7 +1488,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute("DELETE FROM schema_versions WHERE version = 28", [])
+                .execute_batch("DROP TABLE teams; DROP TABLE organizations;
+                    DELETE FROM schema_versions WHERE version = 29;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1510,7 +1517,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute("DELETE FROM schema_versions WHERE version = 28", [])
+                .execute_batch("DROP TABLE teams; DROP TABLE organizations;
+                    DELETE FROM schema_versions WHERE version = 29;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);

@@ -1,6 +1,6 @@
 # Sprint 0 — Product contracts and characterization
 
-Status: planned. Depends on the preceding MVP sprint; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria.
+Status: in progress. This is the initial sprint. Security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria. See [implementation progress](../../progress.md) for evidence and open decisions.
 
 ## MVP-001 — Set the MVP and deployment contracts
 

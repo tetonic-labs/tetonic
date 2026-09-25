@@ -1,4 +1,4 @@
-//! Schema migrations for `lokai.db` (v1–v28).
+//! Schema migrations for `lokai.db` (v1–v29).
 
 use rusqlite::params;
 
@@ -192,6 +192,7 @@ impl Store {
         self.migrate_run_replay_floor_v26()?;
         self.migrate_run_session_nullable_v27()?;
         self.migrate_agent_identities_v28()?;
+        self.migrate_team_resources_v29()?;
         Ok(())
     }
 

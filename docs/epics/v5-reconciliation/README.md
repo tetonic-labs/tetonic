@@ -13,6 +13,7 @@ The primary problem is fragmented authority, not a shortage of subsystems. Recon
 ## Deliverables and evidence limits
 
 - [Product charter and scope cuts](mvp-product.md): MVP commitments, exclusions, deployment milestones and unresolved decisions.
+- [Implementation progress](progress.md): completed slices, validation and outstanding integration work.
 - [Product-driven system contracts](mvp-system-contracts.md): privacy, huddles, delegation, workstation execution and stop semantics.
 - [Reuse/removal map](mvp-reuse-and-removal.md): reuse existing assets and eliminate obsolete authority, not useful capability.
 
@@ -27,7 +28,7 @@ The primary problem is fragmented authority, not a shortage of subsystems. Recon
 - [Quality double-pass review](quality-review.md): corrections, migration hazards and scenario acceptance matrix.
 - [Operator configuration requirements](operator-configuration.md): mandatory configurable telemetry, logging and storage, plus production/distributed operational contracts.
 
-Method: source reads at composition roots and critical lifecycle paths, repository-wide symbol/caller searches, manifest dependency inspection, tracked-file census, and delivery workflow inspection. Earlier architecture documents were not treated as evidence for runtime behavior. This is an initial reconciliation audit, not an exhaustive semantic proof or a compiler-derived whole-program call graph. No production runtime was started and no production code was changed. Dynamic, macro-generated, external library consumers and untracked files are not proven absent by lexical searches. Individual deletion PRs must repeat caller/build checks.
+Audit method: source reads at composition roots and critical lifecycle paths, repository-wide symbol/caller searches, manifest dependency inspection, tracked-file census, and delivery workflow inspection. Earlier architecture documents were not treated as evidence for runtime behavior. The baseline audit is not an exhaustive semantic proof or a compiler-derived whole-program call graph. The audit itself did not start a production runtime or change production code; subsequent implementation is recorded separately in progress.md. Dynamic, macro-generated, external library consumers and untracked files are not proven absent by lexical searches. Individual deletion PRs must repeat caller/build checks.
 
 Existing untracked `docs/design/` and standing-agent sprint-6 work were preserved. The target image supplied in the conversation is the design brief; this document translates its boxes into ownership contracts rather than assuming the picture proves an implementation exists.
 

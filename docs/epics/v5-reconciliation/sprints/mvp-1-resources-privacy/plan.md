@@ -1,6 +1,6 @@
 # Sprint 1 — Durable teams, identities and information boundaries
 
-Status: planned. Depends on the preceding MVP sprint; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria.
+Status: persistence groundwork started; authenticated service and privacy work remain pending. Depends on the preceding MVP sprint's applicable contracts; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria. See [implementation progress](../../progress.md).
 
 ## MVP-101 — Persist and authorize organization, team and agent resources
 
