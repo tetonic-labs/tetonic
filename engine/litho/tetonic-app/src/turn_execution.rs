@@ -572,7 +572,7 @@ fn composition_capability_hooks() -> (PostEditSnapshot, ResolveUnderRoot, Captur
     )
 }
 
-fn composition_fs_hooks() -> ContextFsHooks {
+pub(crate) fn composition_fs_hooks() -> ContextFsHooks {
     ContextFsHooks {
         skip_symlink: Arc::new(tetonic_transaction::fs_ops::is_symlink_or_reparse),
         jailed_read: Arc::new(|root, rel| {

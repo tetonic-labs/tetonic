@@ -214,3 +214,9 @@ The surviving seal path discarded the artifact store's returned ID, leaving only
 The real LocalArtifactStore regression opens the returned receipt, checks payload size and compares the complete stored pack to the returned pack minus its receipt. It also checks nonpersisted behavior and propagation through the domain compiler interface. All 42 context tests and the architecture gate passed. Previously sealed objects whose IDs were discarded are not automatically rediscovered or assigned ownership.
 
 Downstream validation: all nine application resource tests passed after rebuilding the domain/compiler consumers.
+
+## 2026-09-25 — Verify scoped compiler-to-artifact composition
+
+Added an application-level integration test using real credentials/membership, WorkspaceContextProvider, the production filesystem hooks, ContextCompiler, LocalArtifactStore and the scoped storage adapter. A real source-file canary enters compiled evidence and the sealed artifact is retrieved using the returned storage receipt. Another authorized context owned by the same user cannot open that artifact. Removing organization membership blocks subsequent artifact opens, recompilation and expansion of an already-issued handle.
+
+Validation: the integrated test and architecture gate passed. Production filesystem hook construction is now crate-visible so the test uses the actual composition rather than duplicating a test-only filesystem policy. This verifies the formerly separate compiler, ownership and artifact boundaries together; it does not activate employee-scoped inference or prove isolation of tools, live model state, summaries or event subscriptions. Workspace access in this fixture is a trusted host grant, not inferred from context membership.
