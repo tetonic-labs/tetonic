@@ -33,6 +33,7 @@ mod control_bootstrap;
 mod membership_store;
 mod membership_admin;
 mod team_admin;
+mod context_scope;
 mod team_store;
 #[cfg(test)]
 mod migration_tests;
@@ -947,7 +948,7 @@ impl Store {
                     (SELECT COUNT(*) FROM messages   m WHERE m.session_id = s.id),\n\
                     (SELECT COUNT(*) FROM tool_calls  t WHERE t.session_id = s.id),\n\
                     (SELECT COUNT(*) FROM file_changes f WHERE f.session_id = s.id)\n\
-             FROM sessions s ORDER BY s.started_at DESC LIMIT ?1",
+             FROM sessions s WHERE s.context_id='legacy-local' ORDER BY s.started_at DESC LIMIT ?1",
         )?;
         let rows = stmt
             .query_map(params![limit], |r| {
@@ -968,6 +969,7 @@ impl Store {
 
     /// The ordered transcript of a session: `(seq, role, content)`.
     pub fn transcript(&self, session_id: &str) -> Result<Vec<(i64, String, String)>> {
+        self.require_legacy_session(session_id)?;
         let mut stmt = self.conn.prepare(
             "SELECT seq, role, content FROM messages WHERE session_id = ?1 ORDER BY seq",
         )?;
@@ -997,7 +999,7 @@ impl Store {
         self.conn
             .query_row(
                 "SELECT s.id FROM sessions s
-                 WHERE s.workspace_root = ?1
+                 WHERE s.workspace_root = ?1 AND s.context_id='legacy-local'
                    AND EXISTS (SELECT 1 FROM messages m WHERE m.session_id = s.id)
                  ORDER BY s.started_at DESC LIMIT 1",
                 params![ws],
@@ -1009,6 +1011,7 @@ impl Store {
 
     /// Mark a prior session active again (resume path — no new session row).
     pub fn reopen_session(&self, session_id: &str) -> Result<()> {
+        self.require_legacy_session(session_id)?;
         self.conn.execute(
             "UPDATE sessions SET status = 'running', ended_at = NULL, error = '' WHERE id = ?1",
             params![session_id],
@@ -1048,6 +1051,7 @@ impl Store {
 
     /// Load operational turn row for crash recovery.
     pub fn get_turn_operation(&self, session_id: &str) -> Result<Option<TurnOperationRow>> {
+        self.require_legacy_session(session_id)?;
         let mut stmt = self.conn.prepare(
             "SELECT turn_id, state, payload_json, updated_at FROM turn_operations WHERE session_id = ?1",
         )?;
@@ -1078,6 +1082,7 @@ impl Store {
         session_id: &str,
         max: u32,
     ) -> Result<Vec<StoredMessageRow>> {
+        self.require_legacy_session(session_id)?;
         let mut stmt = self.conn.prepare(
             "SELECT m.role, m.content, m.tool_calls_json, m.tool_name, m.tool_call_id FROM messages m
              WHERE m.session_id = ?1
@@ -1104,6 +1109,7 @@ impl Store {
 
     /// Eligible resume-message count (same filter as `list_messages_for_resume`).
     pub fn count_messages_for_resume(&self, session_id: &str) -> Result<u32> {
+        self.require_legacy_session(session_id)?;
         let n: i64 = self.conn.query_row(
             "SELECT COUNT(*) FROM messages m
              WHERE m.session_id = ?1
@@ -1497,10 +1503,10 @@ mod tests {
         let db = dir.path().join("lokai.db");
         {
             let store = Store::open(&db).expect("initial open");
+            store.remove_context_schema_for_test();
             store
                 .conn
-                .execute_batch("DROP TABLE agent_identity_revisions;
-                    DELETE FROM schema_versions WHERE version = 34;")
+                .execute_batch("DELETE FROM schema_versions WHERE version = 35;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1526,10 +1532,10 @@ mod tests {
         let db = dir.path().join("lokai.db");
         {
             let store = Store::open(&db).expect("initial open");
+            store.remove_context_schema_for_test();
             store
                 .conn
-                .execute_batch("DROP TABLE agent_identity_revisions;
-                    DELETE FROM schema_versions WHERE version = 34;")
+                .execute_batch("DELETE FROM schema_versions WHERE version = 35;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);

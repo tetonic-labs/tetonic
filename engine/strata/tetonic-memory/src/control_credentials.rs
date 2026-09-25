@@ -221,6 +221,7 @@ mod tests {
         {
             let db = Store::open(&path).unwrap();
             db.put_control_principal("local/alice", true, true).unwrap();
+            db.remove_context_schema_for_test();
             db.conn.execute_batch("DROP TABLE agent_identity_revisions; DROP TABLE control_admin_events; DROP TABLE control_credential_events; DROP TABLE control_credentials; DELETE FROM schema_versions WHERE version>=31;").unwrap();
         }
         let db = Store::open(path).unwrap();

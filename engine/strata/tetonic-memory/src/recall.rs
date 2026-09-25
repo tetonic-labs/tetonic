@@ -148,7 +148,7 @@ impl Store {
             "SELECT session_id, started_at, kind, label,
                     snippet(recall_fts, 5, '[', ']', '…', 24) AS snip
              FROM recall_fts
-             WHERE recall_fts MATCH ?1 AND workspace_root = ?2 AND label != 'system'",
+             WHERE recall_fts MATCH ?1 AND workspace_root = ?2 AND label != 'system' AND EXISTS(SELECT 1 FROM sessions scoped WHERE scoped.id=recall_fts.session_id AND scoped.context_id='legacy-local')",
         );
         if exclude_session_id.is_some() {
             sql.push_str(" AND session_id != ?4");
@@ -178,7 +178,7 @@ impl Store {
             "SELECT s.started_at, t.result_summary
              FROM tool_calls t
              JOIN sessions s ON t.session_id = s.id
-             WHERE s.workspace_root = ?1 AND t.tool = 'finish' AND t.status = 'ok'
+             WHERE s.workspace_root = ?1 AND s.context_id='legacy-local' AND t.tool = 'finish' AND t.status = 'ok'
                AND length(trim(t.result_summary)) > 0",
         );
         if exclude_session_id.is_some() {

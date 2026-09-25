@@ -60,6 +60,13 @@ impl Store {
     }
 
     pub(crate) fn migrate_identity_revisions_v34(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=34)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("CREATE TABLE agent_identity_revisions (
             identity_id TEXT NOT NULL, owning_application TEXT NOT NULL,
             bound_definition_digest TEXT NOT NULL, privilege_class TEXT NOT NULL,
@@ -138,7 +145,8 @@ mod tests {
         {
             let db = Store::open(&path).unwrap();
             db.put_agent_identity(&original).unwrap();
-            db.conn.execute_batch("DROP TABLE agent_identity_revisions; DELETE FROM schema_versions WHERE version=34;").unwrap();
+            db.remove_context_schema_for_test();
+            db.conn.execute_batch("DROP TABLE agent_identity_revisions; DELETE FROM schema_versions WHERE version>=34;").unwrap();
         }
         {
             let db = Store::open(&path).unwrap();

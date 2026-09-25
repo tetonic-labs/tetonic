@@ -61,6 +61,7 @@ mod tests {
         {
             let db = Store::open(&path).unwrap();
             db.bootstrap_control("admin", "a", "A").unwrap();
+            db.remove_context_schema_for_test();
             db.conn.execute_batch("DROP TABLE agent_identity_revisions; ALTER TABLE control_admin_events DROP COLUMN team_id; DELETE FROM schema_versions WHERE version>=33;").unwrap();
         }
         let db = Store::open(&path).unwrap();

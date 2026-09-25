@@ -148,6 +148,7 @@ mod tests {
         {
             let store = Store::open(&path).unwrap();
             seed(&store);
+            store.remove_context_schema_for_test();
             store.conn.execute_batch("DROP TABLE agent_identity_revisions; DROP TABLE control_admin_events; DROP TABLE control_credential_events; DROP TABLE control_credentials; DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals; DELETE FROM schema_versions WHERE version>=30;").unwrap();
         }
         let store = Store::open(path).unwrap();

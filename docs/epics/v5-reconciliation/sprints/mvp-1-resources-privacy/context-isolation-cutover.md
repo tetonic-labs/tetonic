@@ -1,6 +1,6 @@
 # MVP-102 — Context isolation cutover
 
-Status: implementation contract and source inventory, not implemented privacy. Traced against commit `9169f63`. The local control API currently administers metadata; it does not authorize sessions, inference inputs or knowledge. This document identifies the connected cutover needed before exposing those operations to multiple employees.
+Status: partial implementation. Schema 35 now binds sessions to immutable contexts and fences legacy history/recall/consolidation from scoped sessions. Authorized scoped execution and end-to-end privacy remain unimplemented. Traced against commit `9169f63`. The local control API currently administers metadata; it does not authorize sessions, inference inputs or knowledge. This document identifies the connected cutover needed before exposing those operations to multiple employees.
 
 ## What the current code actually does
 

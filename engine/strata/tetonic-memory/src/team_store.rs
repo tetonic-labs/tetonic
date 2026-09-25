@@ -217,6 +217,7 @@ mod tests {
         let path = dir.path().join("upgrade.db");
         {
             let store = Store::open(&path).unwrap();
+            store.remove_context_schema_for_test();
             store
                 .conn
                 .execute_batch(

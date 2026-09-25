@@ -231,6 +231,7 @@ impl Store {
     }
 
     fn consolidate_session_inner(&self, session_id: &str, explicit: bool) -> Result<()> {
+        self.require_legacy_session(session_id)?;
         let row: Option<(String, Option<String>, String)> = self
             .conn
             .query_row(

@@ -1,4 +1,4 @@
-//! Schema migrations for `lokai.db` (v1–v34).
+//! Schema migrations for `lokai.db` (v1–v35).
 
 use rusqlite::params;
 
@@ -198,6 +198,7 @@ impl Store {
         self.migrate_control_bootstrap_v32()?;
         self.migrate_team_admin_v33()?;
         self.migrate_identity_revisions_v34()?;
+        self.migrate_context_scope_v35()?;
         Ok(())
     }
 
@@ -616,6 +617,7 @@ mod tests {
 
         {
             let store = Store::open(&db).unwrap();
+            store.remove_context_schema_for_test();
             store
                 .conn
                 .execute_batch("DROP TABLE agent_identity_revisions; DROP TABLE control_admin_events; DELETE FROM schema_versions WHERE version >= 14;")
