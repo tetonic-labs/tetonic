@@ -96,3 +96,18 @@ History returns the latest 1–200 messages in chronological order, not an asser
 Search authorized messages with `context recall --context my-private-context --query "deployment decision" --limit 8`, piping a currently valid credential on stdin. This searches only that context's message history, excludes system messages and rolled-back/deleted source messages, and returns at most 30 snippets. It does not search tool outputs or project digests. Results are ordered by session start time rather than global relevance statistics. Treat retrieved text as untrusted content. Query text is a CLI argument; avoid putting secrets in a search query if process command lines are recorded.
 
 Scoped discussions can be closed with `tetonic control --database <path> --audience <audience> context close --context <context> --session <session>` using the existing stdin credential convention. Close preserves history and allows identical retries only while access remains valid. It does not cancel agent execution. Closed discussions reject new messages and an `open` retry does not reopen them; explicit resumable discussion lifecycle is not yet implemented.
+
+## Organization-owned agent registration
+
+Issue a fresh administrator credential if the walkthrough credential has expired or was revoked. Registration currently requires organization administration; organization members can read these organization-owned definitions. This does not create a personal/private agent.
+
+```powershell
+$issued = & .\engine\target\debug\tetonic.exe @controlArgs issue-credential --principal local/admin --lifetime-seconds 3600 | ConvertFrom-Json
+if (-not $issued.credential) { throw 'Credential issuance failed' }
+@{ instructions = 'Investigate assigned research questions'; requested_tools = @('recall') } |
+    ConvertTo-Json | Set-Content -Encoding utf8 .\researcher.json
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent register --org acme --agent researcher --harness general --config-file .\researcher.json
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent get --org acme --agent researcher
+```
+
+UTF-8 JSON files with or without a byte-order mark are accepted. Configuration must be an object; the input file and stored envelope are each limited to 64 KiB, so envelope overhead reduces the maximum configuration payload. Identical registration retries retain identity and digest. A changed definition conflicts; revision publishing is not yet exposed. The harness name/configuration is registered data, not proof the harness is installed or executable. Requested tools grant no access. Output reports `privilege_class: unconfigured` and `agent_activated: false`; no inference or agent execution is started.

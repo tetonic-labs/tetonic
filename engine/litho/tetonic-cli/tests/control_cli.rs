@@ -499,3 +499,102 @@ fn bootstrap_create_reopen_and_revoke_via_cli() {
     assert!(!String::from_utf8_lossy(&denied.stderr).contains(secret));
     assert!(!String::from_utf8_lossy(&denied.stdout).contains(secret));
 }
+
+#[test]
+fn registered_agent_cli_is_durable_idempotent_and_not_activation() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("agents.db");
+    assert!(run(
+        &db,
+        &[
+            "bootstrap",
+            "--principal",
+            "admin",
+            "--org",
+            "org",
+            "--name",
+            "Org"
+        ],
+        None
+    )
+    .status
+    .success());
+    let issued = run(&db, &["issue-credential", "--principal", "admin"], None);
+    let issued: serde_json::Value = serde_json::from_slice(&issued.stdout).unwrap();
+    let credential = issued["credential"].as_str().unwrap();
+    let path = dir.path().join("agent.json");
+    std::fs::write(
+        &path,
+        r#"{"instructions":"AGENTCONFIGCANARY","requested_tools":["read_file"]}"#,
+    )
+    .unwrap();
+    let register = [
+        "agent",
+        "register",
+        "--org",
+        "org",
+        "--agent",
+        "researcher",
+        "--harness",
+        "general",
+        "--config-file",
+        path.to_str().unwrap(),
+    ];
+    let first = run(&db, &register, Some(credential));
+    assert!(first.status.success());
+    let first: serde_json::Value = serde_json::from_slice(&first.stdout).unwrap();
+    assert_eq!(first["agent_activated"], false);
+    assert_eq!(first["privilege_class"], "unconfigured");
+    let mut bom = vec![0xef, 0xbb, 0xbf];
+    bom.extend(std::fs::read(&path).unwrap());
+    std::fs::write(&path, bom).unwrap();
+    let retried = run(&db, &register, Some(credential));
+    assert!(retried.status.success());
+    assert_eq!(
+        first,
+        serde_json::from_slice::<serde_json::Value>(&retried.stdout).unwrap()
+    );
+    let get = ["agent", "get", "--org", "org", "--agent", "researcher"];
+    assert_eq!(
+        first,
+        serde_json::from_slice::<serde_json::Value>(&run(&db, &get, Some(credential)).stdout)
+            .unwrap()
+    );
+    std::fs::write(&path, r#"{"instructions":"changed"}"#).unwrap();
+    assert!(!run(&db, &register, Some(credential)).status.success());
+    assert_eq!(
+        first,
+        serde_json::from_slice::<serde_json::Value>(&run(&db, &get, Some(credential)).stdout)
+            .unwrap()
+    );
+    for invalid in [b"[]".to_vec(), vec![b'x'; 65_537]] {
+        std::fs::write(&path, invalid).unwrap();
+        assert!(!run(&db, &register, Some(credential)).status.success());
+    }
+    assert!(!run(&db, &get, None).status.success());
+    assert!(!run(
+        &db,
+        &["agent", "get", "--org", "foreign", "--agent", "researcher"],
+        Some(credential)
+    )
+    .status
+    .success());
+    assert!(run(
+        &db,
+        &[
+            "revoke-credential",
+            "--credential-id",
+            issued["credential_id"].as_str().unwrap()
+        ],
+        None
+    )
+    .status
+    .success());
+    let denied = run(&db, &get, Some(credential));
+    assert!(!denied.status.success());
+    for output in [&denied.stdout, &denied.stderr] {
+        let text = String::from_utf8_lossy(output);
+        assert!(!text.contains("AGENTCONFIGCANARY"));
+        assert!(!text.contains(credential));
+    }
+}

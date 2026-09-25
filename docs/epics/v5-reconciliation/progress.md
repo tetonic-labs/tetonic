@@ -248,3 +248,9 @@ Registration currently requires organization administration; organization member
 Validation: all 98 memory tests, including migration crash/rollback checks, and the architecture gate passed. New storage evidence covers restart, idempotence, conflicting revisions, non-admin creation denial, cross-org denial, membership removal and rollback of identity insertion if resource insertion fails. Initial registration is implemented; revision update/selection, harness-specific validation, team/private ownership, CLI/UI exposure and managed activation remain outstanding.
 
 Application validation: all 11 resource tests passed, including real credential registration/read, stable retry identity, forged-credential denial and revocation.
+
+## 2026-09-25 — Expose agent registration through the local CLI
+
+`tetonic control agent register` accepts an organization key, harness name and bounded UTF-8 JSON configuration file; `agent get` reads the durable registration. Both use the existing ResourceService and stdin credentials. Output includes the stable identity, definition digest/configuration, unconfigured privilege class and agent_activated=false. UTF-8 BOM files are supported for Windows authoring. The runbook includes a concrete PowerShell walkthrough and explains that harness registration is not validation, tool permission or execution.
+
+Validation: all four separate-process CLI scenarios passed, including the new register/retry/get flow, BOM normalization, persisted identity, conflict preservation, nonobject/oversized input denial, missing credentials, foreign organization access and revocation without configuration/credential disclosure. Architecture checks passed before the final BOM input adjustment. Revision publishing and managed activation remain unfinished.
