@@ -25,6 +25,15 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Inspect a governed run through current context membership; credential on stdin.
+    InspectRun {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        run: String,
+    },
     /// Organization-owned agent configuration; no execution privileges are granted.
     Agent {
         #[command(subcommand)]
@@ -142,6 +151,11 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
+        Command::InspectRun { org, context, run } => {
+            let credential = credential_from_stdin().await?;
+            let snapshot = control.contexts().inspect_run(&credential, org, context, run).await?;
+            println!("{}", serde_json::to_string(&snapshot)?);
+        }
         Command::Agent { command } => agents::dispatch(&control, command).await?,
         Command::Context { command } => contexts::dispatch(&control, command).await?,
         Command::AddTeamMember {

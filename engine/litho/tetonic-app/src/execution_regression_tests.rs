@@ -601,6 +601,35 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .await
         .unwrap();
     assert!(other.open(&output_id).await.is_err());
+    let inspected = contexts
+        .inspect_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone(),
+        )
+        .await
+        .unwrap();
+    assert_eq!(inspected.state, tetonic_domain::RunState::Succeeded);
+    assert!(contexts
+        .inspect_run(
+            credential.expose_secret(),
+            "org".into(),
+            "other".into(),
+            active.run_id.0.clone()
+        )
+        .await
+        .is_err());
+    assert!(contexts
+        .inspect_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            "missing".into()
+        )
+        .await
+        .is_err());
+
     assert_eq!(calls.load(Ordering::SeqCst), 1);
     let revoked_attempt = runs
         .managed
@@ -629,6 +658,16 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .await
         .is_err());
 
+    // Revoking permission to execute does not erase authorized access to results.
+    assert!(contexts
+        .inspect_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone()
+        )
+        .await
+        .is_ok());
     let (revoked_tx, _) = tokio::sync::mpsc::unbounded_channel();
     let mut revoked_executor = agent(&tmp, calls.clone(), revoked_tx);
     let denied = tokio::time::timeout(
@@ -667,6 +706,15 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .await
         .is_err());
     assert!(output.open(&output_id).await.is_err());
+    assert!(contexts
+        .inspect_run(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            active.run_id.0.clone()
+        )
+        .await
+        .is_err());
 
     assert!(
         runs.managed

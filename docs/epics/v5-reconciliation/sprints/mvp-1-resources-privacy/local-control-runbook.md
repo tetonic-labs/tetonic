@@ -120,3 +120,13 @@ $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent get 
 ```
 
 Publishing requires organization administration. It retains the identity, returns the configuration digest, and does not activate an agent or change the registration default. `agent get` without `--revision` still returns the original registration; `--revision` selects an exact authorized snapshot. Unknown digests fail rather than falling back to another version. Default selection and activation remain separate, unfinished operations.
+
+## Inspect a governed run
+
+For a run already admitted by a trusted governed host, use a current credential belonging to a member of its information context:
+
+```powershell
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs inspect-run --org acme --context '<context-id>' --run '<run-id>'
+```
+
+Replace the IDs with the actual admitted context and run. This prints the authoritative run snapshot, including task scope, selected grant ID, states and output receipts. Every task must belong to that exact organization/context. Legacy, mixed-context, unknown and unauthorized runs deny without returning the snapshot. Revoking execution permission does not remove otherwise-authorized access to completed results; expired/revoked credentials or removed content membership deny inspection. This is local operator tooling, not a remote login or an agent launch command. Live subscriptions and event replay are not exposed here.
