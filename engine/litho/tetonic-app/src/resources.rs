@@ -229,3 +229,6 @@ mod tests;
 mod context_pipeline_tests;
 
 mod agents;
+
+mod general_harness;
+pub use general_harness::{HarnessPreparationLimits, PreparedAgentRevision};
