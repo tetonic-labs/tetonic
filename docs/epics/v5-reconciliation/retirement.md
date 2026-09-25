@@ -9,17 +9,21 @@ No production deletions were performed by this audit. These are concrete propose
 | D01 | `tetonic-app/src/fleet_api.rs`: in-memory authoritative org/squad/agent maps and REST-shaped dispatcher | Disconnected lifecycle, volatile records, no transport auth | Durable control services + authenticated routes | Restart retains resources; create reaches real attempt; no production imports of old manager |
 | D02 | `create_agent`: fixed 1,000-token creation charge and unconditional Running result | Invented usage and false observed state | Broker reservations/settlement and worker-derived state | Duplicate create has no charge; metadata-only creation costs no inference tokens; Running requires claim |
 | D03 | `tetonic-orchestrator/src/fleet.rs`: AtomicU64 hourly accounting and automatic in-memory squad workpad | Not a durable accounting window or authorized shared memory | Tenant budget ledger; explicit scoped memory capability | Window/denial/concurrent-admission tests; workpad access and retention tests |
-| D04 | `fleet_supervisor.rs` as independent production lifecycle authority | Competes with run/attempt state; stored handles may be absent | Controller projections over managed execution | Stop/steer reach actual work; status cannot be changed by map mutation |
+| D04 | `fleet_supervisor.rs` as a proposed lifecycle authority | Detached prototype duplicates run/attempt concepts; not shown wired into production | Controller projections over managed execution | Stop/steer reach actual work; migrate operator consumers before deleting prototype |
 | D05 | `operator_control.rs` as separate supervisor command path | Dashboard/steering not joined to managed execution | Authorized durable commands and projections | Requested/accepted/effective distinctions; no bypass route |
 | D06 | `tetonic-node/src/role.rs`: standalone KeeperRegistry/RunnerClient authority | Process-local registry/epochs; no production lifecycle caller found | Durable assignment/membership service integrated with leases | Restart generations persist; stale worker cannot commit or obtain new mediated effects |
 | D07 | `tetonic-server/src/main.rs`: direct world-agent composition and manual HTTP handler | Parallel platform bypass; special-purpose server | Common server bootstrap + world harness + real API framework | Village parity through API; no direct unmanaged production launch |
 | D08 | `Agent::run_in_world` as an alternate core-owned lifecycle | Direct effect dispatch bypasses common action broker | Managed world harness using capability gateway | All world actions have authorization and outcome records; idle cancellation works |
 | D09 | Duplicate server/node configuration parsers and unsupported storage-mode promises | Divergent schemas; enum values imply unimplemented product shapes | One validated schema + import/migration | Unsupported modes fail; imported experiment config works |
-| D10 | ThoughtStreamHub/TraceStore as independent lifecycle truth | Volatile parallel events and incomplete correlation | Unified event envelope, durable transitions, bounded live projections | Resume cursor/retention/redaction/isolation tests; authoritative state survives stream loss |
+| D10 | Parallel ThoughtStreamHub/TraceStore schemas and any use as lifecycle truth | Volatile diagnostic delivery and incomplete correlation; not proven durable authorities today | Unified event envelope, durable transitions, bounded live projections | Resume cursor/retention/redaction/isolation tests; preserve useful bounded buffers |
 | D11 | Universal fixed `id_coding_production` identity | Definition recipe confused with an individual actor | Per-agent identity + reusable coding definition revision | Two agents same definition maintain distinct state/grants/history |
-| D12 | Independent CLI/daemon bootstrap and legacy product naming in supported entrypoints | Multiple composition roots drift | Client/stdio compatibility over common services; delivery migration | Existing supported commands pass parity; release artifacts cover new server/client |
+| D12 | Independent CLI/daemon bootstrap | Multiple composition roots drift; old naming alone is not a deletion reason | Client/stdio compatibility over common services; delivery migration | Existing supported commands pass parity; release artifacts cover new server/client |
 
 D03 does not prohibit collaborative memory. It removes an unbounded, in-process workpad as the implicit collaboration model. D10 does not remove live streaming: rings/broadcast are useful delivery mechanisms behind a common event contract.
+
+Deletion timing: D01's durable replacement starts in sprint 1, but its real-execution proof arrives in sprint 2 and remaining operator imports must migrate in sprint 3. D04 likewise cannot be deleted in sprint 2 while OperatorController still imports it. D02's fake charge/status can be removed in sprint 1 without waiting for full accounting; prevent activation without bounded admission. Prototype adapters may temporarily remain for tests, never as a second production authority.
+
+Separate declarations of absence from recommendations: F01/F05 show detached construction paths; they do not establish two currently deployed control planes. The retirement goal is to avoid promoting those prototypes into new competing authorities.
 
 ## Remove from the platform core; preserve as optional product capabilities
 
@@ -38,7 +42,7 @@ Do not move generic perception/event contracts to the Village solely because the
 
 - `DualProcessBrain`: urgency-based dual-brain strategy has test-only construction in inspected searches. Remove from the default runtime exports or move to an example if no committed workload needs it. Preserve SingleModelBrain while the world harness uses it.
 - `ScriptedBrain`: move to test support if all uses are test fixtures; check external/library compatibility before hiding exports.
-- Composite/stream world adapter variants: require a live integration owner; retain contract tests and one supported transport, remove redundant variants only after confirming no supported client depends on their protocol.
+- Composite/stream world adapter variants: defer a removal decision until adapter requirements are settled. Stream and WebSocket transports are not redundant merely because one lacks a production caller; multi-environment composition may serve the intended product. Move unused implementations to an optional integration package if that reduces default coupling; delete only with an explicit unsupported-protocol decision.
 - Unimplemented configuration alternatives: reject/stop advertising now; remove schema variants with a versioned config migration. They are not working backends to preserve.
 
 ## Explicitly not approved for blind deletion

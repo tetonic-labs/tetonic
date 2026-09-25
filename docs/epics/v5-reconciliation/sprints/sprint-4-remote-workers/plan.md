@@ -6,6 +6,8 @@ Depends on: sprint 3. Audit existing run leases, fabric lease table and registry
 
 Acceptance: killing/restarting controller does not reset fencing; delayed old worker cannot acquire a new mediated effect or commit a result; concurrent assignment requests converge; partitions produce explicit stale/unknown states; inference-only workers are never assigned whole-agent jobs. Document single-control-plane availability limits.
 
+Test lease expiry under clock skew, controller partition, duplicate delivery and second-controller startup. Control-plane unavailability must stop new effects when grants expire without fabricating terminal outcomes. Include bounded queue recovery and reconnect backoff; heartbeat renewal alone is not assignment ownership.
+
 Retirement: D06 prototype registry once tests target the integrated service.
 
 ## REC-402: Remote harness execution and effect recovery

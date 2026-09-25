@@ -4,11 +4,13 @@
 
 Depends on: sprint 1. Touchpoints: Application, ManagedRunService, AgentAttemptExecutor, EngineRuntime and existing Agent/Conversation assembly.
 
-Reconcile activations into existing run/task/attempt admission and local assignments. Wrap concrete coding execution in a harness adapter while retaining binding/claim checks. Add start/progress/cancel/outcome and declared recovery support. Runtime context resolves capabilities; harnesses cannot invent grants.
+Reconcile activations into existing run/task/attempt admission and local assignments. Generalize injection of the existing LocalAgentAttemptExecutor while retaining binding/claim checks, worker affinity and WorkScope quiescence. Add start/progress/cancel/outcome and declared recovery support. Runtime context resolves capabilities; harnesses cannot invent grants.
 
 Acceptance: API activation reaches actual execution; observed Running follows accepted claim; duplicate activation executes once according to admission contract; canceled pending work never starts; restart enters the declared recovery mode. Test interruption during waiting/inference, not just between loop iterations.
 
-Retirement: D04 independent fleet lifecycle authority when operator/status consumers migrate. Do not replace durable transitions with worker-owned flags.
+Retirement: D04 replacement is introduced here; deletion waits for sprint-3 operator/status consumer migration. Do not replace durable transitions with worker-owned flags.
+
+Activation gate: bounded concurrency, output/time limits, required execution-policy configuration and existing broker admission must work before activating agents. Default generic effects to one active attempt; do not inherit coding speculation settings. Preserve manager completion claims/result sealing while moving coding-specific finalization choices.
 
 ## REC-202: Move Village execution into the common path
 

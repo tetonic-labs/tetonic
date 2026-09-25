@@ -14,4 +14,6 @@ Depends on: REC-301 and managed lifecycle. Add correlated events for input, mode
 
 Acceptance: reconnect resumes from cursor or reports retention gap; UI cannot display Running from creation alone; trace exposes actual tool failure; unauthorized reader sees no sensitive payload; stream backpressure does not corrupt execution state. Distinguish unavailable model reasoning from observable output.
 
-Retirement: D05 and D10 independent control/telemetry truths. Exit: no parallel dashboard state machine.
+Retirement: D05 and D10 disconnected control/schema paths; finish D01/D04 only after all OperatorController imports and status consumers switch. Exit: no parallel dashboard state machine. Bounded buffers may remain as projections.
+
+Stop acceptance: request, worker acknowledgment and confirmed quiescence are distinct; a timeout reports unresolved effects and triggers only supported termination. Multi-organization exposure requires full negative tests on every reachable boundary, including queues, traces, error payloads, artifacts and shared memory.

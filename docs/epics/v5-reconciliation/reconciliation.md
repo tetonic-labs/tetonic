@@ -68,11 +68,13 @@ Pin definition and relevant authorization revisions at admission. Configuration 
 
 ## Harness reconciliation
 
-First wrap the existing concrete Agent/Conversation implementation in the executor boundary; retain existing assertions. Then move the world loop behind that boundary. Lifecycle hooks cover start, input/event delivery, progress, cancellation, outcome and declared recovery support. Streaming callbacks are not a substitute for durable state.
+Generalize the existing LocalAgentAttemptExecutor injection point; do not add a duplicate wrapper around Agent/Conversation. Retain existing admission and binding assertions. Then move the world loop behind that boundary. Lifecycle hooks cover start, input/event delivery, progress, cancellation, outcome and declared recovery support. Streaming callbacks are not a substitute for durable state. Existing LocalSet/spawn_local requirements need an explicit worker-thread ownership model; a remote protocol can carry serializable messages without requiring the live harness itself to be Send.
 
 Harness capabilities must distinguish restart-from-input, checkpoint-and-resume, reconcile-before-retry, and unsupported recovery. Do not serialize arbitrary process memory or replay side effects on the assumption that a transcript is a checkpoint. Standing agents remain persistent identities; finite activations and bounded long-lived executions can coexist. Record wakeups and waiting states so restart does not strand idle agents.
 
 Keep local specialist creation as a policy-authorized child execution pattern, with parent lineage and attenuated grants. Coding role selection, critic/revision loops, verify/commit choices and prompts live inside the coding harness/pack. They are not mandatory platform controllers.
+
+Preserve manager-owned completion claims, result sealing, quiescence, side-effect receipts and parent/child completion ordering. Only domain-specific verify/commit choices move into the coding pack. The current app admission path enables speculation with up to two attempts; generic/world activations must default to one active attempt unless their effect profile explicitly supports concurrent speculation. One winning finalization does not undo earlier external effects from a losing attempt.
 
 Environment adapters supply local observations and valid actions. World game logic remains external. Mark input classes explicitly: replaceable snapshots may coalesce; commands, messages, action results and other durable events require cursors/acknowledgments and defined redelivery. Preserve agent-scoped memory without injecting omniscient world state.
 
@@ -84,6 +86,8 @@ Add organization scope to all relevant tables, indexes, cache keys, replay queri
 
 Approval grants bind exact canonical action parameters and execution context, have expiry/revocation semantics and a durable resolution path. Resume must revalidate ownership and current policy. Separate platform-admin ability to configure grants from employee ability to activate an agent.
 
+Early-stage exposure gate: until tenant isolation covers every reachable tool, artifact, memory and stream boundary, run the new API only in an explicit single-organization development profile. Do not present repository-level tenant checks as complete multitenancy. No tenant-provided external executable harness is supported before its execution isolation profile exists. Before sprint-2 activation, require bounded concurrency/output/time limits and configured existing admission; sprint 3 supplies durable organizational accounting.
+
 Egress mediation, process confinement and credential isolation are different controls. For untrusted external harnesses, document actual OS/container/network enforcement and refuse unsupported security profiles. Self-reported policy compliance is not an enforcement boundary.
 
 ## Storage and Keeper
@@ -93,6 +97,10 @@ Start with one durable control authority. Persist assignment generations alongsi
 Keep worker membership distinct from execution ownership. A heartbeat is evidence of liveness, not proof of exclusive permission to act. Define lease expiry behavior under partitions, stale result rejection and action fencing. Already-dispatched external effects cannot be revoked retroactively; use idempotency, receipts and reconciliation, or record unknown outcome.
 
 Keeper does not own all definitions, conversations or agent memory. No new consensus algorithm is planned. A single-control-plane deployment has an explicit availability limit; it is not advertised as HA. Do not mount one SQLite database across remote workers.
+
+Enforce the single-writer deployment assumption at startup/operation: detect and reject a second control authority for the same store using a reviewed locking/ownership mechanism. Process-local mutexes are not that mechanism. Set explicit controller retry/backoff, activation queue limits and overload responses; persist wakeup cursors and define schedule catch-up/coalescing. Reconciliation must not create unlimited pending work after an outage.
+
+Lease safety: use authority-assigned expiry and generation, define clock-skew allowances and ensure accepted results/effects validate current ownership. During a control-plane partition, new mediated effects fail closed once authorization validity ends; already-dispatched actions retain their recorded uncertain outcome. Cancellation Requested, worker Acknowledged, effects Quiescent and terminal Canceled are distinct. After a stop deadline, escalate to supported process termination and report unknown outstanding effects; never label a still-running effect safely canceled solely because a task handle was dropped.
 
 ## Configuration and binary convergence
 
@@ -123,3 +131,11 @@ Retain inference worker transport as a distinct capability. Whole-agent workers 
 6. Set lease/revocation latency and failure expectations for the actual deployment environment.
 
 These are bounded design tickets, not reasons to postpone inventory or implement another speculative subsystem.
+
+## Cutover and rollback contract
+
+Use an expand/migrate/switch/contract sequence. Back up and rehearse restore before destructive schema changes. A release switch changes a single authority; dual-write fleet maps and durable repositories are prohibited. Reads may use temporary compatibility projections. State which old binaries can read the new schema; if rollback requires restoring a backup, specify downtime and loss of post-backup writes rather than claiming a transparent rollback.
+
+Separate stable identity metadata from the mutable default-definition pointer and immutable admitted revisions. Migrating current identity equality checks must preserve owner/grant validation while allowing an explicitly pinned old revision to finish. Test update during queued, running and approval-waiting work; old history must retain its original definition digest.
+
+Each retirement closes only after supported consumers, persisted/wire compatibility, negative tests and release packaging are checked. Reduce a removal to optional packaging when the evidence establishes non-default use rather than obsolete functionality. Generic FinalizationEffectDriver boundaries may evolve, but manager-owned claims and audit correctness remain required.

@@ -24,6 +24,10 @@ Decision: delete creation-token fiction. Extend existing broker admission/accoun
 
 Decision: preserve transition/replay/claim/result-integrity contracts and tests. Generalize the executor boundary beneath them. Require durable storage in server mode. Keep memory-only stores for test/local explicitly ephemeral profiles.
 
+Double-pass clarification: the managed path already instantiates [`LocalAgentAttemptExecutor`](../../../engine/core/tetonic-runtime/src/executor.rs); a second wrapper is not needed. The missing extension point is injection of different executors while preserving pre-execution checks. `execute_attempt` races cancellation and then waits for WorkScope quiescence; replacing that with task abortion alone would regress correctness. `submit_identity_job` uses `spawn_local` and requires a Tokio LocalSet. Worker design must accommodate that affinity rather than assume every existing harness future is Send.
+
+Definition-update caveat: `execute_attempt` compares the stored identity with the admitted identity, including its definition digest. Updating the same identity record to a new revision can therefore invalidate work admitted against the previous revision. The proposed pinned-revision semantics require a deliberate schema/validation change, not only a new API field.
+
 ## F04 — World execution bypasses common assembly and managed lifecycle (critical)
 
 [`tetonic-server/main.rs`](../../../engine/mantle/tetonic-server/src/main.rs) defines its own configuration structs, constructs an Ollama provider, adapter, perceptive brain and `Agent` directly, serves debug/health with a hand-written TCP HTTP response, and calls `run_in_world`.
@@ -70,7 +74,7 @@ Decision: reuse these controls, add trusted tenant/principal/assignment context 
 
 ## F11 — Legacy-named code remains on live paths (medium)
 
-`compute_plane.rs` imports RemoteNodeProvider; [`tetonic-fabric-client/lib.rs`](../../../engine/atmos/tetonic-fabric-client/src/lib.rs) exports legacy modules. [`lokaid/main.rs`](../../../engine/litho/lokaid/src/main.rs) hosts stdio RPC plus node/combined paths. [Release CI](../../../.github/workflows/engine-ci.yml) builds lokai-cli and lokaid.
+`compute_plane.rs` imports RemoteNodeProvider; [`tetonic-fabric-client/lib.rs`](../../../engine/atmos/tetonic-fabric-client/src/lib.rs) exports legacy modules. [`lokaid/main.rs`](../../../engine/litho/lokaid/src/main.rs) hosts stdio RPC plus node/combined paths. [Engine CI](../../../.github/workflows/engine-ci.yml) builds lokai-cli and lokaid; the actual [release workflow](../../../.github/workflows/release.yml) also packages those binaries.
 
 Decision: do not delete based on naming. Migrate transport callers and delivery assets together. Preserve database history readers until a supported migration/export path exists. Remove compatibility only with an explicit supported-version decision.
 

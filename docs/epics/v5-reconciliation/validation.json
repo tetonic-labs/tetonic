@@ -1,7 +1,8 @@
 {
   "files_hashed": 988,
+  "baseline_tree_coverage": "exact",
   "workspace_packages": 32,
-  "local_links_checked": 41,
+  "local_links_checked": 44,
   "runtime_tests": "not run: audit/planning files only",
   "semantic_scope": "Targeted source-path review; file census is not exhaustive semantic analysis"
 }
