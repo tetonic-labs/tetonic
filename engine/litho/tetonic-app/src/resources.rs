@@ -14,6 +14,7 @@ mod membership;
 mod administration;
 mod contexts;
 mod context_compiler;
+mod credential_binding;
 mod context_artifacts;
 pub use contexts::ContextService;
 pub use tetonic_memory::ContextOwner;

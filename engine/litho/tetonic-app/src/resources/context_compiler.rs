@@ -4,6 +4,7 @@ use tetonic_context::{interfaces::ContextAccessGate, pipeline::ContextCompiler};
 struct MembershipGate {
     store: SharedStore,
     actor: String,
+    credential: super::credential_binding::BoundCredential,
     context: String,
     session: String,
 }
@@ -61,6 +62,10 @@ mod tests {
         let gate = MembershipGate {
             store: service.store.clone(),
             actor: "alice".into(),
+            credential: super::credential_binding::BoundCredential::new(
+                service.verifier.clone(),
+                alice.expose_secret(),
+            ),
             context: "private".into(),
             session: "discussion".into(),
         };
@@ -72,11 +77,34 @@ mod tests {
             .is_err());
         let admin_gate = MembershipGate {
             actor: "admin".into(),
+            credential: super::credential_binding::BoundCredential::new(
+                service.verifier.clone(),
+                admin.expose_secret(),
+            ),
             store: gate.store.clone(),
             context: gate.context.clone(),
             session: gate.session.clone(),
         };
         assert!(admin_gate.authorize(&session).await.is_err());
+        local
+            .credentials()
+            .revoke(alice.credential_id.clone())
+            .await
+            .unwrap();
+        assert!(gate.authorize(&session).await.is_err());
+        let replacement = local
+            .credentials()
+            .issue("alice".into(), 3600)
+            .await
+            .unwrap();
+        let gate = MembershipGate {
+            credential: super::super::credential_binding::BoundCredential::new(
+                service.verifier.clone(),
+                replacement.expose_secret(),
+            ),
+            ..gate
+        };
+        assert!(gate.authorize(&session).await.is_ok());
         local
             .resources()
             .set_organization_member(admin.expose_secret(), "org".into(), "alice".into(), None)
@@ -89,6 +117,7 @@ mod tests {
 #[async_trait]
 impl ContextAccessGate for MembershipGate {
     async fn authorize(&self, session: &tetonic_domain::SessionId) -> Result<(), ()> {
+        self.credential.verify(&self.actor).await.map_err(|_| ())?;
         if session.0 != self.session {
             return Err(());
         }
@@ -126,6 +155,10 @@ impl ContextService {
             compiler.artifact_store = Some(Arc::new(super::context_artifacts::ScopedArtifacts {
                 store: self.store.clone(),
                 actor: actor.principal_id.clone(),
+                credential: super::credential_binding::BoundCredential::new(
+                    self.verifier.clone(),
+                    credential,
+                ),
                 context: context.clone(),
                 inner,
             }));
@@ -133,6 +166,10 @@ impl ContextService {
         let gate = Arc::new(MembershipGate {
             store: self.store.clone(),
             actor: actor.principal_id,
+            credential: super::credential_binding::BoundCredential::new(
+                self.verifier.clone(),
+                credential,
+            ),
             context,
             session: session.clone(),
         });

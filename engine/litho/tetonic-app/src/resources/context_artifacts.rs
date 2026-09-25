@@ -12,11 +12,16 @@ fn unavailable() -> ArtifactError {
 pub(super) struct ScopedArtifacts {
     pub(super) store: SharedStore,
     pub(super) actor: String,
+    pub(super) credential: super::credential_binding::BoundCredential,
     pub(super) context: String,
     pub(super) inner: Arc<dyn ArtifactStore>,
 }
 impl ScopedArtifacts {
     async fn authorize(&self, id: Option<&ArtifactId>) -> Result<(), ArtifactError> {
+        self.credential
+            .verify(&self.actor)
+            .await
+            .map_err(|_| denied())?;
         let (actor, context, id) = (
             self.actor.clone(),
             self.context.clone(),
@@ -52,6 +57,10 @@ impl ContextService {
         let scoped = ScopedArtifacts {
             store: self.store.clone(),
             actor: actor.principal_id,
+            credential: super::credential_binding::BoundCredential::new(
+                self.verifier.clone(),
+                credential,
+            ),
             context,
             inner,
         };
@@ -266,15 +275,32 @@ mod tests {
         let mut pending = scoped.begin_write(declaration()).await.unwrap();
         pending.write_chunk(b"pending").await.unwrap();
         local
-            .resources()
-            .set_organization_member(admin.expose_secret(), "org".into(), "alice".into(), None)
+            .credentials()
+            .revoke(alice.credential_id.clone())
             .await
             .unwrap();
+        // Membership still exists: only the bound credential has been revoked.
+        let replacement = local
+            .credentials()
+            .issue("alice".into(), 3600)
+            .await
+            .unwrap();
+        let renewed = service
+            .bind_artifacts(replacement.expose_secret(), "private".into(), raw.clone())
+            .await
+            .unwrap();
+        assert!(renewed.open(&meta.artifact_id).await.is_ok());
         let mut unchanged = [42; 64];
         assert!(held.read_chunk(&mut unchanged).await.is_err());
         assert_eq!(unchanged, [42; 64]);
         assert!(pending.write_chunk(b"more").await.is_err());
         assert!(pending.seal().await.is_err());
         assert!(scoped.metadata(&meta.artifact_id).await.is_err());
+        local
+            .resources()
+            .set_organization_member(admin.expose_secret(), "org".into(), "alice".into(), None)
+            .await
+            .unwrap();
+        assert!(renewed.open(&meta.artifact_id).await.is_err());
     }
 }
