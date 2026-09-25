@@ -119,9 +119,17 @@ impl ContextService {
         credential: &str,
         context: String,
         session: String,
-        compiler: ContextCompiler,
+        mut compiler: ContextCompiler,
     ) -> Result<ContextCompiler, ResourceError> {
         let actor = self.verifier.verify(credential).await?;
+        if let Some(inner) = compiler.artifact_store.take() {
+            compiler.artifact_store = Some(Arc::new(super::context_artifacts::ScopedArtifacts {
+                store: self.store.clone(),
+                actor: actor.principal_id.clone(),
+                context: context.clone(),
+                inner,
+            }));
+        }
         let gate = Arc::new(MembershipGate {
             store: self.store.clone(),
             actor: actor.principal_id,
