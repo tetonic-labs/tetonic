@@ -46,7 +46,7 @@ The final read should return access denied. Revoke is idempotent and reports tha
 
 Bootstrap and credential issuance are separate operations. If issuance/output delivery fails, keep the initialized database and issue a new credential; do not repeat bootstrap or delete the database. A credential whose output was lost expires at its recorded deadline; credential listing/recovery ergonomics remain unfinished. Keep the audience stable across restarts. A separately cloned deployment should change its audience if old credentials must not carry over.
 
-Team-specific membership administration, operator identity in administrative audit, organization policy ceilings, remote transport, end-user UI and managed team activation remain pending. Local issuance/revocation rely on the operator's database access, not an authenticated remote role. Do not expose those provisioning methods as unauthenticated network routes.
+Operator identity in administrative audit, organization policy ceilings, remote transport, end-user UI and managed team activation remain pending. Local issuance/revocation rely on the operator's database access, not an authenticated remote role. Do not expose those provisioning methods as unauthenticated network routes.
 
 Verification: `cargo test --manifest-path engine/Cargo.toml -p tetonic-cli --test control_cli` runs bootstrap, takeover rejection, credential issuance, team creation/read in separate CLI processes, missing-credential rejection and persisted revocation against a temporary database. It never prints the generated secret. Storage tests additionally cover concurrent bootstrap and rollback if the audit write fails.
 
@@ -65,3 +65,9 @@ Use a currently valid administrator credential (the earlier revocation example i
 Membership changes record the authenticated actor, subject, organization and requested role/removal atomically. The write transaction rechecks enabled administrator membership, so a demoted actor cannot rely on an earlier membership decision. The last enabled administrator cannot be removed or demoted through this door. Removing organization membership also removes explicit team memberships. These grants authorize resource metadata only; they do not authorize execution, tools or private knowledge.
 
 Credential validation happens at admission; revoking a credential does not cancel a change already admitted. Direct database operators remain trusted and can bypass these application controls. Remote employee access, administrator recovery and audit browsing remain unfinished.
+
+## Explicit team membership
+
+`add-team-member --org acme --team maintainers --principal local/bob` and `remove-team-member` accept a credential on stdin, like the organization membership commands. Only a current team owner or organization administrator can manage these grants. The recipient must already belong to that organization. Organization membership alone does not grant access to every team's metadata.
+
+Removal changes explicit membership only: it does not transfer ownership or remove rights held through the organization administrator role. Removing an owner's organization membership blocks their owner permissions. Each accepted change records actor, organization, team, subject and operation in the same transaction as the membership change. Schema 33 adds a nullable team identifier to existing administrative audit records; historical organization events remain intact.

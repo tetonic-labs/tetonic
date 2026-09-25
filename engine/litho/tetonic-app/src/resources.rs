@@ -18,6 +18,7 @@ pub use membership::CredentialVerifier;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceAction {
+    ManageTeam { org_id: String, team_id: String },
     ManageOrganization { org_id: String },
     CreateOrganization { org_id: String },
     ReadOrganization { org_id: String },

@@ -23,6 +23,24 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Grant explicit team metadata access; administrator or owner credential on stdin.
+    AddTeamMember {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        team: String,
+        #[arg(long)]
+        principal: String,
+    },
+    /// Remove explicit membership; does not revoke owner or organization-admin rights.
+    RemoveTeamMember {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        team: String,
+        #[arg(long)]
+        principal: String,
+    },
     /// Trusted local operator: register an identity without granting membership.
     RegisterPrincipal {
         #[arg(long)]
@@ -112,6 +130,36 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
+        Command::AddTeamMember {
+            org,
+            team,
+            principal,
+        } => {
+            let credential = credential_from_stdin().await?;
+            control
+                .resources()
+                .set_team_member(&credential, org, team, principal, true)
+                .await?;
+            println!(
+                "{}",
+                serde_json::json!({"explicit_membership_updated":true})
+            );
+        }
+        Command::RemoveTeamMember {
+            org,
+            team,
+            principal,
+        } => {
+            let credential = credential_from_stdin().await?;
+            control
+                .resources()
+                .set_team_member(&credential, org, team, principal, false)
+                .await?;
+            println!(
+                "{}",
+                serde_json::json!({"explicit_membership_updated":true})
+            );
+        }
         Command::RegisterPrincipal { principal } => {
             control.register_principal(principal).await?;
             println!("{}", serde_json::json!({"registration_processed":true}));

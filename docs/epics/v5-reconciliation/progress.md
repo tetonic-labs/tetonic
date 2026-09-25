@@ -104,3 +104,11 @@ MVP-101 now exposes organization role grants/removal through the resource servic
 Trusted local `register-principal` provisions an unprivileged identity with an audit record, without allowing retries to alter an existing principal's enabled or platform-admin fields. The schema remains version 32. Credential revocation remains admission-time: the transaction rechecks actor membership, not the already-verified credential. Remote transport, team-specific membership administration, audit browsing, operator identity/recovery, immutable agent revisions and privacy enforcement remain unfinished.
 
 Validation: 85 memory-store tests, six application resource tests, two separate-process CLI scenarios and the architecture gate passed. Added evidence covers self-escalation/cross-org denial, revoked administrators, last-admin protection, concurrent cross-removal, rollback on audit failure, and grant/create/revoke/deny across CLI processes. All test databases are temporary.
+
+## 2026-09-25 — Explicit team membership administration
+
+Added authenticated `add-team-member` / `remove-team-member` CLI and resource-service operations. Current team owners and organization administrators may manage explicit team metadata membership; ordinary members cannot grant themselves access, and recipients must already belong to the organization. Transactional authority rechecks and audit writes follow the organization administration pattern. Removing explicit membership does not remove independent owner/admin privileges.
+
+Schema 33 adds `team_id` to administrative audit events while preserving earlier records. The previous migration now skips an already-applied marker; legacy downgrade test fixtures remove newer schema artifacts before replay. Existing automatic pre-migration backup, rollback and crash-recovery machinery remains in use.
+
+Validation: all 87 memory tests, six application resource tests, both separate-process CLI scenarios and the architecture gate passed. Evidence covers team scope, nonmember denial, owner removal, transactional audit failure, version-32 upgrade preservation, and explicit grant/read/revoke/deny through real CLI processes. MVP-102 context isolation remains unimplemented; these metadata grants must not be reused as implicit authority to personal knowledge or execution.

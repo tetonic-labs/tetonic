@@ -143,7 +143,7 @@ fn abrupt_exit_at_every_marker_is_recoverable() {
 
 fn seed_v26(path: &Path) {
     let store = Store::open(path).unwrap();
-    store.conn.execute_batch("DROP TABLE agent_identities;
+    store.conn.execute_batch("DROP TABLE control_admin_events; DROP TABLE agent_identities;
         DELETE FROM schema_versions WHERE version > 26;
         DROP TABLE run_projections;
         CREATE TABLE run_projections (

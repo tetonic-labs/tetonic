@@ -164,6 +164,7 @@ mod tests {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ControlPermission {
     ManageOrganization,
+    ManageTeam,
     CreateOrganization,
     ReadOrganization,
     CreateTeam,
@@ -276,6 +277,7 @@ impl Store {
     ) -> Result<bool> {
         let action = match permission {
             ControlPermission::ManageOrganization => "manage_org",
+            ControlPermission::ManageTeam => "manage_team",
             ControlPermission::CreateOrganization => "create_org",
             ControlPermission::ReadOrganization => "read_org",
             ControlPermission::CreateTeam => "create_team",
@@ -288,6 +290,7 @@ impl Store {
                EXISTS(SELECT 1 FROM organization_members m WHERE m.org_id=?3 AND m.principal_id=p.principal_id AND (
                  ?2='read_org' OR
                  (?2='manage_org' AND m.role='administrator') OR
+                 (?2='manage_team' AND EXISTS(SELECT 1 FROM teams t WHERE t.org_id=?3 AND t.team_id=?4 AND (m.role='administrator' OR t.owner_principal_id=p.principal_id))) OR
                  (?2='create_team' AND m.role IN ('administrator','team_creator')) OR
                  (?2='read_team' AND (m.role='administrator' OR
                    EXISTS(SELECT 1 FROM teams t WHERE t.org_id=?3 AND t.team_id=?4 AND t.owner_principal_id=p.principal_id) OR

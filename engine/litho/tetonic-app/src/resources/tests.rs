@@ -18,7 +18,7 @@ impl ResourceAuthority for Authority {
             return Err(AccessError);
         }
         let allowed = match action {
-            ResourceAction::ManageOrganization { .. } => false,
+            ResourceAction::ManageOrganization { .. } | ResourceAction::ManageTeam { .. } => false,
             ResourceAction::CreateOrganization { .. } => credential == "admin",
             ResourceAction::ReadOrganization { org_id } => credential == "admin" && org_id == "a",
             ResourceAction::CreateTeam { org_id, .. } => {

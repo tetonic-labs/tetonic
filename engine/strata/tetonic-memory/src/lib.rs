@@ -32,6 +32,7 @@ mod control_credentials;
 mod control_bootstrap;
 mod membership_store;
 mod membership_admin;
+mod team_admin;
 mod team_store;
 #[cfg(test)]
 mod migration_tests;
@@ -1498,8 +1499,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("DROP TABLE control_admin_events;
-                    DELETE FROM schema_versions WHERE version = 32;")
+                .execute_batch("ALTER TABLE control_admin_events DROP COLUMN team_id;
+                    DELETE FROM schema_versions WHERE version = 33;")
                 .unwrap();
         }
         let backups = pre_migrate_backup_directory(&db);
@@ -1527,8 +1528,8 @@ mod tests {
             let store = Store::open(&db).expect("initial open");
             store
                 .conn
-                .execute_batch("DROP TABLE control_admin_events;
-                    DELETE FROM schema_versions WHERE version = 32;")
+                .execute_batch("ALTER TABLE control_admin_events DROP COLUMN team_id;
+                    DELETE FROM schema_versions WHERE version = 33;")
                 .unwrap();
         }
         let bak = pre_migrate_backup_directory(&db);

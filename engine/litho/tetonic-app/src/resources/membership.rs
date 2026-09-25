@@ -24,6 +24,11 @@ impl ResourceAuthority for MembershipAuthority {
     ) -> Result<AuthorizedPrincipal, AccessError> {
         let principal = self.verifier.verify(credential).await?;
         let (permission, org, team) = match action {
+            ResourceAction::ManageTeam { org_id, team_id } => (
+                ControlPermission::ManageTeam,
+                org_id.clone(),
+                team_id.clone(),
+            ),
             ResourceAction::ManageOrganization { org_id } => (
                 ControlPermission::ManageOrganization,
                 org_id.clone(),

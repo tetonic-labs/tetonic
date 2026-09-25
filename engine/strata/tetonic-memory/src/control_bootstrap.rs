@@ -4,6 +4,13 @@ use rusqlite::{params, Transaction, TransactionBehavior};
 
 impl Store {
     pub(crate) fn migrate_control_bootstrap_v32(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=32)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS control_admin_events (
             sequence INTEGER PRIMARY KEY AUTOINCREMENT,

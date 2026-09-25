@@ -84,6 +84,58 @@ fn membership_grants_and_revocations_govern_new_processes() {
     assert!(!run(&db, &grant, Some(&bob)).status.success());
     assert!(run(&db, &grant, Some(&admin)).status.success());
     assert!(run(&db, &create, Some(&bob)).status.success());
+    assert!(
+        run(&db, &["register-principal", "--principal", "reader"], None)
+            .status
+            .success()
+    );
+    assert!(run(
+        &db,
+        &[
+            "set-member",
+            "--org",
+            "a",
+            "--principal",
+            "reader",
+            "--role",
+            "member"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+    let reader = issue("reader");
+    let inspect = ["get-team", "--org", "a", "--team", "work"];
+    assert!(!run(&db, &inspect, Some(&reader)).status.success());
+    let add = [
+        "add-team-member",
+        "--org",
+        "a",
+        "--team",
+        "work",
+        "--principal",
+        "reader",
+    ];
+    assert!(!run(&db, &add, Some(&reader)).status.success());
+    assert!(run(&db, &add, Some(&bob)).status.success());
+    assert!(run(&db, &inspect, Some(&reader)).status.success());
+    assert!(run(
+        &db,
+        &[
+            "remove-team-member",
+            "--org",
+            "a",
+            "--team",
+            "work",
+            "--principal",
+            "reader"
+        ],
+        Some(&bob)
+    )
+    .status
+    .success());
+    assert!(!run(&db, &inspect, Some(&reader)).status.success());
+
     assert!(run(
         &db,
         &["remove-member", "--org", "a", "--principal", "bob"],
