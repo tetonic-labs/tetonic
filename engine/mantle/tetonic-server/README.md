@@ -43,3 +43,12 @@ Current observations take precedence over remembered facts and prior decision in
 Optional inference settings `completion_tokens` (default 384) and `context_margin` (default 512) reserve space within `context_tokens`. Prompt assembly estimates UTF-8 bytes / 3 plus 64 chat-overhead tokens, trims optional history, and rejects essential overflow. This is disclosed heuristic accounting, not exact model tokenization. The trace includes `context_budget`, requested `max_tokens`, and runtime-reported finish reasons. Length-terminated decisions emit no action.
 
 The loopback health response includes a payload-free `decision` snapshot even when raw observability is disabled. Runtime state is separate from the world's connection and physical activity. `waiting` means no inference/action currently in progress; it does not establish that the model voluntarily chose idle. Failure metadata remains available after the next decision begins.
+
+
+## Event continuity and optional intentions
+
+The configured server advertises event_protocol=1. Worlds using that capability retain event pages until a valid parsed decision acknowledges their IDs. Parsing/inference failures acknowledge nothing. Retained experience is agent/session scoped and run-scoped: restart clears it. Statements, external suggestions and outcomes remain distinct categories. The latest four eligible experiences are selected alongside bounded object memory.
+
+Models may return an optional `intention` object (`purpose`, `next_step`, `revision_reason`, up to 240 characters each), omit it to retain prior working state, or return null to clear it. This state is displayed in traces and included separately from world observations; it never establishes action success.
+
+Optional `agent.idle_interval_ms` defaults to 30000 and cannot shorten the normal cadence. A successfully parsed idle decision backs off routine inference; a new retained event wakes the agent early. This does not force an agent to act or claim it has understood a stimulus. Durable snapshots and inference cancellation remain future work.

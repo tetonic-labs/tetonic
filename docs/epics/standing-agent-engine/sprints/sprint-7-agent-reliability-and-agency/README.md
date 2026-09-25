@@ -111,3 +111,7 @@ Older epic completion labels describe prior work, not verification of these new 
 Plans and existing integration were committed separately, followed by provider-limit propagation (f24d698). The next slice adds bounded context assembly and decision-health reporting. SAE-702/703/704/705 are in progress; other tickets remain planned. The complete M1 gate, shared contract migration, reliable event delivery, bounded recovery and 30-minute soak remain outstanding.
 
 Current validation: 9 server tests, 28 runtime tests and 130 inference tests passed (2 inference tests ignored); broker/fabric-client/server test-target compilation passed.
+
+## Agent-continuity phase started — 2026-09-24
+
+SAE-706/707/708 are now in progress following delivery-contract work in SAE-701. The initial implementation adds scoped event evidence, optional self-authored intentions, parsed-decision acknowledgement and event-aware idle backoff. Working state is separate from authoritative perception. Validation: 13 server tests and 29 runtime tests pass. The live model produced an explicit waiting intention and the world recorded event acknowledgements. No claim of useful emergent behavior, durable memory or completion of M1/M2 gates is made. Follow-on work includes bounded inference recovery, richer retrieval, persistent checkpoints, multi-agent execution and full soak validation.

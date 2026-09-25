@@ -1,5 +1,6 @@
 mod perceptive_brain;
 mod context_budget;
+mod experience;
 mod observability;
 use anyhow::{ensure, Context};
 use clap::Parser;
@@ -55,6 +56,8 @@ struct AgentSettings {
     name: String,
     charter: String,
     decision_interval_ms: u64,
+    #[serde(default = "default_idle_interval")]
+    idle_interval_ms: u64,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -64,6 +67,7 @@ struct World {
     allowed_actions: Vec<String>,
 }
 
+fn default_idle_interval() -> u64 { 30000 }
 fn default_completion_tokens() -> u32 { 384 }
 fn default_context_margin() -> usize { 512 }
 
@@ -125,7 +129,8 @@ async fn main() -> anyhow::Result<()> {
     world_url
         .query_pairs_mut()
         .append_pair("agent_id", &cfg.agent.id)
-        .append_pair("name", &cfg.agent.name);
+        .append_pair("name", &cfg.agent.name)
+        .append_pair("event_protocol", "1");
     let manifest = cfg
         .world
         .allowed_actions
@@ -147,6 +152,8 @@ async fn main() -> anyhow::Result<()> {
     let observer_trace = trace.clone();
     let observer = Arc::new(move |id: &str, stage: &str, data: serde_json::Value| observer_trace.record(id,stage,data));
     adapter.set_observer(observer.clone());
+    let ack_adapter=adapter.clone();
+    let event_ack=Arc::new(move |session:&str, ids:&[String], decision:&str|ack_adapter.acknowledge_events(session,ids,decision));
     let brain = Arc::new(perceptive_brain::PerceptiveBrain::new(
         SingleModelBrain::new(
             provider.clone(),
@@ -159,7 +166,7 @@ async fn main() -> anyhow::Result<()> {
         Duration::from_secs(cfg.inference.timeout_secs),
         trace.clone(),
         context_budget::ContextBudget {context:cfg.inference.context_tokens,completion:cfg.inference.completion_tokens,margin:cfg.inference.context_margin},
-    ));
+    ).with_event_acknowledger(event_ack).with_idle_interval(Duration::from_millis(cfg.agent.idle_interval_ms)));
     let agent = Agent::new(
         provider,
         EmptyToolHost,

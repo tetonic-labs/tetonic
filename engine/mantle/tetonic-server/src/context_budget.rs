@@ -14,13 +14,17 @@ pub fn estimate(text: &str) -> usize { text.len().div_ceil(3) }
 
 impl ContextBudget {
     pub fn assemble(&self, system: &str, current: &Value, intents: &[Value], memories: &[Value]) -> Result<(String, Value), String> {
+        self.assemble_with_state(system,current,intents,memories,&Value::Null)
+    }
+
+    pub fn assemble_with_state(&self, system: &str, current: &Value, intents: &[Value], memories: &[Value], working:&Value) -> Result<(String,Value),String> {
         let allowance = self.context.checked_sub(self.completion as usize)
             .and_then(|n| n.checked_sub(self.margin))
             .ok_or("context cannot accommodate completion reserve and safety margin")?;
         let mut kept_intents = intents.to_vec();
         let mut kept_memories = memories.to_vec();
         loop {
-            let input = format!("PRIOR INTENTS (not proof of success): {}\nLAST-SEEN MEMORIES (may be outdated): {}\nCURRENT AUTHORITATIVE LOCAL OBSERVATION (takes precedence over history): {}", json!(kept_intents), json!(kept_memories), current);
+            let input = format!("PRIOR INTENTS (not proof of success): {}\nREMEMBERED EVIDENCE (preserve category and provenance; may be outdated): {}\nAGENT WORKING STATE (self-authored, not world facts): {}\nCURRENT AUTHORITATIVE LOCAL OBSERVATION (takes precedence over history): {}", json!(kept_intents), json!(kept_memories), working, current);
             let estimated = estimate(system) + estimate(&input) + 64;
             if estimated <= allowance {
                 return Ok((input, json!({"accounting":"utf8_bytes_div_3_plus_64_chat_overhead","estimated":true,"context_tokens":self.context,"estimated_input_tokens":estimated,"completion_reserve":self.completion,"safety_margin":self.margin,"omitted_intents":intents.len()-kept_intents.len(),"omitted_memories":memories.len()-kept_memories.len(),"current_observation_preserved":true})));
