@@ -262,3 +262,9 @@ Schema 39 moves registered definition payloads into agent_definition_revisions, 
 The existing 98 memory tests passed after migration changes. Three focused registration/revision tests then passed, including the new v38 upgrade preservation test and publish/retry/restart, prior revision retention, unauthorized publication, cross-org denial, membership removal and injected definition-write rollback. The architecture gate passed. CLI revision commands, default selection, harness validation and managed activation remain pending. Historical run identities are unchanged; configuration digests identify the stored envelope bytes, not an executable harness build.
 
 Application validation: all 11 resource tests passed, including authenticated revision publication, explicit digest selection and preservation of the original registration default.
+
+## 2026-09-25 — CLI revision publishing and exact selection
+
+Added `tetonic control agent publish` and optional `agent get --revision <digest>` through the existing authorized resource service. Register/publish share bounded UTF-8/BOM JSON file loading. Publishing retains identity, leaves the original registration default unchanged and reports no activation. Unknown revision lookup fails without fallback. The PowerShell runbook now documents both operations.
+
+Validation: all four CLI process scenarios and the architecture gate passed. The agent scenario now publishes and retries revision two, checks stable identity/different digest, retrieves both complete definitions by exact digest in separate processes, confirms the original default remains selected and rejects an unknown digest. Activation and mutable default-selection policy remain unfinished.

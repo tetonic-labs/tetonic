@@ -110,4 +110,13 @@ $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent regi
 $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent get --org acme --agent researcher
 ```
 
-UTF-8 JSON files with or without a byte-order mark are accepted. Configuration must be an object; the input file and stored envelope are each limited to 64 KiB, so envelope overhead reduces the maximum configuration payload. Identical registration retries retain identity and digest. A changed definition conflicts; revision publishing is not yet exposed. The harness name/configuration is registered data, not proof the harness is installed or executable. Requested tools grant no access. Output reports `privilege_class: unconfigured` and `agent_activated: false`; no inference or agent execution is started.
+UTF-8 JSON files with or without a byte-order mark are accepted. Configuration must be an object; the input file and stored envelope are each limited to 64 KiB, so envelope overhead reduces the maximum configuration payload. Identical registration retries retain identity and digest. A changed registration conflicts; use `agent publish` to add a revision. The harness name/configuration is registered data, not proof the harness is installed or executable. Requested tools grant no access. Output reports `privilege_class: unconfigured` and `agent_activated: false`; no inference or agent execution is started.
+
+Publish another immutable revision after editing the configuration file:
+
+```powershell
+$published = $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent publish --org acme --agent researcher --harness general --config-file .\researcher.json | ConvertFrom-Json
+$issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent get --org acme --agent researcher --revision $published.definition_digest
+```
+
+Publishing requires organization administration. It retains the identity, returns the configuration digest, and does not activate an agent or change the registration default. `agent get` without `--revision` still returns the original registration; `--revision` selects an exact authorized snapshot. Unknown digests fail rather than falling back to another version. Default selection and activation remain separate, unfinished operations.

@@ -567,6 +567,71 @@ fn registered_agent_cli_is_durable_idempotent_and_not_activation() {
         serde_json::from_slice::<serde_json::Value>(&run(&db, &get, Some(credential)).stdout)
             .unwrap()
     );
+    let publish = [
+        "agent",
+        "publish",
+        "--org",
+        "org",
+        "--agent",
+        "researcher",
+        "--harness",
+        "general",
+        "--config-file",
+        path.to_str().unwrap(),
+    ];
+    let second = run(&db, &publish, Some(credential));
+    assert!(second.status.success());
+    let second: serde_json::Value = serde_json::from_slice(&second.stdout).unwrap();
+    assert_eq!(first["identity_id"], second["identity_id"]);
+    assert_ne!(first["definition_digest"], second["definition_digest"]);
+    assert_eq!(second["agent_activated"], false);
+    assert_eq!(
+        second,
+        serde_json::from_slice::<serde_json::Value>(&run(&db, &publish, Some(credential)).stdout)
+            .unwrap()
+    );
+    for expected in [&first, &second] {
+        let selected = run(
+            &db,
+            &[
+                "agent",
+                "get",
+                "--org",
+                "org",
+                "--agent",
+                "researcher",
+                "--revision",
+                expected["definition_digest"].as_str().unwrap(),
+            ],
+            Some(credential),
+        );
+        assert!(selected.status.success());
+        assert_eq!(
+            *expected,
+            serde_json::from_slice::<serde_json::Value>(&selected.stdout).unwrap()
+        );
+    }
+    assert_eq!(
+        first,
+        serde_json::from_slice::<serde_json::Value>(&run(&db, &get, Some(credential)).stdout)
+            .unwrap()
+    );
+    assert!(!run(
+        &db,
+        &[
+            "agent",
+            "get",
+            "--org",
+            "org",
+            "--agent",
+            "researcher",
+            "--revision",
+            "missing"
+        ],
+        Some(credential)
+    )
+    .status
+    .success());
     for invalid in [b"[]".to_vec(), vec![b'x'; 65_537]] {
         std::fs::write(&path, invalid).unwrap();
         assert!(!run(&db, &register, Some(credential)).status.success());

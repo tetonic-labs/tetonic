@@ -4,6 +4,17 @@ use tetonic_app::resources::LocalControl;
 
 #[derive(Subcommand)]
 pub enum AgentCommand {
+    /// Publish an immutable revision; does not change the default or activate it.
+    Publish {
+        #[arg(long)]
+        org: String,
+        #[arg(long)]
+        agent: String,
+        #[arg(long)]
+        harness: String,
+        #[arg(long)]
+        config_file: PathBuf,
+    },
     /// Register immutable organization-owned configuration; does not activate an agent.
     Register {
         #[arg(long)]
@@ -22,6 +33,9 @@ pub enum AgentCommand {
         org: String,
         #[arg(long)]
         agent: String,
+        /// Select an exact revision; omission returns the original registration.
+        #[arg(long)]
+        revision: Option<String>,
     },
 }
 
@@ -35,28 +49,37 @@ pub async fn dispatch(control: &LocalControl, command: AgentCommand) -> anyhow::
             harness,
             config_file,
         } => {
-            let configuration =
-                tokio::task::spawn_blocking(move || -> anyhow::Result<serde_json::Value> {
-                    let mut bytes = Vec::new();
-                    std::fs::File::open(config_file)?
-                        .take(65_537)
-                        .read_to_end(&mut bytes)?;
-                    anyhow::ensure!(bytes.len() <= 65_536, "configuration exceeds 65536 bytes");
-                    let value: serde_json::Value = serde_json::from_slice(
-                        bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes),
-                    )?;
-                    anyhow::ensure!(value.is_object(), "configuration must be a JSON object");
-                    Ok(value)
-                })
-                .await??;
+            let configuration = load_configuration(config_file).await?;
             resources
                 .register_agent(&credential, org, agent, harness, configuration)
                 .await?
         }
-        AgentCommand::Get { org, agent } => resources
-            .get_agent(&credential, org, agent)
-            .await?
-            .ok_or_else(|| anyhow::anyhow!("agent registration not found"))?,
+        AgentCommand::Publish {
+            org,
+            agent,
+            harness,
+            config_file,
+        } => {
+            let configuration = load_configuration(config_file).await?;
+            resources
+                .publish_agent_revision(&credential, org, agent, harness, configuration)
+                .await?
+        }
+        AgentCommand::Get {
+            org,
+            agent,
+            revision,
+        } => {
+            let found = match revision {
+                Some(digest) => {
+                    resources
+                        .get_agent_revision(&credential, org, agent, digest)
+                        .await?
+                }
+                None => resources.get_agent(&credential, org, agent).await?,
+            };
+            found.ok_or_else(|| anyhow::anyhow!("agent registration or revision not found"))?
+        }
     };
     let definition: serde_json::Value = serde_json::from_str(&registered.definition_json)?;
     println!(
@@ -70,4 +93,21 @@ pub async fn dispatch(control: &LocalControl, command: AgentCommand) -> anyhow::
         })
     );
     Ok(())
+}
+
+async fn load_configuration(config_file: PathBuf) -> anyhow::Result<serde_json::Value> {
+    let configuration =
+        tokio::task::spawn_blocking(move || -> anyhow::Result<serde_json::Value> {
+            let mut bytes = Vec::new();
+            std::fs::File::open(config_file)?
+                .take(65_537)
+                .read_to_end(&mut bytes)?;
+            anyhow::ensure!(bytes.len() <= 65_536, "configuration exceeds 65536 bytes");
+            let value: serde_json::Value =
+                serde_json::from_slice(bytes.strip_prefix(&[0xef, 0xbb, 0xbf]).unwrap_or(&bytes))?;
+            anyhow::ensure!(value.is_object(), "configuration must be a JSON object");
+            Ok(value)
+        })
+        .await??;
+    Ok(configuration)
 }
