@@ -245,7 +245,7 @@ fn map_recall_row(r: &rusqlite::Row<'_>) -> rusqlite::Result<RecallHit> {
     })
 }
 
-fn fts_term(q: &str) -> String {
+pub(crate) fn fts_term(q: &str) -> String {
     let cleaned: String = q
         .chars()
         .map(|c| {

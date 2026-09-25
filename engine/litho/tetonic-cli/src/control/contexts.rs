@@ -4,6 +4,15 @@ use tetonic_app::resources::{ContextOwner, LocalControl};
 
 #[derive(Subcommand)]
 pub enum ContextCommand {
+    /// Search authorized discussion messages; does not search tool outputs.
+    Recall {
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        query: String,
+        #[arg(long, default_value_t=8, value_parser=clap::value_parser!(u32).range(1..=30))]
+        limit: u32,
+    },
     /// Create a context privately owned by the authenticated principal.
     Private {
         #[arg(long)]
@@ -54,6 +63,15 @@ pub async fn dispatch(control: &LocalControl, command: ContextCommand) -> anyhow
     let credential = super::credential_from_stdin().await?;
     let service = control.contexts();
     let output = match command {
+        ContextCommand::Recall {
+            context,
+            query,
+            limit,
+        } => {
+            let hits = service.recall(&credential, context, query, limit).await?;
+            let hits: Vec<_> = hits.into_iter().map(|hit|serde_json::json!({"session_id":hit.session_id,"kind":hit.kind,"role":hit.label,"snippet":hit.snippet})).collect();
+            serde_json::json!({"hits":hits})
+        }
         ContextCommand::Private { org, context } => {
             service
                 .create(&credential, context, ContextOwner::Private { org_id: org })

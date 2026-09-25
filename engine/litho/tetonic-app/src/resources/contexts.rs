@@ -143,6 +143,22 @@ mod tests {
 }
 
 impl ContextService {
+    pub async fn recall(
+        &self,
+        credential: &str,
+        context: String,
+        query: String,
+        limit: u32,
+    ) -> Result<Vec<tetonic_memory::RecallHit>, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .read(move |db| {
+                db.recall_context_messages(&actor.principal_id, &context, &query, limit)
+            })
+            .await??)
+    }
+
     pub async fn open_history(
         &self,
         credential: &str,

@@ -194,6 +194,43 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
     .status
     .success());
     assert!(run(&db, &shared, Some(&alice)).status.success());
+    let search = [
+        "context",
+        "recall",
+        "--context",
+        "private-a",
+        "--query",
+        "PRIVATECANARY",
+    ];
+    let recalled = run(&db, &search, Some(&alice));
+    assert!(recalled.status.success());
+    assert_eq!(
+        serde_json::from_slice::<serde_json::Value>(&recalled.stdout).unwrap()["hits"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
+    assert!(!run(&db, &search, Some(&admin)).status.success());
+    let shared_search = run(
+        &db,
+        &[
+            "context",
+            "recall",
+            "--context",
+            "shared",
+            "--query",
+            "PRIVATECANARY",
+        ],
+        Some(&alice),
+    );
+    assert!(shared_search.status.success());
+    assert!(
+        serde_json::from_slice::<serde_json::Value>(&shared_search.stdout).unwrap()["hits"]
+            .as_array()
+            .unwrap()
+            .is_empty()
+    );
     let wrong_scope = [
         "context",
         "history",

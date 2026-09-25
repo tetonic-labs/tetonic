@@ -36,6 +36,7 @@ mod team_admin;
 mod context_scope;
 mod context_access;
 mod context_history;
+mod context_recall;
 pub use context_access::ContextOwner;
 mod team_store;
 #[cfg(test)]
