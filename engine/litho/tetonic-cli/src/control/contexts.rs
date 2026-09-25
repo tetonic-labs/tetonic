@@ -4,6 +4,13 @@ use tetonic_app::resources::{ContextOwner, LocalControl};
 
 #[derive(Subcommand)]
 pub enum ContextCommand {
+    /// Close discussion history; preserves messages and does not cancel agents.
+    Close {
+        #[arg(long)]
+        context: String,
+        #[arg(long)]
+        session: String,
+    },
     /// Search authorized discussion messages; does not search tool outputs.
     Recall {
         #[arg(long)]
@@ -63,6 +70,10 @@ pub async fn dispatch(control: &LocalControl, command: ContextCommand) -> anyhow
     let credential = super::credential_from_stdin().await?;
     let service = control.contexts();
     let output = match command {
+        ContextCommand::Close { context, session } => {
+            service.close_history(&credential, context, session).await?;
+            serde_json::json!({"discussion_closed":true})
+        }
         ContextCommand::Recall {
             context,
             query,

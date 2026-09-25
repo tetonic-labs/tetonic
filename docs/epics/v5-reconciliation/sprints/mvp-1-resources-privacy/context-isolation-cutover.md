@@ -1,6 +1,8 @@
 # MVP-102 — Context isolation cutover
 
-Status: partial implementation. Schema 35 now binds sessions to immutable contexts and fences legacy history/recall/consolidation from scoped sessions. Authorized scoped execution and end-to-end privacy remain unimplemented. Traced against commit `9169f63`. The local control API currently administers metadata; it does not authorize sessions, inference inputs or knowledge. This document identifies the connected cutover needed before exposing those operations to multiple employees.
+Status: partial implementation. Schemas 35–37 provide immutable session and artifact context ownership. ContextService now authorizes discussion history/lifecycle, message recall, bound recall tools, compiler membership checks and scoped artifact I/O. These are composable boundaries; full scoped execution and end-to-end privacy remain unimplemented. The source inventory below records the original trace at `9169f63`; use the implementation progress log for subsequent changes.
+
+Latest live-session trace: DefaultSessionService still creates legacy-local execution sessions and resumes through legacy-fenced history APIs. SessionLiveStore remains a trusted process-local registry keyed by session ID, with no employee authorization. Scoped discussions do not populate that registry. Before activating scoped agents, admission must bind the verified principal/context to execution and check it before registry access and each new turn; provider conversation reuse, tool/source grants and event routing must share that binding. Do not expose the existing SessionService as an employee API. Legacy end_session now rejects scoped IDs; scoped discussion close uses a separate authorized transaction and does not claim to cancel execution.
 
 ## What the current code actually does
 

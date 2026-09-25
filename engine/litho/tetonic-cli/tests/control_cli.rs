@@ -240,6 +240,20 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
         "discussion",
     ];
     assert!(!run(&db, &wrong_scope, Some(&alice)).status.success());
+    let close = [
+        "context",
+        "close",
+        "--context",
+        "private-a",
+        "--session",
+        "discussion",
+    ];
+    assert!(!run(&db, &close, Some(&admin)).status.success());
+    for _ in 0..2 {
+        assert!(run(&db, &close, Some(&alice)).status.success());
+    }
+    assert!(run(&db, &history, Some(&alice)).status.success());
+    assert!(!run(&db, &send, Some(&alice)).status.success());
     std::fs::write(&file, vec![b'x'; 65_537]).unwrap();
     assert!(!run(&db, &send, Some(&alice)).status.success());
     assert!(run(
@@ -250,6 +264,7 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
     .status
     .success());
     assert!(!run(&db, &history, Some(&alice)).status.success());
+    assert!(!run(&db, &close, Some(&alice)).status.success());
 }
 
 #[test]

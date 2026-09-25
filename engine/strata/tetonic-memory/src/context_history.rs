@@ -2,6 +2,32 @@ use crate::{Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 impl Store {
+    /// Close a discussion without deleting its history or stopping any execution.
+    pub fn close_context_history(&self, actor: &str, context: &str, session: &str) -> Result<()> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        self.require_context_access(actor, context)?;
+        let status: Option<String> = self
+            .conn
+            .query_row(
+                "SELECT status FROM sessions WHERE id=?1 AND context_id=?2 AND mode='discussion'",
+                params![session, context],
+                |r| r.get(0),
+            )
+            .optional()?;
+        match status.as_deref() {
+            Some("open") => {
+                self.conn.execute(
+                    "UPDATE sessions SET status='closed',ended_at=?2 WHERE id=?1",
+                    params![session, crate::util::now()],
+                )?;
+            }
+            Some("closed") => {}
+            _ => return Err(StoreError::ControlAccessDenied),
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
     pub(crate) fn migrate_context_messages_v36(&self) -> Result<()> {
         if self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=36)",
@@ -25,16 +51,16 @@ impl Store {
         validate_id(session)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_context_access(actor, context)?;
-        let existing: Option<(String, String)> = self
+        let existing: Option<(String, String, String)> = self
             .conn
             .query_row(
-                "SELECT context_id,mode FROM sessions WHERE id=?1",
+                "SELECT context_id,mode,status FROM sessions WHERE id=?1",
                 [session],
-                |r| Ok((r.get(0)?, r.get(1)?)),
+                |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)),
             )
             .optional()?;
-        if let Some((bound, mode)) = existing {
-            if bound != context || mode != "discussion" {
+        if let Some((bound, mode, status)) = existing {
+            if bound != context || mode != "discussion" || status != "open" {
                 return Err(StoreError::ControlAccessDenied);
             }
         } else {
@@ -104,6 +130,58 @@ fn validate_id(id: &str) -> Result<()> {
 mod tests {
     use super::*;
     use crate::{ContextOwner, OrganizationRole};
+    #[test]
+    fn closing_requires_current_access_and_preserves_history() {
+        let db = Store::open(":memory:").unwrap();
+        db.bootstrap_control("admin", "org", "Org").unwrap();
+        db.register_control_principal("alice").unwrap();
+        db.set_organization_member("org", "alice", OrganizationRole::Member)
+            .unwrap();
+        db.create_information_context(
+            "alice",
+            "private",
+            &ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .unwrap();
+        db.open_context_history("alice", "private", "session")
+            .unwrap();
+        db.append_context_message("alice", "private", "session", "request", "retained")
+            .unwrap();
+        assert!(db.end_session("session", "ok", None).is_err());
+        assert!(db
+            .close_context_history("admin", "private", "session")
+            .is_err());
+        assert!(db
+            .close_context_history("alice", "private", "unknown")
+            .is_err());
+        assert_eq!(
+            db.session_status("session").unwrap().as_deref(),
+            Some("open")
+        );
+        db.close_context_history("alice", "private", "session")
+            .unwrap();
+        db.close_context_history("alice", "private", "session")
+            .unwrap();
+        assert_eq!(
+            db.scoped_transcript("alice", "private", "session", 10)
+                .unwrap()[0]
+                .2,
+            "retained"
+        );
+        assert!(db
+            .open_context_history("alice", "private", "session")
+            .is_err());
+        assert!(db
+            .append_context_message("alice", "private", "session", "next", "no")
+            .is_err());
+        db.remove_organization_member("org", "alice").unwrap();
+        assert!(db
+            .close_context_history("alice", "private", "session")
+            .is_err());
+    }
+
     #[test]
     fn discussion_persists_attribution_and_rechecks_access_on_retry() {
         let dir = tempfile::tempdir().unwrap();

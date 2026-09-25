@@ -470,6 +470,7 @@ impl Store {
 
     /// Close a session with a terminal status (`ok` | `error` | `canceled`).
     pub fn end_session(&self, id: &str, status: &str, error: Option<&str>) -> Result<()> {
+        self.require_legacy_session(id)?;
         self.conn.execute(
             "UPDATE sessions SET status = ?2, ended_at = ?3, error = ?4 WHERE id = ?1",
             params![id, status, now(), error.unwrap_or("")],

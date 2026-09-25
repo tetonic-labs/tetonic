@@ -183,6 +183,19 @@ mod tests {
 }
 
 impl ContextService {
+    pub async fn close_history(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.close_context_history(&actor.principal_id, &context, &session))
+            .await??;
+        Ok(())
+    }
+
     /// Bind recall to one authorized context. Does not activate an agent or
     /// authorize other tools. Credential verification is admission-time only.
     pub async fn bind_recall(
