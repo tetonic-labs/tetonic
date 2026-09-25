@@ -32,6 +32,14 @@ These anchors were resolved against actual source text. A citation records the s
 | [README.md](README.md) | [engine/litho/tetonic-app/src/node_worker.rs:135](../../../engine/litho/tetonic-app/src/node_worker.rs#L135) | `pub async fn run_node_serve` |
 | [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:157](../../../engine/mantle/tetonic-server/src/main.rs#L157) | `let brain` |
 | [README.md](README.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:38](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L38) | `pub fn connect` |
+| [README.md](README.md) | [engine/litho/tetonic-app/src/compute_plane.rs:54](../../../engine/litho/tetonic-app/src/compute_plane.rs#L54) | `pub async fn build_compute_plane` |
+| [README.md](README.md) | [engine/atmos/tetonic-egress/src/lib.rs:302](../../../engine/atmos/tetonic-egress/src/lib.rs#L302) | `async fn authorize` |
+| [README.md](README.md) | [engine/atmos/tetonic-inference/src/lib.rs:1375](../../../engine/atmos/tetonic-inference/src/lib.rs#L1375) | `.post_ndjson_stream` |
+| [README.md](README.md) | [engine/atmos/tetonic-fabric-client/src/client.rs:279](../../../engine/atmos/tetonic-fabric-client/src/client.rs#L279) | `async fn open_fabric_tls` |
+| [README.md](README.md) | [engine/mantle/tetonic-node/src/fabric.rs:408](../../../engine/mantle/tetonic-node/src/fabric.rs#L408) | `pub fn default_ollama` |
+| [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:114](../../../engine/mantle/tetonic-server/src/main.rs#L114) | `EgressGuard::loopback_inference` |
+| [README.md](README.md) | [engine/mantle/tetonic-server/src/main.rs:123](../../../engine/mantle/tetonic-server/src/main.rs#L123) | `world_url.scheme()` |
+| [README.md](README.md) | [engine/core/tetonic-runtime/src/websocket_adapter.rs:70](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L70) | `connect_async(&url)` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/lokai-cli/src/main.rs:34](../../../engine/litho/lokai-cli/src/main.rs#L34) | `async fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/litho/lokaid/src/main.rs:32](../../../engine/litho/lokaid/src/main.rs#L32) | `fn main` |
 | [entrypoints.md](entrypoints.md) | [engine/mantle/tetonic-server/src/main.rs:75](../../../engine/mantle/tetonic-server/src/main.rs#L75) | `async fn main` |
@@ -79,6 +87,9 @@ These anchors were resolved against actual source text. A citation records the s
 | [execution.md](execution.md) | [engine/mantle/tetonic-node/src/job_ingress.rs:18](../../../engine/mantle/tetonic-node/src/job_ingress.rs#L18) | `impl JobIngressManager` |
 | [execution.md](execution.md) | [engine/mantle/tetonic-node/src/lease_table.rs:39](../../../engine/mantle/tetonic-node/src/lease_table.rs#L39) | `impl LeaseTable` |
 | [execution.md](execution.md) | [engine/atmos/tetonic-fabric-protocol/src/result_validate.rs:47](../../../engine/atmos/tetonic-fabric-protocol/src/result_validate.rs#L47) | `pub fn` |
+| [execution.md](execution.md) | [engine/atmos/tetonic-inference/src/lib.rs:1375](../../../engine/atmos/tetonic-inference/src/lib.rs#L1375) | `.post_ndjson_stream` |
+| [execution.md](execution.md) | [engine/atmos/tetonic-fabric-client/src/client.rs:279](../../../engine/atmos/tetonic-fabric-client/src/client.rs#L279) | `async fn open_fabric_tls` |
+| [execution.md](execution.md) | [engine/mantle/tetonic-node/src/fabric.rs:408](../../../engine/mantle/tetonic-node/src/fabric.rs#L408) | `pub fn default_ollama` |
 | [execution.md](execution.md) | [engine/mantle/tetonic-broker/src/broker.rs:57](../../../engine/mantle/tetonic-broker/src/broker.rs#L57) | `pub struct DefaultComputeBroker` |
 | [execution.md](execution.md) | [engine/litho/tetonic-app/src/compute_plane.rs:29](../../../engine/litho/tetonic-app/src/compute_plane.rs#L29) | `pub struct ComputePlane` |
 | [execution.md](execution.md) | [engine/atmos/tetonic-fabric-protocol/src/result_validate.rs:47](../../../engine/atmos/tetonic-fabric-protocol/src/result_validate.rs#L47) | `pub fn` |

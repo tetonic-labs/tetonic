@@ -85,18 +85,27 @@ flowchart TB
   CLI -->|constructs| App[Application and coding runtime]
   D -->|constructs on initialize| App
   App -->|awaited provider calls| CP[Compute broker and provider routing]
-  CP -.->|HTTP inference| O[Local Ollama process]
-  CP -.->|TLS fabric requests| W[lokaid worker process]
-  W -.->|HTTP inference| WO[Worker Ollama process]
+  CP -->|provider HTTP or fabric destination check| EG[EgressGuard: coordinator instance]
+  EG -.->|authorized HTTP inference| O[Local Ollama process]
+  EG -->|authorized destination| FT[Fabric client: pinned TLS transport]
+  FT -.->|authenticated fabric requests| W[lokaid worker process]
+  W -->|worker Ollama provider| WG[EgressGuard: worker instance]
+  WG -.->|authorized HTTP inference| WO[Worker Ollama process]
   App -->|read / serialized write| DB[(Coordinator SQLite stores)]
   App -->|authorized effects| FS[Workspace and sandboxed children]
   S[tetonic-server process] -->|constructs| B[PerceptiveBrain and Agent world loop]
-  B -.->|HTTP inference| O
-  B -.->|WebSocket actions / perceptions / receipts| World[External world authority]
+  B -->|Ollama provider| SG[EgressGuard: standalone server instance]
+  SG -.->|authorized loopback HTTP inference| O
+  B -->|await adapter calls| WA[World WebSocket adapter]
+  WA -.->|direct WebSocket after startup loopback URL check| World[External world authority]
   S -->|owns in RAM| RAM[Experience and trace buffers]
 ```
 
 Solid arrows describe local calls, construction, or ownership as labeled; dashed arrows describe asynchronous process transports, not a delivery guarantee. Cylinder denotes durable storage; the RAM node is volatile. The shared Application node represents a common composition pattern, **not** a singleton shared across CLI and daemon processes. The world, its physics, and its rendering client are external to this repository's authority. Evidence: [[engine/litho/lokai-cli/src/main.rs::async fn main]], [[engine/litho/lokaid/src/main.rs::async fn serve]], [[engine/litho/tetonic-app/src/node_worker.rs::pub async fn run_node_serve]], [[engine/mantle/tetonic-server/src/main.rs::let brain]], [[engine/core/tetonic-runtime/src/websocket_adapter.rs::pub fn connect]].
+
+**EgressGuard is an active network authorization boundary.** Application assembly injects it into inference/fabric clients; the worker and standalone world server construct their own instances. The ordinary destination path resolves addresses and permits the configured loopback inference port or an explicit matching IP/port rule, otherwise returning a denial and recording that decision. Ollama HTTP requests use guarded transport methods. The fabric client checks the destination with the guard before opening its own pinned TLS connection. These are local guard objects, not a separate proxy server. Evidence: [[engine/litho/tetonic-app/src/compute_plane.rs::pub async fn build_compute_plane]], [[engine/atmos/tetonic-egress/src/lib.rs::async fn authorize]], [[engine/atmos/tetonic-inference/src/lib.rs::.post_ndjson_stream]], [[engine/atmos/tetonic-fabric-client/src/client.rs::async fn open_fabric_tls]], [[engine/mantle/tetonic-node/src/fabric.rs::pub fn default_ollama]], [[engine/mantle/tetonic-server/src/main.rs::EgressGuard::loopback_inference]].
+
+The guard answers whether a network destination is permitted; action policy, secret scanning and TLS identity checks supply different controls. It is not a process-wide firewall. In particular, the world WebSocket adapter calls `connect_async` directly: the standalone server applies a loopback URL check at startup, but that connection does not pass through EgressGuard. The diagram deliberately keeps that edge separate. See [security and operations](operations.md) for the surrounding controls. [[engine/mantle/tetonic-server/src/main.rs::world_url.scheme()]], [[engine/core/tetonic-runtime/src/websocket_adapter.rs::connect_async(&url)]].
 
 ## Implementation layers — level 1
 
@@ -270,16 +279,22 @@ flowchart TD
   Broker -->|dispatch adapter| Provider[Configured inference provider]
   Provider -->|local route| Local[OllamaProvider]
   Provider -->|pooled eligible route| Remote[Remote fabric client]
-  Local -.->|HTTP request / streamed response| O[Local Ollama]
-  Remote -.->|TLS signed fabric request| Ingress[Worker ingress]
+  Local -->|guarded HTTP methods| Guard[EgressGuard: coordinator]
+  Guard -.->|authorized HTTP request / streamed response| O[Local Ollama]
+  Remote -->|ensure_allowed before connect| Guard
+  Guard -->|authorized fabric destination| TLS[Fabric client TLS transport]
+  TLS -.->|TLS signed fabric request| Ingress[Worker ingress]
   Ingress -->|validate / deduplicate / lease| WS[(Worker store and live lease table)]
-  Ingress -.->|HTTP infer| WO[Worker Ollama]
+  Ingress -->|Ollama provider| WorkerGuard[EgressGuard: worker]
+  WorkerGuard -.->|authorized HTTP infer| WO[Worker Ollama]
   Ingress -.->|result / stream frames| Remote
   Remote -->|validate identity lease digests signature| Result[Accepted or rejected result]
   Result -->|settle / release reservation| Broker
 ```
 
 Solid arrows are local calls/state access; dashed arrows cross process boundaries asynchronously. Worker store persistence is distinct from the volatile active lease table. Route availability depends on enrollment, trust/policy and compute-plane configuration, not just a model name. Evidence: [[engine/litho/tetonic-app/src/compute_plane.rs::pub struct ComputePlane]], [[engine/mantle/tetonic-broker/src/broker.rs::pub struct DefaultComputeBroker]], [[engine/mantle/tetonic-node/src/job_ingress.rs::impl]], [[engine/mantle/tetonic-node/src/lease_table.rs::impl]], [[engine/atmos/tetonic-fabric-protocol/src/result_validate.rs::pub fn]].
+
+The guard nodes represent in-process authorization, with HTTP transport supplied by the guard for Ollama. Fabric performs `ensure_allowed` before its own socket/TLS setup; the worker constructs a provider with a separately configured guard. A routing decision does not bypass these destination checks. [[engine/atmos/tetonic-inference/src/lib.rs::.post_ndjson_stream]], [[engine/atmos/tetonic-fabric-client/src/client.rs::async fn open_fabric_tls]], [[engine/mantle/tetonic-node/src/fabric.rs::pub fn default_ollama]].
 
 The broker is not simply a load balancer: it checks managed execution state, reserves budgets and revalidates before dispatch, tracks in-flight work, and settles/relinquishes reservations on result/error/cancellation paths. Its scheduler/circuit/speculation modules are part of the implementation; their existence does not mean all policies are activated in every composition. Application compute-plane assembly is the reachability evidence. [[engine/mantle/tetonic-broker/src/broker.rs::pub struct DefaultComputeBroker]], [[engine/litho/tetonic-app/src/compute_plane.rs::pub struct ComputePlane]].
 

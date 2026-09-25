@@ -56,18 +56,27 @@ flowchart TB
   CLI -->|constructs| App[Application and coding runtime]
   D -->|constructs on initialize| App
   App -->|awaited provider calls| CP[Compute broker and provider routing]
-  CP -.->|HTTP inference| O[Local Ollama process]
-  CP -.->|TLS fabric requests| W[lokaid worker process]
-  W -.->|HTTP inference| WO[Worker Ollama process]
+  CP -->|provider HTTP or fabric destination check| EG[EgressGuard: coordinator instance]
+  EG -.->|authorized HTTP inference| O[Local Ollama process]
+  EG -->|authorized destination| FT[Fabric client: pinned TLS transport]
+  FT -.->|authenticated fabric requests| W[lokaid worker process]
+  W -->|worker Ollama provider| WG[EgressGuard: worker instance]
+  WG -.->|authorized HTTP inference| WO[Worker Ollama process]
   App -->|read / serialized write| DB[(Coordinator SQLite stores)]
   App -->|authorized effects| FS[Workspace and sandboxed children]
   S[tetonic-server process] -->|constructs| B[PerceptiveBrain and Agent world loop]
-  B -.->|HTTP inference| O
-  B -.->|WebSocket actions / perceptions / receipts| World[External world authority]
+  B -->|Ollama provider| SG[EgressGuard: standalone server instance]
+  SG -.->|authorized loopback HTTP inference| O
+  B -->|await adapter calls| WA[World WebSocket adapter]
+  WA -.->|direct WebSocket after startup loopback URL check| World[External world authority]
   S -->|owns in RAM| RAM[Experience and trace buffers]
 ```
 
 Solid arrows describe local calls, construction, or ownership as labeled; dashed arrows describe asynchronous process transports, not a delivery guarantee. Cylinder denotes durable storage; the RAM node is volatile. The shared Application node represents a common composition pattern, **not** a singleton shared across CLI and daemon processes. The world, its physics, and its rendering client are external to this repository's authority. Evidence: [main.rs — `async fn main`](../../../engine/litho/lokai-cli/src/main.rs#L34), [main.rs — `async fn serve`](../../../engine/litho/lokaid/src/main.rs#L88), [node_worker.rs — `pub async fn run_node_serve`](../../../engine/litho/tetonic-app/src/node_worker.rs#L135), [main.rs — `let brain`](../../../engine/mantle/tetonic-server/src/main.rs#L157), [websocket_adapter.rs — `pub fn connect`](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L38).
+
+**EgressGuard is an active network authorization boundary.** Application assembly injects it into inference/fabric clients; the worker and standalone world server construct their own instances. The ordinary destination path resolves addresses and permits the configured loopback inference port or an explicit matching IP/port rule, otherwise returning a denial and recording that decision. Ollama HTTP requests use guarded transport methods. The fabric client checks the destination with the guard before opening its own pinned TLS connection. These are local guard objects, not a separate proxy server. Evidence: [compute_plane.rs — `pub async fn build_compute_plane`](../../../engine/litho/tetonic-app/src/compute_plane.rs#L54), [lib.rs — `async fn authorize`](../../../engine/atmos/tetonic-egress/src/lib.rs#L302), [lib.rs — `.post_ndjson_stream`](../../../engine/atmos/tetonic-inference/src/lib.rs#L1375), [client.rs — `async fn open_fabric_tls`](../../../engine/atmos/tetonic-fabric-client/src/client.rs#L279), [fabric.rs — `pub fn default_ollama`](../../../engine/mantle/tetonic-node/src/fabric.rs#L408), [main.rs — `EgressGuard::loopback_inference`](../../../engine/mantle/tetonic-server/src/main.rs#L114).
+
+The guard answers whether a network destination is permitted; action policy, secret scanning and TLS identity checks supply different controls. It is not a process-wide firewall. In particular, the world WebSocket adapter calls `connect_async` directly: the standalone server applies a loopback URL check at startup, but that connection does not pass through EgressGuard. The diagram deliberately keeps that edge separate. See [security and operations](operations.md) for the surrounding controls. [main.rs — `world_url.scheme()`](../../../engine/mantle/tetonic-server/src/main.rs#L123), [websocket_adapter.rs — `connect_async(&url)`](../../../engine/core/tetonic-runtime/src/websocket_adapter.rs#L70).
 
 ## Implementation layers — level 1
 

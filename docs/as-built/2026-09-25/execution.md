@@ -50,16 +50,22 @@ flowchart TD
   Broker -->|dispatch adapter| Provider[Configured inference provider]
   Provider -->|local route| Local[OllamaProvider]
   Provider -->|pooled eligible route| Remote[Remote fabric client]
-  Local -.->|HTTP request / streamed response| O[Local Ollama]
-  Remote -.->|TLS signed fabric request| Ingress[Worker ingress]
+  Local -->|guarded HTTP methods| Guard[EgressGuard: coordinator]
+  Guard -.->|authorized HTTP request / streamed response| O[Local Ollama]
+  Remote -->|ensure_allowed before connect| Guard
+  Guard -->|authorized fabric destination| TLS[Fabric client TLS transport]
+  TLS -.->|TLS signed fabric request| Ingress[Worker ingress]
   Ingress -->|validate / deduplicate / lease| WS[(Worker store and live lease table)]
-  Ingress -.->|HTTP infer| WO[Worker Ollama]
+  Ingress -->|Ollama provider| WorkerGuard[EgressGuard: worker]
+  WorkerGuard -.->|authorized HTTP infer| WO[Worker Ollama]
   Ingress -.->|result / stream frames| Remote
   Remote -->|validate identity lease digests signature| Result[Accepted or rejected result]
   Result -->|settle / release reservation| Broker
 ```
 
 Solid arrows are local calls/state access; dashed arrows cross process boundaries asynchronously. Worker store persistence is distinct from the volatile active lease table. Route availability depends on enrollment, trust/policy and compute-plane configuration, not just a model name. Evidence: [compute_plane.rs — `pub struct ComputePlane`](../../../engine/litho/tetonic-app/src/compute_plane.rs#L29), [broker.rs — `pub struct DefaultComputeBroker`](../../../engine/mantle/tetonic-broker/src/broker.rs#L57), [job_ingress.rs — `impl JobIngressManager`](../../../engine/mantle/tetonic-node/src/job_ingress.rs#L18), [lease_table.rs — `impl LeaseTable`](../../../engine/mantle/tetonic-node/src/lease_table.rs#L39), [result_validate.rs — `pub fn`](../../../engine/atmos/tetonic-fabric-protocol/src/result_validate.rs#L47).
+
+The guard nodes represent in-process authorization, with HTTP transport supplied by the guard for Ollama. Fabric performs `ensure_allowed` before its own socket/TLS setup; the worker constructs a provider with a separately configured guard. A routing decision does not bypass these destination checks. [lib.rs — `.post_ndjson_stream`](../../../engine/atmos/tetonic-inference/src/lib.rs#L1375), [client.rs — `async fn open_fabric_tls`](../../../engine/atmos/tetonic-fabric-client/src/client.rs#L279), [fabric.rs — `pub fn default_ollama`](../../../engine/mantle/tetonic-node/src/fabric.rs#L408).
 
 The broker is not simply a load balancer: it checks managed execution state, reserves budgets and revalidates before dispatch, tracks in-flight work, and settles/relinquishes reservations on result/error/cancellation paths. Its scheduler/circuit/speculation modules are part of the implementation; their existence does not mean all policies are activated in every composition. Application compute-plane assembly is the reachability evidence. [broker.rs — `pub struct DefaultComputeBroker`](../../../engine/mantle/tetonic-broker/src/broker.rs#L57), [compute_plane.rs — `pub struct ComputePlane`](../../../engine/litho/tetonic-app/src/compute_plane.rs#L29).
 

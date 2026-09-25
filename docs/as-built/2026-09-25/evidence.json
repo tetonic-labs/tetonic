@@ -156,6 +156,54 @@
     "document": "README.md"
   },
   {
+    "file": "engine/litho/tetonic-app/src/compute_plane.rs",
+    "line": 54,
+    "anchor": "pub async fn build_compute_plane",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-egress/src/lib.rs",
+    "line": 302,
+    "anchor": "async fn authorize",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-inference/src/lib.rs",
+    "line": 1375,
+    "anchor": ".post_ndjson_stream",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-client/src/client.rs",
+    "line": 279,
+    "anchor": "async fn open_fabric_tls",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/fabric.rs",
+    "line": 408,
+    "anchor": "pub fn default_ollama",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 114,
+    "anchor": "EgressGuard::loopback_inference",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-server/src/main.rs",
+    "line": 123,
+    "anchor": "world_url.scheme()",
+    "document": "README.md"
+  },
+  {
+    "file": "engine/core/tetonic-runtime/src/websocket_adapter.rs",
+    "line": 70,
+    "anchor": "connect_async(&url)",
+    "document": "README.md"
+  },
+  {
     "file": "engine/litho/lokai-cli/src/main.rs",
     "line": 34,
     "anchor": "async fn main",
@@ -435,6 +483,24 @@
     "file": "engine/atmos/tetonic-fabric-protocol/src/result_validate.rs",
     "line": 47,
     "anchor": "pub fn",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-inference/src/lib.rs",
+    "line": 1375,
+    "anchor": ".post_ndjson_stream",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/atmos/tetonic-fabric-client/src/client.rs",
+    "line": 279,
+    "anchor": "async fn open_fabric_tls",
+    "document": "execution.md"
+  },
+  {
+    "file": "engine/mantle/tetonic-node/src/fabric.rs",
+    "line": 408,
+    "anchor": "pub fn default_ollama",
     "document": "execution.md"
   },
   {
