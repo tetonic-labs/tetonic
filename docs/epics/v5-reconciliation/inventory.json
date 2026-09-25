@@ -1,0 +1,1421 @@
+{
+  "baseline": {
+    "commit": "6b9b7817d178911b4ca6d030860bc471f8d73ef5",
+    "tracked_files": 988,
+    "packages": 32,
+    "rust_files": 677,
+    "scope": "All tracked files excluding this report; untracked user work excluded",
+    "untracked_at_capture": [
+      "docs/design/buzz-website-notes.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/LOCAL-IMPLEMENTATION.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/README.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-601-tetonic-server-binary.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-602-websocket-world-adapter.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-603-inference-provider-wiring.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-604-agent-lifecycle-world-connection.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-605-twp-alignment-village-brain.md",
+      "docs/epics/standing-agent-engine/sprints/sprint-6-tetonic-server-village-integration/SAE-606-e2e-demo-runner-retirement.md"
+    ]
+  },
+  "packages": [
+    {
+      "name": "tetonic-egress",
+      "path": "engine/atmos/tetonic-egress",
+      "disposition": "keep-integrate",
+      "destination": "Outbound authorization; not an OS-wide firewall",
+      "tracked_files": 6,
+      "rust_files": 4,
+      "local_dependencies": [],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-enroll",
+        "tetonic-fabric-client",
+        "tetonic-inference",
+        "tetonic-node",
+        "tetonic-runtime",
+        "tetonic-server"
+      ]
+    },
+    {
+      "name": "tetonic-fabric-client",
+      "path": "engine/atmos/tetonic-fabric-client",
+      "disposition": "reshape",
+      "destination": "Retain live transport; retire legacy wire only after migration",
+      "tracked_files": 23,
+      "rust_files": 21,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-protocol",
+          "path": "../../atmos/tetonic-fabric-protocol"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-enroll",
+          "path": "../../mantle/tetonic-enroll"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-transaction",
+          "path": "../../core/tetonic-transaction"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-run",
+          "path": "../../mantle/tetonic-run"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-node"
+      ]
+    },
+    {
+      "name": "tetonic-fabric-protocol",
+      "path": "engine/atmos/tetonic-fabric-protocol",
+      "disposition": "keep-generalize",
+      "destination": "Worker delivery contracts; distinguish inference from agent execution",
+      "tracked_files": 31,
+      "rust_files": 30,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-broker",
+        "tetonic-fabric-client",
+        "tetonic-inference",
+        "tetonic-node"
+      ]
+    },
+    {
+      "name": "tetonic-inference",
+      "path": "engine/atmos/tetonic-inference",
+      "disposition": "keep-integrate",
+      "destination": "Provider adapters behind broker and egress",
+      "tracked_files": 24,
+      "rust_files": 21,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-protocol",
+          "path": "../../atmos/tetonic-fabric-protocol"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-broker",
+        "tetonic-capacity",
+        "tetonic-core",
+        "tetonic-eval",
+        "tetonic-fabric-client",
+        "tetonic-node",
+        "tetonic-orchestrator",
+        "tetonic-runtime",
+        "tetonic-server"
+      ]
+    },
+    {
+      "name": "tetonic-rpc",
+      "path": "engine/atmos/tetonic-rpc",
+      "disposition": "adapt",
+      "destination": "Local RPC compatibility; not authenticated remote control API",
+      "tracked_files": 9,
+      "rust_files": 7,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "lokaid",
+        "tetonic-arch-gate"
+      ]
+    },
+    {
+      "name": "tetonic-core",
+      "path": "engine/core/tetonic-core",
+      "disposition": "reshape",
+      "destination": "Built-in harness; remove universal coding/world lifecycle assumptions",
+      "tracked_files": 20,
+      "rust_files": 18,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../tetonic-telemetry"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-transaction",
+          "path": "../tetonic-transaction"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-bench",
+        "tetonic-eval",
+        "tetonic-orchestrator",
+        "tetonic-run",
+        "tetonic-runtime",
+        "tetonic-server"
+      ]
+    },
+    {
+      "name": "tetonic-domain",
+      "path": "engine/core/tetonic-domain",
+      "disposition": "reshape",
+      "destination": "Shared identity, execution, authorization and adapter contracts",
+      "tracked_files": 33,
+      "rust_files": 31,
+      "local_dependencies": [],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-artifact",
+        "tetonic-broker",
+        "tetonic-context",
+        "tetonic-core",
+        "tetonic-eval",
+        "tetonic-fabric-client",
+        "tetonic-fabric-protocol",
+        "tetonic-index",
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-node",
+        "tetonic-orchestrator",
+        "tetonic-policy",
+        "tetonic-run",
+        "tetonic-runtime",
+        "tetonic-sandbox",
+        "tetonic-secrets",
+        "tetonic-server",
+        "tetonic-tools",
+        "tetonic-transaction"
+      ]
+    },
+    {
+      "name": "tetonic-policy",
+      "path": "engine/core/tetonic-policy",
+      "disposition": "keep-integrate",
+      "destination": "Execution policy; add trusted tenant and principal context",
+      "tracked_files": 11,
+      "rust_files": 9,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-core",
+        "tetonic-eval",
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-orchestrator",
+        "tetonic-run",
+        "tetonic-runtime",
+        "tetonic-tools"
+      ]
+    },
+    {
+      "name": "tetonic-runtime",
+      "path": "engine/core/tetonic-runtime",
+      "disposition": "reshape",
+      "destination": "Worker assembly and capability services; separate optional harness strategies",
+      "tracked_files": 19,
+      "rust_files": 16,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../tetonic-secrets"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-context",
+          "path": "../../strata/tetonic-context"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-transaction",
+          "path": "../tetonic-transaction"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-eval",
+        "tetonic-orchestrator",
+        "tetonic-run",
+        "tetonic-server"
+      ]
+    },
+    {
+      "name": "tetonic-sandbox",
+      "path": "engine/core/tetonic-sandbox",
+      "disposition": "keep-integrate",
+      "destination": "Process isolation with explicit supported guarantees",
+      "tracked_files": 31,
+      "rust_files": 28,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../tetonic-secrets"
+        }
+      ],
+      "explicit_bins": [
+        {
+          "name": "tetonic-sandbox-adv",
+          "path": "bins/adversarial_runner.rs",
+          "test": false
+        }
+      ],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-eval",
+        "tetonic-node",
+        "tetonic-tools"
+      ]
+    },
+    {
+      "name": "tetonic-secrets",
+      "path": "engine/core/tetonic-secrets",
+      "disposition": "keep-integrate",
+      "destination": "Credential handling and outbound scanning",
+      "tracked_files": 12,
+      "rust_files": 10,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-broker",
+        "tetonic-context",
+        "tetonic-eval",
+        "tetonic-node",
+        "tetonic-runtime",
+        "tetonic-sandbox",
+        "tetonic-telemetry",
+        "tetonic-tools"
+      ]
+    },
+    {
+      "name": "tetonic-telemetry",
+      "path": "engine/core/tetonic-telemetry",
+      "disposition": "keep-integrate",
+      "destination": "Correlated and redacted operational telemetry",
+      "tracked_files": 15,
+      "rust_files": 13,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../tetonic-secrets"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-broker",
+        "tetonic-core",
+        "tetonic-eval",
+        "tetonic-fabric-client",
+        "tetonic-inference",
+        "tetonic-memory",
+        "tetonic-rpc",
+        "tetonic-tools",
+        "tetonic-transaction"
+      ]
+    },
+    {
+      "name": "tetonic-transaction",
+      "path": "engine/core/tetonic-transaction",
+      "disposition": "isolate",
+      "destination": "Workspace mutation facility for coding capabilities",
+      "tracked_files": 21,
+      "rust_files": 19,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../tetonic-telemetry"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-core",
+        "tetonic-fabric-client",
+        "tetonic-orchestrator",
+        "tetonic-runtime",
+        "tetonic-tools"
+      ]
+    },
+    {
+      "name": "lokai-cli",
+      "path": "engine/litho/lokai-cli",
+      "disposition": "reshape",
+      "destination": "Tetonic client; retain compatibility until command migration",
+      "tracked_files": 41,
+      "rust_files": 39,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-app",
+          "path": "../../litho/tetonic-app"
+        }
+      ],
+      "explicit_bins": [
+        {
+          "name": "lokai",
+          "path": "src/main.rs"
+        }
+      ],
+      "conventional_main": true,
+      "declared_dependents": []
+    },
+    {
+      "name": "lokaid",
+      "path": "engine/litho/lokaid",
+      "disposition": "retire-after-cutover",
+      "destination": "Compatibility transport to common services; retire independent assembly",
+      "tracked_files": 42,
+      "rust_files": 31,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-rpc",
+          "path": "../../atmos/tetonic-rpc"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-app",
+          "path": "../../litho/tetonic-app"
+        }
+      ],
+      "explicit_bins": [
+        {
+          "name": "lokaid",
+          "path": "src/main.rs"
+        }
+      ],
+      "conventional_main": true,
+      "declared_dependents": []
+    },
+    {
+      "name": "tetonic-app",
+      "path": "engine/litho/tetonic-app",
+      "disposition": "reshape",
+      "destination": "Control services and composition; extract coding product behavior",
+      "tracked_files": 88,
+      "rust_files": 85,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-orchestrator",
+          "path": "../../mantle/tetonic-orchestrator"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-run",
+          "path": "../../mantle/tetonic-run"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-context",
+          "path": "../../strata/tetonic-context"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-transaction",
+          "path": "../../core/tetonic-transaction"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-index",
+          "path": "../../strata/tetonic-index"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-lsp",
+          "path": "../../litho/tetonic-lsp"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-sandbox",
+          "path": "../../core/tetonic-sandbox"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-capacity",
+          "path": "../../mantle/tetonic-capacity"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-enroll",
+          "path": "../../mantle/tetonic-enroll"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-node",
+          "path": "../../mantle/tetonic-node"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-client",
+          "path": "../../atmos/tetonic-fabric-client"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-broker",
+          "path": "../../mantle/tetonic-broker"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-protocol",
+          "path": "../../atmos/tetonic-fabric-protocol"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-eval",
+          "path": "../../tooling/tetonic-eval"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "lokai-cli",
+        "lokaid",
+        "tetonic-eval"
+      ]
+    },
+    {
+      "name": "tetonic-lsp",
+      "path": "engine/litho/tetonic-lsp",
+      "disposition": "isolate",
+      "destination": "Optional coding capability",
+      "tracked_files": 15,
+      "rust_files": 13,
+      "local_dependencies": [],
+      "explicit_bins": [
+        {
+          "name": "lsp-mock-server",
+          "path": "tests/support/mock_server.rs"
+        }
+      ],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app"
+      ]
+    },
+    {
+      "name": "tetonic-tools",
+      "path": "engine/litho/tetonic-tools",
+      "disposition": "isolate",
+      "destination": "Coding tool pack; adapt to generic capability boundary",
+      "tracked_files": 25,
+      "rust_files": 21,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-sandbox",
+          "path": "../../core/tetonic-sandbox"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-transaction",
+          "path": "../../core/tetonic-transaction"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-bench",
+        "tetonic-core",
+        "tetonic-orchestrator",
+        "tetonic-runtime"
+      ]
+    },
+    {
+      "name": "tetonic-broker",
+      "path": "engine/mantle/tetonic-broker",
+      "disposition": "keep-integrate",
+      "destination": "Compute admission and budget accounting; not agent registry",
+      "tracked_files": 36,
+      "rust_files": 34,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-protocol",
+          "path": "../../atmos/tetonic-fabric-protocol"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-run",
+          "path": "../../mantle/tetonic-run"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-eval"
+      ]
+    },
+    {
+      "name": "tetonic-capacity",
+      "path": "engine/mantle/tetonic-capacity",
+      "disposition": "isolate",
+      "destination": "Optional inference capacity optimization",
+      "tracked_files": 22,
+      "rust_files": 21,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-node"
+      ]
+    },
+    {
+      "name": "tetonic-enroll",
+      "path": "engine/mantle/tetonic-enroll",
+      "disposition": "keep-integrate",
+      "destination": "Node trust/bootstrap; distinct from employee authorization",
+      "tracked_files": 12,
+      "rust_files": 10,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-node",
+          "path": "../../mantle/tetonic-node"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-fabric-client",
+        "tetonic-node"
+      ]
+    },
+    {
+      "name": "tetonic-node",
+      "path": "engine/mantle/tetonic-node",
+      "disposition": "reshape",
+      "destination": "Existing inference worker transport; replace detached role registry",
+      "tracked_files": 22,
+      "rust_files": 19,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-enroll",
+          "path": "../../mantle/tetonic-enroll"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-capacity",
+          "path": "../../mantle/tetonic-capacity"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-client",
+          "path": "../../atmos/tetonic-fabric-client"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-fabric-protocol",
+          "path": "../../atmos/tetonic-fabric-protocol"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-sandbox",
+          "path": "../../core/tetonic-sandbox"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-enroll",
+          "path": "../../mantle/tetonic-enroll"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-enroll"
+      ]
+    },
+    {
+      "name": "tetonic-orchestrator",
+      "path": "engine/mantle/tetonic-orchestrator",
+      "disposition": "split",
+      "destination": "Move fleet domain to control services; keep coding strategy optional",
+      "tracked_files": 22,
+      "rust_files": 20,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-context",
+          "path": "../../strata/tetonic-context"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-index",
+          "path": "../../strata/tetonic-index"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-transaction",
+          "path": "../../core/tetonic-transaction"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-eval"
+      ]
+    },
+    {
+      "name": "tetonic-run",
+      "path": "engine/mantle/tetonic-run",
+      "disposition": "keep-generalize",
+      "destination": "Authoritative durable run/task/attempt state and managed execution",
+      "tracked_files": 36,
+      "rust_files": 35,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-broker",
+        "tetonic-fabric-client"
+      ]
+    },
+    {
+      "name": "tetonic-server",
+      "path": "engine/mantle/tetonic-server",
+      "disposition": "replace-composition",
+      "destination": "General server bootstrap; migrate world harness out of main",
+      "tracked_files": 7,
+      "rust_files": 5,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": true,
+      "declared_dependents": []
+    },
+    {
+      "name": "tetonic-artifact",
+      "path": "engine/strata/tetonic-artifact",
+      "disposition": "keep-integrate",
+      "destination": "Scoped artifact access and provenance",
+      "tracked_files": 9,
+      "rust_files": 7,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-context",
+        "tetonic-eval",
+        "tetonic-fabric-client",
+        "tetonic-run",
+        "tetonic-runtime"
+      ]
+    },
+    {
+      "name": "tetonic-context",
+      "path": "engine/strata/tetonic-context",
+      "disposition": "isolate",
+      "destination": "Context compilation; coding assumptions behind capability/harness boundary",
+      "tracked_files": 19,
+      "rust_files": 17,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-orchestrator",
+        "tetonic-runtime"
+      ]
+    },
+    {
+      "name": "tetonic-index",
+      "path": "engine/strata/tetonic-index",
+      "disposition": "isolate",
+      "destination": "Optional repository indexing capability",
+      "tracked_files": 14,
+      "rust_files": 12,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-bench",
+        "tetonic-orchestrator"
+      ]
+    },
+    {
+      "name": "tetonic-memory",
+      "path": "engine/strata/tetonic-memory",
+      "disposition": "split-logically",
+      "destination": "Separate platform persistence from agent memory interfaces",
+      "tracked_files": 29,
+      "rust_files": 26,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": false,
+      "declared_dependents": [
+        "tetonic-app",
+        "tetonic-arch-gate",
+        "tetonic-broker",
+        "tetonic-capacity",
+        "tetonic-eval",
+        "tetonic-fabric-client",
+        "tetonic-node",
+        "tetonic-orchestrator",
+        "tetonic-run",
+        "tetonic-runtime",
+        "tetonic-tools"
+      ]
+    },
+    {
+      "name": "tetonic-arch-gate",
+      "path": "engine/tooling/tetonic-arch-gate",
+      "disposition": "update",
+      "destination": "Preserve invariants; replace obsolete structural rules",
+      "tracked_files": 37,
+      "rust_files": 14,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-rpc",
+          "path": "../../atmos/tetonic-rpc"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-egress",
+          "path": "../../atmos/tetonic-egress"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-transaction",
+          "path": "../../core/tetonic-transaction"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        }
+      ],
+      "explicit_bins": [
+        {
+          "name": "tetonic-arch-gate",
+          "path": "src/main.rs"
+        }
+      ],
+      "conventional_main": true,
+      "declared_dependents": []
+    },
+    {
+      "name": "tetonic-bench",
+      "path": "engine/tooling/tetonic-bench",
+      "disposition": "keep",
+      "destination": "Performance measurement; add runtime workload baselines",
+      "tracked_files": 3,
+      "rust_files": 1,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-index",
+          "path": "../../strata/tetonic-index"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-tools",
+          "path": "../../litho/tetonic-tools"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        }
+      ],
+      "explicit_bins": [],
+      "conventional_main": true,
+      "declared_dependents": []
+    },
+    {
+      "name": "tetonic-eval",
+      "path": "engine/tooling/tetonic-eval",
+      "disposition": "keep-expand",
+      "destination": "Retain evaluations; add lifecycle and tenant isolation scenarios",
+      "tracked_files": 26,
+      "rust_files": 22,
+      "local_dependencies": [
+        {
+          "kind": "dependencies",
+          "name": "tetonic-telemetry",
+          "path": "../../core/tetonic-telemetry"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-app",
+          "path": "../../litho/tetonic-app"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-memory",
+          "path": "../../strata/tetonic-memory"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-policy",
+          "path": "../../core/tetonic-policy"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-runtime",
+          "path": "../../core/tetonic-runtime"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-broker",
+          "path": "../../mantle/tetonic-broker"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-inference",
+          "path": "../../atmos/tetonic-inference"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-sandbox",
+          "path": "../../core/tetonic-sandbox"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-secrets",
+          "path": "../../core/tetonic-secrets"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-domain",
+          "path": "../../core/tetonic-domain"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-core",
+          "path": "../../core/tetonic-core"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-orchestrator",
+          "path": "../../mantle/tetonic-orchestrator"
+        },
+        {
+          "kind": "dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        },
+        {
+          "kind": "dev-dependencies",
+          "name": "tetonic-artifact",
+          "path": "../../strata/tetonic-artifact"
+        }
+      ],
+      "explicit_bins": [
+        {
+          "name": "tetonic-eval",
+          "path": "src/main.rs"
+        }
+      ],
+      "conventional_main": true,
+      "declared_dependents": [
+        "tetonic-app"
+      ]
+    }
+  ]
+}
