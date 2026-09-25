@@ -2,6 +2,8 @@
 
 Status: proposed implementation decisions, grounded in the accompanying source audit. No claim that the target is already implemented.
 
+Product-discovery update: this is the earlier technical migration foundation. [MVP system contracts](mvp-system-contracts.md) and [MVP product scope](mvp-product.md) take precedence for team knowledge, collaborative interaction, workstation placement, direct worker data paths and production HA. A single-writer deployment below is a local/development milestone, not the final production availability promise. Keep its execution-integrity and migration safeguards.
+
 ## Target and authority
 
 ```mermaid

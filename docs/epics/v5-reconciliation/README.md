@@ -1,14 +1,20 @@
-# V5 reconciliation audit and implementation plan
+# V5 MVP epic — persistent, governed agent teams
 
 Date: 2026-09-25. Source baseline: `6b9b7817d178911b4ca6d030860bc471f8d73ef5`.
 
 ## Decision
 
-Consolidate Tetonic into an infrastructure agent runtime platform. Employees and operators use CLI/UI/MCP clients through an authenticated control API. Lifecycle and placement controllers assign work to runtimes. Runtime effects pass through authorized capability, inference, memory and artifact services. Coordination provides membership and fenced ownership. Durable definitions, policy and execution records remain distinct from coordination and agent memory.
+Consolidate Tetonic into a general-purpose platform for persistent agent teams: users create teams, assign goals or ongoing responsibilities, and let them work within enforced authority, scoped knowledge and resource limits. People can collaborate or intervene without watching every agent. Local/workstation/server execution and inference location are independent choices.
+
+The current product scope is [MVP product intent](mvp-product.md), [MVP system contracts](mvp-system-contracts.md) and the [MVP sprint sequence](sprints/README.md). These supersede earlier assumptions that shared interaction is out of scope, whole-agent execution belongs only on servers, or production HA can be implicitly deferred. Earlier source findings remain evidence; old REC tickets are reference material, not a second active backlog.
 
 The primary problem is fragmented authority, not a shortage of subsystems. Reconcile the existing managed execution path with fleet resources; do not build another run manager beside it. Remove the disconnected implementations after replacements are proven. Keep coding and world interaction as optional harness/capability implementations.
 
 ## Deliverables and evidence limits
+
+- [Product charter and scope cuts](mvp-product.md): MVP commitments, exclusions, deployment milestones and unresolved decisions.
+- [Product-driven system contracts](mvp-system-contracts.md): privacy, huddles, delegation, workstation execution and stop semantics.
+- [Reuse/removal map](mvp-reuse-and-removal.md): reuse existing assets and eliminate obsolete authority, not useful capability.
 
 - [Findings and source evidence](findings.md): traced seams, live dependencies, and concrete defects relevant to reconciliation.
 - [Target contracts and migration decisions](reconciliation.md): authority, persistence, composition, and cutover design.
@@ -38,11 +44,11 @@ Inventory totals: **988 tracked files, 677 Rust files, 32 workspace packages**. 
 
 Do not begin with crate renaming, a new consensus implementation, wholesale deletion of coding packages, or exposing the existing in-memory REST-shaped dispatcher over HTTP. Each would leave the authority problem unresolved.
 
-## Initial release scope
+## Deployment milestones
 
-One durable control-plane authority with a local worker first; additional authenticated workers next. SQLite can serve the single-authority deployment through the control service; workers must not share a SQLite file across machines. Multi-control-plane HA and any new Keeper storage backend require an explicit later consistency design. Production mode requires persistent storage; existing memory-only construction remains useful for tests.
+A local product preview proves the experience on one machine. A distributed MVP candidate adds enrolled workstations and remote workers. A production release requires the chosen HA topology to pass failure tests before advertising HA; MVP-001 decides the backend/coordination design and MVP-701/702 implement and validate it. Single-authority local storage remains an explicitly non-HA profile, never shared across machines. Durable storage is required for recoverable operation.
 
-The first product proof is an authenticated create-agent request in an organization, a pinned definition, a real managed attempt, a controlled action, truthful inspection, cancellation, and a restart with explicit recovery status. The Village is one external environment for this proof; its rules, assets and simulation state remain outside Tetonic.
+The product proof is a small team pursuing a goal, proposing a huddle, dividing work, protecting private context, parking blocked work, escalating limits/approvals, and surviving stop/restart with truthful outcomes. Exercise coding and a noncoding external-tool/environment workload. The Village may supply the latter; game development remains outside the engine epic.
 
 ## Completion standard
 

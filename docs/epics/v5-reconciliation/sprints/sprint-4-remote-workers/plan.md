@@ -1,5 +1,7 @@
 # Sprint 4 — Distributed execution ownership
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-401: Durable assignments and worker lifecycle
 
 Depends on: sprint 3. Audit existing run leases, fabric lease table and registry prototype together. Choose one assignment-generation authority and persist issuance. Add authenticated worker registration, supported-harness capabilities, drain, heartbeat, assignment claim and stale result rejection. Reuse enrollment/TLS only where its trust semantics match the new contract.

@@ -1,5 +1,7 @@
 # Sprint 3 — Execution controls and truthful observability
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-301: Durable grants, approvals and budget accounting
 
 Depends on: sprint 2; basic authorization already required in sprint 1. Extend policy/capability/effect gateway with tenant, principal provenance, attempt, action digest and assignment checks. Implement durable approval wait/resolution/revalidation. Move organization resource accounting into reservations/settlement with time windows. Introduce explicit shared-memory grants and bounded retention.

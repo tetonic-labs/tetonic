@@ -1,5 +1,7 @@
 # Sprint 5 — Product cutover and deletion
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-501: One server configuration and supported client path
 
 Depends on: common runtime stable; remote settings depend on sprint 4. Converge server configuration and import experiment definitions. Route CLI/stdio compatibility through common control services. Update packaging, releases, health/readiness, migrations, shutdown/drain, and operational documentation. List unsupported modes explicitly.

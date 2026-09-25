@@ -2,6 +2,8 @@
 
 No production deletions were performed by this audit. These are concrete proposed dispositions. A deletion must include its consumers, tests, exports, manifests, release scripts and data compatibility implications. Test-only reachability is evidence for review, not proof of universal dead code.
 
+The [MVP reuse/removal map](mvp-reuse-and-removal.md) extends this register with D13–D15 and current product requirements. References to sprint numbers below describe the earlier REC sequence; use the [active MVP sequence](sprints/README.md) for scheduling. Deletion gates remain mandatory.
+
 ## Implementations that should die after replacement
 
 | ID | Current code/behavior | Why it should go | Replacement / prerequisite | Deletion proof |

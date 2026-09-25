@@ -1,5 +1,7 @@
 # Sprint 1 — Durable resources and authenticated control
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-101: Reconcile fleet into persistent identities and definitions
 
 Depends on: REC-001/002. Touchpoints: fleet_api, fleet types, identity store, coding definition compiler, database migrations.

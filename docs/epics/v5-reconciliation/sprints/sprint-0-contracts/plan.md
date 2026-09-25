@@ -1,5 +1,7 @@
 # Sprint 0 — Contracts and characterization
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-001: Resolve identities, execution objects and authority
 
 Depends on: audit. Touchpoints: domain identity/run/placement/work-scope contracts, app definition/identity-job, run managed contracts.

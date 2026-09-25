@@ -2,6 +2,8 @@
 
 User requirement, recorded 2026-09-25: an engineer installing Tetonic must be able to configure at least telemetry, logging and storage. Design the engine for production operation and real distributed deployments. These are release requirements, not optional polish or per-agent settings.
 
+Planning update: the [MVP sequence](sprints/README.md) supersedes REC sprint timing below. Configuration is designed in MVP-001, implemented with each owning subsystem, consolidated in MVP-602 and release-tested in MVP-701/702. Production HA has its own explicit gate; a single-controller profile remains a limited deployment option.
+
 ## Configuration ownership
 
 The server has a versioned, validated operator configuration. The installation engineer controls infrastructure connections, security boundaries, service limits and operational behavior. Agent definitions reference approved services/resources; an agent or ordinary employee cannot change server storage, logging destinations or telemetry policy through its definition.

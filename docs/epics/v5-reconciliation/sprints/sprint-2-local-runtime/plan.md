@@ -1,5 +1,7 @@
 # Sprint 2 — One managed local runtime
 
+Historical REC work package. Scheduling and scope are superseded by the [MVP sequence](../README.md); retain applicable technical safeguards as reference.
+
 ## REC-201: Local controller and harness boundary
 
 Depends on: sprint 1. Touchpoints: Application, ManagedRunService, AgentAttemptExecutor, EngineRuntime and existing Agent/Conversation assembly.

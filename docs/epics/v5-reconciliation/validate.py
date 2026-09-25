@@ -33,6 +33,13 @@ for package in inventory['packages']:
     assert len(owned) == package['tracked_files'], package['name']
     assert sum(r['path'].endswith('.rs') for r in owned) == package['rust_files'], package['name']
 links = 0
+ticket_ids = []
+for plan in (HERE/'sprints').glob('mvp-*/plan.md'):
+    ticket_ids.extend(re.findall(r'^## (MVP-\d{3}) ', plan.read_text(encoding='utf-8'), re.M))
+assert len(ticket_ids) == 16 and len(set(ticket_ids)) == 16, 'Expected 16 unique MVP tickets'
+for doc in HERE.rglob('*.md'):
+    mentioned = set(re.findall(r'\bMVP-\d{3}\b', doc.read_text(encoding='utf-8')))
+    assert mentioned <= set(ticket_ids), (doc, mentioned - set(ticket_ids))
 for doc in HERE.rglob('*.md'):
     text = doc.read_text(encoding='utf-8')
     for target in re.findall(r'\]\(([^)]+)\)', text):
@@ -43,6 +50,7 @@ for doc in HERE.rglob('*.md'):
         links += 1
     assert all(line.rstrip() == line for line in text.splitlines()), doc
 result = dict(files_hashed=len(rows), baseline_tree_coverage='exact', workspace_packages=len(workspace_packages), local_links_checked=links,
+              mvp_tickets=len(ticket_ids), mvp_ticket_references='resolved',
               runtime_tests='not run: audit/planning files only',
               semantic_scope='Targeted source-path review; file census is not exhaustive semantic analysis')
 (HERE/'validation.json').write_text(json.dumps(result, indent=2)+'\n', encoding='utf-8')
