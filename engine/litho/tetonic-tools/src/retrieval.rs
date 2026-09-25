@@ -10,6 +10,38 @@ use crate::types::{
 };
 use crate::workspace::Workspace;
 
+pub fn recall_context(
+    store: &tetonic_memory::Store,
+    actor: &str,
+    context: &str,
+    args: Value,
+) -> Result<ToolOutcome, ToolError> {
+    let args: RecallArgs = serde_json::from_value(args)
+        .map_err(|_| ToolError::BadArgs("expected query and optional max_results".into()))?;
+    let hits = store
+        .recall_context_messages(
+            actor,
+            context,
+            &args.query,
+            args.max_results.unwrap_or(8).min(20) as u32,
+        )
+        .map_err(|_| ToolError::Other("context recall unavailable or access denied".into()))?;
+    let text = hits
+        .iter()
+        .map(|h| {
+            format!(
+                "<untrusted recall>\n[{} {}] {}\n</untrusted recall>",
+                h.session_id, h.label, h.snippet
+            )
+        })
+        .collect::<Vec<_>>()
+        .join("\n");
+    Ok(ToolOutcome::ok(
+        format!("{} authorized message hit(s)", hits.len()),
+        truncate(&text),
+    ))
+}
+
 pub fn find_definition(
     index: &dyn CodeIndex,
     ws_key: &str,

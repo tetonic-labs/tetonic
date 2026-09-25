@@ -117,6 +117,46 @@ mod tests {
             )
             .await
             .is_err());
+        let tools =
+            tetonic_tools::Tools::new(tetonic_tools::Workspace::new(dir.path()).unwrap(), false);
+        let bound = service
+            .bind_recall(alice.expose_secret(), "private".into(), tools.clone())
+            .await
+            .unwrap();
+        assert!(service
+            .bind_recall(admin.expose_secret(), "private".into(), tools)
+            .await
+            .is_err());
+        let check = bound.clone();
+        tokio::task::spawn_blocking(move || {
+            let result = check.execute("recall", &serde_json::json!({"query":"PRIVATECANARY"}));
+            assert!(result.ok);
+            assert!(result.content.contains("PRIVATECANARY"));
+            let spoof = check.execute(
+                "recall",
+                &serde_json::json!({"query":"PRIVATECANARY","context":"other"}),
+            );
+            assert!(!spoof.ok);
+            let preserved = check
+                .with_memory("missing-other-database", None)
+                .execute("recall", &serde_json::json!({"query":"PRIVATECANARY"}));
+            assert!(preserved.ok);
+            assert!(preserved.content.contains("PRIVATECANARY"));
+        })
+        .await
+        .unwrap();
+        local
+            .resources()
+            .set_organization_member(admin.expose_secret(), "org".into(), "alice".into(), None)
+            .await
+            .unwrap();
+        tokio::task::spawn_blocking(move || {
+            let denied = bound.execute("recall", &serde_json::json!({"query":"PRIVATECANARY"}));
+            assert!(!denied.ok);
+            assert!(!denied.content.contains("PRIVATECANARY"));
+        })
+        .await
+        .unwrap();
         local
             .credentials()
             .revoke(alice.credential_id.clone())
@@ -143,6 +183,27 @@ mod tests {
 }
 
 impl ContextService {
+    /// Bind recall to one authorized context. Does not activate an agent or
+    /// authorize other tools. Credential verification is admission-time only.
+    pub async fn bind_recall(
+        &self,
+        credential: &str,
+        context: String,
+        tools: tetonic_tools::Tools,
+    ) -> Result<tetonic_tools::Tools, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        let principal = actor.principal_id.clone();
+        let scope = context.clone();
+        let allowed = self
+            .store
+            .read(move |db| db.context_access(&principal, &scope))
+            .await??;
+        if !allowed {
+            return Err(ResourceError::Denied);
+        }
+        Ok(tools.with_context_memory(self.store.path().to_path_buf(), actor.principal_id, context))
+    }
+
     pub async fn recall(
         &self,
         credential: &str,

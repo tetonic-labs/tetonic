@@ -140,6 +140,7 @@ pub struct FindMentionsArgs {
 pub type FindReferencesArgs = FindMentionsArgs;
 
 #[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
 pub struct RecallArgs {
     pub query: String,
     pub max_results: Option<usize>,
