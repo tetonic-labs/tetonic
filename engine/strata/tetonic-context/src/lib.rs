@@ -1,4 +1,3 @@
-pub mod cache;
 pub mod interfaces;
 pub mod pipeline;
 pub mod types;

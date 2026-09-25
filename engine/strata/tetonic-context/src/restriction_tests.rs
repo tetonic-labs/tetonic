@@ -4,44 +4,6 @@ use std::sync::Arc;
 use tetonic_domain::classify::DataClass;
 
 #[tokio::test]
-async fn cache_separates_scope_owner_retrieval_and_artifacts() {
-    let request = base_request();
-    let pack = ContextCompiler::new(Arc::new(MockProvider::default()))
-        .compile(request.clone())
-        .await
-        .unwrap();
-    let cache = crate::cache::ContextCache::new();
-    cache.insert(&request, &pack);
-    assert!(cache.get(&request).is_some());
-    let mut changes = Vec::new();
-    let mut req = request.clone();
-    req.allowed_paths.rules.push("src".into());
-    changes.push(req);
-    let mut req = request.clone();
-    req.excluded_paths.rules.push("src/private".into());
-    changes.push(req);
-    let mut req = request.clone();
-    req.retrieval_profile.max_candidates += 1;
-    changes.push(req);
-    let mut req = request.clone();
-    req.session_id = tetonic_domain::ids::SessionId::new("other-session");
-    changes.push(req);
-    let mut req = request.clone();
-    req.run_id = tetonic_domain::ids::RunId::new("other-run");
-    changes.push(req);
-    let mut req = request.clone();
-    req.task_id = tetonic_domain::ids::TaskId::new("other-task");
-    changes.push(req);
-    let mut req = request.clone();
-    req.prior_artifacts
-        .push(tetonic_domain::ids::ArtifactId::new("other-artifact"));
-    changes.push(req);
-    for req in changes {
-        assert!(cache.get(&req).is_none());
-    }
-}
-
-#[tokio::test]
 async fn expansion_preserves_exclusions_and_redacts_before_returning() {
     let secret = "credential AKIAIOSFODNN7EXAMPLE in source";
     let mut provider = MockProvider::default();
