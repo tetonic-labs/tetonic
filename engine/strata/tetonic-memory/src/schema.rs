@@ -201,6 +201,7 @@ impl Store {
         self.migrate_context_scope_v35()?;
         self.migrate_context_messages_v36()?;
         self.migrate_context_artifacts_v37()?;
+        self.migrate_org_agents_v38()?;
         Ok(())
     }
 

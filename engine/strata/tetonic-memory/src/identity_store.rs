@@ -9,6 +9,12 @@ use crate::{Result, Store, StoreError};
 impl Store {
     pub fn put_agent_identity(&self, row: &AgentIdentityRow) -> Result<()> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        self.put_agent_identity_in_transaction(row)?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub(crate) fn put_agent_identity_in_transaction(&self, row: &AgentIdentityRow) -> Result<()> {
         if let Some(existing) =
             self.get_agent_identity_revision(&row.identity_id, &row.bound_definition_digest)?
         {
@@ -55,7 +61,6 @@ impl Store {
                 ts,
             ],
         )?;
-        tx.commit()?;
         Ok(())
     }
 

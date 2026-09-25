@@ -5,6 +5,13 @@ use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 impl Store {
     pub(crate) fn migrate_context_artifacts_v37(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=37)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch(
             "CREATE TABLE context_artifacts (
             artifact_id TEXT PRIMARY KEY NOT NULL,
@@ -107,7 +114,7 @@ mod tests {
                 .unwrap();
             db.conn
                 .execute_batch(
-                    "DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version=37;",
+                    "DROP TABLE organization_agents; DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version>=37;",
                 )
                 .unwrap();
         }

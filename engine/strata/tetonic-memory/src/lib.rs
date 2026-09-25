@@ -28,6 +28,8 @@ mod compute_reservation;
 mod durability_tests;
 mod estate;
 mod identity_store;
+mod organization_agents;
+pub use organization_agents::RegisteredAgent;
 mod control_credentials;
 mod control_bootstrap;
 mod membership_store;
