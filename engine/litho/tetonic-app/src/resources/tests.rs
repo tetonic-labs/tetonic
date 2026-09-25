@@ -251,3 +251,82 @@ fn volatile_application_cannot_compose_resource_service() {
     ));
     assert!(AuthorizedPrincipal::new(" ".into()).is_err());
 }
+
+struct VerifiedAlice;
+
+#[async_trait]
+impl CredentialVerifier for VerifiedAlice {
+    async fn verify(&self, credential: &str) -> Result<AuthorizedPrincipal, AccessError> {
+        if credential != "test-session" {
+            return Err(AccessError);
+        }
+        AuthorizedPrincipal::new("issuer/alice".into())
+    }
+}
+
+#[tokio::test]
+async fn persistent_authority_uses_verified_identity_and_current_memberships() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = SharedStore::open(dir.path().join("access.db"), 1).unwrap();
+    store
+        .write(|db| -> Result<(), StoreError> {
+            db.create_organization(&OrganizationRow {
+                org_id: "a".into(),
+                name: "Acme".into(),
+            })?;
+            db.put_control_principal("issuer/alice", true, false)?;
+            db.set_organization_member(
+                "a",
+                "issuer/alice",
+                tetonic_memory::OrganizationRole::TeamCreator,
+            )
+        })
+        .await
+        .unwrap()
+        .unwrap();
+    let application = app(dir.path(), Some(store.clone()));
+    let service = application
+        .membership_resource_service(Arc::new(VerifiedAlice))
+        .unwrap();
+    assert!(matches!(
+        service
+            .create_organization("test-session", "b".into(), "B".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    let team = service
+        .create_team("test-session", "a".into(), "team".into(), "Team".into())
+        .await
+        .unwrap();
+    assert_eq!(team.owner_principal_id, "issuer/alice");
+    assert_eq!(
+        service
+            .get_team("test-session", "a".into(), "team".into())
+            .await
+            .unwrap(),
+        Some(team)
+    );
+    assert!(matches!(
+        service
+            .get_team("issuer/alice", "a".into(), "team".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    store
+        .write(|db| db.remove_organization_member("a", "issuer/alice"))
+        .await
+        .unwrap()
+        .unwrap();
+    assert!(matches!(
+        service
+            .get_team("test-session", "a".into(), "team".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(matches!(
+        service
+            .create_team("test-session", "a".into(), "team".into(), "Team".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+}

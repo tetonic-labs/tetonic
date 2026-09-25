@@ -30,6 +30,13 @@ fn validate_field(value: &str, field: &str) -> Result<()> {
 
 impl Store {
     pub(crate) fn migrate_team_resources_v29(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version = 29)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch(
             "CREATE TABLE IF NOT EXISTS organizations (
                 org_id TEXT PRIMARY KEY NOT NULL,
@@ -213,8 +220,9 @@ mod tests {
             store
                 .conn
                 .execute_batch(
-                    "DROP TABLE teams; DROP TABLE organizations;
-                DELETE FROM schema_versions WHERE version = 29;
+                    "DROP TABLE team_members; DROP TABLE organization_members; DROP TABLE control_principals;
+                DROP TABLE teams; DROP TABLE organizations;
+                DELETE FROM schema_versions WHERE version >= 29;
                 INSERT INTO agent_identities VALUES
                 ('legacy', 'coding', 'digest', 'default', '[]', '[]', 'legacy', 't', 't');",
                 )

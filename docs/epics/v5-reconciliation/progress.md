@@ -50,3 +50,13 @@ The [service contract](sprints/mvp-1-resources-privacy/resource-service-contract
 The architecture gate (`cargo run --manifest-path engine/Cargo.toml -p tetonic-arch-gate -- arch`) passed after these changes. Documentation checks resolved 78 local links and passed formatting checks.
 
 Validation: `cargo test --manifest-path engine/Cargo.toml -p tetonic-app --lib resources::tests` passed all four tests after a clean rebuild. Tests exercise application/store composition, persistence across recomposition, ownership conflicts, denied scopes/actions, revocation on reads/retries, and refusal of volatile storage. Focused rustfmt and `git diff --check` passed. Compilation initially failed because the disk was full; user-authorized `cargo clean` removed 100.7 GiB of generated artifacts. The successful rebuild disabled incremental compilation and debug symbols through per-command environment settings; no repository build profile was changed.
+
+## 2026-09-25 — Durable membership authority
+
+Schema 30 adds principals, organization roles and explicit team memberships. Control access is decided in one SQL statement using current enabled state, organization membership and team scope. Missing membership denies; organization removal deletes explicit team memberships; principal disablement overrides all metadata permissions. Upgrade from schema 29 preserves resources without creating implicit grants. The schema-29 migration now checks its marker before insertion so later upgrades can safely reuse the migration chain.
+
+Application::membership_resource_service composes this persistent authority with a required CredentialVerifier. The test verifier proves the service uses a verified stable identity rather than the credential text as ownership, and consults current membership on later requests. A real credential provider, administrative mutation APIs/audit, immutable agent revisions and fleet cutover remain outstanding. Permission and revocation semantics are specified in the service contract linked above.
+
+Storage validation: all 77 tetonic-memory library tests passed, including v29 upgrade, scoped permissions, durable revocation and the existing migration failure/crash matrix. Build commands continue using per-command incremental/debug settings to limit artifact growth.
+
+Application validation: all five `resources::tests` passed. The architecture gate passed. After adding administrator/demotion assertions, the three membership storage tests passed again. Production credential verification is not covered by these tests and is not implemented by this slice.
