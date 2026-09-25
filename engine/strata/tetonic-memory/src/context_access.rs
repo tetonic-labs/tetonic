@@ -88,6 +88,12 @@ mod tests {
         );
         db.remove_team_member("org", "team", "bob").unwrap();
         assert!(db.scoped_transcript("bob", "shared", "t", 10).is_err());
+        assert!(db
+            .context_access_in_organization("alice", "private-a", "org")
+            .unwrap());
+        assert!(!db
+            .context_access_in_organization("alice", "private-a", "other-org")
+            .unwrap());
         db.remove_organization_member("org", "alice").unwrap();
         assert!(db.scoped_transcript("alice", "private-a", "p", 10).is_err());
         assert!(db.scoped_transcript("alice", "shared", "t", 10).is_err());
@@ -115,16 +121,35 @@ impl Store {
 
     /// Content access is deliberately distinct from metadata administration.
     pub fn context_access(&self, actor: &str, context: &str) -> Result<bool> {
+        self.context_access_in_scope(actor, context, None)
+    }
+
+    /// Require content membership and the exact organization in one query.
+    pub fn context_access_in_organization(
+        &self,
+        actor: &str,
+        context: &str,
+        org: &str,
+    ) -> Result<bool> {
+        self.context_access_in_scope(actor, context, Some(org))
+    }
+
+    fn context_access_in_scope(
+        &self,
+        actor: &str,
+        context: &str,
+        org: Option<&str>,
+    ) -> Result<bool> {
         Ok(self.conn.query_row("SELECT EXISTS(
             SELECT 1 FROM information_contexts c
             JOIN organization_members m ON m.org_id=c.org_id AND m.principal_id=?1
             JOIN control_principals p ON p.principal_id=m.principal_id AND p.enabled=1
-            WHERE c.context_id=?2 AND (
+            WHERE c.context_id=?2 AND (?3 IS NULL OR c.org_id=?3) AND (
               (c.kind='private' AND c.owner_principal_id=?1) OR
               (c.kind='team' AND (
                 EXISTS(SELECT 1 FROM teams t WHERE t.org_id=c.org_id AND t.team_id=c.team_id AND t.owner_principal_id=?1) OR
                 EXISTS(SELECT 1 FROM team_members tm WHERE tm.org_id=c.org_id AND tm.team_id=c.team_id AND tm.principal_id=?1)
-              ))))", params![actor,context], |r|r.get(0))?)
+              ))))", params![actor,context,org], |r|r.get(0))?)
     }
 
     pub fn create_information_context(

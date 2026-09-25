@@ -443,8 +443,58 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         artifact_bindings: vec![],
         recovery_id: "general-job".into(),
     };
+    let contexts = local.contexts();
+    contexts
+        .create(
+            credential.expose_secret(),
+            "private".into(),
+            crate::resources::ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let grant_allowed = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let authorization = contexts
+        .bind_execution_authority(
+            credential.expose_secret(),
+            "org".into(),
+            "private".into(),
+            "agent".into(),
+            identity.bound_definition_digest.clone(),
+            Arc::new(TestExecutionAuthority(grant_allowed.clone())),
+        )
+        .await
+        .unwrap();
+    // Reading both the definition and private context does not grant execution.
+    assert!(authorization
+        .authority
+        .authorize(&authorization.scope, &identity, &spec)
+        .await
+        .is_err());
+    grant_allowed.store(true, Ordering::SeqCst);
+    let mut substituted = authorization.scope.clone();
+    substituted.organization_id = "other-org".into();
+    assert!(authorization
+        .authority
+        .authorize(&substituted, &identity, &spec)
+        .await
+        .is_err());
     let active = runs
-        .begin_job_run(None, &identity, spec, None)
+        .managed
+        .admit_with_context(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: identity.clone(),
+                job_spec: spec.clone(),
+                role: None,
+                parent_attempt: None,
+            },
+            tetonic_run::managed::AdmissionContext {
+                authorization: Some(authorization.clone()),
+                ..Default::default()
+            },
+        )
         .await
         .unwrap();
     let calls = Arc::new(AtomicUsize::new(0));
@@ -477,6 +527,24 @@ async fn registered_general_revision_reaches_existing_managed_executor() {
         }
     }
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    grant_allowed.store(false, Ordering::SeqCst);
+    assert!(authorization
+        .authority
+        .authorize(&authorization.scope, &identity, &spec)
+        .await
+        .is_err());
+    grant_allowed.store(true, Ordering::SeqCst);
+    local
+        .credentials()
+        .revoke(credential.credential_id.clone())
+        .await
+        .unwrap();
+    assert!(authorization
+        .authority
+        .authorize(&authorization.scope, &identity, &spec)
+        .await
+        .is_err());
+
     assert!(
         runs.managed
             .inspect_run(&active.run_id)
