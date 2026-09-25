@@ -4,6 +4,21 @@ use super::contracts::*;
 use tetonic_domain::{AgentAttemptExecutor, CandidateOutcome};
 use tetonic_memory::RecoverMutex;
 
+struct AttemptExecutionGate {
+    authorization: AuthorizedExecution,
+    identity: tetonic_domain::AgentIdentity,
+    job: tetonic_domain::AgentJobSpec,
+}
+#[async_trait::async_trait]
+impl tetonic_core::ExecutionGate for AttemptExecutionGate {
+    async fn authorize(&self) -> Result<(), ()> {
+        self.authorization
+            .authority
+            .authorize(&self.authorization.scope, &self.identity, &self.job)
+            .await
+    }
+}
+
 impl super::service::ManagedRunService {
     pub async fn execute_attempt(
         &self,
@@ -124,6 +139,13 @@ impl super::service::ManagedRunService {
         if let Err(error) = agent.bind_work_scope(active.work_scope.clone()) {
             return fail(error.to_string());
         }
+        agent.bind_execution_gate(active.authorization.clone().map(|authorization| {
+            std::sync::Arc::new(AttemptExecutionGate {
+                authorization,
+                identity: active.identity.clone(),
+                job: binding.job_spec.clone(),
+            }) as std::sync::Arc<dyn tetonic_core::ExecutionGate>
+        }));
         agent.stamp_managed_run(&binding.run_id.0, &binding.task_id.0, &attempt.0);
         let loop_cancel = conversation.cancel_handle();
         let mut step_fn = |step: tetonic_core::Step| {

@@ -26,6 +26,7 @@ use crate::tokenizer::{HeuristicTokenizer, Tokenizer};
 use crate::turn::{TurnOpsEvent, TurnOpsHook, TurnState};
 
 pub struct Agent {
+    execution_gate: Option<Arc<dyn crate::ExecutionGate>>,
     work_scope: tetonic_domain::work_scope::WorkScope,
     provider: Arc<dyn InferenceProvider>,
     tools: Box<dyn ToolHost>,
@@ -62,6 +63,18 @@ fn agent_is_send_and_sync_without_unsafe_overrides() {
 }
 
 impl Agent {
+    /// Trusted runtime binding. Replace on every attempt, including legacy use.
+    pub fn bind_execution_gate(&mut self, gate: Option<Arc<dyn crate::ExecutionGate>>) {
+        self.execution_gate = gate;
+    }
+
+    async fn execution_authorized(&self) -> bool {
+        match &self.execution_gate {
+            Some(gate) => gate.authorize().await.is_ok(),
+            None => true,
+        }
+    }
+
     /// Rebind an idle agent without changing tools, identity, approvals, policy,
     /// or conversation content. Exclusive borrowing prevents a concurrent turn.
     /// The runtime must supply an admitted provider.
@@ -291,6 +304,7 @@ impl Agent {
             context_compiler: None,
             work_scope: Default::default(),
             brain: None,
+            execution_gate: None,
         }
     }
 
@@ -672,6 +686,12 @@ impl Agent {
         args: &Value,
         auth: Option<&AuthorizedAction>,
     ) -> ToolOutcome {
+        // Check after any asynchronous approval/capability wait and before
+        // handing the effect to a blocking worker.
+        if !self.execution_authorized().await {
+            return ToolOutcome { ok: false, summary: "execution authorization denied".into(),
+                content: "execution authorization denied".into(), error_kind: Some("denied".into()), change: None };
+        }
         let _tool_stage = tetonic_telemetry::enter_stage_child("tool");
         let name = name.to_string();
         let args = args.clone();
@@ -1036,6 +1056,9 @@ impl Agent {
         let sys = Message::system(compaction_prompt);
         let user = Message::user(format!("Summarize the session so far:\n\n{transcript}"));
 
+        if !self.execution_authorized().await {
+            anyhow::bail!("execution authorization denied");
+        }
         let mut noop = |_: &str| {};
         let resp = self
             .provider
@@ -1415,6 +1438,9 @@ impl Agent {
                 };
                 let inference_timer =
                     tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Inference);
+                if !self.execution_authorized().await {
+                    return CandidateOutcome::Failed { message: "execution authorization denied".into() };
+                }
                 let result = self.provider.chat(req, &mut on_token).await;
                 inference_timer.finish(result.is_ok());
                 for chunk in demuxer.finish() {
@@ -1527,6 +1553,10 @@ impl Agent {
             // Calls can depend on earlier mutations and on per-call discipline.
             // Execute only after those checks, preserving the requested order.
             for tc in tool_calls {
+                // Includes in-loop finish/spawn paths as well as ordinary tools.
+                if !self.execution_authorized().await {
+                    return CandidateOutcome::Failed { message: "execution authorization denied".into() };
+                }
                 let name = tc.function.name.clone();
                 let args = tc.function.arguments.clone();
                 let call_id = format!("tc_{:x}_{}", convo.nonce, convo.call_no);

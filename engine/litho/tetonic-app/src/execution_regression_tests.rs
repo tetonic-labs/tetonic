@@ -812,3 +812,77 @@ async fn execution_scope_persists_and_revocation_blocks_claim_and_delegation() {
             .execution_claimed
     );
 }
+
+struct RevokingProvider(Arc<std::sync::atomic::AtomicBool>);
+#[async_trait::async_trait]
+impl InferenceProvider for RevokingProvider {
+    async fn chat(
+        &self,
+        _: ChatRequest,
+        _: &mut TokenSink<'_>,
+    ) -> Result<ChatResponse, InferenceError> {
+        self.0.store(false, Ordering::SeqCst);
+        Ok(ChatResponse {
+            message: tetonic_inference::Message::assistant("").with_tool_calls(vec![tetonic_inference::ToolCall {
+                function: tetonic_inference::FunctionCall { name: "write_file".into(),
+                    arguments: serde_json::json!({"path":"unauthorized.txt","content":"must not execute"}) },
+            }]),
+            usage: Default::default(), provenance: Default::default(),
+        })
+    }
+}
+
+#[tokio::test]
+async fn revocation_during_inference_blocks_the_returned_tool_action() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let allowed = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let cmd = command();
+    let binding = runs
+        .managed
+        .admit_with_context(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: cmd.identity,
+                job_spec: cmd.job_spec,
+                role: None,
+                parent_attempt: None,
+            },
+            tetonic_run::managed::AdmissionContext {
+                authorization: Some(tetonic_run::managed::AuthorizedExecution {
+                    grant_id: None,
+                    scope: tetonic_domain::ExecutionScope {
+                        principal_id: "alice".into(),
+                        organization_id: "org".into(),
+                        information_context_id: "private".into(),
+                    },
+                    authority: Arc::new(TestExecutionAuthority(allowed.clone())),
+                }),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    let mut executor = Agent::new(
+        Arc::new(RevokingProvider(allowed)),
+        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false),
+        AgentConfig::default(),
+    );
+    let mut steps = Vec::new();
+    let result = runs
+        .execute_bound_attempt(
+            binding.attempt_id,
+            &mut executor,
+            &mut Conversation::new(),
+            cmd.invocation,
+            &mut |step| steps.push(step),
+        )
+        .await;
+    assert!(
+        matches!(result, CandidateOutcome::Failed { ref message } if message=="execution authorization denied")
+    );
+    assert!(!tmp.path().join("unauthorized.txt").exists());
+    assert!(!steps
+        .iter()
+        .any(|step| matches!(step, tetonic_core::Step::ToolCall { .. })));
+}
