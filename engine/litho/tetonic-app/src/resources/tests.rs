@@ -1,0 +1,253 @@
+use super::*;
+use std::sync::atomic::{AtomicBool, Ordering};
+
+// Test-only grant authority. Production must supply verified credentials and
+// durable membership/policy; these literal tokens are never a product adapter.
+struct Authority {
+    revoked: AtomicBool,
+}
+
+#[async_trait]
+impl ResourceAuthority for Authority {
+    async fn authorize(
+        &self,
+        credential: &str,
+        action: &ResourceAction,
+    ) -> Result<AuthorizedPrincipal, AccessError> {
+        if self.revoked.load(Ordering::SeqCst) {
+            return Err(AccessError);
+        }
+        let allowed = match action {
+            ResourceAction::CreateOrganization { .. } => credential == "admin",
+            ResourceAction::ReadOrganization { org_id } => credential == "admin" && org_id == "a",
+            ResourceAction::CreateTeam { org_id, .. } => {
+                ["alice", "bob"].contains(&credential) && org_id == "a"
+            }
+            ResourceAction::ReadTeam { org_id, team_id } => {
+                credential == "alice" && org_id == "a" && team_id == "maintenance"
+            }
+        };
+        if !allowed {
+            return Err(AccessError);
+        }
+        AuthorizedPrincipal::new(credential.into())
+    }
+}
+
+fn authority() -> Arc<Authority> {
+    Arc::new(Authority {
+        revoked: AtomicBool::new(false),
+    })
+}
+
+fn app(workspace: &std::path::Path, store: Option<SharedStore>) -> Arc<crate::Application> {
+    crate::Application::bootstrap_mock_with_store(
+        workspace,
+        store,
+        Arc::new(crate::events::NoopEventSink),
+        vec![],
+    )
+}
+
+#[tokio::test]
+async fn application_resources_use_existing_store_and_survive_recomposition() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("resources.db");
+    {
+        let store = SharedStore::open(&path, 1).unwrap();
+        let application = app(dir.path(), Some(store.clone()));
+        let service = application.resource_service(authority()).unwrap();
+        service
+            .create_organization("admin", "a".into(), "Acme".into())
+            .await
+            .unwrap();
+        let row = service
+            .create_team(
+                "alice",
+                "a".into(),
+                "maintenance".into(),
+                "Maintainers".into(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(row.owner_principal_id, "alice");
+        assert_eq!(
+            store
+                .read(|db| db.get_team("a", "maintenance"))
+                .await
+                .unwrap()
+                .unwrap(),
+            Some(row.clone())
+        );
+        assert_eq!(
+            service
+                .create_team(
+                    "alice",
+                    "a".into(),
+                    "maintenance".into(),
+                    "Maintainers".into()
+                )
+                .await
+                .unwrap(),
+            row
+        );
+        assert!(matches!(
+            service
+                .create_team(
+                    "bob",
+                    "a".into(),
+                    "maintenance".into(),
+                    "Maintainers".into()
+                )
+                .await,
+            Err(ResourceError::Conflict)
+        ));
+    }
+    let application = app(dir.path(), Some(SharedStore::open(path, 1).unwrap()));
+    let service = application.resource_service(authority()).unwrap();
+    assert_eq!(
+        service
+            .get_team("alice", "a".into(), "maintenance".into())
+            .await
+            .unwrap()
+            .unwrap()
+            .owner_principal_id,
+        "alice"
+    );
+    assert_eq!(
+        service
+            .get_organization("admin", "a".into())
+            .await
+            .unwrap()
+            .unwrap()
+            .name,
+        "Acme"
+    );
+}
+
+#[tokio::test]
+async fn denied_scope_and_action_never_mutate_or_disclose_resources() {
+    let dir = tempfile::tempdir().unwrap();
+    let store = SharedStore::open(dir.path().join("resources.db"), 1).unwrap();
+    let application = app(dir.path(), Some(store.clone()));
+    let service = application.resource_service(authority()).unwrap();
+    service
+        .create_organization("admin", "a".into(), "Acme".into())
+        .await
+        .unwrap();
+    service
+        .create_organization("admin", "b".into(), "Other".into())
+        .await
+        .unwrap();
+    service
+        .create_team(
+            "alice",
+            "a".into(),
+            "maintenance".into(),
+            "Maintainers".into(),
+        )
+        .await
+        .unwrap();
+    assert!(matches!(
+        service
+            .create_organization("alice", "c".into(), "Unauthorized".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(matches!(
+        service
+            .create_team(
+                "alice",
+                "b".into(),
+                "maintenance".into(),
+                "Unauthorized".into()
+            )
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    for (credential, org, team) in [
+        ("bob", "a", "maintenance"),
+        ("alice", "b", "maintenance"),
+        ("alice", "a", "unknown"),
+        ("forged", "a", "maintenance"),
+    ] {
+        assert!(matches!(
+            service.get_team(credential, org.into(), team.into()).await,
+            Err(ResourceError::Denied)
+        ));
+    }
+    assert!(matches!(
+        service.get_organization("alice", "a".into()).await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(store
+        .read(|db| db.get_organization("c"))
+        .await
+        .unwrap()
+        .unwrap()
+        .is_none());
+    assert!(store
+        .read(|db| db.get_team("b", "maintenance"))
+        .await
+        .unwrap()
+        .unwrap()
+        .is_none());
+}
+
+#[tokio::test]
+async fn revocation_is_checked_on_reads_and_idempotent_retries() {
+    let dir = tempfile::tempdir().unwrap();
+    let application = app(
+        dir.path(),
+        Some(SharedStore::open(dir.path().join("resources.db"), 1).unwrap()),
+    );
+    let grants = authority();
+    let service = application.resource_service(grants.clone()).unwrap();
+    service
+        .create_organization("admin", "a".into(), "Acme".into())
+        .await
+        .unwrap();
+    service
+        .create_team(
+            "alice",
+            "a".into(),
+            "maintenance".into(),
+            "Maintainers".into(),
+        )
+        .await
+        .unwrap();
+    grants.revoked.store(true, Ordering::SeqCst);
+    assert!(matches!(
+        service
+            .get_team("alice", "a".into(), "maintenance".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(matches!(
+        service
+            .create_team(
+                "alice",
+                "a".into(),
+                "maintenance".into(),
+                "Maintainers".into()
+            )
+            .await,
+        Err(ResourceError::Denied)
+    ));
+    assert!(matches!(
+        service
+            .create_organization("admin", "a".into(), "Acme".into())
+            .await,
+        Err(ResourceError::Denied)
+    ));
+}
+
+#[test]
+fn volatile_application_cannot_compose_resource_service() {
+    let dir = tempfile::tempdir().unwrap();
+    assert!(matches!(
+        app(dir.path(), None).resource_service(authority()),
+        Err(ResourceError::StorageRequired)
+    ));
+    assert!(AuthorizedPrincipal::new(" ".into()).is_err());
+}

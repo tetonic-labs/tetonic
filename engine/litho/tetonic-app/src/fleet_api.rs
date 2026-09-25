@@ -1,8 +1,10 @@
-//! Fleet Creation and Management API (SAE-501).
+//! Legacy in-memory fleet prototype (SAE-501), pending MVP caller migration.
 //!
-//! Provides a frictionless RESTful API for provisioning Organizations, Squads,
-//! and continuous Standing Agents, enforcing budget quotas and binding to
-//! the persistent `FleetSupervisor`.
+//! Its REST-shaped dispatcher does not establish an authenticated caller, and
+//! its maps are not durable resource or execution authority. Do not expose it
+//! as the production control API. New resource composition belongs in
+//! `crate::resources`; activation must converge on managed execution before
+//! this prototype and its operator consumers can be removed.
 
 use std::collections::HashMap;
 use std::sync::Arc;

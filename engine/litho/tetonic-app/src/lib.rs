@@ -21,6 +21,7 @@ pub mod node_worker;
 pub mod operator_control;
 pub mod product_submit;
 pub mod redaction_audit;
+pub mod resources;
 pub mod resume;
 pub mod secret_scanner_factory;
 pub mod semantic_effect;
