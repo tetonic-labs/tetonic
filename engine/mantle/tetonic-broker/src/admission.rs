@@ -16,6 +16,7 @@ use crate::types::{ComputeRequest, PlacementDecisionReference};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AdmissionRejectionReason {
+    ReservationConflict,
     RunCanceled,
     StaleTaskVersion,
     PlacementExpired,
@@ -41,6 +42,7 @@ pub enum AdmissionRejectionReason {
 impl AdmissionRejectionReason {
     pub fn as_str(&self) -> &'static str {
         match self {
+            Self::ReservationConflict => "reservation_conflict",
             Self::RunCanceled => "run_canceled",
             Self::StaleTaskVersion => "stale_task_version",
             Self::PlacementExpired => "placement_expired",
@@ -249,6 +251,10 @@ fn evaluate_sync(
                 Err(_) => reject(reason, "budgets exhausted and queue full"),
             }
         }
+        Err(BudgetReject::ReservationConflict) => reject(
+            AdmissionRejectionReason::ReservationConflict,
+            "attempt already has a different reservation",
+        ),
         Err(BudgetReject::ResourceRequestTooLarge) => reject(
             AdmissionRejectionReason::ResourceRequestTooLarge,
             "resource request too large",
@@ -266,6 +272,7 @@ fn evaluate_sync(
 
 fn budget_to_reason(err: BudgetReject) -> AdmissionRejectionReason {
     match err {
+        BudgetReject::ReservationConflict => AdmissionRejectionReason::ReservationConflict,
         BudgetReject::ResourceRequestTooLarge => AdmissionRejectionReason::ResourceRequestTooLarge,
         BudgetReject::RunConcurrencyLimit => AdmissionRejectionReason::RunConcurrencyLimit,
         BudgetReject::WorkerConcurrencyLimit => AdmissionRejectionReason::WorkerConcurrencyLimit,
@@ -358,6 +365,6 @@ pub fn try_admit_queued(
             queue.remove(attempt_id);
             AdmissionDecision::Admitted(r)
         }
-        Err(e) => reject(budget_to_reason(e), "still over budget"),
+        Err(e) => reject(budget_to_reason(e), "queued reservation denied"),
     }
 }

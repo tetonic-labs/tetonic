@@ -388,3 +388,10 @@ The existing ledger now retains project attribution for its active in-memory res
 
 Validation: all 88 broker tests passed, including three new regressions covering all terminal outcomes, expiry with project capacity reuse, and duplicate over-budget cleanup while other reservations fill the inference limit. Architecture validation recorded below. Remaining prerequisites include retry identity/envelope validation, recovery error handling and ownership semantics, overflow-safe capacity checks, and durable cumulative effort accounting with organization/team attribution. Governed activation is still incomplete.
 Architecture gate and git diff whitespace checks passed.
+
+
+## 2026-09-25 — Bind active reservation retries to their original scope and request
+
+The existing broker ledger now compares active retries against the original run, task, project, target, speculation flag and complete resource request. Conflicts reject explicitly rather than reusing an unrelated allowance or entering the capacity queue. Exact retries retain reservation ID and expiry. Undispatched expired reservations are released before retry lookup and capacity re-evaluation. The active request binding replaces the preceding project-only attribution map; no second ledger or durable schema was added.
+
+Validation: all 90 broker tests and the architecture gate passed. New regressions exercise seven changed-request dimensions through the admission controller, unchanged retries and expiry at the boundary. These checks are in-memory capacity admission, not durable cumulative spend enforcement or restart identity recovery.

@@ -850,3 +850,87 @@ fn reservation_expiry_releases_project_capacity() {
     );
     assert_eq!(budgets.active_count(), 1);
 }
+
+#[tokio::test]
+async fn active_reservation_retries_require_identical_scope_and_resources() {
+    let ctl = controller(BudgetLimits::default(), QueueLimits::default());
+    let original = req(
+        "run",
+        "task",
+        "attempt",
+        ComputePriority::Interactive,
+        ResourceRequest::default(),
+    );
+    let first = match evaluate(&ctl, original.clone()).await {
+        AdmissionDecision::Admitted(r) => r,
+        other => panic!("unexpected admission: {other:?}"),
+    };
+    for field in 0..7 {
+        let mut changed = original.clone();
+        match field {
+            0 => changed.run_id = RunId::new("other-run"),
+            1 => changed.task_id = TaskId::new("other-task"),
+            2 => changed.project_id = None,
+            3 => changed.target_worker_id = Some(WorkerId::new("other-worker")),
+            4 => changed.speculative = true,
+            5 => changed.resource_request.memory_bytes += 1,
+            6 => changed.resource_request.estimated_duration.hard_limit_ms += 1,
+            _ => unreachable!(),
+        }
+        assert!(
+            matches!(
+                evaluate(&ctl, changed).await,
+                AdmissionDecision::Rejected(AdmissionRejection {
+                    reason: AdmissionRejectionReason::ReservationConflict,
+                    ..
+                })
+            ),
+            "changed field {field} must conflict, not be admitted or queued"
+        );
+    }
+    match evaluate(&ctl, original).await {
+        AdmissionDecision::Admitted(retry) => {
+            assert_eq!(retry.reservation_id, first.reservation_id);
+            assert_eq!(retry.expires_at, first.expires_at);
+            assert_eq!(retry.resources, first.resources);
+        }
+        other => panic!("identical retry denied: {other:?}"),
+    }
+}
+
+#[test]
+fn expired_reservation_is_not_returned_as_an_active_retry() {
+    let mut limits = BudgetLimits::default();
+    limits.reservation_ttl = std::time::Duration::from_secs(1);
+    let budgets = HierarchicalBudgetLedger::new(limits);
+    let reserve = |now| {
+        budgets
+            .reserve(
+                &RunId::new("run"),
+                &TaskId::new("task"),
+                &AttemptId::new("attempt"),
+                Some("project"),
+                ReservationTarget::Local,
+                &ResourceRequest::default(),
+                false,
+                now,
+            )
+            .unwrap()
+    };
+    let now = Utc::now();
+    let first = reserve(now);
+    let second = reserve(now + Duration::seconds(1));
+    assert_ne!(first.reservation_id, second.reservation_id);
+    assert_eq!(
+        budgets.get(&first.reservation_id).unwrap().state,
+        ReservationState::Expired
+    );
+    assert_eq!(budgets.active_count(), 1);
+    assert_eq!(
+        budgets
+            .get_by_attempt(&first.attempt_id)
+            .unwrap()
+            .reservation_id,
+        second.reservation_id
+    );
+}

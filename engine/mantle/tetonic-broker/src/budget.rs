@@ -206,6 +206,11 @@ struct ScopeUsage {
     exclusive_gpus: HashMap<u32, AttemptId>,
 }
 
+struct ReservationBinding {
+    project_id: Option<String>,
+    request: ResourceRequest,
+}
+
 struct BudgetState {
     limits: BudgetLimits,
     global: ScopeUsage,
@@ -215,7 +220,7 @@ struct BudgetState {
     workers: HashMap<String, ScopeUsage>,
     reservations: HashMap<String, ResourceReservation>,
     by_attempt: HashMap<String, String>,
-    reservation_projects: HashMap<String, String>,
+    reservation_bindings: HashMap<String, ReservationBinding>,
     epoch: u64,
 }
 
@@ -236,7 +241,7 @@ impl HierarchicalBudgetLedger {
                 workers: HashMap::new(),
                 reservations: HashMap::new(),
                 by_attempt: HashMap::new(),
-                reservation_projects: HashMap::new(),
+                reservation_bindings: HashMap::new(),
                 epoch: 1,
             }),
         }
@@ -271,7 +276,8 @@ impl HierarchicalBudgetLedger {
         Ok(())
     }
 
-    /// Idempotent reserve bound to one attempt.
+    /// Idempotent only for an identical active reservation request.
+    /// Expired, undispatched reservations are released before capacity is reconsidered.
     #[allow(clippy::too_many_arguments)]
     pub fn reserve(
         &self,
@@ -285,6 +291,7 @@ impl HierarchicalBudgetLedger {
         now: DateTime<Utc>,
     ) -> Result<ResourceReservation, BudgetReject> {
         let mut g = self.inner.lock().unwrap();
+        Self::expire_in(&mut g, now);
         if let Some(existing_id) = g.by_attempt.get(&attempt_id.0) {
             if let Some(existing) = g.reservations.get(existing_id) {
                 if matches!(
@@ -293,6 +300,19 @@ impl HierarchicalBudgetLedger {
                         | ReservationState::Dispatched
                         | ReservationState::Running
                 ) {
+                    let binding = g
+                        .reservation_bindings
+                        .get(existing_id)
+                        .ok_or(BudgetReject::UnknownReservation)?;
+                    if existing.run_id != *run_id
+                        || existing.task_id != *task_id
+                        || existing.target_scope != target
+                        || existing.speculative != speculative
+                        || binding.project_id.as_deref() != project_id
+                        || binding.request != *request
+                    {
+                        return Err(BudgetReject::ReservationConflict);
+                    }
                     return Ok(existing.clone());
                 }
             }
@@ -301,8 +321,6 @@ impl HierarchicalBudgetLedger {
         if request.exceeds_hard_limits(&limits) {
             return Err(BudgetReject::ResourceRequestTooLarge);
         }
-        Self::expire_in(&mut g, now);
-
         let worker_key = match &target {
             ReservationTarget::Local => "local".to_string(),
             ReservationTarget::Worker { worker_id } => worker_id.0.clone(),
@@ -445,10 +463,13 @@ impl HierarchicalBudgetLedger {
             state: ReservationState::Reserved,
             speculative,
         };
-        if let Some(project) = project_id {
-            g.reservation_projects
-                .insert(reservation_id.0.clone(), project.to_owned());
-        }
+        g.reservation_bindings.insert(
+            reservation_id.0.clone(),
+            ReservationBinding {
+                project_id: project_id.map(str::to_owned),
+                request: request.clone(),
+            },
+        );
         g.by_attempt
             .insert(attempt_id.0.clone(), reservation_id.0.clone());
         g.reservations
@@ -670,7 +691,11 @@ fn drop_reservation_locked(g: &mut BudgetState, rid: &ReservationId, terminal: R
     if let Some(u) = g.workers.get_mut(&worker_key) {
         reverse_usage(u, &rec.resources, rec.speculative, &rec.attempt_id);
     }
-    if let Some(project) = g.reservation_projects.remove(&rid.0) {
+    if let Some(project) = g
+        .reservation_bindings
+        .remove(&rid.0)
+        .and_then(|b| b.project_id)
+    {
         if let Some(usage) = g.projects.get_mut(&project) {
             reverse_usage(usage, &rec.resources, rec.speculative, &rec.attempt_id);
         }
@@ -728,6 +753,7 @@ fn reverse_usage(
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum BudgetReject {
+    ReservationConflict,
     ResourceRequestTooLarge,
     RunConcurrencyLimit,
     WorkerConcurrencyLimit,
