@@ -8,6 +8,8 @@ use tokio::task::AbortHandle;
 
 #[derive(Clone)]
 pub struct ActiveAttempt {
+    pub deadline: Option<u64>,
+    pub(crate) deadline_instant: Option<tokio::time::Instant>,
     pub work_scope: tetonic_domain::work_scope::WorkScope,
     pub binding: ManagedBinding,
     pub identity: tetonic_domain::AgentIdentity,
@@ -20,6 +22,29 @@ pub struct ActiveAttempt {
     pub heartbeat_sequence: u64,
     pub lease_proof: LeaseProof,
     pub sequence: u64,
+}
+
+impl ActiveAttempt {
+    pub(crate) fn deadline_elapsed(&self) -> bool {
+        self.deadline.is_some_and(|deadline| unix_now() >= deadline)
+            || self
+                .deadline_instant
+                .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+    }
+
+    /// A monotonic bound prevents a backward wall-clock adjustment from buying
+    /// more execution time. Recheck wall time as well for forward adjustments.
+    pub(crate) async fn wait_for_deadline(&self) {
+        let Some(deadline) = self.deadline_instant else {
+            return std::future::pending().await;
+        };
+        while !self.deadline_elapsed() {
+            tokio::time::sleep_until(
+                deadline.min(tokio::time::Instant::now() + std::time::Duration::from_secs(1)),
+            )
+            .await;
+        }
+    }
 }
 
 #[derive(Clone)]

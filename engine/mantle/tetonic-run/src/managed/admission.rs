@@ -44,6 +44,40 @@ impl super::service::ManagedRunService {
         job: AdmitJob,
         context: AdmissionContext,
     ) -> Result<ManagedBinding, ManagedRunError> {
+        let parent = job
+            .parent_attempt
+            .as_ref()
+            .and_then(|parent| self.active.lock_recover().get(parent).cloned());
+        let parent_deadline = parent.as_ref().and_then(|active| active.deadline);
+        let deadline = match (context.deadline, parent_deadline) {
+            (Some(requested), Some(parent)) => Some(requested.min(parent)),
+            (requested, parent) => requested.or(parent),
+        };
+        let mut deadline_instant = deadline
+            .map(|deadline| {
+                let now = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map_err(|_| {
+                        ManagedRunError::InvalidRequest("system clock precedes Unix epoch".into())
+                    })?;
+                let remaining = std::time::Duration::from_secs(deadline)
+                    .checked_sub(now)
+                    .filter(|remaining| !remaining.is_zero())
+                    .ok_or_else(|| {
+                        ManagedRunError::InvalidRequest("execution deadline has elapsed".into())
+                    })?;
+                tokio::time::Instant::now()
+                    .checked_add(remaining)
+                    .ok_or_else(|| {
+                        ManagedRunError::InvalidRequest("execution deadline is out of range".into())
+                    })
+            })
+            .transpose()?;
+        if let Some(parent_instant) = parent.and_then(|active| active.deadline_instant) {
+            deadline_instant = Some(
+                deadline_instant.map_or(parent_instant, |instant| instant.min(parent_instant)),
+            );
+        }
         if job.identity.id != job.job_spec.identity_id
             || job.identity.bound_definition_digest != job.job_spec.definition_digest
         {
@@ -157,6 +191,13 @@ impl super::service::ManagedRunService {
         if let Some(barrier) = pre_barrier {
             barrier.wait().await;
         }
+        if deadline.is_some_and(|deadline| unix_now() >= deadline)
+            || deadline_instant.is_some_and(|instant| tokio::time::Instant::now() >= instant)
+        {
+            return Err(ManagedRunError::InvalidRequest(
+                "execution deadline has elapsed".into(),
+            ));
+        }
 
         let (run_id, task_id, attempt_id, seq, lease_proof) = if let Some(parent_attempt) =
             &job.parent_attempt
@@ -179,6 +220,7 @@ impl super::service::ManagedRunService {
             if let Some(task) = snapshot.tasks.get(&task_id) {
                 if task.binding.job_spec.as_ref() != Some(&job.job_spec)
                     || task.binding.job_role != job.role
+                    || task.binding.deadline != deadline
                 {
                     return Err(ManagedRunError::InvalidRequest(
                         "child task already bound to a different job or role".into(),
@@ -212,6 +254,7 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
                     binding: TaskInputBinding {
+                        deadline,
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         execution_grant_id: context
                             .authorization
@@ -305,6 +348,7 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     root_task_id: task_id.clone(),
                     root_binding: TaskInputBinding {
+                        deadline,
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         execution_grant_id: context
                             .authorization
@@ -436,6 +480,8 @@ impl super::service::ManagedRunService {
             self.active.lock_recover().insert(
                 attempt_id.clone(),
                 ActiveAttempt {
+                    deadline,
+                    deadline_instant,
                     work_scope: Default::default(),
                     binding: binding.clone(),
                     identity: job.identity,

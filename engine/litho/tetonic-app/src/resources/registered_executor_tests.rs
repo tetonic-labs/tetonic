@@ -4,7 +4,13 @@ use tetonic_domain::{CandidateOutcome, ExecutionScope, RunState};
 
 #[tokio::test]
 async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scoped_audit() {
-    for scenario in ["success", "write", "audit-failure", "egress-denied"] {
+    for scenario in [
+        "success",
+        "write",
+        "audit-failure",
+        "egress-denied",
+        "deadline",
+    ] {
         let dir = tempfile::tempdir().unwrap();
         // Keep host control data outside the granted workspace.
         let workspace = dir.path().join("workspace");
@@ -95,6 +101,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             recovery_id: "job".into(),
         };
         let settings = || RegisteredExecutionSettings {
+            max_elapsed_seconds: if scenario == "deadline" { 2 } else { 30 },
             workspace_root: workspace.clone(),
             model: "qwen3.5:latest".into(),
             num_ctx: 8192,
@@ -118,8 +125,13 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         } else {
             serde_json::json!({"path":"fixture.txt"})
         };
-        let (url, requests, server) =
-            crate::tui_mvp_tests::inference_server_with_tool(true, tool, arguments).await;
+        let (url, requests, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+            true,
+            tool,
+            arguments,
+            scenario == "deadline",
+        )
+        .await;
         let guard = Arc::new(tetonic_egress::EgressGuard::new());
         if scenario != "egress-denied" {
             guard.configure_loopback_inference(url.rsplit(':').next().unwrap().parse().unwrap());
@@ -137,6 +149,18 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         })
         .await;
         app.install_compute_services(&plane);
+        let mut invalid_settings = settings();
+        invalid_settings.max_elapsed_seconds = 0;
+        assert!(matches!(
+            app.submit_registered_job(
+                credential.expose_secret(),
+                local.credentials().clone(),
+                request(),
+                invalid_settings,
+            )
+            .await,
+            Err(AppError::InvalidRequest(_))
+        ));
         let mut denied_settings = settings();
         denied_settings.allowed_tools.clear();
         assert!(matches!(
@@ -193,6 +217,11 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             )
             .await
             .unwrap();
+        assert!(snapshot.tasks[&result.task_id].binding.deadline.is_some());
+        assert_eq!(
+            snapshot.deadlines.run_deadline,
+            snapshot.tasks[&result.task_id].binding.deadline
+        );
         let transcript = local
             .contexts()
             .transcript(
@@ -279,6 +308,31 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             "egress-denied" => {
                 assert_eq!(snapshot.state, RunState::Failed);
                 assert!(requests.is_empty(), "denied endpoint received agent input");
+            }
+            "deadline" => {
+                assert_eq!(
+                    requests.len(),
+                    1,
+                    "hung inference must not be retried after expiry"
+                );
+                assert_eq!(snapshot.state, RunState::Failed);
+                assert_eq!(
+                    snapshot.attempts[&result.attempt_id].state,
+                    tetonic_domain::AttemptState::TimedOut
+                );
+                assert_eq!(
+                    snapshot.attempts[&result.attempt_id].failure_class,
+                    Some(tetonic_domain::FailureClass::TimedOut)
+                );
+                assert!(
+                    matches!(result.outcome, CandidateOutcome::Failed { ref message } if message == "execution deadline exceeded")
+                );
+                assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_none());
+                assert!(app
+                    .run_manager
+                    .managed()
+                    .binding(&result.attempt_id)
+                    .is_none());
             }
             _ => unreachable!(),
         }

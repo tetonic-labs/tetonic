@@ -9,6 +9,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// The workspace and tool ceiling must be authorized by the host. Stored job
 /// grants constrain requested tool names; they do not grant arbitrary host paths.
 pub struct RegisteredExecutionSettings {
+    /// Host ceiling, including preparation and managed execution/finalization.
+    /// Persisted as a Unix-seconds deadline; resolution can shorten this by <1s.
+    pub max_elapsed_seconds: u64,
     pub workspace_root: std::path::PathBuf,
     pub model: String,
     pub num_ctx: usize,
@@ -62,6 +65,8 @@ impl crate::Application {
         settings: RegisteredExecutionSettings,
     ) -> Result<RegisteredAgentSubmission, AppError> {
         if settings.model.is_empty()
+            || settings.max_elapsed_seconds == 0
+            || settings.max_elapsed_seconds > 86_400
             || settings
                 .model
                 .chars()
@@ -73,10 +78,15 @@ impl crate::Application {
                 "invalid registered execution settings".into(),
             ));
         }
+        let deadline = u64::try_from(chrono::Utc::now().timestamp())
+            .ok()
+            .and_then(|now| now.checked_add(settings.max_elapsed_seconds))
+            .ok_or_else(|| AppError::InvalidRequest("invalid execution deadline".into()))?;
         let mut prepared = self
             .run_manager
             .prepare_registered_job(credential, verifier, request, settings.limits)
             .await?;
+        prepared.deadline = Some(deadline);
         if prepared
             .command
             .job_spec

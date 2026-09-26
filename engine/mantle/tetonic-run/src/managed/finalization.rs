@@ -20,6 +20,60 @@ impl super::service::ManagedRunService {
             .cloned()
             .ok_or_else(|| ManagedRunError::InvalidRequest("no active attempt found".into()))?;
 
+        if job.finish_run && active.parent_attempt.is_some() {
+            return Err(ManagedRunError::InvalidRequest(
+                "child finalizer cannot finish the parent run".into(),
+            ));
+        }
+        // Keep the effect owner alive at the deadline. Cancellation closes work
+        // admission and reaches cooperative workers; it is not quiescence.
+        let finish_run = job.finish_run;
+        let finalizing = self.finalize_owned(job, active.clone());
+        tokio::pin!(finalizing);
+        let result = tokio::select! {
+            biased;
+            result = &mut finalizing => result,
+            _ = active.wait_for_deadline() => {
+                active.work_scope.cancel();
+                self.notify_hooks(|hooks| hooks.fail_approval_waits(&active.binding.attempt_id));
+                finalizing.await
+            }
+        };
+        if result.is_err()
+            && active.deadline_elapsed()
+            && self.binding(&active.binding.attempt_id).is_some()
+        {
+            // The finalizer has dropped its own lease and joined its workers.
+            // Preserve already-completed results and publication recovery errors.
+            let snapshot = self.inspect_run(&active.binding.run_id).await?;
+            if snapshot
+                .attempts
+                .get(&active.binding.attempt_id)
+                .is_some_and(|attempt| attempt.state != tetonic_domain::AttemptState::Succeeded)
+                && !snapshot.cancellation.run_canceled
+            {
+                while !active.work_scope.is_quiescent() {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+                return self.finish_deadline_exceeded(&active, finish_run).await;
+            }
+        }
+        result
+    }
+
+    async fn finalize_owned(
+        &self,
+        job: FinalizeJob,
+        active: super::lifetime::ActiveAttempt,
+    ) -> Result<CandidateOutcome, ManagedRunError> {
+        if active.deadline_elapsed() {
+            active.work_scope.cancel();
+            while !active.work_scope.is_quiescent() {
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+            return self.finish_deadline_exceeded(&active, job.finish_run).await;
+        }
+
         // Own the finalization lifetime as well as each blocking worker. If the
         // caller is dropped, the worker lease still prevents premature release.
         let finalization_lease = active.work_scope.try_enter();
@@ -34,11 +88,6 @@ impl super::service::ManagedRunService {
             }
         }
 
-        if job.finish_run && active.parent_attempt.is_some() {
-            return Err(ManagedRunError::InvalidRequest(
-                "child finalizer cannot finish the parent run".into(),
-            ));
-        }
         let run_id = active.binding.run_id.clone();
         let task_id = active.binding.task_id.clone();
         let attempt_id = active.binding.attempt_id.clone();
@@ -73,6 +122,9 @@ impl super::service::ManagedRunService {
             let claim = match claim {
                 Ok(claim) => claim,
                 Err(error) => {
+                    if active.deadline_elapsed() {
+                        return self.finish_deadline_exceeded(&active, job.finish_run).await;
+                    }
                     // A different winner retains the run. Only this losing
                     // attempt is failed, and no effect driver is invoked.
                     let message = format!("lease lost or competing claim: {error}");
@@ -437,6 +489,12 @@ impl super::service::ManagedRunService {
         active: &super::lifetime::ActiveAttempt,
         finish_run: bool,
     ) -> Result<Option<CandidateOutcome>, ManagedRunError> {
+        if active.deadline_elapsed() {
+            return self
+                .finish_deadline_exceeded(active, finish_run)
+                .await
+                .map(Some);
+        }
         let snapshot = self.inspect_run(&active.binding.run_id).await?;
         let task = snapshot
             .tasks
@@ -448,7 +506,8 @@ impl super::service::ManagedRunService {
                 == active
                     .authorization
                     .as_ref()
-                    .and_then(|a| a.grant_id.as_ref());
+                    .and_then(|a| a.grant_id.as_ref())
+            && task.binding.deadline == active.deadline;
         let allowed = if binding_matches {
             match &active.authorization {
                 Some(auth) => auth
@@ -461,6 +520,12 @@ impl super::service::ManagedRunService {
         } else {
             false
         };
+        if active.deadline_elapsed() {
+            return self
+                .finish_deadline_exceeded(active, finish_run)
+                .await
+                .map(Some);
+        }
         if allowed {
             return Ok(None);
         }
@@ -470,6 +535,20 @@ impl super::service::ManagedRunService {
         let outcome = CandidateOutcome::Failed { message };
         self.deliver_terminal(active, outcome.clone());
         Ok(Some(outcome))
+    }
+
+    async fn finish_deadline_exceeded(
+        &self,
+        active: &super::lifetime::ActiveAttempt,
+        finish_run: bool,
+    ) -> Result<CandidateOutcome, ManagedRunError> {
+        active.work_scope.cancel();
+        let message = "execution deadline exceeded".to_string();
+        self.fail_and_finish(active, 0, FailureClass::TimedOut, &message, finish_run)
+            .await?;
+        let outcome = CandidateOutcome::Failed { message };
+        self.deliver_terminal(active, outcome.clone());
+        Ok(outcome)
     }
 
     async fn fail_and_finish(
@@ -490,10 +569,11 @@ impl super::service::ManagedRunService {
                 ),
                 run_id: active.binding.run_id.clone(),
                 attempt_id: active.binding.attempt_id.clone(),
+                timeout_kind: (failure_class == FailureClass::TimedOut)
+                    .then_some(tetonic_domain::TimeoutKind::Task),
                 failure_class,
                 reason: reason.to_string(),
                 lease_proof: Some(active.lease_proof.clone()),
-                timeout_kind: None,
             }))
             .await
             .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()))?;

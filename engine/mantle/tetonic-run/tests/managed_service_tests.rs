@@ -1,5 +1,8 @@
 //! Tests for ManagedRunService (C2 resolution & deterministic admission cancellation).
 
+#[path = "support/managed_deadlines.rs"]
+mod deadlines;
+
 use std::sync::Arc;
 use tokio::sync::Notify;
 

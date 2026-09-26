@@ -8,11 +8,26 @@ async fn inference_server() -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::Joi
     inference_server_with_finish(false).await
 }
 
-pub(crate) async fn inference_server_with_finish(finish_tool: bool) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+pub(crate) async fn inference_server_with_finish(
+    finish_tool: bool,
+) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     inference_server_with_tool(finish_tool, "read_file", json!({"path":"fixture.txt"})).await
 }
 
-pub(crate) async fn inference_server_with_tool(finish_tool: bool, tool: &'static str, arguments: Value) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+pub(crate) async fn inference_server_with_tool(
+    finish_tool: bool,
+    tool: &'static str,
+    arguments: Value,
+) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    inference_server_with_behavior(finish_tool, tool, arguments, false).await
+}
+
+pub(crate) async fn inference_server_with_behavior(
+    finish_tool: bool,
+    tool: &'static str,
+    arguments: Value,
+    hang_chat: bool,
+) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));
@@ -48,6 +63,12 @@ pub(crate) async fn inference_server_with_tool(finish_tool: bool, tool: &'static
                 bytes.extend_from_slice(&buf[..n]);
             }
             let header = String::from_utf8_lossy(&bytes[..header_end]);
+            if hang_chat && header.starts_with("POST /api/chat ") {
+                let request: Value =
+                    serde_json::from_slice(&bytes[header_end..header_end + length]).unwrap();
+                captured.lock().unwrap().push(request);
+                std::future::pending::<()>().await;
+            }
             let response = if header.starts_with("POST /api/chat ") {
                 let request: Value =
                     serde_json::from_slice(&bytes[header_end..header_end + length]).unwrap();

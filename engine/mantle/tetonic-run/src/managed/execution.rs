@@ -5,17 +5,30 @@ use tetonic_domain::{AgentAttemptExecutor, CandidateOutcome};
 use tetonic_memory::RecoverMutex;
 
 struct AttemptExecutionGate {
-    authorization: AuthorizedExecution,
-    identity: tetonic_domain::AgentIdentity,
-    job: tetonic_domain::AgentJobSpec,
+    active: super::lifetime::ActiveAttempt,
 }
 #[async_trait::async_trait]
 impl tetonic_core::ExecutionGate for AttemptExecutionGate {
     async fn authorize(&self) -> Result<(), ()> {
-        self.authorization
-            .authority
-            .authorize(&self.authorization.scope, &self.identity, &self.job)
-            .await
+        if self.active.deadline_elapsed() {
+            self.active.work_scope.cancel();
+            return Err(());
+        }
+        if let Some(authorization) = &self.active.authorization {
+            authorization
+                .authority
+                .authorize(
+                    &authorization.scope,
+                    &self.active.identity,
+                    &self.active.binding.job_spec,
+                )
+                .await?;
+        }
+        if self.active.deadline_elapsed() {
+            self.active.work_scope.cancel();
+            return Err(());
+        }
+        Ok(())
     }
 }
 
@@ -40,6 +53,13 @@ impl super::service::ManagedRunService {
         let Some(task) = snapshot.tasks.get(&binding.task_id) else {
             return fail("durable task missing".into());
         };
+        if task.binding.deadline != active.deadline {
+            return fail("execution deadline binding mismatch".into());
+        }
+        if active.deadline_elapsed() {
+            active.work_scope.cancel();
+            return fail("execution deadline exceeded".into());
+        }
         if task.binding.job_spec.as_ref() != Some(&binding.job_spec)
             || binding.job_spec.input_digest != crate::job_input_digest(&invocation.user_input)
             || active.identity.id != binding.job_spec.identity_id
@@ -129,7 +149,7 @@ impl super::service::ManagedRunService {
                     ),
                     run_id: binding.run_id.clone(),
                     attempt_id: attempt.clone(),
-                    lease_proof: active.lease_proof,
+                    lease_proof: active.lease_proof.clone(),
                 },
             ))
             .await;
@@ -139,13 +159,13 @@ impl super::service::ManagedRunService {
         if let Err(error) = agent.bind_work_scope(active.work_scope.clone()) {
             return fail(error.to_string());
         }
-        agent.bind_execution_gate(active.authorization.clone().map(|authorization| {
-            std::sync::Arc::new(AttemptExecutionGate {
-                authorization,
-                identity: active.identity.clone(),
-                job: binding.job_spec.clone(),
-            }) as std::sync::Arc<dyn tetonic_core::ExecutionGate>
-        }));
+        agent.bind_execution_gate(
+            (active.authorization.is_some() || active.deadline.is_some()).then(|| {
+                std::sync::Arc::new(AttemptExecutionGate {
+                    active: active.clone(),
+                }) as std::sync::Arc<dyn tetonic_core::ExecutionGate>
+            }),
+        );
         agent.stamp_managed_run(&binding.run_id.0, &binding.task_id.0, &attempt.0);
         let loop_cancel = conversation.cancel_handle();
         let mut step_fn = |step: tetonic_core::Step| {
@@ -163,6 +183,7 @@ impl super::service::ManagedRunService {
         let canceled = async {
             loop {
                 if active.work_scope.is_canceled()
+                    || active.deadline_elapsed()
                     || self.is_canceled(&attempt)
                     || loop_cancel.load(std::sync::atomic::Ordering::SeqCst)
                 {

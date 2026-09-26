@@ -111,6 +111,7 @@ impl crate::services::DefaultRunService {
             authorization,
             contexts,
             finalization: None,
+            deadline: None,
         })
     }
 
@@ -130,6 +131,7 @@ impl crate::services::DefaultRunService {
             policy,
             authorization,
             finalization,
+            deadline,
             ..
         } = prepared;
         // Preparation failures must not create a run or report an active attempt.
@@ -153,6 +155,7 @@ impl crate::services::DefaultRunService {
                 command,
                 agent,
                 AdmissionContext {
+                    deadline,
                     authorization: Some(authorization),
                     ..Default::default()
                 },
@@ -165,6 +168,7 @@ impl crate::services::DefaultRunService {
 
 /// In-memory preparation owned by the application, not a new lifecycle record.
 pub(super) struct PreparedRegisteredJob {
+    pub deadline: Option<u64>,
     pub command: tetonic_run::StartIdentityJobCommand,
     pub policy: tetonic_run::ExecutionPolicy,
     pub authorization: tetonic_run::managed::AuthorizedExecution,

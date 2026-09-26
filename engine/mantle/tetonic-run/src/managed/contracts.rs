@@ -125,6 +125,9 @@ pub trait ManagedRunHooks: Send + Sync {
 /// be combined with governed activation until session composition is implemented.
 #[derive(Clone, Default)]
 pub struct AdmissionContext {
+    /// Absolute Unix deadline selected by the host, persisted on the task.
+    /// Child work can shorten, but cannot extend, its parent's deadline.
+    pub deadline: Option<u64>,
     pub authorization: Option<AuthorizedExecution>,
     pub speculation: Option<tetonic_domain::SpeculationConfig>,
     pub session_id: Option<tetonic_domain::SessionId>,

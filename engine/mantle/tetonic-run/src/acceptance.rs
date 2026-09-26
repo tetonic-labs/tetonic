@@ -93,7 +93,7 @@ pub fn try_accept_completion(
     }
 
     if let Some(deadline) = task.binding.deadline {
-        if cmd.envelope.timestamp > deadline {
+        if cmd.envelope.timestamp >= deadline {
             return Err(RunSupervisorError::DeadlineExceeded(
                 tetonic_domain::TimeoutKind::Task,
             ));
@@ -114,6 +114,15 @@ pub fn try_claim_finalization(
         .tasks
         .get(&cmd.task_id)
         .ok_or_else(|| RunSupervisorError::TaskNotFound(cmd.task_id.to_string()))?;
+    if task
+        .binding
+        .deadline
+        .is_some_and(|deadline| cmd.envelope.timestamp >= deadline)
+    {
+        return Err(RunSupervisorError::DeadlineExceeded(
+            tetonic_domain::TimeoutKind::Task,
+        ));
+    }
     if task.finalization_claim.as_ref() == Some(&cmd.attempt_id) {
         return Ok(());
     }
