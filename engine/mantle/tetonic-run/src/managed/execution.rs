@@ -293,8 +293,18 @@ impl super::service::ManagedRunService {
         ),
         ManagedRunError,
     > {
-        self.submit_identity_job_with_context(cmd, agent, AdmissionContext::default(), None)
-            .await
+        match self
+            .submit_identity_job_with_context(cmd, agent, AdmissionContext::default(), None)
+            .await?
+        {
+            ManagedSubmission::Started {
+                binding,
+                completion,
+            } => Ok((binding.attempt_id, completion)),
+            ManagedSubmission::Existing(_) => Err(ManagedRunError::InternalViolation(
+                "unkeyed submission replayed".into(),
+            )),
+        }
     }
 
     /// Same managed submission owner, with host-verified scope/grants. Scoped
@@ -305,13 +315,7 @@ impl super::service::ManagedRunService {
         mut agent: tetonic_core::Agent,
         context: AdmissionContext,
         finalization: Option<FinalizationPolicy>,
-    ) -> Result<
-        (
-            tetonic_domain::AttemptId,
-            tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
-        ),
-        ManagedRunError,
-    > {
+    ) -> Result<ManagedSubmission, ManagedRunError> {
         self.validate_start(&cmd, &agent)?;
         // Verify executor context before creating any durable records.
         let probe = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -328,16 +332,30 @@ impl super::service::ManagedRunService {
             role: agent.execution_role().map(str::to_owned),
             parent_attempt: None,
         };
-        let binding = self
-            .admit_with_context(&ticket.id, admit_job, context)
-            .await?;
-        let attempt_id = binding.attempt_id.clone();
-        let rx = self.arm_attempt_join(&attempt_id);
-
         let this = self.clone();
-        let att = attempt_id.clone();
         let t_id = ticket.id.clone();
+        let (reply, response) = tokio::sync::oneshot::channel();
         let fut = async move {
+            // One owner spans admission through finalization. Losing the launch
+            // response cannot strand an admitted attempt before execution.
+            let binding = match this.admit_submission(&t_id, admit_job, context).await {
+                Ok(ManagedAdmission::Admitted(binding)) => binding,
+                Ok(ManagedAdmission::Existing(receipt)) => {
+                    let _ = reply.send(Ok(ManagedSubmission::Existing(receipt)));
+                    return;
+                }
+                Err(error) => {
+                    let _ = this.release_dispatch(&t_id).await;
+                    let _ = reply.send(Err(error));
+                    return;
+                }
+            };
+            let att = binding.attempt_id.clone();
+            let completion = this.arm_attempt_join(&att);
+            let _ = reply.send(Ok(ManagedSubmission::Started {
+                binding: binding.clone(),
+                completion,
+            }));
             let mut conversation = tetonic_core::Conversation::new();
             let outcome = this
                 .execute_attempt(
@@ -374,7 +392,11 @@ impl super::service::ManagedRunService {
 
         let task = tokio::task::spawn_local(fut);
         self.attach_task(&ticket.id, task.abort_handle())?;
-        Ok((attempt_id, rx))
+        response.await.map_err(|_| {
+            ManagedRunError::InternalViolation(
+                "submission owner ended before admission response".into(),
+            )
+        })?
     }
 }
 

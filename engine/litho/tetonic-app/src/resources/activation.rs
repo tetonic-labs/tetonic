@@ -1,12 +1,16 @@
 //! Registered jobs enter the existing manager; no alternate lifecycle or store.
 use super::*;
 use crate::errors::AppError;
-use tetonic_run::{managed::AdmissionContext, StartIdentityJobResult};
+use tetonic_run::managed::AdmissionContext;
+#[cfg(test)]
+use tetonic_run::StartIdentityJobResult;
 
 /// Employee-supplied selectors and input. Principal, grants, identity contents and
 /// invocation are resolved by the host, never accepted from this request.
 /// The recovery ID binds the exact granted job; it is not an idempotency token.
 pub struct RegisteredAgentJob {
+    /// Stable across retries, new for intentionally distinct work.
+    pub request_id: String,
     pub organization_id: String,
     pub information_context_id: String,
     pub agent_key: String,
@@ -49,7 +53,15 @@ impl crate::services::DefaultRunService {
         let prepared = self
             .prepare_registered_job(credential, verifier, request, limits)
             .await?;
-        self.submit_prepared_registered_job(prepared, agent).await
+        match self.submit_prepared_registered_job(prepared, agent).await? {
+            tetonic_run::managed::ManagedSubmission::Started {
+                binding,
+                completion,
+            } => Ok((binding.attempt_id, completion)),
+            tetonic_run::managed::ManagedSubmission::Existing(_) => Err(AppError::InvalidRequest(
+                "test helper does not replay activations".into(),
+            )),
+        }
     }
 
     pub(super) async fn prepare_registered_job(
@@ -112,6 +124,7 @@ impl crate::services::DefaultRunService {
             contexts,
             finalization: None,
             deadline: None,
+            activation: None,
         })
     }
 
@@ -119,19 +132,14 @@ impl crate::services::DefaultRunService {
         &self,
         prepared: PreparedRegisteredJob,
         agent: tetonic_core::Agent,
-    ) -> Result<
-        (
-            tetonic_domain::AttemptId,
-            tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
-        ),
-        AppError,
-    > {
+    ) -> Result<tetonic_run::managed::ManagedSubmission, AppError> {
         let PreparedRegisteredJob {
             command,
             policy,
             authorization,
             finalization,
             deadline,
+            activation,
             ..
         } = prepared;
         // Preparation failures must not create a run or report an active attempt.
@@ -155,6 +163,7 @@ impl crate::services::DefaultRunService {
                 command,
                 agent,
                 AdmissionContext {
+                    activation,
                     deadline,
                     authorization: Some(authorization),
                     ..Default::default()
@@ -168,6 +177,7 @@ impl crate::services::DefaultRunService {
 
 /// In-memory preparation owned by the application, not a new lifecycle record.
 pub(super) struct PreparedRegisteredJob {
+    pub activation: Option<tetonic_domain::ActivationBinding>,
     pub deadline: Option<u64>,
     pub command: tetonic_run::StartIdentityJobCommand,
     pub policy: tetonic_run::ExecutionPolicy,

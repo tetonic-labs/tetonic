@@ -38,6 +38,39 @@ struct PendingProvider {
     entered: tokio::sync::mpsc::UnboundedSender<()>,
     calls: Arc<AtomicUsize>,
 }
+
+#[tokio::test]
+async fn lost_launch_response_does_not_strand_the_admission_owner() {
+    let tmp = tempfile::tempdir().unwrap();
+    let service = manager(&tmp, Arc::new(Events::default()), false);
+    let paused = Arc::new(tokio::sync::Notify::new());
+    let resume = Arc::new(tokio::sync::Notify::new());
+    service.managed().set_post_admission_hook(paused.clone(), resume.clone());
+    let (entered, mut requests) = tokio::sync::mpsc::unbounded_channel();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let tools = tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false);
+    let agent = Agent::new(Arc::new(PendingProvider { entered, calls: calls.clone() }), tools, AgentConfig::default());
+    tokio::task::LocalSet::new().run_until(async {
+        {
+            let submitting = service.managed().submit_identity_job(command(), agent);
+            tokio::pin!(submitting);
+            tokio::select! {
+                _ = paused.notified() => {},
+                _ = &mut submitting => panic!("submission should be paused before its response"),
+                _ = tokio::time::sleep(std::time::Duration::from_secs(5)) => panic!("admission did not reach barrier"),
+            }
+        } // Caller is gone while the managed owner is still admitting.
+        resume.notify_one();
+        tokio::time::timeout(std::time::Duration::from_secs(5), requests.recv()).await.unwrap().unwrap();
+        let ids = service.managed().store().unwrap().read(|db| db.list_all_run_ids()).await.unwrap().unwrap();
+        assert_eq!(ids.len(), 1);
+        let run = RunId::new(ids[0].clone());
+        assert_eq!(service.managed().inspect_run(&run).await.unwrap().attempts.len(), 1);
+        service.managed().cancel_run(&run).await.unwrap();
+        assert!(service.managed().active_bindings(&run).is_empty());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+    }).await;
+}
 #[async_trait::async_trait]
 impl InferenceProvider for PendingProvider {
     async fn chat(
@@ -497,6 +530,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .is_err());
     let calls = Arc::new(AtomicUsize::new(0));
     let request = || crate::resources::RegisteredAgentJob {
+        request_id: "test-launch".into(),
         organization_id: "org".into(), information_context_id: "private".into(),
         agent_key: "agent".into(), definition_digest: identity.bound_definition_digest.clone(),
         execution_grant_id: "job-grant".into(), input: "A question".into(),

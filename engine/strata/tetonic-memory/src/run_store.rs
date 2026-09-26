@@ -23,7 +23,13 @@ impl Store {
         event: &RunEventEnvelope,
         idempotency: Option<(&str, &RunCommandResult)>,
     ) -> Result<u64> {
-        let tx = self.conn.unchecked_transaction()?;
+        // Acquire the writer before reading projection metadata. A deferred WAL
+        // transaction can otherwise fail its read-to-write upgrade immediately
+        // (SQLITE_BUSY_SNAPSHOT) instead of honoring the configured busy timeout.
+        let tx = rusqlite::Transaction::new_unchecked(
+            &self.conn,
+            rusqlite::TransactionBehavior::Immediate,
+        )?;
         let new_seq = snapshot.sequence;
         let existing_floor: i64 = tx
             .query_row(

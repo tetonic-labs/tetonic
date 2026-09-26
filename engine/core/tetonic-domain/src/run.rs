@@ -108,7 +108,18 @@ pub struct ExecutionScope {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ActivationBinding {
+    /// Opaque client retry key, scoped to the initiating principal and organization.
+    pub request_id: String,
+    /// Host-computed fingerprint of the job and effective execution settings.
+    pub request_digest: String,
+    pub audit_session_id: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskInputBinding {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub activation: Option<ActivationBinding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_scope: Option<ExecutionScope>,
     /// Locator for the selected immutable grant, never authority by itself.
@@ -134,6 +145,7 @@ pub struct TaskInputBinding {
 impl Default for TaskInputBinding {
     fn default() -> Self {
         Self {
+            activation: None,
             execution_scope: None,
             execution_grant_id: None,
             job_spec: None,

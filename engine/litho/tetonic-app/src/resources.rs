@@ -243,4 +243,4 @@ mod activation;
 pub use activation::RegisteredAgentJob;
 
 mod registered_executor;
-pub use registered_executor::{RegisteredExecutionSettings, RegisteredAgentSubmission};
+pub use registered_executor::{RegisteredExecutionSettings, RegisteredAgentSubmission, RegisteredAgentExecution};

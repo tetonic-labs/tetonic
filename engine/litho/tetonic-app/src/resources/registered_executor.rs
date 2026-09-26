@@ -21,10 +21,29 @@ pub struct RegisteredExecutionSettings {
 }
 
 pub struct RegisteredAgentSubmission {
-    pub attempt_id: tetonic_domain::AttemptId,
+    pub run_id: tetonic_domain::RunId,
+    pub task_id: tetonic_domain::TaskId,
     /// Read with ContextService::transcript using current context authorization.
     pub audit_session_id: String,
+    /// Present only for the winning launch. Retries inspect the durable run;
+    /// they neither attach a second completion owner nor resume interrupted work.
+    pub execution: Option<RegisteredAgentExecution>,
+}
+
+pub struct RegisteredAgentExecution {
+    pub attempt_id: tetonic_domain::AttemptId,
     pub completion: tokio::sync::oneshot::Receiver<tetonic_run::StartIdentityJobResult>,
+}
+
+impl From<tetonic_run::managed::ActivationReceipt> for RegisteredAgentSubmission {
+    fn from(receipt: tetonic_run::managed::ActivationReceipt) -> Self {
+        Self {
+            run_id: receipt.run_id,
+            task_id: receipt.task_id,
+            audit_session_id: receipt.audit_session_id,
+            execution: None,
+        }
+    }
 }
 
 struct AuditedAuthority {
@@ -82,6 +101,8 @@ impl crate::Application {
             .ok()
             .and_then(|now| now.checked_add(settings.max_elapsed_seconds))
             .ok_or_else(|| AppError::InvalidRequest("invalid execution deadline".into()))?;
+        let request_id = request.request_id.clone();
+        let preparation_limits = (settings.limits.max_steps, settings.limits.max_input_bytes);
         let mut prepared = self
             .run_manager
             .prepare_registered_job(credential, verifier, request, settings.limits)
@@ -98,15 +119,49 @@ impl crate::Application {
                 "requested tools exceed host grant".into(),
             ));
         }
+        let workspace = tetonic_tools::Workspace::new(&settings.workspace_root)
+            .map_err(|_| AppError::WorkspaceUnavailable)?;
+        let root = workspace.root().to_path_buf();
+        let root_key = root.to_str().ok_or(AppError::WorkspaceUnavailable)?;
+        let mut ceiling: Vec<_> = settings.allowed_tools.iter().collect();
+        ceiling.sort();
+        // The fingerprint covers effective host settings as well as the exact
+        // granted job. Absolute time and a new audit UUID are not request inputs.
+        let request_bytes = serde_json::to_vec(&serde_json::json!({
+            "version": 1, "scope": prepared.authorization.scope,
+            "grant_id": prepared.authorization.grant_id, "job": prepared.command.job_spec,
+            "workspace": root_key, "model": settings.model, "num_ctx": settings.num_ctx,
+            "data_class": settings.data_class, "tools": ceiling,
+            "preparation_limits": preparation_limits, "max_elapsed_seconds": settings.max_elapsed_seconds,
+        })).map_err(|_| AppError::InvalidRequest("invalid activation settings".into()))?;
+        use sha2::Digest;
+        let activation = tetonic_domain::ActivationBinding {
+            request_id,
+            request_digest: format!("sha256:{:x}", sha2::Sha256::digest(request_bytes)),
+            audit_session_id: format!("execution-audit-{}", uuid::Uuid::new_v4()),
+        };
+        if let Some(receipt) = self
+            .run_manager
+            .managed()
+            .lookup_activation(
+                &prepared.authorization,
+                &activation,
+                &prepared.command.identity,
+                &prepared.command.job_spec,
+                None,
+            )
+            .await?
+        {
+            return Ok(receipt.into());
+        }
         let provider = self
             .turn
             .registered_provider()
             .filter(|provider| provider.has_secret_scanner())
             .ok_or(AppError::InferenceUnavailable)?;
         let runtime = &self.turn.runtime;
-        let workspace = tetonic_tools::Workspace::new(&settings.workspace_root)
-            .map_err(|_| AppError::WorkspaceUnavailable)?;
-        let root = workspace.root().to_path_buf();
+        let history = activation.audit_session_id.clone();
+        prepared.activation = Some(activation);
         let mut allowed: std::collections::HashSet<_> = prepared
             .command
             .job_spec
@@ -142,7 +197,6 @@ impl crate::Application {
             .store()
             .cloned()
             .ok_or_else(|| resource_error(ResourceError::StorageRequired))?;
-        let history = format!("execution-audit-{}", uuid::Uuid::new_v4());
         let scope = prepared.authorization.scope.clone();
         let audit_session = history.clone();
         store
@@ -217,15 +271,25 @@ impl crate::Application {
                 },
             )
             .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?;
-        let (attempt_id, completion) = self
+        let submission = self
             .run_manager
             .submit_prepared_registered_job(prepared, agent)
             .await?;
-        Ok(RegisteredAgentSubmission {
-            attempt_id,
-            audit_session_id: history,
-            completion,
-        })
+        match submission {
+            tetonic_run::managed::ManagedSubmission::Started {
+                binding,
+                completion,
+            } => Ok(RegisteredAgentSubmission {
+                run_id: binding.run_id,
+                task_id: binding.task_id,
+                audit_session_id: history,
+                execution: Some(RegisteredAgentExecution {
+                    attempt_id: binding.attempt_id,
+                    completion,
+                }),
+            }),
+            tetonic_run::managed::ManagedSubmission::Existing(receipt) => Ok(receipt.into()),
+        }
     }
 }
 

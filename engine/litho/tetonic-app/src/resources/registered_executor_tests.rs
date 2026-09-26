@@ -92,6 +92,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         let app =
             Application::bootstrap_mock_with_store(dir.path(), Some(store.clone()), sink, vec![]);
         let request = || RegisteredAgentJob {
+            request_id: "request-1".into(),
             organization_id: "org".into(),
             information_context_id: "private".into(),
             agent_key: "agent".into(),
@@ -184,20 +185,38 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         }
         let (submission, result) = tokio::task::LocalSet::new()
             .run_until(async {
-                let submission = app
-                    .submit_registered_job(
+                let (a, b) = tokio::join!(
+                    app.submit_registered_job(
                         credential.expose_secret(),
                         local.credentials().clone(),
                         request(),
-                        settings(),
-                    )
-                    .await
-                    .unwrap();
+                        settings()
+                    ),
+                    app.submit_registered_job(
+                        credential.expose_secret(),
+                        local.credentials().clone(),
+                        request(),
+                        settings()
+                    ),
+                );
+                let (a, b) = (a.unwrap(), b.unwrap());
+                assert_eq!(a.run_id, b.run_id);
+                assert_eq!(a.audit_session_id, b.audit_session_id);
+                assert_ne!(
+                    a.execution.is_some(),
+                    b.execution.is_some(),
+                    "exactly one request may own execution"
+                );
+                let submission = if a.execution.is_some() { a } else { b };
                 let super::RegisteredAgentSubmission {
-                    attempt_id,
                     audit_session_id,
-                    completion,
+                    execution,
+                    ..
                 } = submission;
+                let RegisteredAgentExecution {
+                    attempt_id,
+                    completion,
+                } = execution.unwrap();
                 let result = tokio::time::timeout(std::time::Duration::from_secs(15), completion)
                     .await
                     .unwrap()
@@ -207,6 +226,43 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             .await;
         server.abort();
         assert_eq!(result.attempt_id, submission.0);
+        // A terminal retry returns the original receipt without installing a new
+        // inference owner, extending time, or replacing its private audit.
+        let replay = app
+            .submit_registered_job(
+                credential.expose_secret(),
+                local.credentials().clone(),
+                request(),
+                settings(),
+            )
+            .await
+            .unwrap();
+        assert!(replay.execution.is_none());
+        assert_eq!(replay.run_id, result.run_id);
+        assert_eq!(replay.audit_session_id, submission.1);
+        let mut changed_settings = settings();
+        changed_settings.max_elapsed_seconds += 1;
+        assert!(matches!(
+            app.submit_registered_job(
+                credential.expose_secret(),
+                local.credentials().clone(),
+                request(),
+                changed_settings
+            )
+            .await,
+            Err(AppError::InvalidRequest(_))
+        ));
+        assert_eq!(
+            store
+                .read(|db| db.list_all_run_ids())
+                .await
+                .unwrap()
+                .unwrap()
+                .iter()
+                .filter(|id| id.starts_with("run_activation_"))
+                .count(),
+            1
+        );
         let snapshot = local
             .contexts()
             .inspect_run(
@@ -336,5 +392,23 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             }
             _ => unreachable!(),
         }
+        drop(requests);
+        resources
+            .revoke_execution_grant(credential.expose_secret(), "org".into(), "grant".into())
+            .await
+            .unwrap();
+        assert!(
+            matches!(
+                app.submit_registered_job(
+                    credential.expose_secret(),
+                    local.credentials().clone(),
+                    request(),
+                    settings()
+                )
+                .await,
+                Err(AppError::PolicyDenied(_))
+            ),
+            "revoked grants must not disclose a retry receipt"
+        );
     }
 }

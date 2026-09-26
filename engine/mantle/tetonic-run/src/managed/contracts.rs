@@ -28,6 +28,28 @@ pub struct StartIdentityJobResult {
     pub outcome: CandidateOutcome,
 }
 
+/// A durable locator, not permission to execute or a claim that work is running.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActivationReceipt {
+    pub run_id: RunId,
+    pub task_id: TaskId,
+    pub audit_session_id: String,
+}
+
+#[derive(Debug)]
+pub enum ManagedAdmission {
+    Admitted(ManagedBinding),
+    Existing(ActivationReceipt),
+}
+
+pub enum ManagedSubmission {
+    Started {
+        binding: ManagedBinding,
+        completion: tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
+    },
+    Existing(ActivationReceipt),
+}
+
 /// Product-supplied validation of the complete invocation before execution is claimed.
 /// The manager supplies the actual invocation; policy implementations decide which
 /// fields must match their pinned harness definition and effective grants.
@@ -125,6 +147,7 @@ pub trait ManagedRunHooks: Send + Sync {
 /// be combined with governed activation until session composition is implemented.
 #[derive(Clone, Default)]
 pub struct AdmissionContext {
+    pub activation: Option<tetonic_domain::ActivationBinding>,
     /// Absolute Unix deadline selected by the host, persisted on the task.
     /// Child work can shorten, but cannot extend, its parent's deadline.
     pub deadline: Option<u64>,

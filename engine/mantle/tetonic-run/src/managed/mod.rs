@@ -1,6 +1,7 @@
 //! Neutral managed-execution contracts, lifecycle registry, and output attestation.
 
 pub mod admission;
+pub mod activation;
 pub mod attestation;
 pub mod contracts;
 pub mod execution;

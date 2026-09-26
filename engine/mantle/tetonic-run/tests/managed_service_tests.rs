@@ -2,6 +2,8 @@
 
 #[path = "support/managed_deadlines.rs"]
 mod deadlines;
+#[path = "support/managed_activations.rs"]
+mod activations;
 
 use std::sync::Arc;
 use tokio::sync::Notify;

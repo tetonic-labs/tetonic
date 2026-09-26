@@ -27,12 +27,32 @@ impl super::service::ManagedRunService {
         job: AdmitJob,
         context: AdmissionContext,
     ) -> Result<ManagedBinding, ManagedRunError> {
+        match self.admit_submission(id, job, context).await? {
+            ManagedAdmission::Admitted(binding) => Ok(binding),
+            ManagedAdmission::Existing(_) => Err(ManagedRunError::InvalidRequest(
+                "activation already exists; use submission receipts".into(),
+            )),
+        }
+    }
+
+    pub async fn admit_submission(
+        &self,
+        id: &DispatchId,
+        job: AdmitJob,
+        context: AdmissionContext,
+    ) -> Result<ManagedAdmission, ManagedRunError> {
         let this = self.clone();
         let id = id.clone();
         // This worker survives caller cancellation and completes durable registration.
         tokio::spawn(async move {
             let _gate = this.admission_gate.lock().await;
-            this.admit_owned(&id, job, context).await
+            let result = this.admit_owned(&id, job, context).await;
+            if matches!(&result, Ok(ManagedAdmission::Existing(_))) {
+                // A replay has no new effect owner. Legacy admission errors
+                // leave ticket cleanup to their caller, as before.
+                let _ = this.release_dispatch(&id).await;
+            }
+            result
         })
         .await
         .map_err(|e| ManagedRunError::InternalViolation(e.to_string()))?
@@ -43,7 +63,31 @@ impl super::service::ManagedRunService {
         id: &DispatchId,
         job: AdmitJob,
         context: AdmissionContext,
-    ) -> Result<ManagedBinding, ManagedRunError> {
+    ) -> Result<ManagedAdmission, ManagedRunError> {
+        if job.identity.id != job.job_spec.identity_id
+            || job.identity.bound_definition_digest != job.job_spec.definition_digest
+        {
+            return Err(ManagedRunError::InvalidRequest(
+                "identity and job binding mismatch".into(),
+            ));
+        }
+        super::activation::validate_activation(&context, &job)?;
+        if let (Some(activation), Some(authorization)) =
+            (&context.activation, &context.authorization)
+        {
+            if let Some(receipt) = self
+                .lookup_activation(
+                    authorization,
+                    activation,
+                    &job.identity,
+                    &job.job_spec,
+                    job.role.as_deref(),
+                )
+                .await?
+            {
+                return Ok(ManagedAdmission::Existing(receipt));
+            }
+        }
         let parent = job
             .parent_attempt
             .as_ref()
@@ -77,13 +121,6 @@ impl super::service::ManagedRunService {
             deadline_instant = Some(
                 deadline_instant.map_or(parent_instant, |instant| instant.min(parent_instant)),
             );
-        }
-        if job.identity.id != job.job_spec.identity_id
-            || job.identity.bound_definition_digest != job.job_spec.definition_digest
-        {
-            return Err(ManagedRunError::InvalidRequest(
-                "identity and job binding mismatch".into(),
-            ));
         }
         // Do not let a child silently drop or introduce authority. Governed
         // delegation requires its own inherited grant/budget contract.
@@ -235,7 +272,7 @@ impl super::service::ManagedRunService {
                 };
                 if let Some(binding) = existing {
                     self.dispatches.lock_recover().remove(id);
-                    return Ok(binding);
+                    return Ok(ManagedAdmission::Admitted(binding));
                 }
                 return Err(ManagedRunError::InvalidRequest(
                     "child delivery already admitted; retry requires a new authorized task".into(),
@@ -336,7 +373,13 @@ impl super::service::ManagedRunService {
 
             (run_id, task_id, attempt_id, started.sequence, lease_proof)
         } else {
-            let run_id = RunId::new(format!("run_{}", uuid::Uuid::new_v4()));
+            let run_id = match (&context.activation, &context.authorization) {
+                (Some(activation), Some(authorization)) => super::activation::activation_run_id(
+                    &authorization.scope,
+                    &activation.request_id,
+                )?,
+                _ => RunId::new(format!("run_{}", uuid::Uuid::new_v4())),
+            };
             let task_id = TaskId::new(format!("task_root_{}", run_id));
             let attempt_id = AttemptId::new(format!("att_{}", uuid::Uuid::new_v4()));
 
@@ -348,6 +391,7 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     root_task_id: task_id.clone(),
                     root_binding: TaskInputBinding {
+                        activation: context.activation.clone(),
                         deadline,
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         execution_grant_id: context
@@ -361,8 +405,35 @@ impl super::service::ManagedRunService {
                     speculation: context.speculation.clone(),
                     job_spec: Some(job.job_spec.clone()),
                 }))
-                .await
-                .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()))?;
+                .await;
+            // Two managers may race on the same database. The existing event
+            // transaction makes creation exclusive; a replay never starts an
+            // attempt, even if the first owner stopped midway through admission.
+            let created_run = match created_run {
+                Ok(created) if !created.idempotent_replay => created,
+                other => {
+                    if let (Some(activation), Some(authorization)) =
+                        (&context.activation, &context.authorization)
+                    {
+                        if let Some(receipt) = self
+                            .lookup_activation(
+                                authorization,
+                                activation,
+                                &job.identity,
+                                &job.job_spec,
+                                job.role.as_deref(),
+                            )
+                            .await?
+                        {
+                            return Ok(ManagedAdmission::Existing(receipt));
+                        }
+                    }
+                    return Err(ManagedRunError::PersistenceFailed(match other {
+                        Err(error) => error.to_string(),
+                        Ok(_) => "replayed activation is missing its durable binding".into(),
+                    }));
+                }
+            };
 
             let started_run = self
                 .supervisor
@@ -534,7 +605,7 @@ impl super::service::ManagedRunService {
         // Spawn heartbeat driver
         self.spawn_heartbeat_driver(attempt_id.clone(), heartbeat_cancel);
 
-        Ok(binding)
+        Ok(ManagedAdmission::Admitted(binding))
     }
 
     pub(crate) async fn current_sequence(&self, run_id: &RunId) -> u64 {

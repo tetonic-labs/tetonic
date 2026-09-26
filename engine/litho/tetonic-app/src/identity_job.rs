@@ -81,6 +81,7 @@ impl DefaultRunService {
                     parent_attempt: None,
                 },
                 tetonic_run::managed::AdmissionContext {
+                    activation: None,
                     deadline: None,
                     authorization: None,
                     speculation: Some(tetonic_domain::SpeculationConfig {
@@ -148,6 +149,7 @@ impl DefaultRunService {
                     parent_attempt: Some(parent.attempt_id),
                 },
                 tetonic_run::managed::AdmissionContext {
+                    activation: None,
                     deadline: None,
                     authorization: None,
                     speculation: None,
