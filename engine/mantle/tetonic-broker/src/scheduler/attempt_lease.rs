@@ -628,7 +628,7 @@ mod tests {
         let rec = leased.snapshot.attempts.get(&attempt_id).unwrap();
         let lease = rec.lease.as_ref().unwrap();
         sup.handle(RunCommand::StartAttempt(StartAttempt {
-            envelope: command_envelope("t_agent_running", Some(leased.sequence), "test"),
+            envelope: command_envelope("t_agent_start_attempt", Some(leased.sequence), "test"),
             run_id,
             attempt_id,
             lease_proof: LeaseProof {
@@ -704,7 +704,7 @@ mod tests {
             snap.attempts
                 .get(&AttemptId::new("att_agent"))
                 .map(|a| a.state.clone()),
-            Some(AttemptState::Running)
+            Some(AttemptState::Starting)
         );
     }
 
@@ -744,7 +744,7 @@ mod tests {
                 .attempts
                 .get(&AttemptId::new("att_agent"))
                 .map(|a| a.state.clone()),
-            Some(AttemptState::Running)
+            Some(AttemptState::Starting)
         );
         assert!(agent.job_spec.is_some());
 
@@ -823,7 +823,7 @@ mod tests {
                 .attempts
                 .get(&AttemptId::new("att_agent"))
                 .map(|a| a.state.clone()),
-            Some(AttemptState::Running)
+            Some(AttemptState::Starting)
         );
     }
 

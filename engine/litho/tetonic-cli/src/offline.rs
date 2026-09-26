@@ -39,7 +39,9 @@ pub async fn show_history(session: Option<&str>) -> Result<()> {
     let app = Application::bootstrap_offline(None).await?;
     match session {
         Some(id) => {
-            let rows = app.session_transcript(id)?;
+            let rows = app
+                .session_transcript(id)
+                .map_err(|error| anyhow::anyhow!(error.employee_message()))?;
             if rows.is_empty() {
                 println!("no session '{id}' (or it has no messages)");
                 return Ok(());
@@ -52,7 +54,9 @@ pub async fn show_history(session: Option<&str>) -> Result<()> {
             }
         }
         None => {
-            let rows = app.list_recent_sessions(20)?;
+            let rows = app
+                .list_recent_sessions(20)
+                .map_err(|error| anyhow::anyhow!(error.employee_message()))?;
             if rows.is_empty() {
                 println!("no sessions recorded yet");
                 return Ok(());

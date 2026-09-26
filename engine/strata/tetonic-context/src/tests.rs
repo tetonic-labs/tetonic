@@ -701,7 +701,9 @@ pub mod tests {
             ))
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("expired"));
+        let error = result.unwrap_err();
+        assert_eq!(error, "invalid or unknown expansion handle");
+        assert!(!error.contains("owned"));
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -751,7 +753,10 @@ pub mod tests {
             ))
             .await;
         assert!(result.is_err());
-        assert!(result.unwrap_err().contains("exhausted"));
+        let error = result.unwrap_err();
+        assert!(error.contains("exhausted"));
+        assert!(!error.contains("exhausted_handle"), "{error}");
+        assert!(!error.contains("v1"), "{error}");
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -801,7 +806,11 @@ pub mod tests {
             .expand_pack(&expansion_request("stale_handle", &v2_fp))
             .await;
         assert!(result.is_err(), "stale workspace must reject expansion");
-        assert!(result.unwrap_err().contains("workspace changed"));
+        let error = result.unwrap_err();
+        assert!(error.contains("workspace changed"));
+        assert!(!error.contains("stale_handle"), "{error}");
+        assert!(!error.contains("v1"), "{error}");
+        assert!(!error.contains("v2"), "{error}");
     }
 
     #[tokio::test]
@@ -1063,6 +1072,88 @@ impl Service {
             .text
             .contains("pub fn start(&self) { /* ... */ }"));
         assert!(!svc_evidence.text.contains("count += i"));
+    }
+
+    struct FailingArtifactStore;
+
+    #[async_trait]
+    impl tetonic_domain::artifact::ArtifactStore for FailingArtifactStore {
+        async fn begin_write(
+            &self,
+            _: tetonic_domain::artifact::ArtifactDeclaration,
+        ) -> Result<
+            Box<dyn tetonic_domain::artifact::ArtifactWriter>,
+            tetonic_domain::artifact::ArtifactError,
+        > {
+            Err(tetonic_domain::artifact::ArtifactError::Internal(
+                "PRIVATECANARY store body".into(),
+            ))
+        }
+        async fn open(
+            &self,
+            _: &tetonic_domain::ids::ArtifactId,
+        ) -> Result<
+            Box<dyn tetonic_domain::artifact::ArtifactReader>,
+            tetonic_domain::artifact::ArtifactError,
+        > {
+            Err(tetonic_domain::artifact::ArtifactError::Internal(
+                "PRIVATECANARY".into(),
+            ))
+        }
+        async fn metadata(
+            &self,
+            _: &tetonic_domain::ids::ArtifactId,
+        ) -> Result<
+            tetonic_domain::artifact::ArtifactMetadata,
+            tetonic_domain::artifact::ArtifactError,
+        > {
+            Err(tetonic_domain::artifact::ArtifactError::Internal(
+                "PRIVATECANARY".into(),
+            ))
+        }
+        async fn mark_accepted(
+            &self,
+            _: &tetonic_domain::ids::ArtifactId,
+        ) -> Result<
+            tetonic_domain::artifact::ArtifactMetadata,
+            tetonic_domain::artifact::ArtifactError,
+        > {
+            Err(tetonic_domain::artifact::ArtifactError::Internal(
+                "PRIVATECANARY".into(),
+            ))
+        }
+        async fn delete(
+            &self,
+            _: &tetonic_domain::ids::ArtifactId,
+        ) -> Result<(), tetonic_domain::artifact::ArtifactError> {
+            Err(tetonic_domain::artifact::ArtifactError::Internal(
+                "PRIVATECANARY".into(),
+            ))
+        }
+    }
+
+    #[tokio::test]
+    async fn artifact_storage_failure_does_not_repeat_the_store_body() {
+        let compiler = ContextCompiler::new(Arc::new(MockProvider::default()))
+            .with_artifact_store(Arc::new(FailingArtifactStore));
+        let error = compiler
+            .compile(base_request())
+            .await
+            .unwrap_err()
+            .to_string();
+        assert!(error.contains("artifact storage failed"), "{error}");
+        assert!(!error.contains("PRIVATECANARY"), "{error}");
+    }
+
+    #[test]
+    fn stale_workspace_error_does_not_repeat_fingerprints() {
+        let error = crate::pipeline::CompilationFailure::StaleWorkspace {
+            expected: "PRIVATECANARY-issued".into(),
+            actual: "PRIVATECANARY-current".into(),
+        };
+        let shown = error.to_string();
+        assert!(shown.contains("workspace changed"), "{shown}");
+        assert!(!shown.contains("PRIVATECANARY"), "{shown}");
     }
 }
 

@@ -54,7 +54,7 @@ async fn scoped_compiler_persists_retrievable_artifacts_and_revokes_future_use()
             .unwrap();
     }
     contexts
-        .open_history(alice.expose_secret(), "private".into(), "session".into())
+        .provision_discussion(alice.expose_secret(), "private".into(), "session".into())
         .await
         .unwrap();
     let raw: Arc<dyn ArtifactStore> = Arc::new(
@@ -68,7 +68,7 @@ async fn scoped_compiler_persists_retrievable_artifacts_and_revokes_future_use()
         &workspace,
         None,
         None,
-        crate::turn_execution::composition_fs_hooks(),
+        crate::turn_execution::composition_fs_hooks(Vec::new()),
     )))
     .with_artifact_store(raw.clone());
     let compiler = contexts
@@ -160,4 +160,21 @@ async fn scoped_compiler_persists_retrievable_artifacts_and_revokes_future_use()
         })
         .await
         .is_err());
+}
+
+#[test]
+fn compiler_file_hook_refuses_the_control_database() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("lokai.db");
+    std::fs::write(&db, "PRIVATECANARY in the control database").unwrap();
+    std::fs::write(dir.path().join("note.txt"), "ordinary note").unwrap();
+    let hooks = crate::turn_execution::composition_fs_hooks(tetonic_tools::store_sidecar_paths(&db));
+    let denied = (hooks.jailed_read)(dir.path(), "lokai.db");
+    let message = denied.expect_err("control database must be refused");
+    assert!(
+        !message.contains("PRIVATECANARY"),
+        "compiler read leaked the database: {message}"
+    );
+    let note = (hooks.jailed_read)(dir.path(), "note.txt").unwrap();
+    assert!(note.contains("ordinary note"));
 }

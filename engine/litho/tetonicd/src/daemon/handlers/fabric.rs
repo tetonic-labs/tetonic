@@ -11,7 +11,7 @@ impl Daemon {
             .app
             .fabric_status()
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(value)
     }
 
@@ -35,7 +35,10 @@ impl Daemon {
                 tetonic_app::errors::AppError::InvalidRequest(msg) => {
                     RpcError::new(ErrorCode::InvalidParams, msg)
                 }
-                other => RpcError::new(ErrorCode::InternalError, format!("trust update: {other}")),
+                _other => {
+                    tracing::warn!("daemon hid an internal failure");
+                    RpcError::new(ErrorCode::InternalError, "request failed")
+                }
             })?;
         tracing::info!(worker = %res.worker_id, trust = %res.trust, epoch = res.policy_epoch, "worker trust updated");
         Ok(to_value(FabricWorkerTrustSetResult {
@@ -59,7 +62,10 @@ impl Daemon {
                 tetonic_app::errors::AppError::InvalidRequest(msg) => {
                     RpcError::new(ErrorCode::InvalidParams, msg)
                 }
-                other => RpcError::new(ErrorCode::InternalError, format!("trust query: {other}")),
+                _other => {
+                    tracing::warn!("daemon hid an internal failure");
+                    RpcError::new(ErrorCode::InternalError, "request failed")
+                }
             })?;
         let audit = res
             .audit

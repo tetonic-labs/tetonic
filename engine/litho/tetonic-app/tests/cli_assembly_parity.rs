@@ -110,7 +110,6 @@ async fn cli_kernel_lifecycle_semantic_effects() {
     let effects = normalize_application_events(&events.lock().unwrap());
     let expected = vec![
         tetonic_eval::parity::SemanticEffect::SessionInitialization,
-        tetonic_eval::parity::SemanticEffect::ModelRequest,
         tetonic_eval::parity::SemanticEffect::TerminalOutcome,
         tetonic_eval::parity::SemanticEffect::PersistenceWrite,
     ];

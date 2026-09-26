@@ -419,10 +419,12 @@ fn session_turn_lifecycle_event_order() {
         })
         .collect();
     assert!(
-        kinds
-            .windows(2)
-            .any(|w| w[0] == "session.start" && w[1] == "turn.start"),
-        "expected session.start before turn.start, got {kinds:?}"
+        !kinds.iter().any(|kind| *kind == "turn.start"),
+        "planning without execution must not report started, got {kinds:?}"
+    );
+    assert!(
+        kinds.contains(&"session.start"),
+        "expected session.start, got {kinds:?}"
     );
     assert!(
         kinds.contains(&"turn.complete"),

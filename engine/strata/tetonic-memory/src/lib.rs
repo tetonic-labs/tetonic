@@ -34,6 +34,7 @@ pub use organization_agents::RegisteredAgent;
 mod context_access;
 mod context_artifacts;
 mod context_history;
+mod context_publication;
 mod context_recall;
 mod context_scope;
 mod control_bootstrap;
@@ -41,7 +42,9 @@ mod control_credentials;
 mod membership_admin;
 mod membership_store;
 mod team_admin;
-pub use context_access::ContextOwner;
+pub use context_access::{team_participation_context_id, ContextOwner};
+pub use context_publication::ContextPublication;
+mod execution_limits;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
@@ -50,12 +53,14 @@ mod projects;
 mod recall;
 mod result_disposition;
 mod run_capacity;
+pub use execution_limits::{OrganizationExecutionLimits, TeamExecutionLimits};
 mod run_store;
 mod scheduler_decision;
 mod schema;
 mod secret_overrides;
 mod sync_lock;
 mod team_store;
+mod team_work;
 mod trust;
 mod util;
 mod worker_store;
@@ -72,6 +77,7 @@ pub use identity_store::AgentIdentityRow;
 pub use membership_store::{ControlPermission, OrganizationRole};
 pub use recall::RecallHit;
 pub use team_store::{OrganizationRow, TeamRow};
+pub use team_work::{HuddleProposal, TeamGoal, TeamWorkItem, WorkActivationCursor, WorkDelegation};
 pub use trust::{ApprovalRow, EgressAllowRow};
 
 pub use capacity::RuntimeProfileRow;
@@ -85,6 +91,14 @@ pub use worker_store::{CoordinatorPinRow, WorkerStore, WorkerStoreError};
 
 #[derive(Debug, Error)]
 pub enum StoreError {
+    #[error("organization execution capacity is occupied; retry after admitted work quiesces")]
+    OrganizationCapacityExceeded,
+    #[error("team execution capacity is occupied; retry after admitted work quiesces")]
+    TeamCapacityExceeded,
+    #[error(
+        "initiating principal execution capacity is occupied; retry after admitted work quiesces"
+    )]
+    PrincipalCapacityExceeded,
     #[error("registered agent already has admitted work; retry after it has quiesced")]
     ExecutionCapacityExceeded,
     #[error("database schema {found} is newer than supported schema {supported}; use a compatible binary")]
@@ -548,6 +562,7 @@ impl Store {
         result_summary: &str,
         error_kind: Option<&str>,
     ) -> Result<()> {
+        self.require_legacy_or_audit_session(session_id)?;
         // `denied` (user blocked it) is recorded distinctly from genuine errors.
         let status = if ok {
             "ok"
@@ -600,6 +615,7 @@ impl Store {
         before: Option<&str>,
         after: Option<&str>,
     ) -> Result<()> {
+        self.require_legacy_or_audit_session(session_id)?;
         let compress = |s: Option<&str>| -> Result<Option<Vec<u8>>> {
             match s {
                 Some(text) => Ok(Some(encode_blob(text)?)),
@@ -619,7 +635,7 @@ impl Store {
             let new_id = self.conn.last_insert_rowid();
             self.conn.execute(
                 "UPDATE workspace_head SET head_mark = ?1, redo_mark = NULL, updated_at = ?2\n\
-                 WHERE workspace_root = (SELECT workspace_root FROM sessions WHERE id = ?3)",
+                 WHERE workspace_root = (SELECT workspace_root FROM sessions WHERE id = ?3 AND context_id='legacy-local')",
                 params![new_id, ts, session_id],
             )?;
             Ok(())
@@ -634,6 +650,9 @@ impl Store {
 
     /// Highest `file_changes.id` for this session, or 0 if none (H3-2 turn mark).
     pub fn session_file_change_highwater(&self, session_id: &str) -> Result<i64> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(0);
+        }
         self.conn
             .query_row(
                 "SELECT COALESCE(MAX(id), 0) FROM file_changes WHERE session_id = ?1",
@@ -646,6 +665,9 @@ impl Store {
     /// The ordered file changes of a session (oldest first), with before/after
     /// content decompressed — everything needed to reverse the session's writes.
     pub fn session_file_changes(&self, session_id: &str) -> Result<Vec<FileChangeRow>> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(Vec::new());
+        }
         let mut stmt = self.conn.prepare(
             "SELECT id, tool_call_id, path, change_kind, before_blob, after_blob\n\
              FROM file_changes WHERE session_id = ?1 ORDER BY id",
@@ -678,7 +700,7 @@ impl Store {
         let mut stmt = self.conn.prepare(
             "SELECT fc.id, fc.tool_call_id, fc.path, fc.change_kind, fc.before_blob, fc.after_blob\n\
              FROM file_changes fc JOIN sessions s ON fc.session_id = s.id\n\
-             WHERE s.workspace_root = ?1 AND fc.id > ?2 AND fc.id <= ?3\n\
+             WHERE s.workspace_root = ?1 AND s.context_id='legacy-local' AND fc.id > ?2 AND fc.id <= ?3\n\
              ORDER BY fc.id",
         )?;
         let rows = stmt
@@ -699,10 +721,13 @@ impl Store {
     /// The canonical workspace root recorded for a session (where its relative
     /// file paths resolve). `None` if the session doesn't exist.
     pub fn session_workspace_root(&self, session_id: &str) -> Result<Option<String>> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(None);
+        }
         let root: Option<String> = self
             .conn
             .query_row(
-                "SELECT workspace_root FROM sessions WHERE id = ?1",
+                "SELECT workspace_root FROM sessions WHERE id = ?1 AND context_id='legacy-local'",
                 params![session_id],
                 |r| r.get(0),
             )
@@ -713,12 +738,17 @@ impl Store {
     /// Read back and decompress the `after` blob of a file change (for undo /
     /// verification). Returns `None` if the row or blob is absent.
     pub fn file_change_after(&self, id: i64) -> Result<Option<String>> {
-        let blob: Option<Vec<u8>> = self.conn.query_row(
-            "SELECT after_blob FROM file_changes WHERE id = ?1",
-            params![id],
-            |r| r.get(0),
-        )?;
-        decode_blob(blob)
+        let blob: Option<Option<Vec<u8>>> = self
+            .conn
+            .query_row(
+                "SELECT fc.after_blob FROM file_changes fc
+                 JOIN sessions s ON s.id = fc.session_id
+                 WHERE fc.id = ?1 AND s.context_id='legacy-local'",
+                params![id],
+                |r| r.get(0),
+            )
+            .optional()?;
+        decode_blob(blob.flatten())
     }
 
     // ---- Time-travel: head cursor, checkpoints, boundaries, restore log -------
@@ -728,7 +758,7 @@ impl Store {
         let ws = self.normalize_workspace(workspace_root);
         Ok(self.conn.query_row(
             "SELECT COALESCE(MAX(fc.id), 0) FROM file_changes fc\n\
-             JOIN sessions s ON fc.session_id = s.id WHERE s.workspace_root = ?1",
+             JOIN sessions s ON fc.session_id = s.id WHERE s.workspace_root = ?1 AND s.context_id='legacy-local'",
             params![ws],
             |r| r.get(0),
         )?)
@@ -869,7 +899,7 @@ impl Store {
                  UNION\n\
                  SELECT MIN(fc.id) - 1 AS m FROM file_changes fc\n\
                      JOIN sessions s ON fc.session_id = s.id\n\
-                     WHERE s.workspace_root = ?1 GROUP BY fc.session_id\n\
+                     WHERE s.workspace_root = ?1 AND s.context_id='legacy-local' GROUP BY fc.session_id\n\
              ) WHERE m < ?2",
             params![ws, cur],
             |r| r.get(0),
@@ -895,6 +925,8 @@ impl Store {
     }
 
     /// Append a structured event (`note`, `session_status`, ...). `payload` is JSON.
+    /// A private or team discussion is not an event target. Legacy sessions and
+    /// execution-audit histories are.
     pub fn append_event(
         &self,
         session_id: &str,
@@ -902,6 +934,7 @@ impl Store {
         actor: &str,
         payload: &str,
     ) -> Result<i64> {
+        self.require_legacy_or_audit_session(session_id)?;
         let mut stmt = self.conn.prepare_cached(
             "INSERT INTO events(session_id, seq, kind, actor, payload, created_at)\n\
              VALUES (?1, (SELECT COALESCE(MAX(seq), 0) + 1 FROM events WHERE session_id = ?1), ?2, ?3, ?4, ?5)",
@@ -912,6 +945,9 @@ impl Store {
 
     /// Count events of `kind` for a session (H1-1 redaction audit tests).
     pub fn event_count(&self, session_id: &str, kind: &str) -> Result<i64> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(0);
+        }
         self.conn
             .query_row(
                 "SELECT COUNT(*) FROM events WHERE session_id = ?1 AND kind = ?2",
@@ -935,6 +971,9 @@ impl Store {
         decision: &str,
         matched_rule: Option<&str>,
     ) -> Result<()> {
+        if let Some(session_id) = session_id {
+            self.require_legacy_or_audit_session(session_id)?;
+        }
         let mut stmt = self.conn.prepare_cached(
             "INSERT INTO egress_log(session_id, ts, initiator, host, resolved_ip, port, decision, matched_rule)\n\
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
@@ -995,6 +1034,9 @@ impl Store {
 
     /// Count rows in a session (used by tests / the CLI's audit receipt).
     pub fn message_count(&self, session_id: &str) -> Result<i64> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(0);
+        }
         Ok(self.conn.query_row(
             "SELECT COUNT(*) FROM messages WHERE session_id = ?1",
             params![session_id],
@@ -1033,9 +1075,12 @@ impl Store {
 
     /// Current session status (`running`, `ok`, `error`, `canceled`).
     pub fn session_status(&self, session_id: &str) -> Result<Option<String>> {
-        let mut stmt = self
-            .conn
-            .prepare("SELECT status FROM sessions WHERE id = ?1")?;
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(None);
+        }
+        let mut stmt = self.conn.prepare(
+            "SELECT status FROM sessions WHERE id = ?1 AND context_id='legacy-local'",
+        )?;
         let mut rows = stmt.query_map(params![session_id], |r| r.get(0))?;
         Ok(rows.next().transpose()?)
     }
@@ -1048,6 +1093,7 @@ impl Store {
         state: &str,
         payload_json: &str,
     ) -> Result<()> {
+        self.require_legacy_session(session_id)?;
         self.conn.execute(
             "INSERT INTO turn_operations(session_id, turn_id, state, payload_json, updated_at)
              VALUES (?1, ?2, ?3, ?4, ?5)
@@ -1080,6 +1126,7 @@ impl Store {
 
     /// Clear operational row when a turn completes cleanly.
     pub fn clear_turn_operation(&self, session_id: &str, turn_id: &str) -> Result<()> {
+        self.require_legacy_session(session_id)?;
         self.conn.execute(
             "DELETE FROM turn_operations WHERE session_id = ?1 AND turn_id = ?2",
             params![session_id, turn_id],
@@ -1136,7 +1183,9 @@ impl Store {
     }
 
     /// Mark a spawned agent branch as rolled back so resume omits its audit rows.
+    /// A private or team discussion is not a spawn target.
     pub fn record_spawn_rollback(&self, session_id: &str, agent_id: &str) -> Result<()> {
+        self.require_legacy_or_audit_session(session_id)?;
         self.conn.execute(
             "INSERT OR IGNORE INTO spawn_rollbacks(session_id, agent_id, rolled_at)
              VALUES (?1, ?2, ?3)",

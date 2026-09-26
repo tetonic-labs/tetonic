@@ -646,6 +646,7 @@ async fn llm_route_task_uses_provider_when_available() {
             pack: &TestCodingPack,
         },
         FabricCallMeta::default(),
+        || true,
     )
     .await;
     assert!(matches!(
@@ -673,6 +674,7 @@ async fn llm_route_task_falls_back_on_provider_error() {
             pack: &TestCodingPack,
         },
         FabricCallMeta::default(),
+        || true,
     )
     .await;
     assert!(matches!(

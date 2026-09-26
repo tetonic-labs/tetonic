@@ -11,6 +11,8 @@ pub trait LspSession: Send + Sync {
     fn find_references(&self, path: &str, line: u32, character: u32)
         -> Result<ToolOutcome, String>;
     fn diagnostics(&self, path: &str) -> Result<ToolOutcome, String>;
+    /// Ask the owned language-server process to stop. The default is a no-op.
+    fn request_stop(&self) {}
 }
 
 pub trait LspSessionOpen: Send + Sync {

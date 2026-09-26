@@ -40,6 +40,15 @@ impl ExecutionAuthority for StoredGrant {
             Err(())
         }
     }
+
+    async fn revoked_during_execution(
+        &self,
+        scope: &ExecutionScope,
+        identity: &AgentIdentity,
+        job: &AgentJobSpec,
+    ) -> bool {
+        self.authorize(scope, identity, job).await.is_err()
+    }
 }
 impl ResourceService {
     pub async fn issue_execution_grant(

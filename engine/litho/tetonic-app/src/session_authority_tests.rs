@@ -196,8 +196,8 @@ async fn spawn_child_task_appears_in_snapshot_dag() {
     assert!(
         snap.attempts
             .values()
-            .any(|a| a.task_id == child && matches!(&a.state, AttemptState::Running)),
-        "child Attempt started before execute"
+            .any(|a| a.task_id == child && matches!(&a.state, AttemptState::Starting)),
+        "child attempt is not running before execution is claimed"
     );
 
     app.sessions

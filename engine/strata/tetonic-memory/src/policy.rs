@@ -177,6 +177,7 @@ impl Store {
 
     pub fn set_session_data_class(&self, session_id: &str, class: &str) -> Result<()> {
         validate_data_class(class)?;
+        self.require_legacy_session(session_id)?;
         let canonical = canonical_data_class(class)?;
         self.conn.execute(
             "UPDATE sessions SET data_class = ?2 WHERE id = ?1",
@@ -186,10 +187,13 @@ impl Store {
     }
 
     pub fn session_data_class(&self, session_id: &str) -> Result<Option<String>> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(None);
+        }
         let v: Option<String> = self
             .conn
             .query_row(
-                "SELECT data_class FROM sessions WHERE id = ?1",
+                "SELECT data_class FROM sessions WHERE id = ?1 AND context_id='legacy-local'",
                 params![session_id],
                 |r| r.get(0),
             )
@@ -211,6 +215,7 @@ impl Store {
                 "reclassification reason required".into(),
             ));
         }
+        self.require_legacy_session(session_id)?;
         let canonical = canonical_data_class(new_class)?;
         let previous = self.session_data_class(session_id)?;
         self.conn.execute(
@@ -246,7 +251,7 @@ impl Store {
                     (SELECT COUNT(*) FROM tool_calls  t WHERE t.session_id = s.id),
                     (SELECT COUNT(*) FROM file_changes f WHERE f.session_id = s.id)
              FROM sessions s
-             WHERE s.workspace_root = ?1 AND s.id != ?2
+             WHERE s.workspace_root = ?1 AND s.id != ?2 AND s.context_id='legacy-local'
              ORDER BY s.started_at DESC LIMIT ?3",
         )?;
         let rows = stmt
@@ -276,7 +281,7 @@ impl Store {
         let mut stmt = self.conn.prepare(
             "SELECT DISTINCT fc.path
              FROM file_changes fc JOIN sessions s ON fc.session_id = s.id
-             WHERE s.workspace_root = ?1
+             WHERE s.workspace_root = ?1 AND s.context_id='legacy-local'
              ORDER BY fc.id DESC LIMIT ?2",
         )?;
         let rows = stmt

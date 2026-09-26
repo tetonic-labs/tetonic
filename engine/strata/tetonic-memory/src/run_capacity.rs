@@ -6,6 +6,14 @@ use crate::{Result, StoreError};
 
 use tetonic_domain::{RunSnapshot, RunState};
 
+pub(crate) fn registered_scope(snapshot: &RunSnapshot) -> Option<&tetonic_domain::ExecutionScope> {
+    snapshot
+        .tasks
+        .values()
+        .find(|t| t.binding.activation.is_some())
+        .and_then(|t| t.binding.execution_scope.as_ref())
+}
+
 pub(crate) fn registered_capacity(snapshot: &RunSnapshot) -> Result<(Option<&str>, bool)> {
     let mut bindings = snapshot
         .tasks
@@ -98,12 +106,19 @@ mod tests {
             let mut legacy = legacy_terminal("unregistered");
             legacy.tasks.values_mut().next().unwrap().binding.activation = None;
             db.persist_run_projection(&legacy).unwrap();
+            db.remove_execution_limits_schema_for_test();
             db.conn
                 .execute_batch(
                     "DROP INDEX idx_run_execution_capacity;
                 ALTER TABLE run_projections DROP COLUMN registered_identity_id;
                 ALTER TABLE run_projections DROP COLUMN execution_held;
-                DELETE FROM schema_versions WHERE version=41;",
+                DROP TABLE context_publications;
+                DROP TRIGGER project_memory_context_exists;
+                DROP TRIGGER project_memory_context_immutable;
+                DROP TRIGGER project_memory_blocks_context_delete;
+                DROP INDEX idx_project_memory_scope;
+                ALTER TABLE project_memory DROP COLUMN context_id;
+                DELETE FROM schema_versions WHERE version>=41;",
                 )
                 .unwrap();
         }

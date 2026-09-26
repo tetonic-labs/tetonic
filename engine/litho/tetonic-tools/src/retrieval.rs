@@ -187,7 +187,7 @@ pub fn recall(
     let limit = a.max_results.unwrap_or(8).min(20) as u32;
     let hits = store
         .recall_history(ws.root(), &a.query, limit, session_id)
-        .map_err(|e| ToolError::Other(e.to_string()))?;
+        .map_err(|_| ToolError::Other("recall unavailable".into()))?;
     if hits.is_empty() {
         return Ok(ToolOutcome::ok(
             format!("no recall hits for '{}'", a.query),

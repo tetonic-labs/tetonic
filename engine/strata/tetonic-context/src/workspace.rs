@@ -136,7 +136,7 @@ impl WorkspaceContextProvider {
                 continue;
             }
             let name = path.file_name().and_then(|n| n.to_str()).unwrap_or("");
-            if name.ends_with(".db") {
+            if name.ends_with(".db") || is_control_store_name(name) {
                 continue;
             }
             out.push(path.to_path_buf());
@@ -155,6 +155,13 @@ impl WorkspaceContextProvider {
     }
 
     fn jailed_read_rel(&self, rel: &str) -> Result<String, String> {
+        let name = rel.rsplit(['/', '\\']).next().unwrap_or(rel);
+        if is_control_store_name(name)
+            || relative_path_is_credential_store(rel)
+            || file_starts_with_sqlite_header(&self.root.join(rel))
+        {
+            return Err("file is outside this execution grant".into());
+        }
         (self.hooks.jailed_read)(&self.root, rel)
     }
 
@@ -470,6 +477,79 @@ impl ContextSourceProvider for WorkspaceContextProvider {
     }
 }
 
+/// A SQLite database or one of its log, shared-memory, or rollback-journal files.
+pub fn path_is_sqlite_store_family(path: &Path) -> bool {
+    file_starts_with_sqlite_header(path)
+}
+
+fn file_starts_with_sqlite_header(path: &Path) -> bool {
+    if sqlite_header_prefix(path) {
+        return true;
+    }
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(stem) = name
+        .strip_suffix("-wal")
+        .or_else(|| name.strip_suffix("-shm"))
+        .or_else(|| name.strip_suffix("-journal"))
+    else {
+        return false;
+    };
+    !stem.is_empty() && sqlite_header_prefix(&path.with_file_name(stem))
+}
+
+fn sqlite_header_prefix(path: &Path) -> bool {
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut magic = [0u8; 16];
+    let Ok(n) = std::io::Read::read(&mut file, &mut magic) else {
+        return false;
+    };
+    sqlite_family_header(&magic[..n])
+}
+
+fn sqlite_family_header(magic: &[u8]) -> bool {
+    if magic.len() >= 15 && magic.starts_with(b"SQLite format 3") {
+        return true;
+    }
+    magic.len() >= 4
+        && matches!(
+            [magic[0], magic[1], magic[2], magic[3]],
+            [0x37, 0x7f, 0x06, 0x82]
+                | [0x37, 0x7f, 0x06, 0x83]
+                | [0x82, 0x06, 0x7f, 0x37]
+                | [0x83, 0x06, 0x7f, 0x37]
+        )
+}
+
+fn is_control_store_name(name: &str) -> bool {
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "lokai.db" | "lokai.db-wal" | "lokai.db-shm"
+    )
+}
+
+fn relative_path_is_credential_store(rel: &str) -> bool {
+    rel.split(['/', '\\']).filter(|part| !part.is_empty()).any(|part| {
+        matches!(
+            part.to_ascii_lowercase().as_str(),
+            ".ssh"
+                | ".aws"
+                | ".gnupg"
+                | ".kube"
+                | ".git-credentials"
+                | ".netrc"
+                | "_netrc"
+                | "id_rsa"
+                | "id_dsa"
+                | "id_ecdsa"
+                | "id_ed25519"
+        )
+    })
+}
+
 /// Build the production compiler used by CLI and daemon assembly (R4-1 / R4-3, CAP-01).
 pub fn build_production_context_compiler(
     workspace_root: &Path,
@@ -540,6 +620,168 @@ pub(crate) fn test_fs_hooks() -> ContextFsHooks {
 mod tests {
     use super::*;
     use crate::interfaces::ContextSourceProvider;
+
+    #[tokio::test]
+    async fn control_store_sidecar_is_not_searched_or_read() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-ctx-store-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("lokai.db-wal"), "PRIVATECANARY in the sidecar\n").unwrap();
+        std::fs::write(dir.join("visible.rs"), "fn visible_marker() {}\n").unwrap();
+        let provider = WorkspaceContextProvider::new(&dir, None, None, test_fs_hooks());
+        let hits = provider.search_text("PRIVATECANARY").await.unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.text.contains("PRIVATECANARY")),
+            "search returned the control store sidecar"
+        );
+        let sidecar = "lokai.db-wal".to_string();
+        let read = provider.get_file_content(&sidecar).await.unwrap_err();
+        assert!(!read.contains("PRIVATECANARY"));
+        let visible = provider.search_text("visible_marker").await.unwrap();
+        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn credential_store_is_not_searched_or_read() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-ctx-cred-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join(".ssh")).unwrap();
+        std::fs::write(
+            dir.join(".ssh").join("id_ed25519"),
+            "PRIVATECANARY private key\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("visible.rs"), "fn visible_marker() {}\n").unwrap();
+        let provider = WorkspaceContextProvider::new(&dir, None, None, test_fs_hooks());
+        let hits = provider.search_text("PRIVATECANARY").await.unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.text.contains("PRIVATECANARY")),
+            "search returned a credential store"
+        );
+        let key = ".ssh/id_ed25519".to_string();
+        let read = provider.get_file_content(&key).await.unwrap_err();
+        assert!(!read.contains("PRIVATECANARY"), "{read}");
+        let visible = provider.search_text("visible_marker").await.unwrap();
+        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn sqlite_database_is_not_searched_or_read() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-ctx-sqlite-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut bytes = b"SQLite format 3\0".to_vec();
+        bytes.extend_from_slice(b"PRIVATECANARY in a renamed control database\n");
+        std::fs::write(dir.join("notes.txt"), bytes).unwrap();
+        std::fs::write(dir.join("visible.rs"), "fn visible_marker() {}\n").unwrap();
+        let provider = WorkspaceContextProvider::new(&dir, None, None, test_fs_hooks());
+        let hits = provider.search_text("PRIVATECANARY").await.unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.text.contains("PRIVATECANARY")),
+            "search returned the sqlite database"
+        );
+        let notes = "notes.txt".to_string();
+        let read = provider.get_file_content(&notes).await.unwrap_err();
+        assert!(
+            !read.contains("PRIVATECANARY"),
+            "direct read returned the sqlite database: {read}"
+        );
+        let visible = provider.search_text("visible_marker").await.unwrap();
+        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn sqlite_write_ahead_log_is_not_searched_or_read() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-ctx-wal-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut bytes = vec![0x82, 0x06, 0x7f, 0x37];
+        bytes.extend_from_slice(b"PRIVATECANARY in the write-ahead log\n");
+        std::fs::write(dir.join("side.log"), bytes).unwrap();
+        std::fs::write(dir.join("visible.rs"), "fn visible_marker() {}\n").unwrap();
+        let provider = WorkspaceContextProvider::new(&dir, None, None, test_fs_hooks());
+        let hits = provider.search_text("PRIVATECANARY").await.unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.text.contains("PRIVATECANARY")),
+            "search returned the write-ahead log"
+        );
+        let name = "side.log".to_string();
+        let read = provider.get_file_content(&name).await.unwrap_err();
+        assert!(
+            !read.contains("PRIVATECANARY"),
+            "direct read returned the write-ahead log: {read}"
+        );
+        let visible = provider.search_text("visible_marker").await.unwrap();
+        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[tokio::test]
+    async fn sqlite_shared_memory_file_is_not_searched_or_read() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-ctx-shm-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.txt"), b"SQLite format 3\0database").unwrap();
+        std::fs::write(
+            dir.join("notes.txt-shm"),
+            "PRIVATECANARY in the shared-memory file\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("visible.rs"), "fn visible_marker() {}\n").unwrap();
+        let provider = WorkspaceContextProvider::new(&dir, None, None, test_fs_hooks());
+        let hits = provider.search_text("PRIVATECANARY").await.unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.text.contains("PRIVATECANARY")),
+            "search returned the shared-memory file"
+        );
+        let name = "notes.txt-shm".to_string();
+        let read = provider.get_file_content(&name).await.unwrap_err();
+        assert!(
+            !read.contains("PRIVATECANARY"),
+            "direct read returned the shared-memory file: {read}"
+        );
+        let visible = provider.search_text("visible_marker").await.unwrap();
+        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[tokio::test]
     async fn inventory_and_search_use_real_workspace_files() {

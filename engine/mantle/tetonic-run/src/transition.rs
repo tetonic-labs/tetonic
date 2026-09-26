@@ -377,9 +377,9 @@ fn apply_claim_execution(
         .attempts
         .get(&cmd.attempt_id)
         .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?;
-    if attempt.state != AttemptState::Running || attempt.execution_claimed {
+    if attempt.state != AttemptState::Starting || attempt.execution_claimed {
         return Err(RunSupervisorError::DuplicateDelivery(
-            "Attempt already dispatched or not running".into(),
+            "Attempt already dispatched or not started".into(),
         ));
     }
     validate_lease_proof(attempt, &cmd.lease_proof)?;
@@ -388,11 +388,17 @@ fn apply_claim_execution(
             "lease expired before dispatch".into(),
         ));
     }
+    let task_id = attempt.task_id.clone();
     let mut out = snapshot.clone();
-    out.attempts
+    let claimed = out
+        .attempts
         .get_mut(&cmd.attempt_id)
-        .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?
-        .execution_claimed = true;
+        .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?;
+    claimed.execution_claimed = true;
+    claimed.state = AttemptState::Running;
+    if let Some(task) = out.tasks.get_mut(&task_id) {
+        task.state = TaskState::Running;
+    }
     Ok(out)
 }
 
@@ -413,19 +419,12 @@ fn apply_start_attempt(
     }
     validate_lease_proof(attempt, &cmd.lease_proof)?;
     let mut out = snapshot.clone();
-    let task_id = out
-        .attempts
-        .get(&cmd.attempt_id)
-        .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?
-        .task_id
-        .clone();
+    // Not Running yet. Claim is the first point at which execution has the
+    // attempt, so a failed build is not reported as running.
     out.attempts
         .get_mut(&cmd.attempt_id)
         .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?
-        .state = AttemptState::Running;
-    if let Some(t) = out.tasks.get_mut(&task_id) {
-        t.state = TaskState::Running;
-    }
+        .state = AttemptState::Starting;
     Ok(out)
 }
 

@@ -492,6 +492,485 @@ fn read_file_typo_returns_fuzzy_path_suggestion() {
 }
 
 #[test]
+fn shell_refuses_a_protected_store_inside_the_workspace() {
+    let dir = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-store-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = dir.join("lokai.db");
+    std::fs::write(&db, "PRIVATECANARY in the control database").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true).protect_store_file(&db);
+    let out = tools.execute("run_shell", &json!({ "command": "type lokai.db" }));
+    let verify = tools.run_command("type lokai.db");
+    assert!(!verify.0);
+    assert!(
+        !verify.1.contains("PRIVATECANARY"),
+        "verify leaked the control database: {}",
+        verify.1
+    );
+    assert!(!out.ok);
+    assert!(
+        !out.content.contains("PRIVATECANARY"),
+        "shell leaked the control database: {}",
+        out.content
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn shell_refuses_a_protected_store_outside_the_workspace() {
+    let parent = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-outside-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&parent);
+    let dir = parent.join("workspace");
+    std::fs::create_dir_all(&dir).unwrap();
+    let db = parent.join("control.db");
+    std::fs::write(&db, "PRIVATECANARY beside the workspace").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true).protect_store_file(&db);
+    let command = if cfg!(windows) {
+        "type ..\\control.db"
+    } else {
+        "cat ../control.db"
+    };
+    let out = tools.execute("run_shell", &json!({ "command": command }));
+    let verify = tools.run_command(command);
+    assert!(!out.ok);
+    assert!(!verify.0);
+    assert!(
+        !out.content.contains("PRIVATECANARY") && !verify.1.contains("PRIVATECANARY"),
+        "shell read the store outside the workspace: {} {}",
+        out.content,
+        verify.1
+    );
+    let allowed = tools.execute("run_shell", &json!({ "command": "echo ok-marker" }));
+    assert!(
+        allowed.ok && allowed.content.contains("ok-marker"),
+        "ordinary shell was refused: {}",
+        allowed.content
+    );
+    let _ = std::fs::remove_dir_all(&parent);
+}
+
+#[test]
+fn shell_refuses_an_absolute_path_outside_the_workspace() {
+    let parent = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-abs-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&parent);
+    let dir = parent.join("workspace");
+    std::fs::create_dir_all(&dir).unwrap();
+    let outside = parent.join("secret.txt");
+    std::fs::write(&outside, "PRIVATECANARY outside the workspace").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true);
+    let command = if cfg!(windows) {
+        format!("type \"{}\"", outside.display())
+    } else {
+        format!("cat \"{}\"", outside.display())
+    };
+    let out = tools.execute("run_shell", &json!({ "command": command }));
+    assert!(!out.ok, "{}", out.content);
+    assert!(
+        !out.content.contains("PRIVATECANARY"),
+        "shell read an absolute path outside the workspace: {}",
+        out.content
+    );
+    let allowed = tools.execute("run_shell", &json!({ "command": "echo ok-marker" }));
+    assert!(
+        allowed.ok && allowed.content.contains("ok-marker"),
+        "ordinary shell was refused: {}",
+        allowed.content
+    );
+    let _ = std::fs::remove_dir_all(&parent);
+}
+
+#[test]
+fn shell_refuses_parent_traversal_without_a_protected_store() {
+    let parent = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-dotdot-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&parent);
+    let dir = parent.join("workspace");
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(parent.join("secret.txt"), "PRIVATECANARY above the workspace").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true);
+    let command = if cfg!(windows) {
+        "type ..\\secret.txt"
+    } else {
+        "cat ../secret.txt"
+    };
+    let out = tools.execute("run_shell", &json!({ "command": command }));
+    assert!(!out.ok, "{}", out.content);
+    assert!(
+        !out.content.contains("PRIVATECANARY"),
+        "shell walked out of the workspace: {}",
+        out.content
+    );
+    let allowed = tools.execute("run_shell", &json!({ "command": "echo ok-marker" }));
+    assert!(
+        allowed.ok && allowed.content.contains("ok-marker"),
+        "ordinary shell was refused: {}",
+        allowed.content
+    );
+    let _ = std::fs::remove_dir_all(&parent);
+}
+
+#[test]
+fn verify_refuses_an_absolute_path_outside_the_workspace() {
+    let parent = std::env::temp_dir().join(format!(
+        "lokai-tools-verify-abs-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&parent);
+    let dir = parent.join("workspace");
+    std::fs::create_dir_all(&dir).unwrap();
+    let outside = parent.join("secret.txt");
+    std::fs::write(&outside, "PRIVATECANARY outside verify").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), false);
+    let command = format!("cargo test --manifest-path {}", outside.display());
+    let (ok, output) = tools.run_command(&command);
+    assert!(!ok, "{output}");
+    assert!(
+        output.contains("outside this workspace"),
+        "verify did not refuse the outside path: {output}"
+    );
+    assert!(
+        !output.contains("PRIVATECANARY"),
+        "verify read the outside file: {output}"
+    );
+    let _ = std::fs::remove_dir_all(&parent);
+}
+
+#[test]
+fn shell_refuses_inline_interpreter_code() {
+    let dir = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-inline-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("secret.txt"), "PRIVATECANARY inline shell").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true);
+    let out = tools.execute(
+        "run_shell",
+        &json!({ "command": "python -c \"print(open('secret.txt').read())\"" }),
+    );
+    assert!(!out.ok, "{}", out.content);
+    assert!(
+        !out.content.contains("PRIVATECANARY"),
+        "inline shell read the workspace secret: {}",
+        out.content
+    );
+    let nested = tools.execute(
+        "run_shell",
+        &json!({ "command": "cmd /c python -c \"print(1)\"" }),
+    );
+    assert!(!nested.ok, "{}", nested.content);
+    let allowed = tools.execute("run_shell", &json!({ "command": "echo ok-marker" }));
+    assert!(
+        allowed.ok && allowed.content.contains("ok-marker"),
+        "ordinary shell was refused: {}",
+        allowed.content
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn shell_refuses_powershell_and_credential_helpers() {
+    let dir = std::env::temp_dir().join(format!(
+        "lokai-tools-shell-cred-{}",
+        std::process::id()
+    ));
+    let _ = std::fs::remove_dir_all(&dir);
+    std::fs::create_dir_all(&dir).unwrap();
+    std::fs::write(dir.join("secret.txt"), "PRIVATECANARY credential shell").unwrap();
+    let tools = Tools::new(Workspace::new(&dir).unwrap(), true);
+    let powershell = tools.execute(
+        "run_shell",
+        &json!({ "command": "powershell -Command Get-Content secret.txt" }),
+    );
+    assert!(!powershell.ok, "{}", powershell.content);
+    assert!(
+        !powershell.content.contains("PRIVATECANARY"),
+        "powershell read the workspace secret: {}",
+        powershell.content
+    );
+    let helper = tools.execute("run_shell", &json!({ "command": "git credential fill" }));
+    assert!(!helper.ok, "{}", helper.content);
+    assert!(
+        helper.content.contains("credential store"),
+        "credential helper was not refused: {}",
+        helper.content
+    );
+    let allowed = tools.execute("run_shell", &json!({ "command": "echo ok-marker" }));
+    assert!(
+        allowed.ok && allowed.content.contains("ok-marker"),
+        "ordinary shell was refused: {}",
+        allowed.content
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_and_search_refuse_the_control_database() {
+    let (tools, dir) = tmp_ws("store-grant");
+    let db = dir.join("lokai.db");
+    std::fs::write(&db, "PRIVATECANARY in the control database").unwrap();
+    let tools = tools.protect_store_file(&db);
+    let read = tools.execute("read_file", &json!({ "path": "lokai.db" }));
+    assert!(!read.ok);
+    assert!(
+        !read.content.contains("PRIVATECANARY"),
+        "control database bytes leaked: {}",
+        read.content
+    );
+    let found = tools.execute(
+        "grep",
+        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
+    );
+    assert!(
+        !found.content.contains("PRIVATECANARY"),
+        "search leaked the control database: {}",
+        found.content
+    );
+    let listed = tools.execute("list_dir", &json!({ "path": "." }));
+    assert!(
+        !listed.content.contains("lokai.db"),
+        "directory listing named the control database: {}",
+        listed.content
+    );
+    let names = tools.execute("glob", &json!({ "pattern": "*.db" }));
+    assert!(
+        !names.content.contains("lokai.db"),
+        "glob named the control database: {}",
+        names.content
+    );
+    std::fs::write(dir.join("visible.txt"), "ordinary note").unwrap();
+    let visible = tools.execute("read_file", &json!({ "path": "visible.txt" }));
+    assert!(visible.ok, "{}", visible.content);
+    assert!(visible.content.contains("ordinary note"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_and_search_refuse_a_sqlite_database_by_header() {
+    let (tools, dir) = tmp_ws("sqlite-header");
+    let mut bytes = b"SQLite format 3\0".to_vec();
+    bytes.extend_from_slice(b"PRIVATECANARY in a renamed control database");
+    std::fs::write(dir.join("notes.txt"), &bytes).unwrap();
+    std::fs::write(dir.join("visible.txt"), "ordinary note").unwrap();
+    let read = tools.execute("read_file", &json!({ "path": "notes.txt" }));
+    assert!(!read.ok);
+    assert!(
+        !read.content.contains("PRIVATECANARY"),
+        "sqlite database bytes leaked: {}",
+        read.content
+    );
+    let found = tools.execute(
+        "grep",
+        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
+    );
+    assert!(
+        !found.content.contains("PRIVATECANARY"),
+        "search leaked the sqlite database: {}",
+        found.content
+    );
+    let visible = tools.execute("read_file", &json!({ "path": "visible.txt" }));
+    assert!(visible.ok, "{}", visible.content);
+    assert!(visible.content.contains("ordinary note"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_and_search_refuse_a_sqlite_write_ahead_log() {
+    let (tools, dir) = tmp_ws("sqlite-wal");
+    let mut bytes = vec![0x82, 0x06, 0x7f, 0x37];
+    bytes.extend_from_slice(b"PRIVATECANARY in the write-ahead log");
+    std::fs::write(dir.join("side.log"), &bytes).unwrap();
+    std::fs::write(dir.join("visible.txt"), "ordinary note").unwrap();
+    let read = tools.execute("read_file", &json!({ "path": "side.log" }));
+    assert!(!read.ok);
+    assert!(
+        !read.content.contains("PRIVATECANARY"),
+        "write-ahead log leaked: {}",
+        read.content
+    );
+    let found = tools.execute(
+        "grep",
+        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
+    );
+    assert!(
+        !found.content.contains("PRIVATECANARY"),
+        "search leaked the write-ahead log: {}",
+        found.content
+    );
+    let visible = tools.execute("read_file", &json!({ "path": "visible.txt" }));
+    assert!(visible.ok, "{}", visible.content);
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_and_search_refuse_a_sqlite_shared_memory_file() {
+    let (tools, dir) = tmp_ws("sqlite-shm");
+    std::fs::write(dir.join("notes.txt"), b"SQLite format 3\0database").unwrap();
+    std::fs::write(
+        dir.join("notes.txt-shm"),
+        "PRIVATECANARY in the shared-memory file",
+    )
+    .unwrap();
+    std::fs::write(dir.join("other-shm"), "ordinary sidecar note").unwrap();
+    let read = tools.execute("read_file", &json!({ "path": "notes.txt-shm" }));
+    assert!(!read.ok);
+    assert!(
+        !read.content.contains("PRIVATECANARY"),
+        "shared-memory file leaked: {}",
+        read.content
+    );
+    let found = tools.execute(
+        "grep",
+        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
+    );
+    assert!(
+        !found.content.contains("PRIVATECANARY"),
+        "search leaked the shared-memory file: {}",
+        found.content
+    );
+    let ordinary = tools.execute("read_file", &json!({ "path": "other-shm" }));
+    assert!(ordinary.ok, "{}", ordinary.content);
+    assert!(ordinary.content.contains("ordinary sidecar note"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn read_refuses_a_sqlite_rollback_journal() {
+    let (tools, dir) = tmp_ws("sqlite-journal");
+    std::fs::write(dir.join("notes.txt"), b"SQLite format 3\0database").unwrap();
+    std::fs::write(
+        dir.join("notes.txt-journal"),
+        "PRIVATECANARY in the rollback journal",
+    )
+    .unwrap();
+    let read = tools.execute("read_file", &json!({ "path": "notes.txt-journal" }));
+    assert!(!read.ok);
+    assert!(
+        !read.content.contains("PRIVATECANARY"),
+        "rollback journal leaked: {}",
+        read.content
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn lsp_does_not_read_a_sqlite_database() {
+    struct LeakSession;
+    impl tetonic_domain::LspSession for LeakSession {
+        fn goto_definition(
+            &self,
+            _: &str,
+            _: u32,
+            _: u32,
+        ) -> Result<tetonic_domain::tool_host::ToolOutcome, String> {
+            Ok(tetonic_domain::tool_host::ToolOutcome::ok(
+                "lsp",
+                "PRIVATECANARY from lsp",
+            ))
+        }
+        fn find_references(
+            &self,
+            _: &str,
+            _: u32,
+            _: u32,
+        ) -> Result<tetonic_domain::tool_host::ToolOutcome, String> {
+            Ok(tetonic_domain::tool_host::ToolOutcome::ok(
+                "lsp",
+                "PRIVATECANARY from lsp",
+            ))
+        }
+        fn diagnostics(
+            &self,
+            _: &str,
+        ) -> Result<tetonic_domain::tool_host::ToolOutcome, String> {
+            Ok(tetonic_domain::tool_host::ToolOutcome::ok(
+                "lsp",
+                "PRIVATECANARY from lsp",
+            ))
+        }
+    }
+    struct LeakOpen;
+    impl tetonic_domain::LspSessionOpen for LeakOpen {
+        fn open(
+            &self,
+            _: &std::path::Path,
+        ) -> Result<Box<dyn tetonic_domain::LspSession>, String> {
+            Ok(Box::new(LeakSession))
+        }
+        fn available(&self, _: &std::path::Path) -> bool {
+            true
+        }
+    }
+    let (tools, dir) = tmp_ws("lsp-sqlite");
+    std::fs::write(dir.join("notes.txt"), b"SQLite format 3\0PRIVATECANARY").unwrap();
+    std::fs::write(dir.join("keep.rs"), "pub fn visible_note() {}\n").unwrap();
+    let tools = tools.with_lsp_open(std::sync::Arc::new(LeakOpen));
+    let denied = tools.execute(
+        "lsp_goto_definition",
+        &json!({ "path": "notes.txt", "line": 1 }),
+    );
+    assert!(!denied.ok);
+    assert!(
+        !denied.content.contains("PRIVATECANARY"),
+        "lsp leaked the database: {}",
+        denied.content
+    );
+    let allowed = tools.execute(
+        "lsp_goto_definition",
+        &json!({ "path": "keep.rs", "line": 1 }),
+    );
+    assert!(allowed.ok, "{}", allowed.content);
+    assert!(allowed.content.contains("PRIVATECANARY from lsp"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn credential_store_files_are_not_read_or_searched() {
+    let (tools, dir) = tmp_ws("cred-store");
+    std::fs::create_dir_all(dir.join(".ssh")).unwrap();
+    std::fs::write(dir.join(".ssh").join("id_ed25519"), "PRIVATECANARY private key\n").unwrap();
+    std::fs::write(dir.join(".git-credentials"), "PRIVATECANARY git credential\n").unwrap();
+    std::fs::write(dir.join("notes.txt"), "visible_marker\n").unwrap();
+
+    let read = tools.execute("read_file", &json!({ "path": ".ssh/id_ed25519" }));
+    assert!(!read.ok);
+    assert!(!read.content.contains("PRIVATECANARY"), "{}", read.content);
+    assert!(!read.summary.contains("PRIVATECANARY"), "{}", read.summary);
+
+    let grep = tools.execute(
+        "grep",
+        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
+    );
+    assert!(grep.ok, "{}", grep.content);
+    assert!(!grep.content.contains("PRIVATECANARY"), "{}", grep.content);
+
+    let written = tools.execute(
+        "write_file",
+        &json!({ "path": ".aws/credentials", "content": "PRIVATECANARY" }),
+    );
+    assert!(!written.ok);
+    assert!(!written.content.contains("PRIVATECANARY"), "{}", written.content);
+    assert!(!dir.join(".aws").join("credentials").exists());
+
+    let notes = tools.execute("read_file", &json!({ "path": "notes.txt" }));
+    assert!(notes.ok, "{}", notes.content);
+    assert!(notes.content.contains("visible_marker"));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn read_file_refuses_parentdir_escape() {
     let (tools, dir) = tmp_ws("read-escape");
     let out = tools.execute("read_file", &json!({ "path": "../secret.txt" }));

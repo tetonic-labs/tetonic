@@ -7,7 +7,7 @@ impl Daemon {
             .services()?
             .app
             .model_catalog(&p.session_id)
-            .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
+            .map_err(crate::daemon::rpc::map::map_session_error)?;
         Ok(to_value(tetonic_rpc::SessionModelsResult {
             revision: catalog.revision,
             models: catalog
@@ -35,7 +35,7 @@ impl Daemon {
         let selection = services
             .app
             .select_session_model(&p.session_id, &p.selection_id, p.expected_revision)
-            .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
+            .map_err(crate::daemon::rpc::map::map_session_error)?;
         Ok(to_value(tetonic_rpc::SessionInferenceResult {
             profile: selection.profile,
             model_fast: selection.model_fast,
@@ -66,7 +66,7 @@ impl Daemon {
             let p: tetonic_rpc::SessionInferenceParams = parse(params)?;
             services.app.session_inference(&p.session_id)
         }
-        .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, e.to_string()))?;
+        .map_err(crate::daemon::rpc::map::map_session_error)?;
         Ok(to_value(tetonic_rpc::SessionInferenceResult {
             profile: selection.profile,
             model_fast: selection.model_fast,
@@ -120,13 +120,16 @@ impl Daemon {
             .await
             .map_err(|e| match &e {
                 tetonic_app::errors::AppError::InvalidRequest(_) => {
-                    RpcError::new(ErrorCode::InvalidRequest, format!("{e}"))
+                    RpcError::new(ErrorCode::InvalidRequest, e.employee_message())
                 }
                 tetonic_app::errors::AppError::SessionNotFound(_)
                 | tetonic_app::errors::AppError::SessionConflict => {
-                    RpcError::new(ErrorCode::UnknownSession, format!("{e}"))
+                    RpcError::new(ErrorCode::UnknownSession, "unknown session_id")
                 }
-                _ => RpcError::new(ErrorCode::InternalError, format!("{e}")),
+                _other => {
+                    tracing::warn!("session request failed");
+                    RpcError::new(ErrorCode::InternalError, "request failed")
+                }
             })?;
 
         if let Some(ref cap) = services.capacity {
@@ -159,7 +162,7 @@ impl Daemon {
                 status: p.status.clone(),
                 error: p.error.clone(),
             })
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(SessionEndResult { ok: true }))
     }
 
@@ -178,7 +181,15 @@ impl Daemon {
                 reason: p.reason,
             })
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InvalidParams, format!("{e}")))?;
+            .map_err(|e| match &e {
+                tetonic_app::errors::AppError::InvalidRequest(_) => {
+                    RpcError::new(ErrorCode::InvalidParams, e.employee_message())
+                }
+                _other => {
+                    tracing::warn!("session reclassify failed");
+                    RpcError::new(ErrorCode::InternalError, "request failed")
+                }
+            })?;
         services
             .app
             .reclassify_session_live(&p.session_id, &result.data_class);

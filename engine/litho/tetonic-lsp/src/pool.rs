@@ -2,6 +2,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::{Arc, Mutex, RwLock};
 
 use thiserror::Error;
@@ -29,6 +30,7 @@ pub struct LspPool {
     root: PathBuf,
     launcher: Option<Arc<dyn LspProcessLauncher>>,
     sessions: RwLock<HashMap<Lang, Arc<Mutex<LspSession>>>>,
+    stop: Arc<AtomicBool>,
 }
 
 impl LspPool {
@@ -48,7 +50,14 @@ impl LspPool {
             root,
             launcher,
             sessions: RwLock::new(HashMap::new()),
+            stop: Arc::new(AtomicBool::new(false)),
         })
+    }
+
+    /// Stop language-server processes owned by this pool. In-flight requests
+    /// observe the flag and terminate the child.
+    pub fn request_stop(&self) {
+        self.stop.store(true, Ordering::SeqCst);
     }
 
     pub fn root(&self) -> &Path {
@@ -63,7 +72,9 @@ impl LspPool {
 
     fn spawn_session(&self, lang: Lang) -> Result<Arc<Mutex<LspSession>>, LspPoolError> {
         let spec = detect_server(lang)?;
-        let session = LspSession::spawn_with_launcher(spec, &self.root, self.launcher.as_deref())?;
+        let mut session =
+            LspSession::spawn_with_launcher(spec, &self.root, self.launcher.as_deref())?;
+        session.share_stop_flag(self.stop.clone());
         let arc = Arc::new(Mutex::new(session));
         if let Ok(mut map) = self.sessions.write() {
             map.insert(lang, arc.clone());

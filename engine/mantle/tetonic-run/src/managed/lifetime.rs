@@ -143,6 +143,34 @@ impl super::service::ManagedRunService {
         Ok(())
     }
 
+    /// Cancel, an elapsed deadline, or a closed work scope. Checked before a
+    /// model call that happens ahead of the execution gate.
+    pub fn attempt_must_not_infer(&self, attempt: &AttemptId) -> bool {
+        if self.is_canceled(attempt) {
+            return true;
+        }
+        self.active.lock_recover().get(attempt).is_some_and(|active| {
+            active.work_scope.is_canceled() || active.deadline_elapsed()
+        })
+    }
+
+    pub async fn attempt_authority_revoked(&self, attempt: &AttemptId) -> bool {
+        let Some(active) = self.active.lock_recover().get(attempt).cloned() else {
+            return false;
+        };
+        let Some(authorization) = &active.authorization else {
+            return false;
+        };
+        authorization
+            .authority
+            .revoked_during_execution(
+                &authorization.scope,
+                &active.identity,
+                &active.binding.job_spec,
+            )
+            .await
+    }
+
     pub fn is_canceled(&self, attempt: &AttemptId) -> bool {
         let id = self.attempt_dispatches.lock_recover().get(attempt).cloned();
         let Some(id) = id else {

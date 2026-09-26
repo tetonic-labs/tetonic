@@ -249,14 +249,14 @@ impl OperatorController {
         self.thought_hub
             .publish(TelemetryEvent::LifecycleChange {
                 agent_id: agent_id.to_string(),
-                new_status: AgentLifecycleState::Running,
+                new_status: AgentLifecycleState::Idle,
                 timestamp: Utc::now(),
             })
             .await;
 
         Ok(ResumeResponse {
             target: agent_id.to_string(),
-            status: AgentLifecycleState::Running,
+            status: AgentLifecycleState::Idle,
         })
     }
 
@@ -427,9 +427,9 @@ mod tests {
     async fn test_agent_estop_and_resume_lifecycle() {
         let (controller, manager) = setup_test_fleet().await;
 
-        // 1. Initial state is Running
+        // Registration is metadata. It is not a claimed execution.
         let ag = manager.get_agent("agent-target").await.expect("get agent");
-        assert_eq!(ag.status, AgentLifecycleState::Running);
+        assert_eq!(ag.status, AgentLifecycleState::Idle);
 
         // 2. Trigger E-Stop
         let estop_resp = controller
@@ -444,10 +444,10 @@ mod tests {
 
         // 4. Resume agent
         let resume_resp = controller.resume_agent("agent-target").await.expect("resume");
-        assert_eq!(resume_resp.status, AgentLifecycleState::Running);
+        assert_eq!(resume_resp.status, AgentLifecycleState::Idle);
 
         let ag3 = manager.get_agent("agent-target").await.expect("get agent");
-        assert_eq!(ag3.status, AgentLifecycleState::Running);
+        assert_eq!(ag3.status, AgentLifecycleState::Idle);
     }
 
     #[tokio::test]
@@ -456,7 +456,7 @@ mod tests {
 
         let dashboard = controller.get_dashboard_snapshot().await.expect("dashboard");
         assert_eq!(dashboard.total_agents, 1);
-        assert_eq!(dashboard.running_agents, 1);
+        assert_eq!(dashboard.running_agents, 0);
         assert_eq!(dashboard.estopped_agents, 0);
         assert!(!dashboard.is_fleet_estopped);
         assert_eq!(dashboard.agents.len(), 1);

@@ -23,7 +23,7 @@ pub use audit::NullAudit;
 pub use brain::{DualProcessBrain, ScriptedBrain, SingleModelBrain};
 pub use build::{base_agent_config, lsp_enabled_for_workspace, AgentConfigInput};
 pub use capability_store::InMemoryCapabilityStore;
-pub use executor::LocalAgentAttemptExecutor;
+pub use executor::{LocalAgentAttemptExecutor, LocalWorldAttemptExecutor};
 pub use policy::load_policy_engine;
 pub use stream_adapter::{StreamMessage, StreamWorldAdapter};
 pub use composite_adapter::CompositeWorldAdapter;

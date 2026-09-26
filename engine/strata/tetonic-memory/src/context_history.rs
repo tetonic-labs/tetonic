@@ -36,6 +36,33 @@ impl Store {
         }
     }
 
+    /// Status of a discussion in this context. Missing and foreign ids are both
+    /// `None` for an authorized principal; other principals are denied.
+    pub fn context_discussion_status(
+        &self,
+        actor: &str,
+        context: &str,
+        session: &str,
+    ) -> Result<Option<String>> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
+        if !self.context_access(actor, context)? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let status = self
+            .conn
+            .query_row(
+                "SELECT status FROM sessions WHERE id=?1 AND context_id=?2 AND mode='discussion'",
+                params![session, context],
+                |r| r.get(0),
+            )
+            .optional()?;
+        tx.commit()?;
+        if !self.context_access(actor, context)? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        Ok(status)
+    }
+
     /// Close a discussion without deleting its history or stopping any execution.
     pub fn close_context_history(&self, actor: &str, context: &str, session: &str) -> Result<()> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
@@ -80,8 +107,27 @@ impl Store {
         Ok(())
     }
 
-    /// Opens durable discussion history, not an execution or a live model session.
+    /// Reopen an existing discussion. A missing id and an id owned by another
+    /// context are both denied, and neither creates a row.
     pub fn open_context_history(&self, actor: &str, context: &str, session: &str) -> Result<()> {
+        validate_id(session)?;
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        self.require_context_access(actor, context)?;
+        let open: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1 AND context_id=?2 AND mode='discussion' AND status='open')",
+            params![session, context],
+            |r| r.get(0),
+        )?;
+        if !open {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Trusted fixture writer. A caller-chosen id can reveal that the id is
+    /// already taken, so the employee door uses [`Self::create_context_history`].
+    pub fn insert_open_discussion(&self, actor: &str, context: &str, session: &str) -> Result<()> {
         validate_id(session)?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_context_access(actor, context)?;
@@ -102,6 +148,13 @@ impl Store {
         }
         tx.commit()?;
         Ok(())
+    }
+
+    /// Employee create. The id is chosen here, not by the caller.
+    pub fn create_context_history(&self, actor: &str, context: &str) -> Result<String> {
+        let id = crate::new_id("disc");
+        self.insert_open_discussion(actor, context, &id)?;
+        Ok(id)
     }
 
     /// Only human user messages. Principal attribution is separate from agent ID.
@@ -145,7 +198,7 @@ impl Store {
         Ok(seq)
     }
 
-    fn require_context_access(&self, actor: &str, context: &str) -> Result<()> {
+    pub(crate) fn require_context_access(&self, actor: &str, context: &str) -> Result<()> {
         if !self.context_access(actor, context)? {
             return Err(StoreError::ControlAccessDenied);
         }
@@ -179,7 +232,7 @@ mod tests {
             },
         )
         .unwrap();
-        db.open_context_history("alice", "private", "session")
+        db.insert_open_discussion("alice", "private", "session")
             .unwrap();
         db.append_context_message("alice", "private", "session", "request", "retained")
             .unwrap();
@@ -191,9 +244,16 @@ mod tests {
             .close_context_history("alice", "private", "unknown")
             .is_err());
         assert_eq!(
-            db.session_status("session").unwrap().as_deref(),
+            db.context_discussion_status("alice", "private", "session")
+                .unwrap()
+                .as_deref(),
             Some("open")
         );
+        assert!(db
+            .context_discussion_status("alice", "private", "missing")
+            .unwrap()
+            .is_none());
+        assert!(db.session_status("session").unwrap().is_none());
         db.close_context_history("alice", "private", "session")
             .unwrap();
         db.close_context_history("alice", "private", "session")
@@ -212,8 +272,58 @@ mod tests {
             .is_err());
         db.remove_organization_member("org", "alice").unwrap();
         assert!(db
+            .context_discussion_status("alice", "private", "session")
+            .is_err());
+        assert!(db
             .close_context_history("alice", "private", "session")
             .is_err());
+    }
+
+    #[test]
+    fn guessed_discussion_id_does_not_create_or_reveal_another_context() {
+        let db = Store::open(":memory:").unwrap();
+        db.bootstrap_control("alice", "org", "Org").unwrap();
+        db.create_team(&crate::TeamRow {
+            org_id: "org".into(),
+            team_id: "team".into(),
+            name: "Team".into(),
+            owner_principal_id: "alice".into(),
+        })
+        .unwrap();
+        db.create_information_context(
+            "alice",
+            "private",
+            &ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .unwrap();
+        db.create_information_context(
+            "alice",
+            "shared",
+            &ContextOwner::Team {
+                org_id: "org".into(),
+                team_id: "team".into(),
+            },
+        )
+        .unwrap();
+        db.insert_open_discussion("alice", "private", "taken").unwrap();
+        assert!(db.open_context_history("alice", "shared", "taken").is_err());
+        assert!(db
+            .open_context_history("alice", "shared", "brand-new")
+            .is_err());
+        let created: i64 = db
+            .conn
+            .query_row(
+                "SELECT COUNT(*) FROM sessions WHERE id='brand-new'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert_eq!(created, 0);
+        let id = db.create_context_history("alice", "shared").unwrap();
+        assert!(db.open_context_history("alice", "shared", &id).is_ok());
+        assert_ne!(id, "taken");
     }
 
     #[test]
@@ -231,7 +341,7 @@ mod tests {
                 },
             )
             .unwrap();
-            db.open_context_history("alice", "private", "session")
+            db.insert_open_discussion("alice", "private", "session")
                 .unwrap();
             db.open_context_history("alice", "private", "session")
                 .unwrap();
@@ -282,7 +392,7 @@ mod tests {
             },
         )
         .unwrap();
-        db.open_context_history("alice", "private", "session")
+        db.insert_open_discussion("alice", "private", "session")
             .unwrap();
         db.conn.execute_batch("CREATE TRIGGER fail_author BEFORE UPDATE OF author_principal_id ON messages BEGIN SELECT RAISE(ABORT,'failure'); END;").unwrap();
         assert!(db

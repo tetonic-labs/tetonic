@@ -75,7 +75,10 @@ fn index_file_at_path(
     known: &FileIncrementality,
     self_db: &str,
 ) -> Result<FileIndexOutcome> {
-    if abs.to_string_lossy().starts_with(self_db) {
+    if abs.to_string_lossy().starts_with(self_db) || is_control_store_file(abs) {
+        // An earlier pass may already have stored this file. Skipping the read
+        // must also drop those rows, or search can still return them.
+        purge_file_at_path(tx, &storage_path_key(&abs.to_string_lossy()))?;
         return Ok(FileIndexOutcome::Skipped);
     }
     let meta = abs.metadata()?;
@@ -86,6 +89,12 @@ fn index_file_at_path(
         return Ok(FileIndexOutcome::Skipped);
     }
     let abs_str = storage_path_key(&abs.to_string_lossy());
+    // Any SQLite file, whatever its name, can be the control database. Do not
+    // keep a previous text index of it, and do not read the rest of the file.
+    if is_sqlite_database(abs) {
+        purge_file_at_path(tx, &abs_str)?;
+        return Ok(FileIndexOutcome::Skipped);
+    }
     let size = meta.len() as i64;
     let mtime = meta
         .modified()
@@ -101,6 +110,7 @@ fn index_file_at_path(
 
     let raw = std::fs::read(abs)?;
     if raw.contains(&0) {
+        purge_file_at_path(tx, &abs_str)?;
         return Ok(FileIndexOutcome::Skipped);
     }
     let hash = content_hash(&raw);
@@ -121,6 +131,55 @@ fn index_file_at_path(
         tx, ws, &abs_str, &rel, lang, &source, &hash, mtime, size, existed,
     )?;
     Ok(FileIndexOutcome::Indexed { symbols: n })
+}
+
+pub(crate) fn is_sqlite_database(path: &Path) -> bool {
+    if sqlite_header_prefix(path) {
+        return true;
+    }
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    let Some(stem) = name
+        .strip_suffix("-wal")
+        .or_else(|| name.strip_suffix("-shm"))
+        .or_else(|| name.strip_suffix("-journal"))
+    else {
+        return false;
+    };
+    !stem.is_empty() && sqlite_header_prefix(&path.with_file_name(stem))
+}
+
+fn sqlite_header_prefix(path: &Path) -> bool {
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut magic = [0u8; 16];
+    let Ok(n) = std::io::Read::read(&mut file, &mut magic) else {
+        return false;
+    };
+    let magic = &magic[..n];
+    if magic.len() >= 15 && magic.starts_with(b"SQLite format 3") {
+        return true;
+    }
+    magic.len() >= 4
+        && matches!(
+            [magic[0], magic[1], magic[2], magic[3]],
+            [0x37, 0x7f, 0x06, 0x82]
+                | [0x37, 0x7f, 0x06, 0x83]
+                | [0x82, 0x06, 0x7f, 0x37]
+                | [0x83, 0x06, 0x7f, 0x37]
+        )
+}
+
+fn is_control_store_file(path: &Path) -> bool {
+    let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
+        return false;
+    };
+    matches!(
+        name.to_ascii_lowercase().as_str(),
+        "lokai.db" | "lokai.db-wal" | "lokai.db-shm"
+    )
 }
 
 fn file_path_exists(conn: &Connection, path: &str) -> Result<bool> {

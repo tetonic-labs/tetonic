@@ -9,14 +9,11 @@ impl Daemon {
         let services = self.services()?;
         let snap = services
             .app
-            .runs
-            .inspect_run(tetonic_app::commands::InspectRunCommand {
-                run_id: p.run_id.clone(),
-            })
+            .unscoped_daemon_inspect(&p.run_id)
             .await
             .map_err(crate::daemon::rpc::map::map_app_error)?;
         let snapshot = serde_json::to_value(&snap)
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("{e}")))?;
+            .map_err(|_| RpcError::new(ErrorCode::InternalError, "request failed"))?;
         Ok(to_value(RunSnapshotResult {
             run_id: snap.run_id.to_string(),
             sequence: snap.sequence,
@@ -30,12 +27,7 @@ impl Daemon {
         let services = self.services()?;
         let replay = services
             .app
-            .runs
-            .resume_events(tetonic_app::commands::ResumeRunEventsCommand {
-                run_id: p.run_id.clone(),
-                after_sequence: p.after_sequence,
-                limit: p.limit,
-            })
+            .unscoped_daemon_resume(&p.run_id, p.after_sequence, p.limit)
             .await
             .map_err(crate::daemon::rpc::map::map_app_error)?;
         match replay {
@@ -68,8 +60,7 @@ impl Daemon {
         let services = self.services()?;
         services
             .app
-            .runs
-            .cancel_run(tetonic_app::commands::CancelByRunCommand { run_id: p.run_id })
+            .unscoped_daemon_cancel(&p.run_id)
             .await
             .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(Canceled { canceled: true }))

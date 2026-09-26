@@ -43,6 +43,7 @@ fn durable_service(
     artifacts: Arc<dyn tetonic_domain::artifact::ArtifactStore>,
 ) -> ManagedRunService {
     let store = tetonic_memory::SharedStore::open(path, 1).unwrap();
+    store.write_sync(|db| db.create_organization(&tetonic_memory::OrganizationRow { org_id: "org".into(), name: "Org".into() })).unwrap().unwrap();
     ManagedRunService::new(
         Arc::new(DurableRunSupervisor::new(Some(store.clone()))),
         Some(store),

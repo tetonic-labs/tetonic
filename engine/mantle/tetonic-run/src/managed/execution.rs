@@ -7,10 +7,31 @@ use tetonic_memory::RecoverMutex;
 struct AttemptExecutionGate {
     active: super::lifetime::ActiveAttempt,
 }
+
+async fn execution_revoked(
+    active: &super::lifetime::ActiveAttempt,
+    next_check: &mut tokio::time::Instant,
+) -> bool {
+    if tokio::time::Instant::now() < *next_check {
+        return false;
+    }
+    *next_check = tokio::time::Instant::now() + std::time::Duration::from_millis(200);
+    let Some(authorization) = &active.authorization else {
+        return false;
+    };
+    authorization
+        .authority
+        .revoked_during_execution(
+            &authorization.scope,
+            &active.identity,
+            &active.binding.job_spec,
+        )
+        .await
+}
 #[async_trait::async_trait]
 impl tetonic_core::ExecutionGate for AttemptExecutionGate {
     async fn authorize(&self) -> Result<(), ()> {
-        if self.active.deadline_elapsed() {
+        if self.active.work_scope.is_canceled() || self.active.deadline_elapsed() {
             self.active.work_scope.cancel();
             return Err(());
         }
@@ -24,7 +45,7 @@ impl tetonic_core::ExecutionGate for AttemptExecutionGate {
                 )
                 .await?;
         }
-        if self.active.deadline_elapsed() {
+        if self.active.work_scope.is_canceled() || self.active.deadline_elapsed() {
             self.active.work_scope.cancel();
             return Err(());
         }
@@ -48,7 +69,7 @@ impl super::service::ManagedRunService {
         let binding = active.binding.clone();
         let snapshot = match self.inspect_run(&binding.run_id).await {
             Ok(snapshot) => snapshot,
-            Err(error) => return fail(error.to_string()),
+            Err(error) => return fail(published_managed(&error)),
         };
         let Some(task) = snapshot.tasks.get(&binding.task_id) else {
             return fail("durable task missing".into());
@@ -122,7 +143,7 @@ impl super::service::ManagedRunService {
             .job_spec
             .capability_bindings
             .iter()
-            .any(|cap| !advertised.contains(cap) && !active.identity.context_bindings.contains(cap))
+            .any(|cap| !advertised.contains(cap))
             || binding.job_spec.artifact_bindings.iter().any(|artifact| {
                 !task
                     .binding
@@ -154,50 +175,80 @@ impl super::service::ManagedRunService {
             ))
             .await;
         if let Err(error) = claimed {
-            return fail(error.to_string());
+            return fail(published_supervisor(&error));
         }
+        self.notify_hooks(|hooks| hooks.execution_claimed(&binding));
         if let Err(error) = agent.bind_work_scope(active.work_scope.clone()) {
             return fail(error.to_string());
         }
-        agent.bind_execution_gate(
-            (active.authorization.is_some() || active.deadline.is_some()).then(|| {
-                std::sync::Arc::new(AttemptExecutionGate {
-                    active: active.clone(),
-                }) as std::sync::Arc<dyn tetonic_core::ExecutionGate>
-            }),
-        );
+        agent.bind_execution_gate(Some(std::sync::Arc::new(AttemptExecutionGate {
+            active: active.clone(),
+        })
+            as std::sync::Arc<dyn tetonic_core::ExecutionGate>));
         agent.stamp_managed_run(&binding.run_id.0, &binding.task_id.0, &attempt.0);
+        // A scoped attempt must not inherit turns from another information context.
+        // An unscoped coding session keeps the conversation it resumed.
+        if task.binding.execution_scope.is_some() {
+            conversation.discard_carried_turns();
+        }
         let loop_cancel = conversation.cancel_handle();
+        let grant_watch = active.clone();
         let mut step_fn = |step: tetonic_core::Step| {
             self.notify_hooks(|hooks| hooks.step(&binding, &step));
             on_step(step);
         };
 
-        let mut executor =
-            tetonic_runtime::LocalAgentAttemptExecutor::new(agent, conversation, &mut step_fn);
-
         let ctx = tetonic_domain::AttemptExecutionContext {
             attempt_id: binding.attempt_id.clone(),
         };
-
-        let canceled = async {
-            loop {
-                if active.work_scope.is_canceled()
-                    || active.deadline_elapsed()
-                    || self.is_canceled(&attempt)
-                    || loop_cancel.load(std::sync::atomic::Ordering::SeqCst)
-                {
-                    active.work_scope.cancel();
-                    loop_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
-                    break;
+        let world_adapter = agent.world_adapter();
+        let outcome = if let Some(adapter) = world_adapter {
+            let mut executor = tetonic_runtime::LocalWorldAttemptExecutor::new(agent, adapter);
+            let canceled = async {
+                let mut next_grant_check =
+                    tokio::time::Instant::now() + std::time::Duration::from_millis(200);
+                loop {
+                    if active.work_scope.is_canceled()
+                        || active.deadline_elapsed()
+                        || self.is_canceled(&attempt)
+                        || execution_revoked(&grant_watch, &mut next_grant_check).await
+                    {
+                        active.work_scope.cancel();
+                        break;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
-                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            };
+            tokio::select! {
+                biased;
+                _ = canceled => CandidateOutcome::Canceled { reason: "attempt canceled during execution".into() },
+                outcome = executor.execute(invocation, ctx) => outcome,
             }
-        };
-        let outcome = tokio::select! {
-            biased;
-            _ = canceled => CandidateOutcome::Canceled { reason: "attempt canceled during execution".into() },
-            outcome = executor.execute(invocation, ctx) => outcome,
+        } else {
+            let mut executor =
+                tetonic_runtime::LocalAgentAttemptExecutor::new(agent, conversation, &mut step_fn);
+            let canceled = async {
+                let mut next_grant_check =
+                    tokio::time::Instant::now() + std::time::Duration::from_millis(200);
+                loop {
+                    if active.work_scope.is_canceled()
+                        || active.deadline_elapsed()
+                        || self.is_canceled(&attempt)
+                        || loop_cancel.load(std::sync::atomic::Ordering::SeqCst)
+                        || execution_revoked(&grant_watch, &mut next_grant_check).await
+                    {
+                        active.work_scope.cancel();
+                        loop_cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+                        break;
+                    }
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+            };
+            tokio::select! {
+                biased;
+                _ = canceled => CandidateOutcome::Canceled { reason: "attempt canceled during execution".into() },
+                outcome = executor.execute(invocation, ctx) => outcome,
+            }
         };
 
         // Dropping the executor may detach Tokio blocking jobs. Their leases
@@ -259,7 +310,7 @@ impl super::service::ManagedRunService {
             .await
             .unwrap_or_else(|error| {
                 let outcome = CandidateOutcome::Failed {
-                    message: format!("managed finalization failed: {error}"),
+                    message: format!("managed finalization failed: {}", published_managed(&error)),
                 };
                 let result = StartIdentityJobResult {
                     run_id: binding.run_id.clone(),
@@ -381,7 +432,7 @@ impl super::service::ManagedRunService {
                     task_id: binding.task_id,
                     attempt_id: binding.attempt_id,
                     outcome: CandidateOutcome::Failed {
-                        message: error.to_string(),
+                        message: published_managed(&error),
                     },
                 };
                 this.notify_hooks(|hooks| hooks.terminal(&result));
@@ -420,7 +471,7 @@ impl super::service::ManagedRunService {
             .job_spec
             .capability_bindings
             .iter()
-            .any(|cap| !advertised.contains(cap) && !cmd.identity.context_bindings.contains(cap))
+            .any(|cap| !advertised.contains(cap))
             || !cmd.job_spec.artifact_bindings.is_empty()
         {
             return Err(ManagedRunError::InvalidRequest(

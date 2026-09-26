@@ -136,7 +136,10 @@ impl super::service::ManagedRunService {
                     }
                     // A different winner retains the run. Only this losing
                     // attempt is failed, and no effect driver is invoked.
-                    let message = format!("lease lost or competing claim: {error}");
+                    let message = format!(
+                        "lease lost or competing claim: {}",
+                        published_supervisor(&error)
+                    );
                     self.fail_and_finish(
                         &active,
                         self.current_sequence(&run_id).await,

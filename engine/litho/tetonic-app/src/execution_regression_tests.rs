@@ -159,6 +159,93 @@ fn agent(
 }
 
 #[tokio::test]
+async fn sessionless_start_is_not_reported_before_execution_is_claimed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let events = Arc::new(Events::default());
+    let runs = manager(&tmp, events.clone(), false);
+    let cmd = command();
+    let binding = runs
+        .managed
+        .admit(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: cmd.identity.clone(),
+                job_spec: cmd.job_spec.clone(),
+                role: None,
+                parent_attempt: None,
+            },
+        )
+        .await
+        .unwrap();
+    assert!(
+        !events.0.lock_recover().iter().any(|event| matches!(
+            event,
+            ApplicationEvent::RunStatus { status, .. } if status == "started"
+        )),
+        "admission reported started before execution was claimed"
+    );
+    let (entered_tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let mut executor = agent(&tmp, calls, entered_tx);
+    let mut conversation = Conversation::default();
+    let mut on_step = |_| {};
+    let execution = runs.managed.execute_attempt(
+        binding.attempt_id,
+        &mut executor,
+        &mut conversation,
+        cmd.invocation,
+        &mut on_step,
+    );
+    tokio::pin!(execution);
+    tokio::select! {
+        outcome = &mut execution => panic!("execution should reach inference: {outcome:?}"),
+        received = entered.recv() => assert!(received.is_some()),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => panic!("inference was never reached"),
+    }
+    assert!(
+        events.0.lock_recover().iter().any(|event| matches!(
+            event,
+            ApplicationEvent::RunStatus { status, .. } if status == "started"
+        )),
+        "claimed execution did not report started"
+    );
+    runs.cancel_run(CancelByRunCommand {
+        run_id: binding.run_id.0,
+    })
+    .await
+    .unwrap();
+    let _ = tokio::time::timeout(std::time::Duration::from_secs(3), execution).await;
+}
+
+#[tokio::test]
+async fn admission_does_not_report_running_before_execution_is_claimed() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let cmd = command();
+    let binding = runs
+        .managed
+        .admit(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: cmd.identity.clone(),
+                job_spec: cmd.job_spec,
+                role: None,
+                parent_attempt: None,
+            },
+        )
+        .await
+        .unwrap();
+    let snapshot = runs.managed.inspect_run(&binding.run_id).await.unwrap();
+    let attempt = snapshot.attempts.get(&binding.attempt_id).unwrap();
+    assert_eq!(attempt.state, tetonic_domain::AttemptState::Starting);
+    assert!(!attempt.execution_claimed);
+    assert_ne!(
+        snapshot.tasks.get(&binding.task_id).unwrap().state,
+        tetonic_domain::TaskState::Running
+    );
+}
+
+#[tokio::test]
 async fn admitted_attempt_executes_its_revision_after_identity_update() {
     let tmp = tempfile::tempdir().unwrap();
     let runs = manager(&tmp, Arc::new(Events::default()), false);
@@ -205,6 +292,95 @@ async fn admitted_attempt_executes_its_revision_after_identity_update() {
         _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => panic!("inference was never reached"),
     }
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    runs.cancel_run(CancelByRunCommand {
+        run_id: binding.run_id.0,
+    })
+    .await
+    .unwrap();
+    let outcome = tokio::time::timeout(std::time::Duration::from_secs(3), execution)
+        .await
+        .unwrap();
+    assert!(matches!(outcome, CandidateOutcome::Canceled { .. }));
+}
+
+struct CaptureProvider {
+    seen: Arc<Mutex<String>>,
+    entered: tokio::sync::mpsc::UnboundedSender<()>,
+}
+
+#[async_trait::async_trait]
+impl InferenceProvider for CaptureProvider {
+    async fn chat(
+        &self,
+        request: ChatRequest,
+        _: &mut TokenSink<'_>,
+    ) -> Result<ChatResponse, InferenceError> {
+        *self.seen.lock_recover() = serde_json::to_string(&request.messages).unwrap_or_default();
+        let _ = self.entered.send(());
+        std::future::pending().await
+    }
+}
+
+#[tokio::test]
+async fn scoped_attempt_does_not_send_a_carried_conversation() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let allowed = Arc::new(std::sync::atomic::AtomicBool::new(true));
+    let cmd = command();
+    let binding = runs
+        .managed
+        .admit_with_context(
+            &runs.managed.reserve_dispatch().id,
+            tetonic_run::AdmitJob {
+                identity: cmd.identity.clone(),
+                job_spec: cmd.job_spec.clone(),
+                role: None,
+                parent_attempt: None,
+            },
+            tetonic_run::managed::AdmissionContext {
+                authorization: Some(tetonic_run::managed::AuthorizedExecution {
+                    grant_id: Some("grant".into()),
+                    scope: tetonic_domain::ExecutionScope {
+                        principal_id: "alice".into(),
+                        organization_id: "org".into(),
+                        information_context_id: "participation/org/team/alice".into(),
+                    },
+                    authority: Arc::new(TestExecutionAuthority(allowed)),
+                }),
+                ..Default::default()
+            },
+        )
+        .await
+        .unwrap();
+    let seen = Arc::new(Mutex::new(String::new()));
+    let (entered_tx, mut entered) = tokio::sync::mpsc::unbounded_channel();
+    let mut executor = Agent::new(
+        Arc::new(CaptureProvider {
+            seen: seen.clone(),
+            entered: entered_tx,
+        }),
+        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false),
+        AgentConfig::default(),
+    );
+    let mut conversation = Conversation::from_audit_messages(vec![
+        tetonic_inference::Message::user("PRIVATECANARY prior turn"),
+    ]);
+    let mut on_step = |_| {};
+    let execution = runs.managed.execute_attempt(
+        binding.attempt_id,
+        &mut executor,
+        &mut conversation,
+        cmd.invocation,
+        &mut on_step,
+    );
+    tokio::pin!(execution);
+    tokio::select! {
+        outcome = &mut execution => panic!("scoped attempt should reach inference: {outcome:?}"),
+        received = entered.recv() => assert!(received.is_some()),
+        _ = tokio::time::sleep(std::time::Duration::from_secs(3)) => panic!("inference was never reached"),
+    }
+    let body = seen.lock_recover().clone();
+    assert!(!body.contains("PRIVATECANARY"), "{body}");
     runs.cancel_run(CancelByRunCommand {
         run_id: binding.run_id.0,
     })
@@ -288,6 +464,38 @@ async fn cancel_detached_and_localset_start_resolves_waiter_and_cleans_registry(
         );
     }
 }
+#[tokio::test]
+async fn default_effectful_admission_allows_one_attempt() {
+    let tmp = tempfile::tempdir().unwrap();
+    let runs = manager(&tmp, Arc::new(Events::default()), false);
+    let cmd = command();
+    let active = runs
+        .begin_job_run(None, &cmd.identity, cmd.job_spec, None)
+        .await
+        .unwrap();
+    let snapshot = runs.managed.inspect_run(&active.run_id).await.unwrap();
+    assert!(!snapshot.speculation.allowed);
+    assert_eq!(snapshot.speculation.max_simultaneous_attempts, 1);
+    assert_eq!(snapshot.attempts.len(), 1);
+    let store = tetonic_memory::SharedStore::open(tmp.path().join("run.db"), 1).unwrap();
+    let supervisor = tetonic_run::DurableRunSupervisor::new(Some(store));
+    let denied = supervisor
+        .handle(RunCommand::CreateAttempt(tetonic_domain::CreateAttempt {
+            envelope: tetonic_run::command_envelope("second-attempt", None, "test"),
+            run_id: active.run_id.clone(),
+            task_id: active.task_id.clone(),
+            attempt_id: tetonic_domain::AttemptId::new("att_second"),
+            delivery_key: Some("second".into()),
+        }))
+        .await;
+    assert!(denied.is_err(), "a second attempt was admitted: {denied:?}");
+    let snapshot = runs.managed.inspect_run(&active.run_id).await.unwrap();
+    assert_eq!(snapshot.attempts.len(), 1);
+    assert!(!snapshot
+        .attempts
+        .contains_key(&tetonic_domain::AttemptId::new("att_second")));
+}
+
 #[tokio::test]
 async fn missing_durable_identity_denies_dispatch_even_with_empty_capabilities() {
     for missing_store in [false, true] {

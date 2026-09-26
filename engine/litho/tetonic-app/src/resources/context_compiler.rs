@@ -56,7 +56,7 @@ mod tests {
             .await
             .unwrap();
         service
-            .open_history(alice.expose_secret(), "private".into(), "discussion".into())
+            .provision_discussion(alice.expose_secret(), "private".into(), "discussion".into())
             .await
             .unwrap();
         let gate = MembershipGate {

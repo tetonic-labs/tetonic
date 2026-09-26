@@ -157,6 +157,9 @@ impl DurableRunSupervisor {
                             idempotency.as_ref().map(|(k, v)| (k.as_str(), v)),
                         )
                         .map_err(|e| match e {
+                            tetonic_memory::StoreError::OrganizationCapacityExceeded => RunSupervisorError::OrganizationCapacityExceeded,
+                            tetonic_memory::StoreError::TeamCapacityExceeded => RunSupervisorError::TeamCapacityExceeded,
+                            tetonic_memory::StoreError::PrincipalCapacityExceeded => RunSupervisorError::PrincipalCapacityExceeded,
                             tetonic_memory::StoreError::ExecutionCapacityExceeded => {
                                 RunSupervisorError::ExecutionCapacityExceeded
                             }

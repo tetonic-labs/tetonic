@@ -82,6 +82,8 @@ impl StoreAudit {
         let result = self.store.write_sync(move |db| {
             if let Some(context) = context {
                 db.require_execution_audit_history(&context, &session)?;
+            } else {
+                db.require_legacy_session(&session)?;
             }
             write(db)
         });
@@ -278,5 +280,59 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn unscoped_audit_does_not_write_a_private_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("audit.db");
+        let store = SharedStore::open(&path, 1).unwrap();
+        let workspace = dir.path().to_string_lossy().to_string();
+        let legacy = store
+            .write_sync(move |db| {
+                db.bootstrap_control("admin", "org", "Org")?;
+                db.create_information_context(
+                    "admin",
+                    "private",
+                    &tetonic_memory::ContextOwner::Private {
+                        org_id: "org".into(),
+                    },
+                )?;
+                db.insert_open_discussion("admin", "private", "private-notes")?;
+                db.start_session(&workspace, "single-agent", "mock")
+            })
+            .unwrap()
+            .unwrap();
+        let private_audit = StoreAudit {
+            store: store.clone(),
+            session: "private-notes".into(),
+            agent_id: "agent".into(),
+            scoped: None,
+        };
+        private_audit.message("assistant", "PRIVATECANARY audit", None);
+        let legacy_audit = StoreAudit {
+            store: store.clone(),
+            session: legacy.clone(),
+            agent_id: "agent".into(),
+            scoped: None,
+        };
+        legacy_audit.message("assistant", "legacy note", None);
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        let private_hits: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE content='PRIVATECANARY audit'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(private_hits, 0);
+        let legacy_hits: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE session_id=?1 AND content='legacy note'",
+                [legacy],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(legacy_hits, 1);
     }
 }

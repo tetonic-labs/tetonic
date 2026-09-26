@@ -98,6 +98,53 @@ mod tests {
     }
 
     #[test]
+    fn store_sink_does_not_write_a_private_discussion() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = SharedStore::open(dir.path().join("redact.db"), 1).unwrap();
+        store
+            .write_sync(|db| {
+                db.bootstrap_control("admin", "org", "Org").unwrap();
+                db.create_information_context(
+                    "admin",
+                    "private",
+                    &tetonic_memory::ContextOwner::Private {
+                        org_id: "org".into(),
+                    },
+                )
+                .unwrap();
+                db.insert_open_discussion("admin", "private", "private-notes")
+                    .unwrap();
+                db.create_execution_audit_history("admin", "private", "audit-notes")
+                    .unwrap();
+            })
+            .unwrap();
+        let sink = StoreRedactionSink::new(store.clone());
+        let mut private_event = sample(Some("private-notes".into()));
+        private_event.model = "PRIVATECANARY".into();
+        assert!(sink.record(&private_event).is_err());
+        let mut audit_event = sample(Some("audit-notes".into()));
+        audit_event.model = "local-model".into();
+        sink.record(&audit_event).expect("audit history can record redaction");
+        let raw = rusqlite::Connection::open(dir.path().join("redact.db")).unwrap();
+        let private_hits: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE payload LIKE '%PRIVATECANARY%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(private_hits, 0);
+        let audit_hits: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM events WHERE session_id='audit-notes' AND kind='outbound_redaction'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(audit_hits, 1);
+    }
+
+    #[test]
     fn store_sink_fails_closed_without_session() {
         let db_path = std::env::temp_dir().join(format!(
             "lokai_test_{}.db",

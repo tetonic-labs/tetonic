@@ -267,26 +267,37 @@ pub fn discover_workspace_conventions(root: &Path) -> Option<(String, String)> {
 
     for &rel in CANDIDATES {
         let path = root.join(rel);
-        if path.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let trimmed = content.trim();
-                if !trimmed.is_empty() {
-                    const MAX_CHARS: usize = 1500;
-                    let summary = if trimmed.len() <= MAX_CHARS {
-                        trimmed.to_string()
-                    } else {
-                        let mut cut = MAX_CHARS;
-                        while !trimmed.is_char_boundary(cut) {
-                            cut -= 1;
-                        }
-                        format!("{}\n…[conventions truncated to budget]", &trimmed[..cut])
-                    };
-                    return Some((rel.to_string(), summary));
-                }
+        if let Some(content) = read_convention_text(&path) {
+            let trimmed = content.trim();
+            if !trimmed.is_empty() {
+                const MAX_CHARS: usize = 1500;
+                let summary = if trimmed.len() <= MAX_CHARS {
+                    trimmed.to_string()
+                } else {
+                    let mut cut = MAX_CHARS;
+                    while !trimmed.is_char_boundary(cut) {
+                        cut -= 1;
+                    }
+                    format!("{}\n…[conventions truncated to budget]", &trimmed[..cut])
+                };
+                return Some((rel.to_string(), summary));
             }
         }
     }
     None
+}
+
+/// Do not follow a symlink onto a control-store file, and do not load a
+/// SQLite database that was given a conventions filename.
+fn read_convention_text(path: &Path) -> Option<String> {
+    let meta = path.symlink_metadata().ok()?;
+    if !meta.file_type().is_file() {
+        return None;
+    }
+    if tetonic_context::path_is_sqlite_store_family(path) {
+        return None;
+    }
+    std::fs::read_to_string(path).ok()
 }
 
 #[cfg(test)]
@@ -324,6 +335,33 @@ mod tests {
 
         assert!(briefing.contains("<untrusted workspace_conventions>"));
         assert!(briefing.contains("Repository conventions & style guidelines (CONTRIBUTING.md):"));
+    }
+
+    #[test]
+    fn sqlite_database_is_not_loaded_as_conventions() {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut database = b"SQLite format 3\0".to_vec();
+        database.extend_from_slice(b"PRIVATECANARY in the conventions file\n");
+        fs::write(tmp.path().join("CONTRIBUTING.md"), database).unwrap();
+        fs::write(tmp.path().join("AGENTS.md"), "use the project style\n").unwrap();
+        let (name, content) = discover_workspace_conventions(tmp.path()).unwrap();
+        assert_eq!(name, "AGENTS.md");
+        assert!(!content.contains("PRIVATECANARY"));
+        let briefing = build_session_briefing(
+            BriefingInput {
+                workspace_root: tmp.path(),
+                session_id: "sess_store",
+                verify_cmd: None,
+                store: None,
+                index_db: None,
+                code_index: None,
+                lsp_open: None,
+                fabric_hint: None,
+            },
+            BriefingOptions::default(),
+        )
+        .unwrap();
+        assert!(!briefing.contains("PRIVATECANARY"));
     }
 
     #[test]

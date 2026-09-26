@@ -61,6 +61,7 @@ pub async fn llm_route_task(
     orchestration_auto: bool,
     ctx: RouteContext<'_>,
     fabric: FabricCallMeta,
+    inference_allowed: impl Fn() -> bool,
 ) -> RouteDecision {
     let pack = ctx.pack;
     let keyword = route_task_with_context(user_input, orchestration_auto, ctx);
@@ -82,6 +83,9 @@ pub async fn llm_route_task(
         ..Default::default()
     };
 
+    if !inference_allowed() {
+        return keyword;
+    }
     let mut sink = |_: &str| {};
     match provider.chat(req, &mut sink).await {
         Ok(resp) => {
@@ -94,7 +98,54 @@ pub async fn llm_route_task(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::router::{RouteMode, RouteSource};
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::Arc;
+
+    struct CountingProvider {
+        calls: Arc<AtomicUsize>,
+    }
+
+    #[async_trait::async_trait]
+    impl InferenceProvider for CountingProvider {
+        async fn chat(
+            &self,
+            _: ChatRequest,
+            _: &mut tetonic_inference::TokenSink<'_>,
+        ) -> Result<tetonic_inference::ChatResponse, tetonic_inference::InferenceError> {
+            self.calls.fetch_add(1, Ordering::SeqCst);
+            Ok(tetonic_inference::ChatResponse {
+                message: Message::assistant("CODER: should not run"),
+                usage: Default::default(),
+                provenance: Default::default(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn llm_route_task_does_not_call_the_provider_when_execution_is_denied() {
+        let calls = Arc::new(AtomicUsize::new(0));
+        let decision = llm_route_task(
+            &CountingProvider {
+                calls: calls.clone(),
+            },
+            "router-model",
+            "implement the handler",
+            true,
+            RouteContext {
+                workspace_root: std::path::Path::new("."),
+                index_db: None,
+                code_index: None,
+                pack: &crate::specialist::TestCodingPack,
+            },
+            FabricCallMeta::default(),
+            || false,
+        )
+        .await;
+        assert_eq!(calls.load(Ordering::SeqCst), 0);
+        assert_eq!(decision.source, RouteSource::Keyword);
+    }
+
+    use crate::router::RouteMode;
     use crate::specialist::{RoleId, TestCodingPack};
 
     fn spec(name: &str) -> RouteMode {

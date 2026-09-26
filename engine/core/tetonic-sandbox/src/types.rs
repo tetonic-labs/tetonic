@@ -131,6 +131,9 @@ pub struct EnvironmentPolicy {
     pub strip_secrets: bool,
     pub controlled_temp_dir: Option<PathBuf>,
     pub locale: Option<String>,
+    /// When set, HOME and USERPROFILE are this directory, not the operator profile.
+    #[serde(default)]
+    pub home_dir: Option<PathBuf>,
 }
 
 impl Default for EnvironmentPolicy {
@@ -141,6 +144,7 @@ impl Default for EnvironmentPolicy {
             strip_secrets: true,
             controlled_temp_dir: None,
             locale: Some("C.UTF-8".into()),
+            home_dir: None,
         }
     }
 }

@@ -49,7 +49,7 @@ impl Application {
             .read_sync(|db| {
                 let workers = db
                     .list_worker_enrollments()
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 Ok(workers
                     .into_iter()
                     .map(|w| WorkerEnrollmentSummary {
@@ -62,7 +62,7 @@ impl Application {
                     })
                     .collect())
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn set_worker_trust(
@@ -83,7 +83,7 @@ impl Application {
             .write_sync(move |db| {
                 let row = db
                     .find_worker_enrollment(&id_or_lbl)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .ok_or_else(|| {
                         AppError::InvalidRequest(format!("worker not found: {id_or_lbl}"))
                     })?;
@@ -93,7 +93,7 @@ impl Application {
                     .saturating_add(1);
                 if !db
                     .set_worker_trust(&row.id, parsed.as_str(), epoch, "cli")
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                 {
                     return Err(AppError::InvalidRequest(format!(
                         "worker not found: {id_or_lbl}"
@@ -101,7 +101,7 @@ impl Application {
                 }
                 Ok((row.id, row.label, parsed.as_str().to_string(), epoch))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn get_worker_trust(
@@ -116,17 +116,17 @@ impl Application {
             .read_sync(move |db| {
                 let row = db
                     .find_worker_enrollment(&id_or_lbl)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .ok_or_else(|| {
                         AppError::InvalidRequest(format!("worker not found: {id_or_lbl}"))
                     })?;
                 let trust = db
                     .worker_trust(&row.id)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .unwrap_or_else(|| "owner_controlled_estate".into());
                 let audit = db
                     .list_worker_trust_audit(&row.id)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .into_iter()
                     .map(|a| WorkerTrustAuditSummary {
                         trust: a.trust,
@@ -137,7 +137,7 @@ impl Application {
                     .collect();
                 Ok((row.id, row.label, trust, audit))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     // --- Egress Persistent Rules ---
@@ -159,9 +159,9 @@ impl Application {
         store
             .write_sync(move |db| {
                 db.upsert_egress_allow_rule(&l, &i, port)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn remove_egress_allow_rule(&self, label: &str) -> Result<bool, AppError> {
@@ -173,9 +173,9 @@ impl Application {
         store
             .write_sync(move |db| {
                 db.remove_egress_allow_rule(&l)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn egress_allow(&self, label: &str, ip: IpAddr, port: Option<u16>) {
@@ -203,7 +203,7 @@ impl Application {
             let guard = self.turn.guard();
             store
                 .read_sync(move |db| crate::estate_enrollment::reload_enrollment_egress(db, &guard))
-                .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                .map_err(AppError::hide_store_failure)?
         } else {
             Ok(())
         }
@@ -239,8 +239,8 @@ impl Application {
                     let _ = db.consolidate_session(&sid_c);
                     Ok::<(), anyhow::Error>(())
                 })
-                .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
-                .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                .map_err(AppError::hide_store_failure)?
+                .map_err(AppError::hide_store_failure)?;
         }
         Ok(())
     }
@@ -259,7 +259,7 @@ impl Application {
             .read_sync(move |db| {
                 let workers = db
                     .list_worker_enrollments()
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 let w = workers
                     .into_iter()
                     .find(|x| x.id == wid || x.label == wid)
@@ -282,7 +282,7 @@ impl Application {
                 let kp = crate::estate_enrollment::load_or_create_coordinator(db, &dir)?;
                 Ok::<_, AppError>((w, cert, kp))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??;
+            .map_err(AppError::hide_store_failure)??;
 
         let coordinator = Arc::new(coordinator_kp);
         let guard = Arc::new(EgressGuard::new());

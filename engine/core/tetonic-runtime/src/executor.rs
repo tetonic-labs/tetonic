@@ -58,6 +58,50 @@ where
     }
 }
 
+/// World workload through the same attempt-executor trait as a coding turn.
+/// A second attempt id fails before the world adapter is opened.
+pub struct LocalWorldAttemptExecutor<'a> {
+    agent: &'a mut Agent,
+    adapter: std::sync::Arc<dyn tetonic_domain::WorldAdapter>,
+}
+
+impl<'a> LocalWorldAttemptExecutor<'a> {
+    pub fn new(
+        agent: &'a mut Agent,
+        adapter: std::sync::Arc<dyn tetonic_domain::WorldAdapter>,
+    ) -> Self {
+        Self { agent, adapter }
+    }
+}
+
+#[async_trait]
+impl AgentAttemptExecutor for LocalWorldAttemptExecutor<'_> {
+    async fn execute(
+        &mut self,
+        _invocation: AgentInvocation,
+        ctx: AttemptExecutionContext,
+    ) -> CandidateOutcome {
+        if let Some(existing) = self.agent.bound_attempt_id() {
+            if existing != ctx.attempt_id.0 {
+                return CandidateOutcome::Failed {
+                    message: format!(
+                        "Attempt binding mismatch: agent is bound to attempt '{existing}', cannot execute for '{}'",
+                        ctx.attempt_id.0
+                    ),
+                };
+            }
+        } else {
+            self.agent.stamp_attempt_id(&ctx.attempt_id.0);
+        }
+        match self.agent.run_in_world(self.adapter.clone()).await {
+            Ok(outcome) => outcome,
+            Err(error) => CandidateOutcome::Failed {
+                message: error.to_string(),
+            },
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -177,5 +221,74 @@ mod tests {
             }
             other => panic!("expected failure on attempt mismatch, got {other:?}"),
         }
+    }
+
+    struct ClosedWorld {
+        opens: std::sync::atomic::AtomicU32,
+    }
+
+    #[async_trait::async_trait]
+    impl tetonic_domain::WorldAdapter for ClosedWorld {
+        fn open(&self) -> (tetonic_domain::PerceptionSender, tetonic_domain::PerceptionReceiver) {
+            self.opens
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            tokio::sync::mpsc::channel(1)
+        }
+        async fn execute(
+            &self,
+            _action: tetonic_domain::WorldAction,
+        ) -> Result<tetonic_domain::ActionResult, tetonic_domain::WorldError> {
+            Ok(tetonic_domain::ActionResult {
+                success: true,
+                feedback: None,
+                state_changed: false,
+            })
+        }
+        fn describe(&self) -> &str {
+            "closed"
+        }
+    }
+
+    #[tokio::test]
+    async fn world_executor_rejects_a_second_attempt_before_opening_the_world() {
+        let adapter = Arc::new(ClosedWorld {
+            opens: std::sync::atomic::AtomicU32::new(0),
+        });
+        let mut agent = Agent::new(Arc::new(NoChatProvider), DummyHost, AgentConfig::default());
+        let mut executor = LocalWorldAttemptExecutor::new(&mut agent, adapter.clone());
+        let invocation = AgentInvocation {
+            instructions: String::new(),
+            user_input: String::new(),
+            explain_turn: false,
+            empty_tool_nudge: false,
+            max_steps: 1,
+            completion_tool: "finish".into(),
+            discipline: tetonic_domain::LoopDiscipline::default(),
+        };
+        let first = executor
+            .execute(
+                invocation.clone(),
+                AttemptExecutionContext {
+                    attempt_id: AttemptId::new("world-1"),
+                },
+            )
+            .await;
+        assert!(matches!(first, CandidateOutcome::Failed { .. }));
+        assert_eq!(adapter.opens.load(std::sync::atomic::Ordering::SeqCst), 0);
+        let second = executor
+            .execute(
+                invocation,
+                AttemptExecutionContext {
+                    attempt_id: AttemptId::new("world-2"),
+                },
+            )
+            .await;
+        match second {
+            CandidateOutcome::Failed { message } => {
+                assert!(message.contains("Attempt binding mismatch"));
+            }
+            other => panic!("expected mismatch, got {other:?}"),
+        }
+        assert_eq!(adapter.opens.load(std::sync::atomic::Ordering::SeqCst), 0);
     }
 }

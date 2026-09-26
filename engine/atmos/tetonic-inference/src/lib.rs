@@ -254,6 +254,9 @@ pub struct FabricCallMeta {
     pub turn_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub run_id: Option<String>,
+    /// Information context for this call. Placement affinity does not cross it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub information_context_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub task_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -335,6 +338,20 @@ impl OutboundScan {
 
     pub fn blocks_remote(&self) -> bool {
         self.scanned && self.high_confidence
+    }
+}
+
+/// A secret prompt must not stay resident in the local model after the call.
+/// Ollama treats `keep_alive` of `0` as unload-when-finished.
+fn keep_alive_for_request(req: &ChatRequest) -> Option<&str> {
+    let secret = req.fabric.as_ref().is_some_and(|fabric| {
+        fabric.data_class == DataClass::Secret
+            || fabric.context_data_class == Some(DataClass::Secret)
+    });
+    if secret {
+        Some("0")
+    } else {
+        req.keep_alive.as_deref()
     }
 }
 
@@ -1336,6 +1353,7 @@ impl InferenceProvider for OllamaProvider {
     ) -> Result<ChatResponse, InferenceError> {
         require_outbound_scan(&req)?;
         let url = format!("{}/api/chat", self.base_url);
+        let keep_alive = keep_alive_for_request(&req);
         let tools_slice = if req.tools.is_empty() {
             None
         } else {
@@ -1355,7 +1373,7 @@ impl InferenceProvider for OllamaProvider {
                 draft_model: req.draft_model.clone(),
                 draft_count: req.draft_count,
             },
-            keep_alive: req.keep_alive.as_deref(),
+            keep_alive,
             tools: tools_slice,
             format: req.response_format.as_ref(),
         };
@@ -1660,6 +1678,25 @@ mod vram_spill_tests {
 #[cfg(test)]
 mod request_serialization_tests {
     use super::*;
+
+    #[test]
+    fn secret_inference_does_not_keep_the_model_resident() {
+        let mut req = ChatRequest {
+            keep_alive: Some("30m".into()),
+            fabric: Some(FabricCallMeta {
+                data_class: DataClass::Secret,
+                ..Default::default()
+            }),
+            outbound_scan: OutboundScan::from_scan(false),
+            ..Default::default()
+        };
+        assert_eq!(keep_alive_for_request(&req), Some("0"));
+        req.fabric.as_mut().unwrap().data_class = DataClass::RepositorySource;
+        req.fabric.as_mut().unwrap().context_data_class = Some(DataClass::Secret);
+        assert_eq!(keep_alive_for_request(&req), Some("0"));
+        req.fabric.as_mut().unwrap().context_data_class = None;
+        assert_eq!(keep_alive_for_request(&req), Some("30m"));
+    }
 
     #[test]
     fn parity_between_typed_body_and_legacy_json_ast() {

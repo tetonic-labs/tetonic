@@ -9,6 +9,8 @@ mod control;
 mod estate;
 mod event_queue;
 mod help;
+mod job;
+mod job_view;
 mod offline;
 mod printer;
 mod session;
@@ -46,6 +48,11 @@ async fn main() -> anyhow::Result<()> {
         let mut argv: Vec<String> = std::env::args().collect();
         argv.remove(1);
         return control::dispatch(control::ControlCli::parse_from(argv)).await;
+    }
+    if std::env::args().nth(1).as_deref() == Some("job") {
+        let mut argv: Vec<String> = std::env::args().collect();
+        argv.remove(1);
+        return job::dispatch(job::JobCli::parse_from(argv)).await;
     }
     let args = Args::parse();
     let task = args.prompt.join(" ");

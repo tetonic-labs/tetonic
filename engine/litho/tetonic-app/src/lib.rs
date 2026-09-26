@@ -15,6 +15,7 @@ pub mod events;
 pub mod fabric_run_bridge;
 pub mod fleet_api;
 pub mod inference_selection;
+pub mod job_launch;
 pub mod lsp_launcher;
 pub mod lsp_session;
 pub mod node_worker;
@@ -48,6 +49,10 @@ mod session_authority_tests;
 mod turn_attestation_tests;
 
 pub use cli_bootstrap::{open_default_audit_store, CliBootstrapOutput, CliBootstrapParams};
+pub use job_launch::{
+    host_settings_from_json, launch_registered_job, launch_team_work, RegisteredLaunchHost,
+    RegisteredLaunchReceipt,
+};
 pub use cli_estate::WorkerTrustAuditSummary;
 pub use cli_facade::{
     CheckpointInfo, CheckpointsReport, ProjectStatusInfo, RestoreFileChange, RestoreSummary,

@@ -110,7 +110,7 @@ pub fn detect_verify_command(workspace: &Path) -> Option<VerifyDetect> {
         });
     }
 
-    if let Ok(text) = std::fs::read_to_string(root.join("Makefile")) {
+    if let Ok(text) = read_workspace_text(&root.join("Makefile")) {
         if text.contains("test:") || text.contains("check:") {
             return Some(VerifyDetect {
                 command: "make test".to_string(),
@@ -139,8 +139,12 @@ pub fn detect_verify_command(workspace: &Path) -> Option<VerifyDetect> {
     None
 }
 
+fn read_workspace_text(path: &Path) -> Result<String, crate::types::ToolError> {
+    crate::workspace::read_to_string_nofollow(path)
+}
+
 fn verify_file_command(root: &Path) -> Option<String> {
-    if let Ok(text) = std::fs::read_to_string(root.join(".lokai/verify.json")) {
+    if let Ok(text) = read_workspace_text(&root.join(".lokai/verify.json")) {
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(&text) {
             if let Some(cmd) = val.get("command").and_then(|v| v.as_str()) {
                 if !cmd.trim().is_empty() {
@@ -149,7 +153,7 @@ fn verify_file_command(root: &Path) -> Option<String> {
             }
         }
     }
-    if let Ok(text) = std::fs::read_to_string(root.join(".lokai/verify.toml")) {
+    if let Ok(text) = read_workspace_text(&root.join(".lokai/verify.toml")) {
         for line in text.lines() {
             let line = line.trim();
             if let Some(cmd) = line.strip_prefix("command") {
@@ -170,7 +174,7 @@ fn verify_file_command(root: &Path) -> Option<String> {
 
 fn package_json_test_command(root: &Path) -> Option<String> {
     let pkg_path = root.join("package.json");
-    let text = std::fs::read_to_string(&pkg_path).ok()?;
+    let text = read_workspace_text(&pkg_path).ok()?;
     let val: serde_json::Value = serde_json::from_str(&text).ok()?;
     let test_script = val.get("scripts")?.get("test")?.as_str()?;
     if test_script.trim().is_empty() || test_script.contains("no test specified") {
@@ -197,7 +201,7 @@ fn python_cmd(script: &str) -> String {
 
 fn pyproject_has_pytest(root: &Path) -> bool {
     let path = root.join("pyproject.toml");
-    let Ok(text) = std::fs::read_to_string(&path) else {
+    let Ok(text) = read_workspace_text(&path) else {
         return false;
     };
     text.contains("[tool.pytest") || text.contains("pytest")
@@ -370,6 +374,22 @@ mod tests {
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn sqlite_makefile_is_not_a_verify_command() {
+        let dir = tmp_dir("sqlite-make");
+        let mut bytes = b"SQLite format 3\0".to_vec();
+        bytes.extend_from_slice(b"test:\nPRIVATECANARY\n");
+        fs::write(dir.join("Makefile"), bytes).unwrap();
+        let detected = detect_verify_command(&dir);
+        let rendered = format!("{detected:?}");
+        assert!(
+            !rendered.contains("PRIVATECANARY"),
+            "verify detection loaded the database: {rendered}"
+        );
+        assert!(detected.is_none());
+        let _ = fs::remove_dir_all(&dir);
     }
 
     #[test]

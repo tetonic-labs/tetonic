@@ -84,11 +84,9 @@ impl DefaultRunService {
                     activation: None,
                     deadline: None,
                     authorization: None,
-                    speculation: Some(tetonic_domain::SpeculationConfig {
-                        allowed: true,
-                        max_simultaneous_attempts: 2,
-                        require_result_agreement: false,
-                    }),
+                    // Effectful work admits one attempt. A second attempt on the
+                    // same task is not the default; inference hops keep their own budget.
+                    speculation: Some(tetonic_domain::SpeculationConfig::default()),
                     session_id: session_id.map(tetonic_domain::SessionId::new),
                     task_id: None,
                 },

@@ -74,6 +74,15 @@ impl ExecutionAuthority for ScopedAuthority {
             .await
             .map_err(|_| ())
     }
+
+    async fn revoked_during_execution(
+        &self,
+        scope: &ExecutionScope,
+        identity: &AgentIdentity,
+        job: &AgentJobSpec,
+    ) -> bool {
+        self.authorize(scope, identity, job).await.is_err()
+    }
 }
 
 impl ContextService {

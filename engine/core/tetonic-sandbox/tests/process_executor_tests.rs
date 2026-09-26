@@ -119,6 +119,48 @@ fn minimal_env_hides_inherited_secrets() {
 }
 
 #[test]
+fn minimal_env_does_not_expose_the_operator_profile() {
+    let dir = temp_ws("home");
+    let marker = format!("pe-home-{}", std::process::id());
+    let pe = ProcessExecutor::new(
+        &dir,
+        EnforcementLevel::Sandboxed,
+        Arc::new(NonCodingProcessValidator),
+    );
+    #[cfg(windows)]
+    let probe = pe.run_shell("echo %USERPROFILE%");
+    #[cfg(not(windows))]
+    let probe = pe.run_shell("echo $HOME");
+    let r = probe.expect("home probe");
+    assert!(
+        r.output.contains(&marker),
+        "home was not the workspace: {}",
+        r.output
+    );
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
+fn minimal_env_does_not_expose_the_operator_temp() {
+    let dir = temp_ws("temp");
+    let marker = format!("pe-temp-{}", std::process::id());
+    for level in [EnforcementLevel::Sandboxed, EnforcementLevel::Constrained] {
+        let pe = ProcessExecutor::new(&dir, level, Arc::new(NonCodingProcessValidator));
+        #[cfg(windows)]
+        let probe = pe.run_shell("echo %TEMP%");
+        #[cfg(not(windows))]
+        let probe = pe.run_shell("printf '%s' \"$TMPDIR\"");
+        let r = probe.expect("temp probe");
+        assert!(
+            r.output.contains(&marker),
+            "temp was not the workspace for {level:?}: {}",
+            r.output
+        );
+    }
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn output_is_capped() {
     let huge = "x".repeat(tetonic_sandbox::exec::MAX_OUTPUT_BYTES + 1000);
     let capped = tetonic_sandbox::exec::truncate_output(&huge);

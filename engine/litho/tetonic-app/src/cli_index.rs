@@ -5,6 +5,10 @@ use std::path::{Path, PathBuf};
 use crate::errors::AppError;
 use crate::Application;
 
+fn index_store_error<E: std::fmt::Display>(error: E) -> AppError {
+    AppError::hide_store_failure(error)
+}
+
 #[derive(Debug, Clone)]
 pub struct IndexStatsInfo {
     pub indexed: usize,
@@ -77,10 +81,10 @@ impl Application {
     pub fn index_workspace(&self, ws_root: &str) -> Result<IndexStatsInfo, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let stats = index
             .index_workspace(Path::new(ws_root))
-            .map_err(|e| AppError::InvalidRequest(format!("indexing workspace: {e}")))?;
+            .map_err(index_store_error)?;
         Ok(IndexStatsInfo {
             indexed: stats.indexed,
             unchanged: stats.unchanged,
@@ -94,10 +98,10 @@ impl Application {
     pub fn index_status(&self, ws_root: &str, model: &str) -> Result<IndexStatusInfo, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let s = index
             .status(ws_root)
-            .map_err(|e| AppError::InvalidRequest(format!("index status: {e}")))?;
+            .map_err(index_store_error)?;
         let (embedded_chunks, total_chunks) =
             index.embedding_status(ws_root, model).unwrap_or((0, 0));
         Ok(IndexStatusInfo {
@@ -118,10 +122,10 @@ impl Application {
     ) -> Result<Vec<DefinitionRowInfo>, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let rows = index
             .find_definition(ws_root, name)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         Ok(rows
             .into_iter()
             .map(|r| DefinitionRowInfo {
@@ -141,10 +145,10 @@ impl Application {
     ) -> Result<Vec<MentionHitInfo>, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let hits = index
             .find_mentions(ws_root, name, limit as u32)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         Ok(hits
             .into_iter()
             .map(|h| MentionHitInfo {
@@ -162,10 +166,10 @@ impl Application {
     ) -> Result<Vec<OutlineRowInfo>, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let rows = index
             .outline(ws_root, &path.replace('\\', "/"))
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         Ok(rows
             .into_iter()
             .map(|r| OutlineRowInfo {
@@ -180,10 +184,10 @@ impl Application {
     pub fn prune_index_workspaces(&self) -> Result<usize, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         index
             .prune_missing_workspaces()
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))
+            .map_err(index_store_error)
     }
 
     pub fn index_search(
@@ -194,10 +198,10 @@ impl Application {
     ) -> Result<Vec<SearchHitInfo>, AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let hits = index
             .search(ws_root, query, limit as u32)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         Ok(hits
             .into_iter()
             .map(|h| SearchHitInfo {
@@ -220,20 +224,20 @@ impl Application {
     ) -> Result<(Vec<SearchHitInfo>, usize), AppError> {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let guard = self.turn.guard();
         let base = self.turn.ollama_base();
         let provider = tetonic_inference::OllamaProvider::new(&base, guard.clone());
         let qv = provider
             .embed(model, std::slice::from_ref(&query.to_string()))
             .await
-            .map_err(|e| AppError::InvalidRequest(format!("embedding query: {e}")))?
+            .map_err(index_store_error)?
             .into_iter()
             .next()
             .unwrap_or_default();
         let hits = index
             .semantic_search(ws_root, model, &qv, limit as u32)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         let net_requests = guard.activity_log().len();
         Ok((
             hits.into_iter()
@@ -261,18 +265,18 @@ impl Application {
     {
         let idx_path = self.index_db_path()?;
         let index = tetonic_index::Index::open(&idx_path)
-            .map_err(|e| AppError::InvalidRequest(format!("open index.db: {e}")))?;
+            .map_err(index_store_error)?;
         let guard = self.turn.guard();
         let base = self.turn.ollama_base();
         let provider = tetonic_inference::OllamaProvider::new(&base, guard.clone());
 
         let pending = index
             .pending_embeddings(ws_root, model, 1_000_000)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         if pending.is_empty() {
             let (emb, total) = index
                 .embedding_status(ws_root, model)
-                .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+                .map_err(index_store_error)?;
             return Ok((0, emb, total, guard.activity_log().len()));
         }
 
@@ -283,7 +287,7 @@ impl Application {
             let vecs = provider
                 .embed(model, &texts)
                 .await
-                .map_err(|e| AppError::InvalidRequest(format!("embedding batch: {e}")))?;
+                .map_err(index_store_error)?;
             if vecs.len() != batch.len() {
                 return Err(AppError::InvalidRequest(format!(
                     "embedder returned {} vector(s) for {} input(s) — model '{model}' may not be an embedding model",
@@ -294,7 +298,7 @@ impl Application {
             for (p, v) in batch.iter().zip(vecs) {
                 index
                     .store_embedding(p.chunk_id, model, &v)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 embedded += 1;
             }
             progress(embedded, total);
@@ -302,14 +306,14 @@ impl Application {
 
         let (emb, tot) = index
             .embedding_status(ws_root, model)
-            .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+            .map_err(index_store_error)?;
         Ok((embedded, emb, tot, guard.activity_log().len()))
     }
 
     pub fn watch_index_blocking(&self, ws_root: &str) -> Result<(), AppError> {
         let idx_path = self.index_db_path()?;
         tetonic_index::watch_index_blocking(&idx_path, Path::new(ws_root))
-            .map_err(|e| AppError::InvalidRequest(format!("watch index: {e}")))
+            .map_err(index_store_error)
     }
 
     pub fn resolve_latest_workspace(&self) -> Result<Option<String>, AppError> {
@@ -321,9 +325,22 @@ impl Application {
             .read_sync(|db| {
                 let rows = db
                     .list_recent_sessions(1)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 Ok(rows.into_iter().next().map(|s| s.workspace_root))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::index_store_error;
+
+    #[test]
+    fn index_failures_do_not_repeat_the_store_body() {
+        let err = index_store_error("sqlite: PRIVATECANARY near the chunk text");
+        assert_eq!(err.employee_message(), "request failed");
+        assert!(!err.to_string().contains("PRIVATECANARY"));
+        assert!(!err.employee_message().contains("sqlite"));
     }
 }

@@ -2,7 +2,63 @@
 use crate::{errors::AppError, Application};
 use tetonic_domain::{RunId, RunState};
 
+fn run_carries_execution_scope(snapshot: &tetonic_domain::RunSnapshot) -> bool {
+    snapshot
+        .tasks
+        .values()
+        .any(|task| task.binding.execution_scope.is_some())
+}
+
 impl Application {
+    /// The local daemon has no employee credential. Scoped runs stay on the
+    /// credentialed control path. Missing and scoped ids use the same text.
+    pub async fn unscoped_daemon_inspect(
+        &self,
+        run_id: &str,
+    ) -> Result<tetonic_domain::RunSnapshot, AppError> {
+        let snapshot = self
+            .runs
+            .inspect_run(crate::commands::InspectRunCommand {
+                run_id: run_id.to_string(),
+            })
+            .await?;
+        if run_carries_execution_scope(&snapshot) {
+            return Err(AppError::InvalidRequest(format!("run not found: {run_id}")));
+        }
+        Ok(snapshot)
+    }
+
+    pub async fn unscoped_daemon_resume(
+        &self,
+        run_id: &str,
+        after_sequence: u64,
+        limit: Option<u32>,
+    ) -> Result<
+        Result<Vec<tetonic_domain::RunEventEnvelope>, tetonic_domain::ReplayGap>,
+        AppError,
+    > {
+        self.unscoped_daemon_inspect(run_id).await?;
+        let replay = self
+            .runs
+            .resume_events(crate::commands::ResumeRunEventsCommand {
+                run_id: run_id.to_string(),
+                after_sequence,
+                limit,
+            })
+            .await?;
+        self.unscoped_daemon_inspect(run_id).await?;
+        Ok(replay)
+    }
+
+    pub async fn unscoped_daemon_cancel(&self, run_id: &str) -> Result<(), AppError> {
+        self.unscoped_daemon_inspect(run_id).await?;
+        self.runs
+            .cancel_run(crate::commands::CancelByRunCommand {
+                run_id: run_id.to_string(),
+            })
+            .await
+    }
+
     pub async fn recovery_report(&self) -> Result<String, AppError> {
         let Some(store) = &self.turn.store else {
             return Ok("No persistent recovery state.\n".into());
@@ -25,6 +81,11 @@ impl Application {
                 .await
                 .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
             if snapshot.state != RunState::RecoveryRequired {
+                continue;
+            }
+            // The local chat has no employee credential. A scoped hold stays
+            // off this report; credentialed recovery is a separate door.
+            if run_carries_execution_scope(&snapshot) {
                 continue;
             }
             let claims = snapshot
@@ -66,6 +127,9 @@ impl Application {
             .snapshot(id.clone())
             .await
             .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+        if run_carries_execution_scope(&snapshot) {
+            return Err(AppError::InvalidRequest(format!("run not found: {run_id}")));
+        }
         if snapshot.state != RunState::RecoveryRequired {
             return Err(AppError::InvalidRequest(
                 "run does not require recovery; refresh /recovery".into(),
@@ -182,5 +246,91 @@ mod tests {
             }))
             .await
             .is_err());
+    }
+
+    #[tokio::test]
+    async fn unscoped_daemon_does_not_read_or_cancel_a_scoped_run() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = tetonic_memory::SharedStore::open(dir.path().join("audit.db"), 1).unwrap();
+        let app = Application::bootstrap_mock_with_store(
+            dir.path(),
+            Some(store),
+            Arc::new(NoopEventSink),
+            vec![],
+        );
+        let scoped = RunId::new("scoped-run");
+        app.supervisor
+            .handle(RunCommand::CreateRun(tetonic_domain::CreateRun {
+                envelope: tetonic_run::command_envelope("create-scoped", None, "test"),
+                session_id: None,
+                run_id: scoped.clone(),
+                root_task_id: tetonic_domain::TaskId::new("root"),
+                root_binding: tetonic_domain::TaskInputBinding {
+                    execution_scope: Some(tetonic_domain::ExecutionScope {
+                        principal_id: "alice".into(),
+                        organization_id: "org".into(),
+                        information_context_id: "private-context".into(),
+                    }),
+                    ..Default::default()
+                },
+                speculation: None,
+                job_spec: None,
+            }))
+            .await
+            .unwrap();
+        for err in [
+            app.unscoped_daemon_inspect(&scoped.0).await.unwrap_err(),
+            app.unscoped_daemon_resume(&scoped.0, 0, Some(10))
+                .await
+                .unwrap_err(),
+            app.unscoped_daemon_cancel(&scoped.0).await.unwrap_err(),
+        ] {
+            let text = err.to_string();
+            assert!(text.contains("run not found"), "{text}");
+            assert!(!text.contains("private-context"), "{text}");
+            assert!(!text.contains("alice"), "{text}");
+        }
+        assert_ne!(
+            app.supervisor.snapshot(scoped.clone()).await.unwrap().state,
+            RunState::Canceled
+        );
+        let mut held = app.supervisor.snapshot(scoped.clone()).await.unwrap();
+        held.state = RunState::RecoveryRequired;
+        held.session_id = Some(tetonic_domain::SessionId::new("PRIVATECANARY-session"));
+        let revision = held.sequence;
+        app.turn
+            .store
+            .as_ref()
+            .unwrap()
+            .write_sync(move |db| db.persist_run_projection(&held))
+            .unwrap()
+            .unwrap();
+        drop(app);
+        let app = Application::bootstrap_mock_with_store(
+            dir.path(),
+            Some(
+                tetonic_memory::SharedStore::open(dir.path().join("audit.db"), 1).unwrap(),
+            ),
+            Arc::new(NoopEventSink),
+            vec![],
+        );
+        let report = app.recovery_report().await.unwrap();
+        assert!(
+            !report.contains("PRIVATECANARY"),
+            "{report}"
+        );
+        assert!(!report.contains(&scoped.0), "{report}");
+        assert!(!report.contains("private-context"), "{report}");
+        let abandoned = app.abandon_recovery_run(&scoped.0, revision).await.unwrap_err();
+        let text = abandoned.to_string();
+        assert!(text.contains("run not found"), "{text}");
+        assert!(!text.contains("PRIVATECANARY"), "{text}");
+        assert!(!text.contains("private-context"), "{text}");
+        assert_eq!(
+            app.supervisor.snapshot(scoped).await.unwrap().state,
+            RunState::RecoveryRequired
+        );
+        let open = app.runs.create_run(create()).await.unwrap();
+        app.unscoped_daemon_inspect(&open.0).await.unwrap();
     }
 }

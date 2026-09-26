@@ -95,7 +95,7 @@ impl ApplicationEventSink for DaemonEventSink {
                 kind,
                 detail,
                 tool,
-                args,
+                args: _,
                 missing_controls,
                 user_approval_required,
                 ..
@@ -107,7 +107,6 @@ impl ApplicationEventSink for DaemonEventSink {
                     json!({
                         "tool_call_id": call_id,
                         "tool": tool,
-                        "args": args,
                         "phase": "proposed",
                     }),
                 );
@@ -275,7 +274,6 @@ impl ApplicationEventSink for DaemonEventSink {
                 agent_id,
                 call_id,
                 tool,
-                args,
                 ..
             } => {
                 self.notifier.notify(
@@ -285,7 +283,6 @@ impl ApplicationEventSink for DaemonEventSink {
                     json!({
                         "tool_call_id": call_id,
                         "tool": tool,
-                        "args": args,
                         "phase": "started",
                     }),
                 );
@@ -356,5 +353,43 @@ impl ApplicationEventSink for DaemonEventSink {
                 tracing::debug!("application event: {:?}", other);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tetonic_rpc::outbound::OutboundQueue;
+    use tetonic_rpc::Notifier;
+
+    fn frames_for(event: ApplicationEvent) -> String {
+        let (queue, _wake) = OutboundQueue::new(8);
+        let sink = DaemonEventSink::new(Notifier::new(queue.clone()));
+        sink.send(event);
+        queue.flush_pending();
+        queue.drain_ready().join("\n")
+    }
+
+    #[test]
+    fn tool_call_notification_does_not_repeat_argument_bodies() {
+        let shown = frames_for(ApplicationEvent::ToolCall {
+            session_id: "sess".into(),
+            agent_id: "a0".into(),
+            call_id: "call-1".into(),
+            tool: "write_file".into(),
+            args: serde_json::json!({
+                "path": "notes.txt",
+                "content": "PRIVATECANARY file body"
+            }),
+            parent_agent_id: None,
+            run_id: None,
+            task_id: None,
+            attempt_id: None,
+            identity_id: None,
+        });
+        assert!(shown.contains("write_file"), "{shown}");
+        assert!(shown.contains("call-1"), "{shown}");
+        assert!(!shown.contains("PRIVATECANARY"), "{shown}");
+        assert!(!shown.contains("notes.txt"), "{shown}");
     }
 }

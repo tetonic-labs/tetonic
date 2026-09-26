@@ -39,18 +39,40 @@ pub enum EnvMode {
     Inherited,
 }
 
+pub(crate) fn is_profile_home(key: &str) -> bool {
+    key.eq_ignore_ascii_case("HOME") || key.eq_ignore_ascii_case("USERPROFILE")
+}
+
+pub(crate) fn is_temp_dir_key(key: &str) -> bool {
+    matches!(
+        key.to_ascii_uppercase().as_str(),
+        "TMP" | "TEMP" | "TMPDIR"
+    )
+}
+
 /// Replace inherited environment with a minimal allowlist (SEC-011).
+/// HOME and USERPROFILE point at the command working directory, not the
+/// operator profile, so a shell cannot read profile credential files.
 pub fn apply_minimal_env(cmd: &mut Command) {
     let keep: HashMap<String, String> = std::env::vars()
         .filter(|(k, _)| {
-            ENV_ALLOWLIST
-                .iter()
-                .any(|allowed| k.eq_ignore_ascii_case(allowed))
+            !is_profile_home(k)
+                && !is_temp_dir_key(k)
+                && ENV_ALLOWLIST
+                    .iter()
+                    .any(|allowed| k.eq_ignore_ascii_case(allowed))
         })
         .collect();
     cmd.env_clear();
     for (k, v) in keep {
         cmd.env(k, v);
+    }
+    if let Some(dir) = cmd.get_current_dir().map(|dir| dir.to_path_buf()) {
+        cmd.env("HOME", &dir);
+        cmd.env("USERPROFILE", &dir);
+        cmd.env("TMP", &dir);
+        cmd.env("TEMP", &dir);
+        cmd.env("TMPDIR", &dir);
     }
 }
 
@@ -93,6 +115,14 @@ pub fn split_verify_command(
     }
     let exe = parts[0];
     let args: Vec<String> = parts[1..].iter().map(|s| s.to_string()).collect();
+    if args.iter().any(|arg| {
+        matches!(
+            arg.to_ascii_lowercase().as_str(),
+            "-c" | "--command" | "-command" | "-e" | "--eval" | "-encodedcommand" | "-enc"
+        )
+    }) {
+        return Err("verify command cannot run inline code".into());
+    }
 
     if ALLOWED_VERIFY_BINARIES.contains(&exe) {
         if exe == "python" || exe == "python3" {
@@ -168,13 +198,17 @@ pub fn command_output_with_signal(
         return Err("command canceled".into());
     }
     apply_env_mode(cmd, env_mode);
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::CommandExt;
+        cmd.process_group(0);
+    }
     cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = cmd.spawn().map_err(|e| format!("spawn failed: {e}"))?;
     let start = Instant::now();
     loop {
         if cancel.is_some_and(|f| f.is_canceled()) {
-            let _ = child.kill();
-            let _ = child.wait();
+            stop_owned_process(&mut child);
             return Err("command canceled".into());
         }
         match child.try_wait() {
@@ -185,8 +219,7 @@ pub fn command_output_with_signal(
             }
             Ok(None) => {
                 if start.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
+                    stop_owned_process(&mut child);
                     return Err(format!("command timed out after {}s", timeout.as_secs()));
                 }
                 std::thread::sleep(Duration::from_millis(50));
@@ -194,6 +227,30 @@ pub fn command_output_with_signal(
             Err(e) => return Err(format!("wait failed: {e}")),
         }
     }
+}
+
+/// Stop the spawned process and processes it started. `Child::kill` stops only
+/// the direct process, which leaves a shell's children running.
+fn stop_owned_process(child: &mut std::process::Child) {
+    let pid = child.id();
+    #[cfg(windows)]
+    {
+        let _ = Command::new("taskkill")
+            .args(["/F", "/T", "/PID", &pid.to_string()])
+            .stdin(Stdio::null())
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status();
+    }
+    #[cfg(unix)]
+    {
+        // SAFETY: `pid` is the child spawned above as its own process-group leader.
+        unsafe {
+            libc::kill(-(pid as i32), libc::SIGKILL);
+        }
+    }
+    let _ = child.kill();
+    let _ = child.wait();
 }
 
 pub const MAX_OUTPUT_BYTES: usize = 60_000;
@@ -207,6 +264,41 @@ pub fn truncate_output(s: &str) -> String {
             cut -= 1;
         }
         format!("{}\n…[truncated {} bytes]", &s[..cut], s.len() - cut)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tetonic_domain::work_scope::WorkScope;
+
+    #[test]
+    fn cancel_stops_the_spawned_process() {
+        let scope = WorkScope::default();
+        let signal = scope.cancellation_signal();
+        let join = std::thread::spawn(move || {
+            let mut cmd = Command::new("ping");
+            if cfg!(windows) {
+                cmd.args(["-n", "30", "127.0.0.1"]);
+            } else {
+                cmd.args(["-c", "30", "127.0.0.1"]);
+            }
+            command_output_with_signal(
+                &mut cmd,
+                Duration::from_secs(40),
+                Some(&signal),
+                EnvMode::Minimal,
+            )
+        });
+        std::thread::sleep(Duration::from_millis(400));
+        scope.cancel();
+        let started = Instant::now();
+        let result = join.join().expect("cancel thread");
+        assert!(
+            started.elapsed() < Duration::from_secs(5),
+            "cancel did not stop the owned process"
+        );
+        assert!(result.expect_err("canceled command").contains("canceled"));
     }
 }
 

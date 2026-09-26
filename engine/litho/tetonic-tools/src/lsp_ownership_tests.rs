@@ -1,6 +1,6 @@
 use super::*;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
 #[derive(Default)]
 struct Probe {
@@ -153,4 +153,87 @@ fn authority_and_session_changes_require_rebinding_the_opener() {
     }
     assert_eq!(probe.opens.load(Ordering::SeqCst), 1);
     assert!(open_lsp(&original).is_ok());
+}
+
+struct StopSession {
+    entered: Arc<AtomicBool>,
+    stopped: Arc<AtomicBool>,
+}
+
+impl LspSession for StopSession {
+    fn request_stop(&self) {
+        self.stopped.store(true, Ordering::SeqCst);
+    }
+    fn goto_definition(&self, _: &str, _: u32, _: u32) -> Result<ToolOutcome, String> {
+        self.entered.store(true, Ordering::SeqCst);
+        let started = std::time::Instant::now();
+        while !self.stopped.load(Ordering::SeqCst) {
+            if started.elapsed() > std::time::Duration::from_secs(2) {
+                return Err("LSP was not stopped".into());
+            }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        Err("LSP stopped".into())
+    }
+    fn find_references(&self, _: &str, _: u32, _: u32) -> Result<ToolOutcome, String> {
+        Ok(ToolOutcome::ok("references", "ok"))
+    }
+    fn diagnostics(&self, _: &str) -> Result<ToolOutcome, String> {
+        Ok(ToolOutcome::ok("diagnostics", "ok"))
+    }
+}
+
+struct StopOpener {
+    entered: Arc<AtomicBool>,
+    stopped: Arc<AtomicBool>,
+}
+
+impl LspSessionOpen for StopOpener {
+    fn open(&self, _: &Path) -> Result<Box<dyn LspSession>, String> {
+        Ok(Box::new(StopSession {
+            entered: self.entered.clone(),
+            stopped: self.stopped.clone(),
+        }))
+    }
+    fn available(&self, _: &Path) -> bool {
+        true
+    }
+}
+
+#[test]
+fn cancel_stops_an_in_flight_language_server_call() {
+    let dir = Directory::new();
+    std::fs::write(dir.0.join("a.rs"), "fn main() {}\n").unwrap();
+    let entered = Arc::new(AtomicBool::new(false));
+    let stopped = Arc::new(AtomicBool::new(false));
+    let tools = Tools::new(crate::Workspace::new(&dir.0).unwrap(), false).with_lsp_open(Arc::new(
+        StopOpener {
+            entered: entered.clone(),
+            stopped: stopped.clone(),
+        },
+    ));
+    let scope = tetonic_domain::work_scope::WorkScope::default();
+    let signal = scope.cancellation_signal();
+    let entered_flag = entered.clone();
+    let scope_for_cancel = scope.clone();
+    let watcher = std::thread::spawn(move || {
+        let started = std::time::Instant::now();
+        while !entered_flag.load(Ordering::SeqCst) {
+            if started.elapsed() > std::time::Duration::from_secs(2) {
+                return;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(10));
+        }
+        scope_for_cancel.cancel();
+    });
+    let outcome = tools.execute_authorized_cancellable(
+        "lsp_goto_definition",
+        &serde_json::json!({"path": "a.rs", "line": 1}),
+        None,
+        Some(&signal),
+    );
+    watcher.join().unwrap();
+    assert!(stopped.load(Ordering::SeqCst), "cancel did not stop the language server");
+    assert!(!outcome.ok);
+    assert!(!outcome.content.contains("PRIVATECANARY"));
 }

@@ -45,4 +45,4 @@ pub use tokenizer::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 pub use turn::{validate_transition, TurnOpsEvent, TurnOpsHook, TurnState};
 
 mod execution_gate;
-pub use execution_gate::ExecutionGate;
+pub use execution_gate::{ExecutionGate, ScopeCancellationGate};

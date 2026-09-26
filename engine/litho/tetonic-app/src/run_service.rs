@@ -96,6 +96,12 @@ pub trait RunService: Send + Sync {
     fn is_canceled_attempt(&self, _attempt_id: &AttemptId) -> bool {
         false
     }
+    fn attempt_must_not_infer(&self, attempt_id: &AttemptId) -> bool {
+        self.is_canceled_attempt(attempt_id)
+    }
+    async fn attempt_authority_revoked(&self, _attempt_id: &AttemptId) -> bool {
+        false
+    }
 }
 
 #[derive(Clone)]
@@ -372,9 +378,13 @@ impl RunService for DefaultRunService {
             s.write({
                 let session_id = cmd.session_id.clone();
                 let user_input = cmd.user_input.clone();
-                move |db| {
+                move |db| -> Result<(), AppError> {
+                    db.require_legacy_session(&session_id).map_err(|_| {
+                        AppError::InvalidRequest("unknown session_id".into())
+                    })?;
                     db.append_message(&session_id, "user", "", &user_input, None)
-                        .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                        .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    Ok(())
                 }
             })
             .await
@@ -386,23 +396,9 @@ impl RunService for DefaultRunService {
             .await?;
         self.bind_live_run(&cmd.session_id, &active);
         // R06 named crash inject: durable run journal exists; turn not finished.
+        // Do not report started here. A later build failure must not look like
+        // a model request. Execution emits started when the agent is entered.
         tetonic_telemetry::fault::inject_fault("after_turn_plan");
-        let envelope = crate::events::EventEnvelope {
-            run_id: Some(active.run_id.0.clone()),
-            task_id: Some(active.task_id.0.clone()),
-            attempt_id: Some(active.attempt_id.0.clone()),
-            identity_id: Some(active.job_spec.identity_id.0.clone()),
-        };
-        emit(
-            &self.events,
-            ApplicationEvent::run_status(
-                active.run_id.to_string(),
-                "started".into(),
-                None,
-                None,
-                &envelope,
-            ),
-        );
         Ok(RunTurnPlan {
             verify_gated,
             llm_router,
@@ -463,7 +459,7 @@ impl RunService for DefaultRunService {
             Err(e) => {
                 finish_err = Some(e);
                 CandidateOutcome::Failed {
-                    message: finish_err.as_ref().unwrap().to_string(),
+                    message: finish_err.as_ref().unwrap().employee_message(),
                 }
             }
         };
@@ -487,7 +483,7 @@ impl RunService for DefaultRunService {
             _ => cmd
                 .error
                 .clone()
-                .or_else(|| finish_err.as_ref().map(|e| e.to_string())),
+                .or_else(|| finish_err.as_ref().map(|e| e.employee_message())),
         };
         if status == "ok" {
             if let Some(s) = &self.store {
@@ -626,6 +622,14 @@ impl RunService for DefaultRunService {
 
     fn is_canceled_attempt(&self, id: &AttemptId) -> bool {
         self.managed.is_canceled(id)
+    }
+
+    fn attempt_must_not_infer(&self, id: &AttemptId) -> bool {
+        self.managed.attempt_must_not_infer(id)
+    }
+
+    async fn attempt_authority_revoked(&self, id: &AttemptId) -> bool {
+        self.managed.attempt_authority_revoked(id).await
     }
 }
 

@@ -79,6 +79,16 @@ impl Conversation {
         self.messages.len()
     }
 
+    /// Drop turns carried from another execution. The cancel handle stays so a
+    /// stop requested on this conversation still reaches the attempt.
+    pub fn discard_carried_turns(&mut self) {
+        self.messages.clear();
+        self.prefix_len = 1;
+        self.call_no = 0;
+        self.retrieved_paths.clear();
+        self.turn_id = None;
+    }
+
     /// Drop messages appended after `checkpoint` (child transcript removal).
     pub fn rollback_to(&mut self, checkpoint: usize) {
         if checkpoint <= self.messages.len() {
@@ -125,5 +135,27 @@ impl Conversation {
 impl Default for Conversation {
     fn default() -> Self {
         Self::new()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::sync::atomic::Ordering;
+
+    use super::*;
+
+    #[test]
+    fn discard_carried_turns_drops_messages_and_keeps_cancel() {
+        let mut conversation = Conversation::from_audit_messages(vec![tetonic_inference::Message::user(
+            "PRIVATECANARY prior turn",
+        )]);
+        conversation.begin_turn();
+        let cancel = conversation.cancel_handle();
+        cancel.store(true, Ordering::SeqCst);
+        conversation.discard_carried_turns();
+        assert!(conversation.is_empty());
+        assert!(conversation.is_canceled());
+        assert!(conversation.turn_id().is_none());
+        assert!(cancel.load(Ordering::SeqCst));
     }
 }

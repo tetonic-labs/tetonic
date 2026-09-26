@@ -105,3 +105,59 @@ fn tool_call_args_and_thoughts_go_through_scanner() {
         .iter()
         .any(|e| matches!(e, ApplicationEvent::ToolCall { .. })));
 }
+
+#[test]
+fn stopped_reason_does_not_repeat_a_secret() {
+    let scanner = ScannerEngine::default_engine();
+    let (rec, events) = RecordingEventSink::new();
+    let sink: std::sync::Arc<dyn ApplicationEventSink> = rec;
+    let secret = "AKIAIOSFODNN7EXAMPLE";
+    crate::turn_execution::step_to_events(
+        &sink,
+        "sess",
+        "a0",
+        Step::Stopped(format!("finished: the key is {secret}")),
+        Some(&scanner),
+        None,
+        None,
+    );
+    crate::turn_execution::step_to_events(
+        &sink,
+        "sess",
+        "a0",
+        Step::Stopped(format!("finished: the key is {secret}")),
+        None,
+        None,
+        None,
+    );
+    let captured = events.lock().unwrap().clone();
+    let blob = format!("{captured:?}");
+    assert!(
+        !blob.contains(secret),
+        "stopped diagnostic repeated the secret: {blob}"
+    );
+    assert!(captured.iter().any(|event| matches!(
+        event,
+        ApplicationEvent::LogDiagnostic { message, .. } if message.starts_with("stopped:")
+    )));
+}
+
+#[test]
+fn failure_text_does_not_repeat_a_secret() {
+    let scanner = ScannerEngine::default_engine();
+    let secret = "AKIAIOSFODNN7EXAMPLE";
+    let redacted = crate::turn_execution::redact_failure_text(
+        Some(&scanner),
+        None,
+        "sess",
+        format!("provider failed while echoing {secret}"),
+    );
+    assert!(
+        !redacted.contains(secret),
+        "failure text repeated the secret: {redacted}"
+    );
+    assert_eq!(
+        crate::turn_execution::redact_failure_text(None, None, "sess", "file not found".into()),
+        "file not found"
+    );
+}

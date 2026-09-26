@@ -40,7 +40,7 @@ async fn workfin01_claim_sets_finalization_claim_not_winning_attempt() {
     assert!(task.winning_attempt.is_none());
     assert_eq!(
         snap.attempts.get(&attempt).unwrap().state,
-        tetonic_domain::AttemptState::Running
+        tetonic_domain::AttemptState::Starting
     );
 }
 

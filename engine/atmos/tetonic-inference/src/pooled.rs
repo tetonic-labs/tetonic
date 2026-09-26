@@ -56,6 +56,9 @@ pub struct PooledProvider {
     remotes: Vec<Arc<dyn FabricNodeProvider>>,
     turn_affinity: RwLock<Option<String>>,
     last_turn_id: RwLock<Option<String>>,
+    last_session_id: RwLock<Option<String>>,
+    last_run_id: RwLock<Option<String>>,
+    last_context_id: RwLock<Option<String>>,
     dispatch_guard: Option<Arc<dyn DispatchGuard>>,
     placement_sink: Option<Arc<dyn DispatchPlacementSink>>,
     snapshot_cache: RwLock<Option<SnapshotCache>>,
@@ -90,6 +93,9 @@ impl PooledProvider {
             remotes,
             turn_affinity: RwLock::new(None),
             last_turn_id: RwLock::new(None),
+            last_session_id: RwLock::new(None),
+            last_run_id: RwLock::new(None),
+            last_context_id: RwLock::new(None),
             dispatch_guard: None,
             placement_sink: None,
             snapshot_cache: RwLock::new(None),
@@ -132,6 +138,9 @@ impl PooledProvider {
             remotes,
             turn_affinity: RwLock::new(None),
             last_turn_id: RwLock::new(None),
+            last_session_id: RwLock::new(None),
+            last_run_id: RwLock::new(None),
+            last_context_id: RwLock::new(None),
             dispatch_guard: None,
             placement_sink: None,
             snapshot_cache: RwLock::new(None),
@@ -495,23 +504,84 @@ impl PooledProvider {
         self
     }
 
-    /// Reset placement affinity when a new user turn starts (N1.2).
+    /// Reset placement affinity when the session, user turn, run, or
+    /// information context changes. Affinity is a worker preference for one
+    /// bound execution, not a conversation another context may inherit.
     pub(crate) fn sync_turn(&self, fabric: Option<&FabricCallMeta>) {
-        let Some(turn_id) = fabric.and_then(|f| f.turn_id.as_deref()) else {
+        let Some(fabric) = fabric else {
+            self.clear_placement_affinity();
             return;
         };
-        if let Ok(last) = self.last_turn_id.read() {
-            if last.as_deref() == Some(turn_id) {
-                return;
-            }
+        let session = fabric.session_id.clone().filter(|id| !id.is_empty());
+        let turn = fabric.turn_id.clone().filter(|id| !id.is_empty());
+        let run = fabric.run_id.clone().filter(|id| !id.is_empty());
+        let context = fabric
+            .information_context_id
+            .clone()
+            .filter(|id| !id.is_empty());
+        if session.is_none() && turn.is_none() && run.is_none() && context.is_none() {
+            self.clear_placement_affinity();
+            return;
+        }
+        let same_session = self
+            .last_session_id
+            .read()
+            .ok()
+            .and_then(|guard| guard.clone())
+            == session;
+        let same_turn = self
+            .last_turn_id
+            .read()
+            .ok()
+            .and_then(|guard| guard.clone())
+            == turn;
+        let same_run = self
+            .last_run_id
+            .read()
+            .ok()
+            .and_then(|guard| guard.clone())
+            == run;
+        let same_context = self
+            .last_context_id
+            .read()
+            .ok()
+            .and_then(|guard| guard.clone())
+            == context;
+        if same_session && same_turn && same_run && same_context {
+            return;
+        }
+        if let Ok(mut last) = self.last_session_id.write() {
+            *last = session;
         }
         if let Ok(mut last) = self.last_turn_id.write() {
-            if last.as_deref() != Some(turn_id) {
-                *last = Some(turn_id.to_string());
-                if let Ok(mut aff) = self.turn_affinity.write() {
-                    *aff = None;
-                }
-            }
+            *last = turn;
+        }
+        if let Ok(mut last) = self.last_run_id.write() {
+            *last = run;
+        }
+        if let Ok(mut last) = self.last_context_id.write() {
+            *last = context;
+        }
+        if let Ok(mut affinity) = self.turn_affinity.write() {
+            *affinity = None;
+        }
+    }
+
+    fn clear_placement_affinity(&self) {
+        if let Ok(mut last) = self.last_session_id.write() {
+            *last = None;
+        }
+        if let Ok(mut last) = self.last_turn_id.write() {
+            *last = None;
+        }
+        if let Ok(mut last) = self.last_run_id.write() {
+            *last = None;
+        }
+        if let Ok(mut last) = self.last_context_id.write() {
+            *last = None;
+        }
+        if let Ok(mut affinity) = self.turn_affinity.write() {
+            *affinity = None;
         }
     }
 
@@ -586,6 +656,20 @@ impl PooledProvider {
         node.resident_models.iter().any(|m| {
             selection.local_name == *m || m.starts_with(&format!("{}:", selection.local_name))
         })
+    }
+
+    /// The compiled context class can be stricter than the host class. Placement
+    /// uses the stricter one, so a secret context pack is not sent to a worker.
+    fn effective_placement_class(
+        fabric: Option<&crate::FabricCallMeta>,
+    ) -> tetonic_domain::DataClass {
+        let Some(fabric) = fabric else {
+            return tetonic_domain::DataClass::default();
+        };
+        fabric
+            .context_data_class
+            .map(|context| fabric.data_class.max(context))
+            .unwrap_or(fabric.data_class)
     }
 
     /// Ordered placement targets for a model (indices into `remotes`, or local).
@@ -836,11 +920,7 @@ impl InferenceProvider for PooledProvider {
             .as_ref()
             .map(|f| f.fallback_order.as_slice())
             .unwrap_or(&[]);
-        let data_class = req
-            .fabric
-            .as_ref()
-            .map(|f| f.data_class)
-            .unwrap_or_default();
+        let data_class = Self::effective_placement_class(req.fabric.as_ref());
         let order = self.placement_order(
             &snap,
             &selection,
@@ -1671,6 +1751,128 @@ mod tests {
         );
     }
 
+    #[test]
+    fn sync_turn_drops_affinity_when_the_session_changes() {
+        use crate::FabricCallMeta;
+
+        let local = Arc::new(OllamaProvider::new(
+            "http://127.0.0.1:11434",
+            Arc::new(tetonic_egress::EgressGuard::new()),
+        ));
+        let pooled = PooledProvider::new(local, vec![]);
+        *pooled.turn_affinity.write().unwrap() = Some("worker_private".into());
+        *pooled.last_session_id.write().unwrap() = Some("private-session".into());
+        *pooled.last_turn_id.write().unwrap() = Some("turn_1".into());
+
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("team-session".into()),
+            turn_id: Some("turn_1".into()),
+            ..Default::default()
+        }));
+        assert!(pooled.turn_affinity.read().unwrap().is_none());
+        assert_eq!(
+            pooled.last_session_id.read().unwrap().as_deref(),
+            Some("team-session")
+        );
+
+        *pooled.turn_affinity.write().unwrap() = Some("worker_team".into());
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("team-session".into()),
+            turn_id: Some("turn_1".into()),
+            ..Default::default()
+        }));
+        assert_eq!(
+            pooled.turn_affinity.read().unwrap().as_deref(),
+            Some("worker_team")
+        );
+
+        pooled.sync_turn(None);
+        assert!(pooled.turn_affinity.read().unwrap().is_none());
+        assert!(pooled.last_session_id.read().unwrap().is_none());
+        assert!(pooled.last_run_id.read().unwrap().is_none());
+    }
+
+    #[test]
+    fn sync_turn_drops_affinity_when_the_run_changes() {
+        use crate::FabricCallMeta;
+
+        let local = Arc::new(OllamaProvider::new(
+            "http://127.0.0.1:11434",
+            Arc::new(tetonic_egress::EgressGuard::new()),
+        ));
+        let pooled = PooledProvider::new(local, vec![]);
+        *pooled.turn_affinity.write().unwrap() = Some("worker_private".into());
+        *pooled.last_session_id.write().unwrap() = Some("session".into());
+        *pooled.last_turn_id.write().unwrap() = Some("turn_1".into());
+        *pooled.last_run_id.write().unwrap() = Some("run-private".into());
+
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("session".into()),
+            turn_id: Some("turn_1".into()),
+            run_id: Some("run-team".into()),
+            ..Default::default()
+        }));
+        assert!(pooled.turn_affinity.read().unwrap().is_none());
+        assert_eq!(
+            pooled.last_run_id.read().unwrap().as_deref(),
+            Some("run-team")
+        );
+
+        *pooled.turn_affinity.write().unwrap() = Some("worker_team".into());
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("session".into()),
+            turn_id: Some("turn_1".into()),
+            run_id: Some("run-team".into()),
+            ..Default::default()
+        }));
+        assert_eq!(
+            pooled.turn_affinity.read().unwrap().as_deref(),
+            Some("worker_team")
+        );
+    }
+
+    #[test]
+    fn sync_turn_drops_affinity_when_the_information_context_changes() {
+        use crate::FabricCallMeta;
+
+        let local = Arc::new(OllamaProvider::new(
+            "http://127.0.0.1:11434",
+            Arc::new(tetonic_egress::EgressGuard::new()),
+        ));
+        let pooled = PooledProvider::new(local, vec![]);
+        *pooled.turn_affinity.write().unwrap() = Some("worker_private".into());
+        *pooled.last_session_id.write().unwrap() = Some("session".into());
+        *pooled.last_turn_id.write().unwrap() = Some("turn_1".into());
+        *pooled.last_run_id.write().unwrap() = Some("run-1".into());
+        *pooled.last_context_id.write().unwrap() = Some("private".into());
+
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("session".into()),
+            turn_id: Some("turn_1".into()),
+            run_id: Some("run-1".into()),
+            information_context_id: Some("participation/org/team/member".into()),
+            ..Default::default()
+        }));
+        assert!(pooled.turn_affinity.read().unwrap().is_none());
+        assert_eq!(
+            pooled.last_context_id.read().unwrap().as_deref(),
+            Some("participation/org/team/member")
+        );
+
+        *pooled.turn_affinity.write().unwrap() = Some("worker_participation".into());
+        pooled.sync_turn(Some(&FabricCallMeta {
+            session_id: Some("session".into()),
+            turn_id: Some("turn_1".into()),
+            run_id: Some("run-1".into()),
+            information_context_id: Some("participation/org/team/member".into()),
+            ..Default::default()
+        }));
+        assert_eq!(
+            pooled.turn_affinity.read().unwrap().as_deref(),
+            Some("worker_participation")
+        );
+    }
+
     #[tokio::test]
     async fn snapshot_cache_reuses_entry_within_ttl() {
         std::env::set_var("LOKAI_FABRIC_SNAPSHOT_TTL_SECS", "3600");
@@ -2327,6 +2529,26 @@ mod tests {
             tetonic_domain::DataClass::Secret,
         );
         assert_eq!(order, vec![PlacementTarget::Local]);
+        let secret_context = crate::FabricCallMeta {
+            data_class: tetonic_domain::DataClass::RepositorySource,
+            context_data_class: Some(tetonic_domain::DataClass::Secret),
+            ..Default::default()
+        };
+        let class = PooledProvider::effective_placement_class(Some(&secret_context));
+        let context_order = pooled.placement_order(
+            &snap,
+            &ModelSelection::from_request("qwen3.5:latest", None),
+            Some("hard"),
+            Some("worker_a"),
+            &order_labels,
+            class,
+        );
+        assert_eq!(context_order, vec![PlacementTarget::Local]);
+        let ordinary = PooledProvider::effective_placement_class(Some(&crate::FabricCallMeta {
+            data_class: tetonic_domain::DataClass::RepositorySource,
+            ..Default::default()
+        }));
+        assert_eq!(ordinary, tetonic_domain::DataClass::RepositorySource);
     }
 
     #[tokio::test]

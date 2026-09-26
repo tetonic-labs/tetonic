@@ -20,6 +20,8 @@ pub struct AgentConfig {
     pub keep_recent: usize,
     /// Coordinator session id (fabric receipts / turn affinity).
     pub session_id: Option<String>,
+    /// Bound information context. Placement affinity does not cross contexts.
+    pub information_context_id: Option<String>,
     /// Durable run/task/attempt identity for fabric jobs.
     pub run_id: Option<String>,
     pub task_id: Option<String>,
@@ -62,6 +64,9 @@ pub struct AgentConfig {
     pub draft_count: Option<u32>,
     /// Centralized execution thresholds and resource limits (OPT-703).
     pub limits: EngineLimits,
+    /// Stop before another model call once provider-reported tokens reach this
+    /// ceiling. `None` does not count. Unreported usage is not treated as spend.
+    pub reported_token_ceiling: Option<u64>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -99,6 +104,7 @@ impl Default for AgentConfig {
             compaction_threshold: 0.75,
             keep_recent: 4,
             session_id: None,
+            information_context_id: None,
             run_id: None,
             task_id: None,
             attempt_id: None,
@@ -121,6 +127,7 @@ impl Default for AgentConfig {
             draft_model: None,
             draft_count: None,
             limits: EngineLimits::default(),
+            reported_token_ceiling: None,
         }
     }
 }

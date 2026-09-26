@@ -68,6 +68,284 @@ mod tests {
     }
 
     #[test]
+    fn control_database_is_not_indexed() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-index-store-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("lokai.db"), "PRIVATECANARY in the control database\n").unwrap();
+        std::fs::write(dir.join("note.rs"), "pub fn visible_note() {}\n").unwrap();
+        let db_path = std::env::temp_dir().join(format!(
+            "lokai-index-store-{}.db",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&db_path);
+        let idx = Index::open(&db_path).unwrap();
+        let ws = dir.to_string_lossy().to_string();
+        let store_path = workspace_storage_key(dir.join("lokai.db"));
+        let ws_key = workspace_storage_key(&dir);
+        idx.conn
+            .execute(
+                "INSERT INTO files(path, workspace_root, rel, content_hash, mtime, lang, size, indexed_at, embed_state)
+                 VALUES (?1, ?2, 'lokai.db', 'stale', NULL, 'text', 1, '2020-01-01', 'none')",
+                params![store_path, ws_key],
+            )
+            .unwrap();
+        idx.conn
+            .execute(
+                "INSERT INTO chunks(file_path, start_line, end_line, kind) VALUES (?1, 1, 1, 'file')",
+                params![store_path],
+            )
+            .unwrap();
+        let chunk_id = idx.conn.last_insert_rowid();
+        idx.conn
+            .execute(
+                "INSERT INTO fts_chunks(content, symbol_name, path, rel, workspace_root, chunk_id)
+                 VALUES ('PRIVATECANARY in the control database', '', ?1, 'lokai.db', ?2, ?3)",
+                params![store_path, ws_key, chunk_id],
+            )
+            .unwrap();
+        let fts_row = idx.conn.last_insert_rowid();
+        idx.conn
+            .execute(
+                "INSERT INTO fts_file_rows(row_id, file_path) VALUES (?1, ?2)",
+                params![fts_row, store_path],
+            )
+            .unwrap();
+        assert!(
+            !idx.search(&ws, "PRIVATECANARY", 10).unwrap().is_empty(),
+            "the stale control-database row should be searchable before the next pass"
+        );
+        idx.index_workspace(&dir).unwrap();
+        let hits = idx.search(&ws, "PRIVATECANARY", 10).unwrap();
+        assert!(
+            hits.is_empty(),
+            "code search returned the control database: {hits:?}"
+        );
+        assert!(idx
+            .search(&ws, "visible_note", 10)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.rel.ends_with("note.rs")));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn sqlite_database_replacing_a_text_file_is_dropped_from_the_index() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-index-sqlite-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.txt"), "PRIVATECANARY in a text note\n").unwrap();
+        std::fs::write(dir.join("keep.rs"), "pub fn visible_note() {}\n").unwrap();
+        let db_path = std::env::temp_dir().join(format!(
+            "lokai-index-sqlite-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&db_path);
+        let idx = Index::open(&db_path).unwrap();
+        let ws = dir.to_string_lossy().to_string();
+        idx.index_workspace(&dir).unwrap();
+        assert!(
+            !idx.search(&ws, "PRIVATECANARY", 10).unwrap().is_empty(),
+            "the text note should be searchable before it becomes a database"
+        );
+        let mut sqlite = b"SQLite format 3\0".to_vec();
+        sqlite.extend_from_slice(b"PRIVATECANARY still in the database");
+        std::fs::write(dir.join("notes.txt"), sqlite).unwrap();
+        idx.index_workspace(&dir).unwrap();
+        let hits = idx.search(&ws, "PRIVATECANARY", 10).unwrap();
+        assert!(
+            hits.is_empty(),
+            "code search kept the database after it replaced the note: {hits:?}"
+        );
+        assert!(idx
+            .search(&ws, "visible_note", 10)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.rel.ends_with("keep.rs")));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn search_hides_a_stale_preview_after_the_file_becomes_a_database() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-index-stale-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.txt"), "alpha marker in a text note\n").unwrap();
+        std::fs::write(dir.join("alpha.rs"), "pub fn alpha_marker() {}\n").unwrap();
+        std::fs::write(dir.join("keep.rs"), "pub fn visible_note() {}\n").unwrap();
+        let db_path = std::env::temp_dir().join(format!(
+            "lokai-index-stale-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&db_path);
+        let idx = Index::open(&db_path).unwrap();
+        let ws = dir.to_string_lossy().to_string();
+        idx.index_workspace(&dir).unwrap();
+        let mut sqlite = b"SQLite format 3\0".to_vec();
+        sqlite.extend_from_slice(b"PRIVATECANARY still in the database");
+        std::fs::write(dir.join("notes.txt"), sqlite.clone()).unwrap();
+        std::fs::write(dir.join("alpha.rs"), sqlite).unwrap();
+        let hits = idx.search(&ws, "alpha", 10).unwrap();
+        assert!(
+            hits.iter().all(|hit| {
+                !hit.preview.contains("PRIVATECANARY")
+                    && !hit.rel.ends_with("notes.txt")
+                    && !hit.rel.ends_with("alpha.rs")
+            }),
+            "search returned a database that replaced an indexed note: {hits:?}"
+        );
+        assert!(
+            idx.find_definition(&ws, "alpha_marker").unwrap().is_empty(),
+            "definition search returned a database that replaced the source"
+        );
+        assert!(
+            idx.outline(&ws, "alpha.rs").unwrap().is_empty(),
+            "outline returned symbols from a database"
+        );
+        assert!(!idx.outline(&ws, "keep.rs").unwrap().is_empty());
+        assert!(idx
+            .find_definition(&ws, "visible_note")
+            .unwrap()
+            .iter()
+            .any(|row| row.rel.ends_with("keep.rs")));
+        assert!(idx
+            .search(&ws, "visible_note", 10)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.rel.ends_with("keep.rs")));
+        let pending = idx.pending_embeddings(&ws, "embed-test", 100).unwrap();
+        let pending_text = pending
+            .iter()
+            .map(|chunk| chunk.content.as_str())
+            .collect::<Vec<_>>()
+            .join("\n");
+        assert!(
+            !pending_text.contains("PRIVATECANARY") && !pending_text.contains("alpha marker"),
+            "embedding queue kept a preview of a file that is now a database: {pending_text}"
+        );
+        assert!(
+            pending_text.contains("visible_note"),
+            "embedding queue dropped an ordinary source file: {pending_text}"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn sqlite_write_ahead_log_is_not_indexed() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-index-wal-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let mut wal = vec![0x82, 0x06, 0x7f, 0x37];
+        wal.extend_from_slice(b"PRIVATECANARY in the write-ahead log\n");
+        std::fs::write(dir.join("side.log"), wal).unwrap();
+        std::fs::write(dir.join("keep.rs"), "pub fn visible_note() {}\n").unwrap();
+        let db_path = std::env::temp_dir().join(format!(
+            "lokai-index-wal-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&db_path);
+        let idx = Index::open(&db_path).unwrap();
+        let ws = dir.to_string_lossy().to_string();
+        idx.index_workspace(&dir).unwrap();
+        let hits = idx.search(&ws, "PRIVATECANARY", 10).unwrap();
+        assert!(
+            hits.is_empty(),
+            "code search indexed the write-ahead log: {hits:?}"
+        );
+        assert!(idx
+            .search(&ws, "visible_note", 10)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.rel.ends_with("keep.rs")));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
+    fn sqlite_shared_memory_file_is_not_indexed() {
+        let dir = std::env::temp_dir().join(format!(
+            "lokai-index-shm-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("notes.txt"), b"SQLite format 3\0database").unwrap();
+        std::fs::write(
+            dir.join("notes.txt-shm"),
+            "PRIVATECANARY in the shared-memory file\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("keep.rs"), "pub fn visible_note() {}\n").unwrap();
+        let db_path = std::env::temp_dir().join(format!(
+            "lokai-index-shm-{}.db",
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_file(&db_path);
+        let idx = Index::open(&db_path).unwrap();
+        let ws = dir.to_string_lossy().to_string();
+        idx.index_workspace(&dir).unwrap();
+        let hits = idx.search(&ws, "PRIVATECANARY", 10).unwrap();
+        assert!(
+            hits.is_empty(),
+            "code search indexed the shared-memory file: {hits:?}"
+        );
+        assert!(idx
+            .search(&ws, "visible_note", 10)
+            .unwrap()
+            .iter()
+            .any(|hit| hit.rel.ends_with("keep.rs")));
+        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_file(&db_path);
+    }
+
+    #[test]
     fn indexes_and_queries_rust_and_python() {
         let dir = std::env::temp_dir().join(format!("lokai-index-test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);

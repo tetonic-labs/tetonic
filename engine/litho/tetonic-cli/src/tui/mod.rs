@@ -263,7 +263,8 @@ impl App {
     }
 
     pub(crate) fn report_turn_failure(&mut self, raw: &str) {
-        let raw = raw.trim();
+        let owned = failure::visible_failure(raw);
+        let raw = owned.trim();
         if raw.is_empty() {
             return;
         }
@@ -614,7 +615,7 @@ fn open_models(app: &mut App, kernel: &Application) {
     match kernel.model_catalog(&app.session_id) {
         Ok(catalog) => app.model_picker = Some(models::Picker::new(catalog)),
         Err(error) => {
-            app.status_hint = Some(error.to_string());
+            app.status_hint = Some(error.employee_message());
             app.hint_ticks = 400;
         }
     }
@@ -643,7 +644,7 @@ fn respond_approval(
                 channel_delivered: true,
                 attempt_id: None,
             })
-            .map_err(|error| error.to_string())
+            .map_err(|error| error.employee_message())
         });
     if let Err(error) = result {
         app.status_hint = Some(format!(

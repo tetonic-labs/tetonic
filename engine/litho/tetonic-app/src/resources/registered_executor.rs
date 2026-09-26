@@ -12,7 +12,10 @@ pub struct RegisteredExecutionSettings {
     /// Host ceiling, including preparation and managed execution/finalization.
     /// Persisted as a Unix-seconds deadline; resolution can shorten this by <1s.
     pub max_elapsed_seconds: u64,
-    pub workspace_root: std::path::PathBuf,
+    /// Provider-reported token ceiling for this job. Unreported usage is not charged.
+    pub reported_token_ceiling: Option<u64>,
+    /// Absent for a noncoding job. Repository tools then fail before any path is opened.
+    pub workspace_root: Option<std::path::PathBuf>,
     pub model: String,
     pub num_ctx: usize,
     pub data_class: tetonic_domain::DataClass,
@@ -68,6 +71,19 @@ impl tetonic_run::managed::ExecutionAuthority for AuditedAuthority {
             Ok(())
         }
     }
+
+    async fn revoked_during_execution(
+        &self,
+        scope: &tetonic_domain::ExecutionScope,
+        identity: &tetonic_domain::AgentIdentity,
+        job: &tetonic_domain::AgentJobSpec,
+    ) -> bool {
+        self.failed.load(Ordering::SeqCst)
+            || self
+                .inner
+                .revoked_during_execution(scope, identity, job)
+                .await
+    }
 }
 
 impl crate::Application {
@@ -119,20 +135,67 @@ impl crate::Application {
                 "requested tools exceed host grant".into(),
             ));
         }
-        let workspace = tetonic_tools::Workspace::new(&settings.workspace_root)
-            .map_err(|_| AppError::WorkspaceUnavailable)?;
-        let root = workspace.root().to_path_buf();
-        let root_key = root.to_str().ok_or(AppError::WorkspaceUnavailable)?;
+        if let Some(tool) = prepared
+            .command
+            .job_spec
+            .capability_bindings
+            .iter()
+            .find(|tool| !supported_registered_tool(tool))
+        {
+            return Err(AppError::PolicyDenied(format!(
+                "{tool} is not a supported registered isolation profile"
+            )));
+        }
+        let repository_requested = settings
+            .allowed_tools
+            .iter()
+            .chain(prepared.command.job_spec.capability_bindings.iter())
+            .any(|tool| tool != "finish" && tool != "recall");
+        if repository_requested && settings.workspace_root.is_none() {
+            return Err(AppError::WorkspaceUnavailable);
+        }
+        let workspace = match &settings.workspace_root {
+            Some(path) => Some(
+                tetonic_tools::Workspace::new(path).map_err(|_| AppError::WorkspaceUnavailable)?,
+            ),
+            None => None,
+        };
+        let root = workspace.as_ref().map(|workspace| workspace.root().to_path_buf());
+        let root_key = root
+            .as_ref()
+            .map(|path| {
+                path.to_str()
+                    .map(str::to_string)
+                    .ok_or(AppError::WorkspaceUnavailable)
+            })
+            .transpose()?;
         let mut ceiling: Vec<_> = settings.allowed_tools.iter().collect();
         ceiling.sort();
+        let context_id = prepared.authorization.scope.information_context_id.clone();
+        let kind_store = self
+            .run_manager
+            .managed()
+            .store()
+            .cloned()
+            .ok_or_else(|| resource_error(ResourceError::StorageRequired))?;
+        let context_kind = kind_store
+            .read(move |db| db.information_context_kind(&context_id))
+            .await
+            .map_err(|_| resource_error(ResourceError::Storage))?
+            .map_err(|_| resource_error(ResourceError::Storage))?;
+        // Governed private and team prompts stay on this machine. The operator's
+        // requested class remains part of the fingerprint so two host classes
+        // do not alias to the same activation.
+        let data_class = floor_governed_context(context_kind.as_deref(), settings.data_class);
         // The fingerprint covers effective host settings as well as the exact
         // granted job. Absolute time and a new audit UUID are not request inputs.
         let request_bytes = serde_json::to_vec(&serde_json::json!({
             "version": 1, "scope": prepared.authorization.scope,
             "grant_id": prepared.authorization.grant_id, "job": prepared.command.job_spec,
             "workspace": root_key, "model": settings.model, "num_ctx": settings.num_ctx,
-            "data_class": settings.data_class, "tools": ceiling,
+            "requested_data_class": settings.data_class, "data_class": data_class, "tools": ceiling,
             "preparation_limits": preparation_limits, "max_elapsed_seconds": settings.max_elapsed_seconds,
+            "reported_token_ceiling": settings.reported_token_ceiling,
         })).map_err(|_| AppError::InvalidRequest("invalid activation settings".into()))?;
         use sha2::Digest;
         let activation = tetonic_domain::ActivationBinding {
@@ -170,10 +233,19 @@ impl crate::Application {
             .cloned()
             .collect();
         allowed.insert("finish".into());
-        let mut tools = tetonic_tools::Tools::new(workspace, false)
-            .with_enforcement_level(tetonic_tools::EnforcementLevel::Sandboxed)
-            .with_capability_consumer(runtime.capability_store().clone())
-            .with_allowed_tools(allowed);
+        let mut tools = match workspace {
+            Some(workspace) => tetonic_tools::Tools::new(workspace, false),
+            None => tetonic_tools::Tools::without_repository()
+                .map_err(|_| AppError::WorkspaceUnavailable)?,
+        }
+        .with_enforcement_level(tetonic_tools::EnforcementLevel::Sandboxed)
+        .with_capability_consumer(runtime.capability_store().clone())
+        .with_allowed_tools(allowed);
+        if let Some(store) = &self.turn.store {
+            if let Ok(path) = store.read_sync(|db| db.path().to_path_buf()) {
+                tools = tools.protect_store_file(path);
+            }
+        }
         if prepared
             .command
             .job_spec
@@ -201,6 +273,11 @@ impl crate::Application {
         let audit_session = history.clone();
         store
             .write(move |db| {
+                db.preflight_registered_capacity(
+                    &scope.organization_id,
+                    &scope.principal_id,
+                    &scope.information_context_id,
+                )?;
                 db.create_execution_audit_history(
                     &scope.principal_id,
                     &scope.information_context_id,
@@ -209,7 +286,7 @@ impl crate::Application {
             })
             .await
             .map_err(|_| resource_error(ResourceError::Storage))?
-            .map_err(|error| resource_error(error.into()))?;
+            .map_err(capacity_app_error)?;
         let failed = Arc::new(AtomicBool::new(false));
         let audit = crate::store_audit::scoped_execution_audit(
             store,
@@ -237,11 +314,15 @@ impl crate::Application {
             model: settings.model,
             num_ctx: settings.num_ctx,
             max_steps: prepared.command.invocation.max_steps,
-            workspace_root: Some(root.clone()),
-            process_working_directory: Some(root),
+            workspace_root: root.clone(),
+            process_working_directory: root,
             agent_id: prepared.command.identity.id.0.clone(),
             session_id: Some(history.clone()),
-            data_class: settings.data_class,
+            information_context_id: Some(
+                prepared.authorization.scope.information_context_id.clone(),
+            ),
+            data_class,
+            reported_token_ceiling: settings.reported_token_ceiling,
             ..Default::default()
         };
         // No global briefing, project digest, legacy conversation or coding
@@ -290,6 +371,88 @@ impl crate::Application {
             }),
             tetonic_run::managed::ManagedSubmission::Existing(receipt) => Ok(receipt.into()),
         }
+    }
+}
+
+/// In-process tools and workspace-jailed file tools are supported. Model-requested
+/// shells are not, because this path does not start an OS sandbox for them.
+fn supported_registered_tool(tool: &str) -> bool {
+    matches!(
+        tool,
+        "finish"
+            | "recall"
+            | "read_file"
+            | "list_dir"
+            | "grep"
+            | "glob"
+            | "outline"
+            | "find_definition"
+            | "find_mentions"
+            | "find_references"
+            | "search_code"
+            | "edit_file"
+            | "write_file"
+    )
+}
+
+fn floor_governed_context(
+    kind: Option<&str>,
+    class: tetonic_domain::DataClass,
+) -> tetonic_domain::DataClass {
+    if kind == Some("private") || kind == Some("team") {
+        class.max(tetonic_domain::DataClass::Secret)
+    } else {
+        class
+    }
+}
+
+fn capacity_app_error(error: tetonic_memory::StoreError) -> AppError {
+    match error {
+        tetonic_memory::StoreError::OrganizationCapacityExceeded => {
+            AppError::OrganizationCapacityExceeded
+        }
+        tetonic_memory::StoreError::TeamCapacityExceeded => AppError::TeamCapacityExceeded,
+        tetonic_memory::StoreError::PrincipalCapacityExceeded => AppError::PrincipalCapacityExceeded,
+        tetonic_memory::StoreError::ExecutionCapacityExceeded => AppError::ExecutionCapacityExceeded,
+        other => resource_error(other.into()),
+    }
+}
+
+#[cfg(test)]
+mod isolation_tests {
+    use super::supported_registered_tool;
+
+    #[test]
+    fn governed_contexts_floor_the_host_data_class_to_secret() {
+        use tetonic_domain::DataClass;
+        assert_eq!(
+            super::floor_governed_context(Some("private"), DataClass::RepositorySource),
+            DataClass::Secret
+        );
+        assert_eq!(
+            super::floor_governed_context(Some("team"), DataClass::RepositorySource),
+            DataClass::Secret
+        );
+        assert_eq!(
+            super::floor_governed_context(Some("private"), DataClass::Secret),
+            DataClass::Secret
+        );
+        assert_eq!(
+            super::floor_governed_context(Some("legacy_local"), DataClass::RepositorySource),
+            DataClass::RepositorySource
+        );
+        assert_eq!(
+            super::floor_governed_context(None, DataClass::SensitiveSource),
+            DataClass::SensitiveSource
+        );
+    }
+
+    #[test]
+    fn shell_is_outside_the_registered_isolation_matrix() {
+        assert!(supported_registered_tool("recall"));
+        assert!(supported_registered_tool("read_file"));
+        assert!(supported_registered_tool("write_file"));
+        assert!(!supported_registered_tool("run_shell"));
     }
 }
 

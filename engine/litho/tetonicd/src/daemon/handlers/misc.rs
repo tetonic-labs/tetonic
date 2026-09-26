@@ -17,11 +17,11 @@ impl Daemon {
                 pooled_cancel: services.fabric_pooled,
             })
             .await
-            .map_err(|e| match &e {
+            .map_err(|e| match e {
                 tetonic_app::errors::AppError::SessionNotFound(_) => {
                     RpcError::new(ErrorCode::UnknownSession, "unknown session_id")
                 }
-                _ => RpcError::new(ErrorCode::InternalError, format!("app: {e}")),
+                other => crate::daemon::rpc::map::map_app_error(other),
             })?;
         Ok(to_value(Canceled { canceled: true }))
     }
@@ -69,7 +69,7 @@ impl Daemon {
                 channel_delivered: true,
                 attempt_id: None,
             })
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(Ack { ok }))
     }
 

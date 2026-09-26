@@ -29,7 +29,7 @@ impl Daemon {
                 verify_cmd: None,
                 llm_router: None,
             })
-            .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, format!("{e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(Accepted { accepted: true }))
     }
 }

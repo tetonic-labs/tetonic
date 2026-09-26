@@ -18,7 +18,118 @@ pub struct CompactReport {
 impl Store {
     #[cfg(test)]
     pub(crate) fn remove_run_capacity_schema_for_test(&self) {
+        self.remove_execution_limits_schema_for_test();
         self.conn.execute_batch("DROP INDEX idx_run_execution_capacity; ALTER TABLE run_projections DROP COLUMN registered_identity_id; ALTER TABLE run_projections DROP COLUMN execution_held;").unwrap();
+    }
+
+    #[cfg(test)]
+    pub(crate) fn remove_execution_limits_schema_for_test(&self) {
+        self.conn
+            .execute_batch(
+                "DROP TRIGGER organization_execution_limits_defaults;
+            DROP TABLE organization_execution_limits;
+            DROP TRIGGER team_execution_limits_defaults;
+            DROP TABLE team_execution_limits;
+            ALTER TABLE control_admin_events DROP COLUMN details_json;
+            DROP INDEX idx_run_org_execution_capacity;
+            DROP INDEX idx_run_team_execution_capacity;
+            ALTER TABLE run_projections DROP COLUMN execution_team_id;
+            ALTER TABLE run_projections DROP COLUMN execution_org_id;
+            ALTER TABLE run_projections DROP COLUMN execution_principal_id;",
+            )
+            .unwrap();
+    }
+
+    pub(crate) fn migrate_execution_limits_v42(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=42)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
+        self.conn.execute_batch("CREATE TABLE organization_execution_limits (
+            org_id TEXT PRIMARY KEY NOT NULL REFERENCES organizations(org_id),
+            revision INTEGER NOT NULL CHECK(revision>=1),
+            max_active_runs INTEGER NOT NULL CHECK(max_active_runs BETWEEN 0 AND 4294967295),
+            max_active_runs_per_principal INTEGER NOT NULL CHECK(max_active_runs_per_principal BETWEEN 0 AND 4294967295));
+            INSERT INTO organization_execution_limits SELECT org_id,1,32,8 FROM organizations;
+            CREATE TRIGGER organization_execution_limits_defaults AFTER INSERT ON organizations
+            BEGIN INSERT INTO organization_execution_limits VALUES(NEW.org_id,1,32,8); END;
+            ALTER TABLE control_admin_events ADD COLUMN details_json TEXT;
+            ALTER TABLE run_projections ADD COLUMN execution_org_id TEXT;
+            ALTER TABLE run_projections ADD COLUMN execution_principal_id TEXT;
+            CREATE INDEX idx_run_org_execution_capacity ON run_projections(execution_org_id,execution_principal_id) WHERE execution_held=1;")?;
+        let rows: Vec<String> = self.conn.prepare("SELECT projection_json FROM run_projections WHERE registered_identity_id IS NOT NULL")?
+            .query_map([], |r| r.get(0))?.collect::<rusqlite::Result<_>>()?;
+        for json in rows {
+            let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
+                StoreError::InvalidControlResource(format!("registered run projection: {e}"))
+            })?;
+            let scope = crate::run_capacity::registered_scope(&snapshot).ok_or_else(|| {
+                StoreError::InvalidControlResource("registered run scope missing".into())
+            })?;
+            self.conn.execute("UPDATE run_projections SET execution_org_id=?2,execution_principal_id=?3 WHERE run_id=?1",
+                params![snapshot.run_id.0, scope.organization_id, scope.principal_id])?;
+        }
+        self.conn.execute(
+            "INSERT INTO schema_versions VALUES(42,?1)",
+            [crate::util::now()],
+        )?;
+        Ok(())
+    }
+
+    pub(crate) fn migrate_team_execution_limits_v45(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=45)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
+        self.conn.execute_batch(
+            "CREATE TABLE team_execution_limits (
+            org_id TEXT NOT NULL,
+            team_id TEXT NOT NULL,
+            revision INTEGER NOT NULL CHECK(revision>=1),
+            max_active_runs INTEGER NOT NULL CHECK(max_active_runs BETWEEN 0 AND 4294967295),
+            PRIMARY KEY(org_id, team_id),
+            FOREIGN KEY(org_id, team_id) REFERENCES teams(org_id, team_id)
+        );
+        INSERT INTO team_execution_limits(org_id,team_id,revision,max_active_runs)
+            SELECT org_id,team_id,1,4 FROM teams;
+        CREATE TRIGGER team_execution_limits_defaults AFTER INSERT ON teams
+        BEGIN INSERT INTO team_execution_limits(org_id,team_id,revision,max_active_runs)
+            VALUES(NEW.org_id,NEW.team_id,1,4); END;
+        ALTER TABLE run_projections ADD COLUMN execution_team_id TEXT;
+        CREATE INDEX idx_run_team_execution_capacity
+            ON run_projections(execution_org_id,execution_team_id) WHERE execution_held=1;",
+        )?;
+        let rows: Vec<(String, String)> = self
+            .conn
+            .prepare(
+                "SELECT run_id,projection_json FROM run_projections WHERE registered_identity_id IS NOT NULL",
+            )?
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<rusqlite::Result<_>>()?;
+        for (run_id, json) in rows {
+            let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
+                StoreError::InvalidControlResource(format!("registered run projection: {e}"))
+            })?;
+            let Some(scope) = crate::run_capacity::registered_scope(&snapshot) else {
+                continue;
+            };
+            let team = self.team_for_execution_context(&scope.information_context_id)?;
+            self.conn.execute(
+                "UPDATE run_projections SET execution_team_id=?2 WHERE run_id=?1",
+                params![run_id, team],
+            )?;
+        }
+        self.conn.execute(
+            "INSERT INTO schema_versions(version,applied_at) VALUES(45,?1)",
+            [crate::util::now()],
+        )?;
+        Ok(())
     }
 
     pub(crate) fn migrate_run_capacity_v41(&self) -> Result<()> {
@@ -82,6 +193,13 @@ impl Store {
         let new_seq = snapshot.sequence;
         let (registered_identity, execution_held) =
             crate::run_capacity::registered_capacity(snapshot)?;
+        let scope = crate::run_capacity::registered_scope(snapshot);
+        let organization_id = scope.map(|scope| scope.organization_id.clone());
+        let principal_id = scope.map(|scope| scope.principal_id.clone());
+        let team_id = match scope {
+            Some(scope) => self.team_for_execution_context(&scope.information_context_id)?,
+            None => None,
+        };
         if new_seq == 1 && execution_held {
             let occupied: bool = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM run_projections WHERE registered_identity_id=?1
@@ -92,6 +210,13 @@ impl Store {
             if occupied {
                 return Err(StoreError::ExecutionCapacityExceeded);
             }
+            let org = organization_id.as_deref().ok_or_else(|| {
+                StoreError::InvalidControlResource("registered run scope missing".into())
+            })?;
+            let principal = principal_id.as_deref().ok_or_else(|| {
+                StoreError::InvalidControlResource("registered run scope missing".into())
+            })?;
+            self.enforce_registered_capacity(org, principal, team_id.as_deref(), &snapshot.run_id.0)?;
         }
         let existing_floor: i64 = tx
             .query_row(
@@ -111,8 +236,8 @@ impl Store {
             .flatten();
         tx.execute(
             "INSERT OR REPLACE INTO run_projections
-             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held, execution_org_id, execution_principal_id, execution_team_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 snapshot.run_id.0,
                 snapshot.session_id.as_ref().map(|s| s.0.as_str()),
@@ -130,6 +255,9 @@ impl Store {
                 existing_recovery,
                 registered_identity,
                 execution_held,
+                organization_id,
+                principal_id,
+                team_id,
             ],
         )?;
         // Verify the digest against the exact bytes about to be stored (M6,
@@ -219,6 +347,13 @@ impl Store {
     pub fn persist_run_projection(&self, snapshot: &RunSnapshot) -> Result<()> {
         let (registered_identity, execution_held) =
             crate::run_capacity::registered_capacity(snapshot)?;
+        let scope = crate::run_capacity::registered_scope(snapshot);
+        let organization_id = scope.map(|scope| scope.organization_id.clone());
+        let principal_id = scope.map(|scope| scope.principal_id.clone());
+        let team_id = match scope {
+            Some(scope) => self.team_for_execution_context(&scope.information_context_id)?,
+            None => None,
+        };
         let tx = self.conn.unchecked_transaction()?;
         let existing_floor: i64 = tx
             .query_row(
@@ -244,8 +379,8 @@ impl Store {
         };
         tx.execute(
             "INSERT OR REPLACE INTO run_projections
-             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held, execution_org_id, execution_principal_id, execution_team_id)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)",
             params![
                 snapshot.run_id.0,
                 snapshot.session_id.as_ref().map(|s| s.0.as_str()),
@@ -257,6 +392,9 @@ impl Store {
                 existing_recovery,
                 registered_identity,
                 execution_held,
+                organization_id,
+                principal_id,
+                team_id,
             ],
         )?;
         tx.commit()?;
@@ -817,5 +955,101 @@ mod tests {
         store.commit_run_command(&snap, &ev, None).unwrap();
         let col = store.load_run_projection_session_id(run).unwrap();
         assert!(col.is_none());
+    }
+
+    #[test]
+    fn team_ceiling_blocks_a_second_held_run_without_canceling_the_first() {
+        use crate::{ContextOwner, TeamRow};
+        use tetonic_domain::{
+            ActivationBinding, AgentJobSpec, ExecutionScope, IdentityId, TaskInputBinding,
+        };
+        let store = Store::open(":memory:").unwrap();
+        store.bootstrap_control("alice", "org", "Org").unwrap();
+        store
+            .create_team(&TeamRow {
+                org_id: "org".into(),
+                team_id: "team".into(),
+                name: "Team".into(),
+                owner_principal_id: "alice".into(),
+            })
+            .unwrap();
+        store
+            .create_information_context(
+                "alice",
+                "shared",
+                &ContextOwner::Team {
+                    org_id: "org".into(),
+                    team_id: "team".into(),
+                },
+            )
+            .unwrap();
+        store
+            .create_information_context(
+                "alice",
+                "private",
+                &ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )
+            .unwrap();
+        store
+            .set_team_execution_limits("alice", "org", "team", 1, 1)
+            .unwrap();
+        let held = |run: &str, identity: &str, context: &str| {
+            let job = AgentJobSpec {
+                identity_id: IdentityId::new(identity),
+                definition_digest: "definition".into(),
+                input_digest: "input".into(),
+                capability_bindings: vec![],
+                artifact_bindings: vec![],
+                recovery_id: "recovery".into(),
+            };
+            let binding = TaskInputBinding {
+                job_spec: Some(job.clone()),
+                activation: Some(ActivationBinding {
+                    request_id: run.into(),
+                    request_digest: "digest".into(),
+                    audit_session_id: "audit".into(),
+                }),
+                execution_scope: Some(ExecutionScope {
+                    organization_id: "org".into(),
+                    principal_id: "alice".into(),
+                    information_context_id: context.into(),
+                }),
+                ..Default::default()
+            };
+            serde_json::from_value(serde_json::json!({
+                "run_id": run,
+                "state": "active",
+                "sequence": 1,
+                "tasks": {"root": {"task_id":"root","state":"running","binding": binding, "accepted_artifact": null, "active_attempt": null}},
+                "attempts": {"attempt": {"attempt_id":"attempt","task_id":"root","state":"running","task_version":1,"input_digest":"input"}},
+                "dependencies": {},
+                "events": [],
+                "job_spec": job
+            }))
+            .unwrap()
+        };
+        let commit = |run: &str, identity: &str, context: &str| {
+            let snapshot = held(run, identity, context);
+            let mut event = sample_event(run, 1, DataClass::RepositorySource);
+            event.event_id = tetonic_domain::ids::EventId::new(format!("ev-{run}"));
+            store.commit_run_command(&snapshot, &event, None)
+        };
+        commit("run-a", "agent-a", "shared").unwrap();
+        assert!(matches!(
+            store.enforce_registered_capacity("org", "alice", Some("team"), ""),
+            Err(StoreError::TeamCapacityExceeded)
+        ));
+        assert!(store
+            .enforce_registered_capacity("org", "alice", None, "")
+            .is_ok());
+        assert!(matches!(
+            commit("run-b", "agent-b", "shared"),
+            Err(StoreError::TeamCapacityExceeded)
+        ));
+        assert!(store.load_run_snapshot("run-a").unwrap().is_some());
+        assert!(store.load_run_snapshot("run-b").unwrap().is_none());
+        commit("run-c", "agent-c", "private").unwrap();
     }
 }

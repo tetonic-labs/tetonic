@@ -35,7 +35,9 @@ impl Tools {
             self.reset_lsp_binding();
         }
         if self.recall_scope.is_none() {
-            self.memory_db = Some(memory_db.into());
+            let path = memory_db.into();
+            self.memory_db = Some(path.clone());
+            self = self.protect_store_file(path);
         }
         self.session_id = session_id;
         self
@@ -51,7 +53,8 @@ impl Tools {
         context: String,
         credential: MemoryCredentialCheck,
     ) -> Self {
-        self.memory_db = Some(memory_db);
+        self.memory_db = Some(memory_db.clone());
+        self = self.protect_store_file(memory_db);
         self.recall_scope = Some(ScopedMemory {
             actor,
             context,

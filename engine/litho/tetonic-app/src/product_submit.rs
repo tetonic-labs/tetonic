@@ -717,7 +717,7 @@ pub(crate) fn complete_dispatched_turn(
         Err(e) => TurnFinish {
             ok: false,
             canceled,
-            error: Some(e.to_string()),
+            error: Some(e.employee_message()),
         },
     };
     if let Some(c) = owned.convo.take() {

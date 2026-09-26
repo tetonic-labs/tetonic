@@ -164,9 +164,18 @@ fn cli_daemon_kernel_semantic_effect_parity() {
             .expect("cli kernel lifecycle");
 
         let cli_effects = normalize_application_events(&cli_events.lock().unwrap());
+        // The reference plans and completes without entering the agent. A daemon
+        // chat does enter it, and only then reports the model request.
+        let mut executed = cli_effects.clone();
+        if let Some(index) = executed
+            .iter()
+            .position(|effect| matches!(effect, SemanticEffect::TerminalOutcome))
+        {
+            executed.insert(index, SemanticEffect::ModelRequest);
+        }
 
-        compare_sequences(&cli_effects, &daemon_kernel_effects)
-            .expect("CLI and daemon must emit identical app-layer semantic effects");
+        compare_sequences(&executed, &daemon_kernel_effects)
+            .expect("daemon chat matches the plan-only reference plus one execution start");
 
         assert!(
             daemon_wire_effects

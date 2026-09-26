@@ -37,7 +37,7 @@ impl Daemon {
             placement_sink: Some(placement_sink),
         })
         .await
-        .map_err(|e| RpcError::new(ErrorCode::InvalidParams, format!("app: {e}")))?;
+        .map_err(crate::daemon::rpc::map::map_app_error)?;
 
         let caps = Capabilities {
             streaming: true,

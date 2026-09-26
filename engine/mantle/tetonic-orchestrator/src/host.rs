@@ -101,13 +101,32 @@ impl SessionHost {
         let data_class =
             apply_data_class_floor(floor.class, data_class_override.and_then(parse_data_class));
 
+        // A private or team discussion must not receive the legacy project
+        // briefing, and this host must not write onto that session.
+        if store.is_some_and(|s| s.require_legacy_session(session_id).is_err()) {
+            let verify_cmd = if let Some(resolver) = &self.verify_resolver {
+                resolver(&self.workspace_root, verify_override)
+            } else {
+                verify_override.map(str::to_string)
+            };
+            return SessionStartPlan {
+                data_class,
+                disclosure_tier: default_disclosure_tier(data_class),
+                briefing: None,
+                project_context: None,
+                verify_cmd,
+            };
+        }
+
         if let Some(s) = store {
-            if let Err(e) = s.set_session_data_class(session_id, data_class_name(data_class)) {
-                tracing::warn!("session data_class persist: {e}");
+            if s.set_session_data_class(session_id, data_class_name(data_class))
+                .is_err()
+            {
+                tracing::warn!("session data_class persist failed");
             }
             if let Ok(pid) = s.ensure_project(&self.workspace_root) {
-                if let Err(e) = s.link_session_project(session_id, &pid) {
-                    tracing::warn!("session project link: {e}");
+                if s.link_session_project(session_id, &pid).is_err() {
+                    tracing::warn!("session project link failed");
                 }
             }
         }
@@ -186,12 +205,95 @@ impl SessionHost {
                         let _ = s.append_event(session_id, "consolidate", "system", &payload);
                     }
                 }
-                Err(e) => tracing::warn!("session consolidate: {e}"),
+                Err(_) => tracing::warn!("session consolidate failed"),
             }
         }
     }
 
     pub fn policy_mode(&self) -> PolicyMode {
         self.policy.mode()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tetonic_policy::PolicyMode;
+
+    #[test]
+    fn private_session_does_not_receive_legacy_project_memory() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = tetonic_memory::Store::open(dir.path().join("host.db")).unwrap();
+        store.bootstrap_control("admin", "org", "Org").unwrap();
+        store
+            .create_information_context(
+                "admin",
+                "private",
+                &tetonic_memory::ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )
+            .unwrap();
+        store
+            .insert_open_discussion("admin", "private", "private-notes")
+            .unwrap();
+        store
+            .append_message(
+                "private-notes",
+                "user",
+                "",
+                "searchword PRIVATECANARY",
+                None,
+            )
+            .unwrap();
+        store
+            .add_project_note(dir.path(), "LEGACYNOTE for the local operator", "user")
+            .unwrap();
+        let host = SessionHost::new(
+            dir.path(),
+            Arc::new(PolicyEngine::new(PolicyMode::EstateStub)),
+        );
+        let private_plan = host.on_session_start(
+            "private-notes",
+            None,
+            None,
+            None,
+            true,
+            None,
+            Some(&store),
+            None,
+        );
+        let private_text = format!(
+            "{}\n{}",
+            private_plan.briefing.unwrap_or_default(),
+            private_plan.project_context.unwrap_or_default()
+        );
+        assert!(
+            !private_text.contains("PRIVATECANARY"),
+            "private history entered the start plan: {private_text}"
+        );
+        assert!(
+            !private_text.contains("LEGACYNOTE"),
+            "legacy project memory was briefed into a private session: {private_text}"
+        );
+        let legacy = store
+            .start_session(dir.path().to_str().unwrap(), "single-agent", "mock")
+            .unwrap();
+        let legacy_plan = host.on_session_start(
+            &legacy,
+            None,
+            None,
+            None,
+            true,
+            None,
+            Some(&store),
+            None,
+        );
+        let legacy_text = legacy_plan.project_context.unwrap_or_default();
+        assert!(
+            legacy_text.contains("LEGACYNOTE"),
+            "legacy session lost its project note: {legacy_text}"
+        );
+        assert!(!legacy_text.contains("PRIVATECANARY"));
     }
 }

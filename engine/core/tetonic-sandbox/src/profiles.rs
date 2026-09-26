@@ -64,7 +64,7 @@ pub fn profile_for_class(class: ProcessClass, workspace: &Path) -> SandboxReques
     let denied = default_denied_paths(workspace);
     let temp = std::env::temp_dir().join(format!("lokai-sandbox-{}", std::process::id()));
 
-    match class {
+    let mut request = match class {
         ProcessClass::InternalService => SandboxRequest {
             executable: String::new(),
             arguments: vec![],
@@ -79,15 +79,16 @@ pub fn profile_for_class(class: ProcessClass, workspace: &Path) -> SandboxReques
                     recursive: true,
                 }],
                 denied_paths: denied,
-                temporary_root: Some(temp),
+                temporary_root: Some(temp.clone()),
             },
             network: NetworkPolicy::DenyAll,
             environment: EnvironmentPolicy {
                 allowlist: default_env_allowlist(),
                 extra_vars: vec![],
                 strip_secrets: true,
-                controlled_temp_dir: Some(std::env::temp_dir()),
+                controlled_temp_dir: Some(temp.clone()),
                 locale: Some("C.UTF-8".into()),
+                home_dir: None,
             },
             resources: ResourceLimits {
                 max_memory_bytes: Some(768 * 1024 * 1024),
@@ -221,7 +222,14 @@ pub fn profile_for_class(class: ProcessClass, workspace: &Path) -> SandboxReques
             mode: ProcessMode::OneShot,
             trace_context: Default::default(),
         },
+    };
+    // HOME and, when the profile did not choose one, TMP/TEMP stay inside the
+    // workspace. They must not point at the operator profile or temp root.
+    request.environment.home_dir = Some(workspace.to_path_buf());
+    if request.environment.controlled_temp_dir.is_none() {
+        request.environment.controlled_temp_dir = Some(workspace.to_path_buf());
     }
+    request
 }
 
 pub fn apply_executable(mut req: SandboxRequest, exe: &str, args: &[String]) -> SandboxRequest {

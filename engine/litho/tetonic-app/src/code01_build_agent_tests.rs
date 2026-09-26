@@ -5,6 +5,137 @@ use crate::definition::CodingAgentDefinition;
 use tetonic_domain::{DataClass, DisclosureTier};
 use tetonic_orchestrator::{AgentBuildRequest, RoleId, SessionStartPlan};
 
+#[test]
+fn git_diff_omits_a_protected_store() {
+    let output = "\
+stdout:
+diff --git a/src/a.rs b/src/a.rs
++hello
+diff --git a/lokai.db b/lokai.db
++PRIVATECANARY
+ M src/a.rs
+";
+    let cleaned = without_reserved_git_output(
+        output,
+        &[std::path::PathBuf::from("/tmp/ws/lokai.db")],
+        std::path::Path::new("/tmp/ws"),
+    );
+    assert!(cleaned.contains("hello"), "{cleaned}");
+    assert!(!cleaned.contains("PRIVATECANARY"), "{cleaned}");
+    let status = " M src/a.rs\n M lokai.db\n";
+    let cleaned = without_reserved_git_output(
+        status,
+        &[std::path::PathBuf::from("/tmp/ws/lokai.db")],
+        std::path::Path::new("/tmp/ws"),
+    );
+    assert!(cleaned.contains("src/a.rs"), "{cleaned}");
+    assert!(!cleaned.contains("lokai.db"), "{cleaned}");
+}
+
+#[test]
+fn git_diff_omits_a_sqlite_database_that_is_not_the_reserved_store() {
+    let dir = tempfile::tempdir().unwrap();
+    let mut bytes = b"SQLite format 3\0".to_vec();
+    bytes.extend_from_slice(b"PRIVATECANARY");
+    std::fs::write(dir.path().join("notes.txt"), bytes).unwrap();
+    let diff = "\
+diff --git a/src/a.rs b/src/a.rs
++hello
+diff --git a/notes.txt b/notes.txt
++PRIVATECANARY
+";
+    let cleaned = without_reserved_git_output(diff, &[], dir.path());
+    assert!(cleaned.contains("hello"), "{cleaned}");
+    assert!(!cleaned.contains("PRIVATECANARY"), "{cleaned}");
+    assert!(!cleaned.contains("notes.txt"), "{cleaned}");
+    let status = " M src/a.rs\n M notes.txt\n";
+    let cleaned = without_reserved_git_output(status, &[], dir.path());
+    assert!(cleaned.contains("src/a.rs"), "{cleaned}");
+    assert!(!cleaned.contains("notes.txt"), "{cleaned}");
+}
+
+#[tokio::test]
+async fn classifier_stops_when_the_attempt_is_canceled() {
+    let cancel = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let entered_flag = entered.clone();
+    let cancel_flag = cancel.clone();
+    let task = tokio::spawn(async move {
+        stop_or(
+            &cancel_flag,
+            || false,
+            || async { false },
+            async {
+                entered_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                std::future::pending::<u8>().await
+            },
+        )
+        .await
+    });
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !entered.load(std::sync::atomic::Ordering::SeqCst) {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("classifier did not start");
+    cancel.store(true, std::sync::atomic::Ordering::SeqCst);
+    let stopped = tokio::time::timeout(std::time::Duration::from_secs(2), task)
+        .await
+        .expect("classifier did not stop")
+        .unwrap();
+    assert!(stopped.is_none());
+}
+
+#[tokio::test]
+async fn classifier_stops_when_authority_is_revoked() {
+    let revoked = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let entered = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let entered_flag = entered.clone();
+    let revoked_flag = revoked.clone();
+    let cancel = std::sync::atomic::AtomicBool::new(false);
+    let task = tokio::spawn(async move {
+        stop_or(
+            &cancel,
+            || false,
+            || {
+                let revoked_flag = revoked_flag.clone();
+                async move { revoked_flag.load(std::sync::atomic::Ordering::SeqCst) }
+            },
+            async {
+                entered_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+                std::future::pending::<u8>().await
+            },
+        )
+        .await
+    });
+    tokio::time::timeout(std::time::Duration::from_secs(2), async {
+        while !entered.load(std::sync::atomic::Ordering::SeqCst) {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("classifier did not start");
+    revoked.store(true, std::sync::atomic::Ordering::SeqCst);
+    let stopped = tokio::time::timeout(std::time::Duration::from_secs(2), task)
+        .await
+        .expect("classifier did not stop")
+        .unwrap();
+    assert!(stopped.is_none());
+}
+
+#[test]
+fn classifier_keeps_the_session_data_class() {
+    let mut host = compile_host(None, false);
+    host.plan.data_class = DataClass::Secret;
+    let fabric = session_classifier_fabric(&host.plan, "sess", "run", "task", "attempt");
+    assert_eq!(fabric.data_class, DataClass::Secret);
+    assert_eq!(fabric.disclosure_tier, host.plan.disclosure_tier);
+    assert_eq!(fabric.session_id.as_deref(), Some("sess"));
+    assert_eq!(fabric.run_id.as_deref(), Some("run"));
+    assert_ne!(fabric.data_class, DataClass::default());
+}
+
 fn compile_host(verify_cmd: Option<&str>, force_explain: bool) -> TurnExecutionHost {
     let policy = Arc::new(tetonic_policy::PolicyEngine::default());
     let artifact_store = Arc::new(
@@ -162,4 +293,46 @@ fn code01_prompt_finish_remain_kernel_overlay_compile() {
         "kernel prompt must not be injected as system_overlay"
     );
     assert!(compiled.briefing.is_none());
+}
+
+#[test]
+fn specialist_node_is_not_reported_before_the_agent_is_built() {
+    let src = include_str!("turn_execution.rs");
+    let start = src
+        .find("|build, user_input|")
+        .expect("specialist build closure");
+    let end = src[start..]
+        .find("|aid, step|")
+        .expect("step callback");
+    let body = &src[start..start + end];
+    let build = body.find("build_agent(").expect("build");
+    let started = body.find("NodeStarted").expect("node started");
+    assert!(
+        build < started,
+        "a specialist that fails to build must not be reported as started"
+    );
+}
+
+#[test]
+fn spawn_does_not_report_started_before_the_specialist_is_built() {
+    let src = include_str!("turn_execution.rs");
+    let spawn = src
+        .find("pub(crate) async fn execute_spawn(")
+        .expect("execute_spawn");
+    let body = &src[spawn..];
+    let register = body.find("register_spawn_task").expect("register");
+    let specialist = body.find("run_spawned_specialist").expect("specialist");
+    let before_specialist = &body[register..specialist];
+    assert!(
+        !before_specialist.contains("\"started\""),
+        "a spawn that fails before the specialist is built must not report started"
+    );
+    let execute = src
+        .find("impl RootExecute for AppRootExecute")
+        .expect("root execute");
+    let execute_body = &src[execute..spawn];
+    let report = execute_body.find("report_run_status").expect("report");
+    let claim = execute_body.find(".execute_attempt(").expect("execute");
+    assert!(report < claim);
+    assert!(execute_body.contains("announce_start"));
 }

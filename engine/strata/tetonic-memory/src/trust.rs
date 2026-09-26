@@ -64,8 +64,10 @@ impl Store {
 
     pub fn get_approval(&self, id: &str) -> Result<Option<ApprovalRow>> {
         let mut stmt = self.conn.prepare(
-            "SELECT id, session_id, kind, detail, decision, remembered, decided_at
-             FROM approvals WHERE id = ?1",
+            "SELECT a.id, a.session_id, a.kind, a.detail, a.decision, a.remembered, a.decided_at
+             FROM approvals a
+             JOIN sessions s ON s.id = a.session_id
+             WHERE a.id = ?1 AND s.context_id='legacy-local'",
         )?;
         let row = stmt
             .query_row(params![id], |r| {
@@ -92,6 +94,7 @@ impl Store {
         decision: &str,
         remembered: bool,
     ) -> Result<()> {
+        self.require_legacy_or_audit_session(session_id)?;
         self.conn.execute(
             "INSERT OR REPLACE INTO approvals(id, session_id, kind, detail, decision, remembered, decided_at)
              VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
@@ -106,6 +109,21 @@ impl Store {
             ],
         )?;
         Ok(())
+    }
+
+    /// A remembered rule is global. Only a legacy session may install one.
+    /// A private or unknown session records no rule and returns false.
+    pub fn remember_session_approval_rule(
+        &self,
+        session_id: &str,
+        kind: &str,
+        pattern: &str,
+    ) -> Result<bool> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(false);
+        }
+        self.add_approval_rule(kind, pattern)?;
+        Ok(true)
     }
 
     pub fn add_approval_rule(&self, kind: &str, pattern: &str) -> Result<()> {
@@ -155,6 +173,7 @@ impl Store {
         tool: &str,
         args_json: &str,
     ) -> Result<()> {
+        self.require_legacy_or_audit_session(session_id)?;
         let ts = now();
         self.conn.execute(
             "INSERT INTO tool_calls(id, session_id, tool, args_json, status, result_summary, created_at)
@@ -205,6 +224,9 @@ impl Store {
     }
 
     pub fn approval_count(&self, session_id: &str) -> Result<i64> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(0);
+        }
         Ok(self.conn.query_row(
             "SELECT COUNT(*) FROM approvals WHERE session_id = ?1",
             params![session_id],

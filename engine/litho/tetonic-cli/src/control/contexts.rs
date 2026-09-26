@@ -11,7 +11,7 @@ pub enum ContextCommand {
         #[arg(long)]
         session: String,
     },
-    /// Search authorized discussion messages; does not search tool outputs.
+    /// Search authorized messages and tool results in this context.
     Recall {
         #[arg(long)]
         context: String,
@@ -37,11 +37,13 @@ pub enum ContextCommand {
         context: String,
     },
     /// Open durable discussion history; no workspace access or inference is granted.
+    /// Omit `--session` to create a discussion and receive a server-chosen id.
     Open {
         #[arg(long)]
         context: String,
+        /// Reopen this discussion. A missing or foreign id is denied and creates nothing.
         #[arg(long)]
-        session: String,
+        session: Option<String>,
     },
     /// Store a human message from a UTF-8 file (maximum 64 KiB).
     Send {
@@ -102,10 +104,18 @@ pub async fn dispatch(control: &LocalControl, command: ContextCommand) -> anyhow
                 .await?;
             serde_json::json!({"context_created":true})
         }
-        ContextCommand::Open { context, session } => {
-            service.open_history(&credential, context, session).await?;
-            serde_json::json!({"discussion_open":true,"agent_activated":false})
-        }
+        ContextCommand::Open { context, session } => match session {
+            Some(session) => {
+                service
+                    .open_history(&credential, context, session.clone())
+                    .await?;
+                serde_json::json!({"discussion_open":true,"session":session,"agent_activated":false})
+            }
+            None => {
+                let session = service.create_history(&credential, context).await?;
+                serde_json::json!({"discussion_open":true,"session":session,"created":true,"agent_activated":false})
+            }
+        },
         ContextCommand::Send {
             context,
             session,

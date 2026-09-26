@@ -287,7 +287,6 @@ mod tests {
         let effects = normalize_application_events(&events.lock().unwrap());
         let expected = vec![
             SemanticEffect::SessionInitialization,
-            SemanticEffect::ModelRequest,
             SemanticEffect::TerminalOutcome,
             SemanticEffect::PersistenceWrite,
         ];

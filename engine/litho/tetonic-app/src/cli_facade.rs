@@ -98,9 +98,9 @@ impl Application {
         store
             .write_sync(move |db| {
                 db.create_checkpoint(&ws, &lbl, "manual", None)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn list_checkpoints(&self, ws_root: &str) -> Result<CheckpointsReport, AppError> {
@@ -112,14 +112,14 @@ impl Application {
             .read_sync(move |db| {
                 let current_head = db
                     .current_head(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 let redo_target = db
                     .head_state(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .and_then(|(_, r)| r);
                 let rows = db
                     .list_checkpoints(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 let checkpoints = rows
                     .into_iter()
                     .map(|c| CheckpointInfo {
@@ -135,7 +135,7 @@ impl Application {
                     checkpoints,
                 })
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn restore_checkpoint(
@@ -152,9 +152,9 @@ impl Application {
         let ck = store
             .read_sync(move |db| {
                 db.find_checkpoint(&ws, &ref_str)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??
+            .map_err(AppError::hide_store_failure)??
             .ok_or_else(|| {
                 AppError::InvalidRequest(format!("no checkpoint matching '{reference}'"))
             })?;
@@ -170,7 +170,7 @@ impl Application {
             .read_sync(move |db| {
                 let cur = db
                     .current_head(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 if cur == 0 {
                     return Err(AppError::InvalidRequest(
                         "nothing to undo (no recorded changes)".into(),
@@ -178,10 +178,10 @@ impl Application {
                 }
                 let target = db
                     .previous_boundary(&ws, cur)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 Ok((cur, target))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??;
+            .map_err(AppError::hide_store_failure)??;
         if target == cur {
             return Err(AppError::InvalidRequest(
                 "already at previous boundary".into(),
@@ -199,14 +199,14 @@ impl Application {
             .read_sync(move |db| {
                 let cur = db
                     .current_head(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 let redo = db
                     .head_state(&ws)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+                    .map_err(AppError::hide_store_failure)?
                     .and_then(|(_, r)| r);
                 Ok::<_, AppError>((cur, redo))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??;
+            .map_err(AppError::hide_store_failure)??;
         let target = match redo {
             Some(t) if t > cur => t,
             Some(_) => {
@@ -235,10 +235,10 @@ impl Application {
                 let ws = ws.clone();
                 move |db| {
                     db.current_head(&ws)
-                        .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                        .map_err(AppError::hide_store_failure)
                 }
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??;
+            .map_err(AppError::hide_store_failure)??;
 
         if target == cur {
             return Ok(RestoreSummary {
@@ -263,10 +263,10 @@ impl Application {
                 let ws = ws.clone();
                 move |db| {
                     db.workspace_changes_in_range(&ws, lo, hi)
-                        .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                        .map_err(AppError::hide_store_failure)
                 }
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))??;
+            .map_err(AppError::hide_store_failure)??;
 
         if !forward {
             changes.reverse();
@@ -304,8 +304,8 @@ impl Application {
                     db.record_restore(&ws_owned, cur, target, &reason_owned, applied as i64)?;
                     Ok::<(), anyhow::Error>(())
                 })
-                .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
-                .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                .map_err(AppError::hide_store_failure)?
+                .map_err(AppError::hide_store_failure)?;
         }
 
         Ok(RestoreSummary {
@@ -330,7 +330,7 @@ impl Application {
             .read_sync(move |db| {
                 let st = db
                     .project_status(&root)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 Ok(st.map(|s| ProjectStatusInfo {
                     id: s.id,
                     name: s.name,
@@ -340,7 +340,7 @@ impl Application {
                     last_active_at: s.last_active_at,
                 }))
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn ensure_project(&self, ws_root: &str) -> Result<String, AppError> {
@@ -351,9 +351,9 @@ impl Application {
         store
             .write_sync(move |db| {
                 db.ensure_project(&root)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn add_project_note(
@@ -371,9 +371,9 @@ impl Application {
         store
             .write_sync(move |db| {
                 db.add_project_note(&root, &n, &a)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                    .map_err(AppError::hide_store_failure)
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     // --- History ---
@@ -387,7 +387,7 @@ impl Application {
             .read_sync(move |db| {
                 let rows = db
                     .list_recent_sessions(limit_u32)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
+                    .map_err(AppError::hide_store_failure)?;
                 Ok(rows
                     .into_iter()
                     .map(|s| SessionSummaryInfo {
@@ -401,7 +401,7 @@ impl Application {
                     })
                     .collect())
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(AppError::hide_store_failure)?
     }
 
     pub fn session_transcript(
@@ -414,10 +414,13 @@ impl Application {
         let sid = session_id.to_string();
         store
             .read_sync(move |db| {
-                db.transcript(&sid)
-                    .map_err(|e| AppError::PersistenceFailed(e.to_string()))
+                match db.transcript(&sid) {
+                    Ok(rows) => Ok(rows),
+                    Err(tetonic_memory::StoreError::ControlAccessDenied) => Ok(Vec::new()),
+                    Err(_) => Err(AppError::PersistenceFailed("request failed".into())),
+                }
             })
-            .map_err(|e| AppError::PersistenceFailed(e.to_string()))?
+            .map_err(|_| AppError::PersistenceFailed("request failed".into()))?
     }
     // (Code Index methods moved to cli_index.rs)
 }
@@ -438,7 +441,7 @@ fn apply_restore_transitions(
 ) -> Result<Vec<RestoreFileChange>, AppError> {
     use tetonic_transaction::{WorkspaceTransactionService, WorkspaceTxnConfig};
     let transactions = WorkspaceTransactionService::new(root, WorkspaceTxnConfig::default())
-        .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
+        .map_err(restore_failed)?;
     let result = (|| {
         let mut records = Vec::new();
         for (path, transition) in transitions {
@@ -476,7 +479,11 @@ fn apply_restore_transitions(
         // Failed commits requiring recovery remain intact; abort refuses those states.
         let _ = transactions.abort_active_if_any();
     }
-    result.map_err(|e| AppError::InvalidRequest(format!("restore failed: {e}")))
+    result.map_err(restore_failed)
+}
+
+fn restore_failed<E: std::fmt::Display>(error: E) -> AppError {
+    AppError::hide_store_failure(error)
 }
 
 #[cfg(test)]
@@ -623,5 +630,57 @@ mod restore_tests {
             std::fs::read_to_string(dir.path().join("new.txt")).unwrap(),
             "user file"
         );
+    }
+
+    #[test]
+    fn restore_failure_does_not_repeat_file_bytes() {
+        let err = super::restore_failed("io error: PRIVATECANARY file bytes");
+        assert_eq!(err.employee_message(), "request failed");
+        assert!(!err.to_string().contains("PRIVATECANARY"));
+    }
+}
+
+#[cfg(test)]
+mod transcript_tests {
+    use tetonic_memory::ContextOwner;
+
+    #[tokio::test]
+    async fn offline_transcript_hides_private_history() {
+        let dir = tempfile::tempdir().unwrap();
+        let store = tetonic_memory::SharedStore::open(dir.path().join("audit.db"), 1).unwrap();
+        let session = store
+            .write_sync(|db| {
+                db.bootstrap_control("alice", "org", "Org").unwrap();
+                db.create_information_context(
+                    "alice",
+                    "private",
+                    &ContextOwner::Private {
+                        org_id: "org".into(),
+                    },
+                )
+                .unwrap();
+                let id = db.create_context_history("alice", "private").unwrap();
+                db.append_context_message(
+                    "alice",
+                    "private",
+                    &id,
+                    "note-1",
+                    "PRIVATECANARY transcript",
+                )
+                .unwrap();
+                id
+            })
+            .unwrap();
+        let app = crate::Application::bootstrap_mock_with_store(
+            dir.path(),
+            Some(store),
+            std::sync::Arc::new(crate::events::NoopEventSink),
+            vec![],
+        );
+        let rows = app.session_transcript(&session).unwrap();
+        let rendered = format!("{rows:?}");
+        assert!(rows.is_empty(), "{rendered}");
+        assert!(!rendered.contains("PRIVATECANARY"));
+        assert!(app.session_transcript("missing-session").unwrap().is_empty());
     }
 }

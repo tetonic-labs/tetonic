@@ -615,6 +615,14 @@ pub struct RunCommandResult {
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum RunSupervisorError {
+    #[error("organization execution capacity is occupied; retry after admitted work quiesces")]
+    OrganizationCapacityExceeded,
+    #[error("team execution capacity is occupied; retry after admitted work quiesces")]
+    TeamCapacityExceeded,
+    #[error(
+        "initiating principal execution capacity is occupied; retry after admitted work quiesces"
+    )]
+    PrincipalCapacityExceeded,
     #[error("registered agent already has admitted work; retry after it has quiesced")]
     ExecutionCapacityExceeded,
     #[error("run not found: {0}")]
@@ -655,4 +663,44 @@ pub enum RunSupervisorError {
     Corruption(String),
     #[error("storage limit exceeded: {0}")]
     StorageLimitExceeded(String),
+}
+
+impl RunSupervisorError {
+    /// Store and corruption text stay off employee-visible outcomes.
+    pub fn redacts_detail(&self) -> bool {
+        matches!(
+            self,
+            Self::Persistence(_) | Self::Corruption(_) | Self::StorageLimitExceeded(_)
+        )
+    }
+
+    pub fn employee_message(&self) -> String {
+        if self.redacts_detail() {
+            "request failed".to_string()
+        } else {
+            self.to_string()
+        }
+    }
+}
+
+#[cfg(test)]
+mod supervisor_error_tests {
+    use super::RunSupervisorError;
+
+    #[test]
+    fn employee_message_hides_store_bodies() {
+        for error in [
+            RunSupervisorError::Persistence("sqlite: PRIVATECANARY".into()),
+            RunSupervisorError::Corruption("page PRIVATECANARY".into()),
+            RunSupervisorError::StorageLimitExceeded("path PRIVATECANARY".into()),
+        ] {
+            let message = error.employee_message();
+            assert_eq!(message, "request failed");
+            assert!(!message.contains("PRIVATECANARY"));
+            assert!(error.redacts_detail());
+        }
+        let shown = RunSupervisorError::RecoveryRequired;
+        assert_eq!(shown.employee_message(), "recovery required");
+        assert!(!shown.redacts_detail());
+    }
 }

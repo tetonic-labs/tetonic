@@ -57,10 +57,24 @@ impl Store {
         Ok(())
     }
 
+    /// Legacy operator sessions and execution-audit histories can store tool
+    /// evidence. A private or team discussion cannot.
+    pub fn require_legacy_or_audit_session(&self, session: &str) -> Result<()> {
+        let allowed: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1 AND (context_id='legacy-local' OR mode='execution-audit'))",
+            [session],
+            |row| row.get(0),
+        )?;
+        if !allowed {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        Ok(())
+    }
+
     #[cfg(test)]
     pub(crate) fn remove_context_schema_for_test(&self) {
         self.remove_run_capacity_schema_for_test();
-        self.conn.execute_batch("DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_artifacts; DROP INDEX idx_messages_client_id; ALTER TABLE messages DROP COLUMN client_message_id; ALTER TABLE messages DROP COLUMN author_principal_id; DROP TRIGGER session_context_exists; DROP TRIGGER session_context_immutable; DROP TRIGGER information_context_immutable; DROP TRIGGER information_context_in_use; DROP INDEX idx_sessions_context; ALTER TABLE sessions DROP COLUMN context_id; DROP TABLE information_contexts;").unwrap();
+        self.conn.execute_batch("DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_publications; DROP TABLE context_artifacts; DROP INDEX idx_messages_client_id; ALTER TABLE messages DROP COLUMN client_message_id; ALTER TABLE messages DROP COLUMN author_principal_id; DROP TRIGGER IF EXISTS project_memory_context_exists; DROP TRIGGER IF EXISTS project_memory_context_immutable; DROP TRIGGER IF EXISTS project_memory_blocks_context_delete; DROP INDEX IF EXISTS idx_project_memory_scope; ALTER TABLE project_memory DROP COLUMN context_id; DROP TRIGGER session_context_exists; DROP TRIGGER session_context_immutable; DROP TRIGGER information_context_immutable; DROP TRIGGER information_context_in_use; DROP INDEX idx_sessions_context; ALTER TABLE sessions DROP COLUMN context_id; DROP TABLE information_contexts;").unwrap();
     }
 }
 
@@ -90,16 +104,34 @@ mod tests {
             None,
         )
         .unwrap();
-        db.record_tool_call(
-            "finish-private",
-            "private-session",
-            "finish",
-            "{}",
-            true,
-            "PRIVATECANARY summary",
-            None,
-        )
-        .unwrap();
+        assert!(db
+            .record_tool_call(
+                "finish-private",
+                "private-session",
+                "finish",
+                "{}",
+                true,
+                "PRIVATECANARY summary",
+                None,
+            )
+            .is_err());
+        db.conn
+            .execute(
+                "INSERT INTO tool_calls(id, session_id, tool, args_json, status, result_summary, created_at, settled_at)
+                 VALUES('finish-private','private-session','finish','{}','ok','PRIVATECANARY summary','t','t')",
+                [],
+            )
+            .unwrap();
+        assert!(db.session_workspace("private-session").unwrap().is_none());
+        assert!(db
+            .session_workspace_root("private-session")
+            .unwrap()
+            .is_none());
+        assert!(db.session_status("private-session").unwrap().is_none());
+        assert_eq!(db.message_count("private-session").unwrap(), 0);
+        assert!(db
+            .upsert_turn_operation("private-session", "turn", "executing", "{}")
+            .is_err());
         assert!(db.transcript("private-session").is_err());
         assert!(db.list_messages_for_resume("private-session", 20).is_err());
         assert!(db.count_messages_for_resume("private-session").is_err());
@@ -118,6 +150,116 @@ mod tests {
             .recent_finish_outcomes(dir.path(), None, 5)
             .unwrap()
             .is_empty());
+        assert!(db
+            .record_file_change(
+                "finish-private",
+                "private-session",
+                "secret/PRIVATECANARY.txt",
+                "write",
+                None,
+                Some("PRIVATECANARY"),
+            )
+            .is_err());
+        let private_blob = crate::blob::encode_blob("PRIVATECANARY").unwrap();
+        db.conn
+            .execute(
+                "INSERT INTO file_changes(session_id, tool_call_id, path, change_kind, blob_encoding, before_blob, after_blob, applied_at)
+                 VALUES('private-session','finish-private','secret/PRIVATECANARY.txt','write','zstd-full',NULL,?1,'t')",
+                [private_blob],
+            )
+            .unwrap();
+        let private_change: i64 = db
+            .conn
+            .query_row(
+                "SELECT id FROM file_changes WHERE session_id='private-session'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        assert!(db.session_file_changes("private-session").unwrap().is_empty());
+        assert_eq!(
+            db.session_file_change_highwater("private-session").unwrap(),
+            0
+        );
+        assert!(db.file_change_after(private_change).unwrap().is_none());
+        assert!(db
+            .workspace_changes_in_range(&workspace, 0, i64::MAX)
+            .unwrap()
+            .is_empty());
+        assert_eq!(db.workspace_max_mark(&workspace).unwrap(), 0);
+        assert!(db
+            .set_session_data_class("private-session", "circle_ok")
+            .is_err());
+        assert!(db.session_data_class("private-session").unwrap().is_none());
+        assert_eq!(db.event_count("private-session", "note").unwrap(), 0);
+        assert!(db
+            .record_approval(
+                "appr-private",
+                "private-session",
+                "run_shell",
+                "PRIVATECANARY",
+                "allow",
+                true,
+            )
+            .is_err());
+        db.conn
+            .execute(
+                "INSERT INTO approvals(id, session_id, kind, detail, decision, remembered, decided_at)
+                 VALUES('appr-private','private-session','run_shell','PRIVATECANARY','allow',1,'t')",
+                [],
+            )
+            .unwrap();
+        assert!(db.get_approval("appr-private").unwrap().is_none());
+        assert_eq!(db.approval_count("private-session").unwrap(), 0);
+        assert!(!db
+            .remember_session_approval_rule("private-session", "run_shell", "PRIVATECANARY")
+            .unwrap());
+        assert!(!db
+            .approval_rule_matches("run_shell", "PRIVATECANARY")
+            .unwrap());
+        assert!(db
+            .record_egress(
+                Some("private-session"),
+                "t",
+                "agent",
+                "secret.example",
+                None,
+                443,
+                "deny",
+                None,
+            )
+            .is_err());
+        db.conn
+            .execute(
+                "INSERT INTO egress_log(session_id, ts, initiator, host, port, decision)
+                 VALUES('private-session','t','agent','secret.example',443,'deny')",
+                [],
+            )
+            .unwrap();
+        assert_eq!(db.egress_count_for_session("private-session").unwrap(), 0);
+        assert!(db
+            .list_recent_sessions_for_workspace(dir.path(), "other", 5)
+            .unwrap()
+            .is_empty());
+        assert!(db.recent_touched_paths(dir.path(), 12).unwrap().is_empty());
+        let legacy = db.start_session(&workspace, "test", "test").unwrap();
+        db.record_file_change(
+            "finish-legacy",
+            &legacy,
+            "visible.txt",
+            "write",
+            None,
+            Some("visible"),
+        )
+        .unwrap();
+        assert_eq!(db.session_file_changes(&legacy).unwrap().len(), 1);
+        assert_eq!(
+            db.workspace_changes_in_range(&workspace, 0, i64::MAX)
+                .unwrap()
+                .len(),
+            1
+        );
+        assert!(db.session_file_changes("private-session").unwrap().is_empty());
         assert!(db.consolidate_session_explicit("private-session").is_err());
         assert!(db.consolidate_session("private-session").is_err());
         assert!(db

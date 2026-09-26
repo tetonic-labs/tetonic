@@ -1,5 +1,811 @@
 # MVP implementation progress
 
+## 2026-09-26 — Sprint 3 second pass: work activates on the managed path
+
+Team work is no longer a disconnected binder. `Application::activate_team_work` loads the work item, applies delegation token ceilings, calls `submit_registered_job`, and binds the returned run/attempt onto the work row (schema 48 adds `run_id`). A parked parent blocks child activation. `launch_team_work` and `tetonic job run --team --work` reuse the same host launch path as ordinary registered jobs. `tetonic control work` covers goal/create/list/park/resume/accept-huddle without starting inference.
+
+Still deferred to sprint 4+: enabling governed `parent_attempt` admission inside ManagedRunService; cumulative spend ledgers; write-claim negotiation; D03 deletion.
+
+Validation: `cargo test -p tetonic-memory --lib -- migration team_work -- --test-threads=1` passed. `cargo test -p tetonic-app --lib -- activate_team_work_binds_managed_run_and_respects_delegation_ceiling resource_service_exposes_goals_huddles_activation_and_delegation` passed.
+
+## 2026-09-26 — Sprint 3 exited (local MVP preview)
+
+Sprint 3 written exits are treated as met for the local single-authority preview. Evidence: schema 46–47 goals/work/huddles; quick task without huddle; huddle accept idempotent by request id; outsider denied; park leaves sibling work open; resume rechecks membership; work binds to an attempt id; event/schedule cursors create at most one work item per event; child budget cannot exceed parent and stop scope inherits; cross-team delegation is an opaque denial. ResourceService exposes the same operations under ManageTeam/ReadTeam.
+
+Deferred to later sprints (explicitly not part of this exit): team-work CLI; automatic `submit_registered_job` from work activation; enabling governed child admission in ManagedRunService; cumulative spend ledgers / waiting queues; write-claim negotiation UI; D03 deletion.
+
+Validation: `cargo test -p tetonic-memory --lib -- migration quick_task_does_not_require_a_huddle_and_retries_are_idempotent accepted_huddle_creates_work_idempotently_and_outsider_is_denied parked_work_survives_and_independent_work_stays_open event_cursor_duplicates_do_not_backlog_work delegation_inherits_budget_and_stop_and_cross_team_is_opaque -- --test-threads=1` passed. `cargo test -p tetonic-app --lib -- resource_service_exposes_goals_huddles_activation_and_delegation` passed.
+
+## 2026-09-26 — Sprint 3: durable team goals, quick tasks and huddle work
+
+Schema 46 stores team goals, work items and huddle proposals. A quick task does not need a huddle. Accepting a huddle creates one open work item per title and retries with the same request id do not duplicate. A non-member is denied. Work can be parked. Binding these items to managed runs and event/schedule activation are still open. Sprint 3 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- quick_task_does_not_require_a_huddle_and_retries_are_idempotent accepted_huddle_creates_work_idempotently_and_outsider_is_denied` passed.
+
+## 2026-09-26 — Sprints 1 and 2 exited (local MVP preview)
+
+Sprint 1 and Sprint 2 written exits are treated as met for the local single-authority preview. Evidence: team create / participation context / unpublished private canary; metadata create does not charge or report Running; `tetonic job run` (+ `--view`) activates and shows journal events; Running only at claim; noncoding recall without a repository; registered shell refused; cancel stops an owned process; ceilings reject when full.
+
+Deferred to later sprints (explicitly not part of this exit): remote multi-user auth/UI; cumulative team spend ledger and waiting queues; Windows OS filesystem jail; standalone server world-loop deletion (D07/D08); fleet prototype / coding-identity pin deletion (D01/D11).
+
+Validation: `cargo test -p tetonic-app --lib -- team_execution_cannot_retrieve_unpublished_private_history team_participation_context_is_the_callers_empty_working_context activation_receipt_names_the_journal_event_and_hides_a_payload admission_does_not_report_running_before_execution_is_claimed metadata_creation_does_not_charge_or_report_running noncoding_recall_job_runs_without_a_repository registered_shell_is_rejected_before_inference` passed. `cargo test -p tetonic-cli --bin tetonic -- activation_view_shows_journal_events_and_not_a_running_status` passed. `cargo test -p tetonic-run --test managed_service_tests -- managed_cancel_stops_the_owned_process` passed.
+
+## 2026-09-26 — Credential store files are not readable through tools or context
+
+Workspace paths under credential stores (for example `.ssh`, `.aws`, `.git-credentials`) are refused by file tools and skipped by context search/read. Ordinary workspace files still work. This is incremental isolation, not a sprint exit by itself.
+
+Validation: `cargo test -p tetonic-tools --lib -- credential_store_files_are_not_read_or_searched` passed. `cargo test -p tetonic-context --lib -- credential_store_is_not_searched_or_read` passed.
+
+## 2026-09-26 — Context errors do not repeat handles, fingerprints, or store bodies
+
+An exhausted or stale expansion handle is rejected without repeating the handle id or workspace fingerprints. A compilation failure for a changed workspace does the same. An artifact-store failure during sealing is reported as `artifact storage failed` and does not include the store error. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-context --lib -- test_expansion_handle_use_count_exhausted test_expansion_stale_workspace_rejected simultaneous_valid_and_foreign_callers_cannot_steal_the_last_use artifact_storage_failure_does_not_repeat_the_store_body stale_workspace_error_does_not_repeat_fingerprints` passed.
+
+## 2026-09-26 — Prototype agent registration does not invent a charge or Running
+
+The legacy in-memory fleet prototype no longer records a 1,000-token charge when it registers agent metadata. A duplicate registration is rejected and still consumes no tokens. The registered record and the supervisor both stay idle. Clearing an emergency stop returns that idle state; it does not report running. This prototype is still not the production control API. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- metadata_creation_does_not_charge_or_report_running test_create_agent_within_budget_and_register_with_supervisor test_agent_estop_and_resume_lifecycle test_operator_dashboard_view_aggregates_state` passed. `cargo test -p tetonic-orchestrator --lib -- test_fleet_supervisor_lifecycle_and_steering` passed.
+
+## 2026-09-26 — Daemon tool-call notifications omit argument bodies
+
+The unauthenticated daemon stream still names the tool and the call. It no longer includes the tool arguments, so a file body or command text is not repeated there. The in-process interface still receives the original event. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonicd -- tool_call_notification_does_not_repeat_argument_bodies chat_send_streams_tokens_tools_and_ok` passed.
+
+## 2026-09-26 — A sessionless job is not reported started before execution is claimed
+
+The employee-visible started event for a sessionless, unscoped job is emitted when execution is claimed, not when the attempt is admitted. Admission alone no longer produces that event. Scoped runs still do not use this unauthenticated sink. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- sessionless_start_is_not_reported_before_execution_is_claimed admission_does_not_report_running_before_execution_is_claimed` passed.
+
+## 2026-09-26 — Running begins when execution is claimed
+
+Admitting an attempt records it as starting. The attempt and its task become running only when execution is claimed. A failed build before that claim is not reported as running. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --tests --lib` passed. `cargo test -p tetonic-app --lib -- admission_does_not_report_running_before_execution_is_claimed spawn_child_task_appears_in_snapshot_dag` passed. `cargo test -p tetonic-app --test v4_proof_09` passed. `cargo test -p tetonic-broker --lib -- cmp02_` passed.
+
+## 2026-09-26 — Cancel stops an in-flight language-server call
+
+A language-server tool watches the attempt's cancel signal. When the attempt is canceled, the call asks the server to stop. The server's request loop then terminates the owned process. A call that has not started is not given a new server after cancel. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib -- cancel_stops_an_in_flight_language_server_call same_workspace_bindings_do_not_share_sessions_or_retain_them_globally` passed. `cargo check -p tetonic-lsp -p tetonic-app` passed.
+
+## 2026-09-26 — Job activation can draw its journal events
+
+`tetonic job run --view` still activates through the managed runtime and prints the receipt. It also draws the terminal outcome and the journal event names from that receipt. Payload digests are not drawn. An outcome that is not completed, canceled, limited, or failed is shown as unavailable, not running. This is a local view, not a remote setup UI. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-cli --bin tetonic -- activation_view_shows_journal_events_and_not_a_running_status` passed.
+
+## 2026-09-26 — A scoped attempt does not reuse a carried conversation
+
+A managed attempt with an execution scope discards turns already in its conversation before the model runs. A prior private turn is not sent. The conversation's cancel handle still stops the attempt. An unscoped coding session keeps the conversation it resumed. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib -- discard_carried_turns_drops_messages_and_keeps_cancel` passed. `cargo test -p tetonic-app --lib -- scoped_attempt_does_not_send_a_carried_conversation admitted_attempt_executes_its_revision_after_identity_update` passed.
+
+## 2026-09-26 — A job receipt names the actual journal event
+
+The launch receipt keeps the journal event name, such as `attempt.started`, instead of collapsing every stored event to `other`. A name that is not a short identifier stays `other`, so a payload is not repeated in the receipt. The outcome is still only a terminal class and never running. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- activation_receipt_names_the_journal_event_and_hides_a_payload` passed.
+
+## 2026-09-26 — Placement affinity does not cross information contexts
+
+Worker affinity is kept only for the same session, turn, run, and information context. A later request on another context does not stay pinned to the worker chosen for the previous context, even when the session, turn, and run ids are reused. The same context still keeps its worker. A registered job stamps its information context onto the model request. A request that names no context keeps the previous behavior. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-inference --lib -- sync_turn_drops_affinity_when_the_information_context_changes sync_turn_drops_affinity_when_the_run_changes sync_turn_drops_affinity_when_the_session_changes sync_turn_clears_affinity_on_new_user_turn` passed. `cargo test -p tetonic-app --tests --no-run` compiled.
+
+## 2026-09-26 — A team participant can select their empty working context
+
+A principal who owns a team or belongs to it can resolve their private working context. A missing team and a non-participant are both denied. The context starts empty, so it does not contain that principal's other private history, and another member cannot recall it. `tetonic job run --team` uses this context instead of an arbitrary context id. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- a_participant_uses_the_working_context_without_private_history` passed. `cargo test -p tetonic-app --lib -- team_participation_context_is_the_callers_empty_working_context` passed. `cargo check -p tetonic-cli` passed.
+
+## 2026-09-26 — Creating a team creates the owner's empty working context
+
+Creating a team for an enabled organization member also creates that owner's private working context. It starts with no sessions or messages, so it does not contain their other private history, and another member cannot read or recall it. Creating the same team again keeps that one context. A team insert whose owner is not an enabled organization member still persists the team and does not invent a working context. `tetonic control` create-team reports the owner's working context id. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- creating_a_team_creates_the_owners_empty_working_context joining_a_team_creates_an_empty_private_working_context team_keys_are_scoped_and_resources_survive_reopen retries_do_not_overwrite_names_or_ownership` passed. `cargo test -p tetonic-app --lib -- persistent_authority_uses_verified_identity_and_current_membership` passed. `cargo test -p tetonic-cli --test control_cli -- bootstrap_create_reopen_and_revoke_via_cli` passed.
+
+## 2026-09-26 — Index and restore errors do not repeat a store or file body
+
+Code-index failures and workspace-restore failures no longer put the store or file error into the message an employee can see. The employee text is `request failed`. A count mismatch from an embedding model is still reported as an invalid request. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- index_failures_do_not_repeat_the_store_body restore_failure_does_not_repeat_file_bytes` passed.
+
+## 2026-09-26 — Joining a team creates an empty private working context
+
+Adding a team member creates a private working context for that principal. It starts with no sessions or messages, so it does not contain their other private history, and other members and organization administrators cannot read it. Adding the member again keeps that same context. Removing membership does not delete it. `tetonic control` add-team-member reports its id. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- joining_a_team_creates_an_empty_private_working_context team_grants_enforce_scope_owner_and_atomic_audit` passed.
+
+## 2026-09-26 — Worker affinity does not cross runs
+
+Placement affinity is kept only for the same session, turn, and run. A later request on another run does not stay pinned to the worker chosen for the previous run, even when the session and turn ids are reused. The same run still keeps its worker. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-inference --lib -- sync_turn_drops_affinity_when_the_run_changes sync_turn_drops_affinity_when_the_session_changes sync_turn_clears_affinity_on_new_user_turn` passed.
+
+## 2026-09-26 — A specialist is not reported until it is built
+
+The turn reports a specialist node only after that agent is built. A build failure does not emit `NodeStarted`. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- specialist_node_is_not_reported_before_the_agent_is_built spawn_does_not_report_started_before_the_specialist_is_built` passed.
+
+## 2026-09-26 — Embedding does not send a preview of a live database
+
+Chunks waiting for an embedding are omitted when the live file is a SQLite database, including a text file replaced by a database before the next index pass. The stored preview is not sent to the embedding model. An ordinary source file in the same workspace is still queued. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib -- search_hides_a_stale_preview_after_the_file_becomes_a_database stores_and_ranks_embeddings_by_cosine` passed.
+
+## 2026-09-26 — Git context omits a live database file
+
+The context compiler's git diff and status output drops a file whose live bytes are a SQLite database, including a renamed database that is not the reserved store path. An ordinary source diff in the same output is kept. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- git_diff_omits_a_protected_store git_diff_omits_a_sqlite_database_that_is_not_the_reserved_store` passed.
+
+## 2026-09-26 — The broker treats a secret context pack as local-only
+
+The compute request used for scheduling and failover now takes the stricter of the host class and the compiled context class. A secret context pack is not offered to a remote worker and does not enter a speculative remote race. A repository-source request without that context class is unchanged. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-broker --lib -- secret_context_class_raises_the_compute_request` passed.
+
+## 2026-09-26 — A secret context pack is not placed on a remote worker
+
+Placement uses the stricter of the host data class and the compiled context class. A secret context pack stays on this machine even when the host class is lower, a hard tier is requested, or a worker is preferred. A repository-source request without a secret context class is unchanged. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-inference --lib -- secret_placement_is_local_only` passed.
+
+## 2026-09-26 — Admission does not report a model request
+
+Planning a turn no longer emits `started`. That status is the semantic model-request signal. It is emitted once, when the built agent enters execution. A plan that is completed without entering the agent does not report it. A daemon chat that does enter the agent still reports one start. A later critic or revision on the same turn does not report a second start. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- session_turn_lifecycle_event_order spawn_does_not_report_started_before_the_specialist_is_built`, `cargo test -p tetonic-app --test cli_assembly_parity`, `cargo test -p tetonic-eval -- kernel_lifecycle_semantic_effects`, and `cargo test -p tetonicd -- cli_daemon_kernel_semantic_effect_parity cli_daemon_write_file_mutation_parity` passed.
+
+## 2026-09-26 — Chat failures do not repeat a store or tool body
+
+The local chat inspector, turn-failure panel, model picker, and approval response use the employee failure text. A persistence, tool, or internal error is shown as "request failed" and the body is not repeated in the summary or the technical detail. An ordinary invalid request is still shown. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-cli --bin tetonic -- persistence_and_tool_bodies_are_not_shown execution_failure_does_not_claim_the_model_never_replied` passed.
+
+## 2026-09-26 — Local recovery does not list or abandon a scoped run
+
+`/recovery` and `/recovery abandon` have no employee credential. A run whose task carries an execution scope is omitted from the report, including its session id. Abandon returns the same not-found text as an unauthenticated inspect and does not cancel the run. An unscoped interrupted run can still be reported and abandoned. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- unscoped_daemon_does_not_read_or_cancel_a_scoped_run interrupted_run_is_quarantined` passed.
+
+## 2026-09-26 — A failed spawn does not report started
+
+`execute_spawn` no longer emits `started` before the specialist is built. Depth, budget, and agent-build failures finish without that status. The status is reported only when the built specialist enters execution. A root turn still reports admission separately and does not emit a second start. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- spawn_does_not_report_started_before_the_specialist_is_built` passed. `code02_execute_spawn_keeps_inner_audit`, `code03_execute_spawn_still_turn_none`, `code03_execute_spawn_keeps_inner_audit`, `code03_approotexecute_delegates_to_manager_without_owning_attempt`, `code03_root_still_app_root_execute`, `code03_empty_execute_spawn_is_root_job`, and `gate01_app_root_execute_bound` passed.
+
+## 2026-09-26 — Spawn rollback cannot be written onto a discussion
+
+Recording a rolled-back spawn requires a legacy-local session or an execution-audit history. A private or team discussion id is refused. A rollback row planted directly in the database still hides that branch from authorized recall. A legacy session can still record one. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- recall_filters_before_limit private_and_team_content_require_participation resume_omits_rolled_back_spawn_agent` passed.
+
+## 2026-09-26 — Revoking authority drops an in-flight intent classification
+
+While the coding intent classifier is calling the model, revocation of its execution authority is polled. The in-flight call is dropped when that authority is revoked, the same way cancellation drops it. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- classifier_stops_when_the_attempt_is_canceled classifier_stops_when_authority_is_revoked` passed.
+
+## 2026-09-26 — The intent classifier does not run after the attempt is closed
+
+Before the coding intent classifier calls the model, the attempt is checked for cancellation, an elapsed deadline, a closed work scope, and a revoked execution authority. An in-flight classification is dropped when cancellation, the deadline, or the work scope closes. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests -- elapsed_deadline_blocks_inference_before_the_gate revoked_authority_blocks_inference_before_the_gate` passed. The application crate compiled.
+
+## 2026-09-26 — Outline drops symbols once the file is a database
+
+File outline uses the same live-file check. A file that has become a SQLite database has an empty outline. A neighboring source file still has its symbols. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib search_hides_a_stale_preview_after_the_file_becomes_a_database` passed.
+
+## 2026-09-26 — Definition search drops a symbol once the file is a database
+
+Definition search uses the same live-file check as keyword search. A symbol whose source file has been replaced by a SQLite database is not returned, and a neighboring source file still is. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib search_hides_a_stale_preview_after_the_file_becomes_a_database` passed.
+
+## 2026-09-26 — Search drops a preview once the file is a database
+
+Keyword search, mention search, and semantic search omit a hit when the live file is a SQLite database, write-ahead log, shared-memory file, or rollback journal. That happens before the next index pass, so a stale text preview is not returned after the file is replaced. An ordinary source file still matches. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib search_hides_a_stale_preview_after_the_file_becomes_a_database` passed. `control_database_is_not_indexed` still passed.
+
+## 2026-09-26 — Secret inference does not leave the local model resident
+
+A local Ollama request whose data class is secret, including a secret context class, sends `keep_alive` of `0` so the runtime unloads the model when the call finishes. A non-secret request keeps the caller’s own `keep_alive`. This is not a remote-placement proof and not a team spend ledger. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-inference --lib secret_inference_does_not_keep_the_model_resident` passed.
+
+## 2026-09-26 — Egress records cannot be attached to a discussion
+
+An egress log row may omit a session or name a legacy-local session or an execution-audit history. A private discussion id is refused. A row planted directly in the database is still hidden from the legacy egress count. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- legacy_readers_cannot_consume migrate_and_persist_roundtrip` passed.
+
+## 2026-09-26 — Approval records cannot be stored on a discussion
+
+Recording an approval or a proposed tool call requires a legacy-local session or an execution-audit history. A private discussion id is refused, so the approval detail is not written. A row planted directly in the database is still hidden from the legacy approval reader. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib legacy_readers_cannot_consume_private_history_or_derived_summaries` passed.
+
+## 2026-09-26 — Tool results and file snapshots cannot be stored on a discussion
+
+`record_tool_call` and `record_file_change` accept a legacy-local session or an execution-audit history. A private or team discussion id is refused. Readers still hide a row that was planted directly in the database. Scoped recall of a tool result still works when that result is on the context's audit history. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- legacy_readers_cannot_consume recall_filters_before_limit recall_finds_prior` passed. The product audit writers still passed.
+
+## 2026-09-26 — A private session does not receive the legacy project briefing
+
+Starting a private or team discussion does not load legacy project notes or the legacy session briefing, and it does not write a project link onto that session. A legacy session still receives its own project note. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-orchestrator --lib private_session_does_not_receive_legacy_project_memory` passed.
+
+## 2026-09-26 — Session events cannot be attached to a private discussion
+
+An event write is accepted only for a legacy-local session or an execution-audit history. A private discussion id is refused, so a redaction record is not stored there. An execution-audit history can still record one. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib store_sink_` and `cargo test -p tetonic-memory --lib migrate_and_persist_roundtrip` passed.
+
+## 2026-09-26 — Legacy audit writers cannot append to a private session
+
+The unscoped product audit and the coding projection both require a legacy-local session before writing a message. A private discussion id is refused, and the failure log does not include the message body. A legacy session still records its audit message. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- unscoped_audit_does_not_write_a_private_session projection_does_not_write_a_private_session scoped_audit_namespaces` passed.
+
+## 2026-09-26 — Session errors do not repeat the session id
+
+A missing session is reported as `unknown session_id`. The display text and the daemon error mapping no longer include the identifier. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib employee_message_hides_store_and_tool_bodies` and `cargo test -p tetonicd -- session_errors_do_not_echo golden_rpc_error_shape` passed.
+
+## 2026-09-26 — Shell cannot start PowerShell or a credential helper
+
+A model shell cannot run PowerShell, Bash, `sh`, or WSL with an inline-code flag, including `powershell -Command`. `cmdkey`, `vaultcmd`, and `git credential` are refused before they start. An ordinary command still runs. Verify parsing rejects the same inline flags regardless of letter case. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_powershell_and_credential_helpers` and `cargo test -p tetonic-tools --test exec_tests split_verify_rejects_shell_injection` passed.
+
+## 2026-09-26 — Revoking execution stops the tool already running
+
+A managed attempt rechecks its execution authority while it is running. When that authority is revoked, the attempt cancels and the cancellation reaches the tool it owns. Admission-time authorities that do not opt into revocation keep their original decision. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests revoking_execution_stops_the_owned_tool` passed. The existing managed-cancel and world-denial tests still passed.
+
+## 2026-09-26 — Automatic approval cannot start an unconfined shell
+
+When the operating system cannot enforce a high-risk control, such as network denial, automatic approval denies the shell. A person can still accept that gap. A confined shell can still be approved automatically. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib auto_grant_` passed.
+
+## 2026-09-26 — Sandboxed commands do not use the operator temp directory
+
+Model shell and the minimal command environment set `TMP`, `TEMP`, and `TMPDIR` to the workspace. Parent temp values are not copied. A profile that already chose a private temp directory keeps that directory instead of the operator temp root. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-sandbox --test process_executor_tests minimal_env_does_not_expose` passed.
+
+## 2026-09-26 — Shell cannot run inline interpreter code
+
+A model shell command cannot run `python`, `node`, `ruby`, `perl`, or `deno` with `-c`, `--command`, `-e`, or `--eval`, including when wrapped in another shell. An ordinary command still runs. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_inline_interpreter_code` passed.
+
+## 2026-09-26 — Verify cannot run inline code
+
+A verify command cannot pass `-c`, `--command`, `-e`, or `--eval`. `python -m pytest` and ordinary test commands still parse. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --test exec_tests split_verify_rejects_shell_injection` passed.
+
+## 2026-09-26 — Verify cannot use a path outside the workspace
+
+A verify command that names an absolute path outside the workspace, walks up with `..`, or uses a home shortcut is refused before it runs. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib verify_refuses_an_absolute_path_outside_the_workspace` passed.
+
+## 2026-09-26 — Shell cannot walk out of the workspace
+
+A model shell command that uses `..` is refused even when no protected store is configured. An ordinary command in the workspace still runs. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_parent_traversal_without_a_protected_store` passed.
+
+## 2026-09-26 — Shell cannot use an absolute path outside the workspace
+
+A model shell command that names an absolute path outside the workspace, or a home shortcut, is refused before it runs. An ordinary command in the workspace still runs. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_an_absolute_path_outside_the_workspace` passed.
+
+## 2026-09-26 — Sandboxed commands do not see the operator profile
+
+HOME and USERPROFILE for a sandboxed shell, verify command, or git process are the workspace directory, not the operator profile. A command cannot use those variables to read profile credential files. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-sandbox --test process_executor_tests minimal_env_does_not_expose_the_operator_profile` passed.
+
+## 2026-09-26 — Git context does not include a protected store
+
+Workspace git diff and status text used for model context omits a protected store file. A git argument that walks above the workspace is refused. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib git_diff_omits_a_protected_store` passed.
+
+## 2026-09-26 — Stop aborts the intent classifier
+
+The coding-session classifier sends the user text before the agent loop. Cancel during that call now drops it instead of waiting for the model to finish. Every managed attempt, including a coding session, uses the execution gate before later model and tool calls. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib classifier_stops_when_the_attempt_is_canceled` passed.
+
+## 2026-09-26 — Shell cannot walk up to a protected store
+
+A workspace shell or verify command that uses `..`, or names a protected store file, does not read that file when the store sits outside the workspace. An ordinary command in the workspace still runs. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_a_protected_store -- --test-threads=1` passed.
+
+## 2026-09-26 — Local history commands do not repeat store errors
+
+Checkpoint, restore, project, estate, and index commands no longer copy a database or lock error into the failure text. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib employee_message_hides_store_and_tool_bodies` passed.
+
+## 2026-09-26 — Offline history does not show private sessions
+
+`tetonic` history treats a private or missing session as an empty transcript. A store failure on that read does not include the database text. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib offline_transcript_hides_private_history` passed.
+
+## 2026-09-26 — The local daemon does not read scoped runs
+
+The daemon has no employee credential. Snapshot, replay, and cancel of a run with an execution scope now fail as an unknown run and do not return that run or cancel it. Credentialed control replay is unchanged. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib unscoped_daemon_does_not_read_or_cancel_a_scoped_run` passed.
+
+## 2026-09-26 — Workspace recall does not return private history
+
+A private message indexed under the same workspace as a local session is not returned by legacy recall. A recall failure no longer copies the database error into the tool result. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib recall_history_does_not_return_private_context_in_the_same_workspace` passed. `cargo test -p tetonic-tools --lib` compiled the recall error change.
+
+## 2026-09-26 — Default effectful admission is one attempt
+
+A coding session run no longer opts into two simultaneous attempts on the same task. The recorded budget is one attempt, and a second attempt on that task is rejected. Registered jobs already used that default. Inference hops keep their own budget. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib default_effectful_admission_allows_one_attempt` passed.
+
+## 2026-09-26 — Intent classifier keeps the session data class
+
+The coding-session classifier sends the user text before the agent loop. That request now uses the session data class and disclosure tier. A secret session is not placed on a remote worker by the classifier default. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib classifier_keeps_the_session_data_class` passed.
+
+## 2026-09-26 — Managed outcomes do not repeat store failures
+
+When a managed run cannot inspect, claim, finalize, or persist cancellation, the candidate outcome says `request failed` instead of the database error. A project note whose bytes are a SQLite write-ahead log is not loaded into project memory. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --lib employee_message_hides_persistence_bodies`, `cargo test -p tetonic-domain --lib employee_message_hides_store_bodies`, and `cargo test -p tetonic-memory --lib project_md_write_ahead_log_is_not_loaded` passed.
+
+## 2026-09-26 — Finalization failures do not publish store bodies
+
+When a turn cannot be finalized, the completion event uses the employee message. A persistence failure is `request failed` and does not include the database text. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib employee_message_hides_store_and_tool_bodies` passed (library compile includes the finalization path).
+
+## 2026-09-26 — Governed jobs stay classified as secret
+
+Private and team registered jobs are classified as secret even when the operator host class is lower. A legacy context keeps the host class. The operator's requested class stays in the activation fingerprint, so two host classes do not collapse into one retry. The effective class is what inference placement sees, which keeps that prompt off a remote worker. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib governed_contexts_floor_the_host_data_class_to_secret` passed.
+
+## 2026-09-26 — A private context job is not placed as repository data
+
+A registered job in a private information context is classified as secret even when the operator host class is lower. Team and unknown contexts keep the host class. The effective class is part of the activation fingerprint. This keeps that prompt off a remote worker. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib private_context_floors_the_host_data_class_to_secret` passed.
+
+## 2026-09-26 — Project memory does not load a SQLite project file
+
+`.lokai/project.md` is not loaded when it is a SQLite database or a symlink. A normal project file is still included and still marked untrusted. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib project_md_database_is_not_loaded` and `project_md_marked_untrusted` passed.
+
+## 2026-09-26 — Language-server tools do not read a SQLite store
+
+Definition, references, and diagnostics now refuse a SQLite database and its log, shared-memory, and journal files before the language server is opened. A normal source file can still use the language server. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib lsp_does_not_read_a_sqlite_database` passed.
+
+## 2026-09-26 — Briefing and verify detection do not read a SQLite store
+
+Session briefing no longer follows a symlink or loads a conventions file that is a SQLite database. Verify-command detection uses the same no-follow reader, so a Makefile that is a database does not become a command and its bytes are not kept. A rollback journal beside a database is refused by workspace reads as well. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-orchestrator --lib sqlite_database_is_not_loaded_as_conventions`, `cargo test -p tetonic-tools --lib sqlite_makefile_is_not_a_verify_command`, and `cargo test -p tetonic-tools --lib read_refuses_a_sqlite_rollback_journal` passed.
+
+## 2026-09-26 — A SQLite shared-memory file is not read or indexed
+
+The `-shm` file beside a SQLite database has no header of its own, so readers and the code index now treat it as part of that database. `read_file`, search, and context compilation refuse it, and code search does not keep its text. A file whose name merely ends in `-shm`, with no database beside it, can still be read. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib read_and_search_refuse_a_sqlite_shared_memory_file`, `cargo test -p tetonic-context --lib sqlite_shared_memory_file_is_not_searched_or_read`, and `cargo test -p tetonic-index --lib sqlite_shared_memory_file_is_not_indexed` passed.
+
+## 2026-09-26 — A SQLite write-ahead log is not read or indexed
+
+Readers and the code index now recognize the write-ahead log header as well as the database header. A log file with another name is refused by `read_file`, search, and context compilation, and it is not added to code search. The error and the index do not include the log bytes. A normal source file in the same directory remains available. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib read_and_search_refuse_a_sqlite_write_ahead_log`, `cargo test -p tetonic-context --lib sqlite_write_ahead_log_is_not_searched_or_read`, and `cargo test -p tetonic-index --lib sqlite_write_ahead_log_is_not_indexed` passed.
+
+## 2026-09-26 — Workspace reads refuse a SQLite database by header
+
+`read_file`, search, edit, and context compilation refuse a file that starts with the SQLite header, even when it is not named `lokai.db`. The error does not include the file bytes. A normal text file in the same directory can still be read. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib read_and_search_refuse_a_sqlite_database_by_header` and `cargo test -p tetonic-context --lib sqlite_database_is_not_searched_or_read` passed.
+
+## 2026-09-26 — A SQLite file is not kept in the code index
+
+Any file that starts with the SQLite header is skipped, not only `lokai.db`. If that path was previously indexed as text, the next pass deletes those search rows and does not read the rest of the file. A normal source file in the same tree remains searchable. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib sqlite_database_replacing_a_text_file_is_dropped_from_the_index` passed.
+
+## 2026-09-26 — Turn failures do not repeat secrets
+
+A failed, limited, or canceled turn outcome is scanned before it is stored as the completion error. A secret in that text is redacted. An ordinary message such as "file not found" is unchanged when no scanner is installed. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib failure_text_does_not_repeat_a_secret` passed.
+
+## 2026-09-26 — Stopped diagnostics do not repeat secrets
+
+A finish or stop reason is scanned before it is written to the event stream. A secret in that reason is redacted. With no scanner, the reason is not emitted. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib stopped_reason_does_not_repeat_a_secret` passed.
+
+## 2026-09-26 — Private and missing resume errors are identical
+
+Resuming a private discussion and resuming an unknown id now return the same `unknown session_id` error. The session id is not included. Daemon session start and reclassify use that employee text instead of the error's display form, so a store body is not added. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib private_history_resume_stays_unknown_after_restart` passed. `cargo check -p tetonicd --offline` passed.
+
+## 2026-09-26 — Cancel wins before finish is recorded
+
+A model response that asks to finish after the turn is already canceled does not record a completed outcome. The attempt gate also rejects further inference and tool starts once its work scope is canceled, including after an approval wait. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib cancel_before_finish_does_not_record_completion` passed. `cargo check -p tetonic-run --offline` passed.
+
+## 2026-09-26 — Cancel during compaction does not start the next model call
+
+The agent checks cancellation again after a summary call and before the next inference request. A turn that is canceled while older history is being summarized does not send the current user request. The same check applies when the attempt's work scope is already canceled. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib cancel_during_compaction_does_not_start_the_next_model_call` passed.
+
+## 2026-09-26 — A later index pass drops a previously indexed control database
+
+Skipping `lokai.db` and its sidecars no longer leaves older search rows in place. The next workspace index deletes those rows before search can return them. A normal source file in the same tree remains searchable. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib control_database_is_not_indexed` passed.
+
+## 2026-09-26 — Inference placement affinity does not cross sessions
+
+The shared provider keeps a worker preference only for the same session and turn. A different session, including another information context, clears that preference before the next placement. A call with no session and no turn clears it as well. This is not a conversation cache and does not isolate a remote worker's own memory. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-inference --lib sync_turn` passed.
+
+## 2026-09-26 — Employee turn and job errors hide store bodies
+
+A failed chat turn, one-shot task, and `tetonic job run` now show `request failed` for a persistence, tool, or internal failure. The event and the CLI no longer repeat the database or tool body. A missing session stays `unknown session_id`. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib employee_message_hides_store_and_tool_bodies` and `tui_mvp_planning_failure_reports_error_and_releases_session` passed. `cargo check -p tetonic-cli --offline` passed.
+
+## 2026-09-26 — Session model lookups do not echo identifiers
+
+Daemon model catalog, model selection, and inference lookups now return `unknown session_id` for a missing or conflicting session. A persistence failure is `request failed`. Neither response includes the session id or the store body. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonicd session_errors_do_not_echo_the_identifier_or_payload` passed.
+
+## 2026-09-26 — Discussion status rechecks membership
+
+Reading whether a discussion is open now uses one snapshot and checks membership again before the status is returned. After the member is removed, the status is denied. A missing id for a current member is still empty rather than an error. Scoped recall's tool description now matches the search: authorized messages and revalidated tool results, not other contexts. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib closing_requires_current_access_and_preserves_history` passed.
+
+## 2026-09-26 — Hidden daemon failures are not logged
+
+The server log for a hidden persistence, tool, or internal failure no longer includes the error body. The client still receives `request failed`. Recall index failures log the session id without the index error text. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonicd hidden_failures_are_not_written_to_the_log` passed.
+
+## 2026-09-26 — Remaining daemon failures stay generic
+
+Capacity, policy, fabric, initialize, and secret-rule failures now use the same hiding as the other RPC methods. A persistence or internal failure is `request failed`. A failed capacity optimize reports that same text in its job error instead of the provider or database body. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo check -p tetonicd --tests` passed.
+
+## 2026-09-26 — Revocation blocks a context note before it is stored
+
+Adding a project note and consolidating a scoped session now hold the database write lock across the membership check and the write. A member who has been removed cannot store a new note. The rejected text is not inserted. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib private_project_memory_stays_out_of_other_contexts` passed.
+
+## 2026-09-26 — Session end, cancel, and approval errors stay generic
+
+Daemon session end, session cancel, and approval responses now use the same error mapping as the other RPC methods. A persistence or tool failure is returned as `request failed` and the private text stays in the server log. A missing live session stays `unknown session_id`. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo check -p tetonicd --tests` passed. The payload hiding itself is covered by `cargo test -p tetonicd internal_failures_do_not_echo_payloads`.
+
+## 2026-09-26 — Context search does not read control-store sidecars
+
+Workspace context search and direct file reads refuse `lokai.db` and its write-ahead sidecars before opening them. A text-shaped sidecar is not returned as search text, and the refusal does not include the file bytes. A normal source file in the same directory is still searchable. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-context --lib control_store_sidecar_is_not_searched_or_read` passed.
+
+## 2026-09-26 — Guessed expansion handles look unknown
+
+An expansion handle from another session, run, or task returns the same error as a handle that does not exist. An expired handle does too. The error does not include the expanded text. A handle that matches the caller can still be expanded. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-context --lib each_owner_dimension_is_required_before_reading_or_consuming_use` passed.
+
+## 2026-09-26 — Reported token ceiling stops the next model call
+
+A host can set `reported_token_ceiling` on a registered job. After the provider reports prompt and output tokens, the next model call does not start once that total reaches the ceiling. Usage the provider does not report is not counted and is not invented. This is a per-job stop, not a team spend ledger. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib token_ceiling` passed.
+
+## 2026-09-26 — Context bindings are not tool grants
+
+A requested capability is admitted only when the agent advertises that tool. Listing the same name on the identity's context bindings no longer satisfies the check. A job that requests `recall` while the agent does not offer it is rejected before admission. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests context_bindings_do_not_grant_unadvertised_capabilities` passed.
+
+## 2026-09-26 — Legacy turns cannot write private sessions
+
+Planning a legacy turn now requires a legacy-local session before it stores the user message. A private discussion and a missing id return the same unknown-session error, and neither gains a message. The private canary stays the only row. A real legacy session still records its turn. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib legacy_turn_cannot_write_a_private_or_missing_session` passed.
+
+## 2026-09-26 — Canceled attempts do not call the intent classifier
+
+The coding-session intent classifier checks cancellation immediately before it would call the model. A denied or canceled attempt keeps the keyword route and does not send that request. The turn also stops when the managed attempt is already canceled, instead of continuing into the agent loop. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-orchestrator --lib llm_route_task_does_not_call_the_provider_when_execution_is_denied` passed.
+
+## 2026-09-26 — Job retry returns the same event receipts
+
+`tetonic job run` now includes the durable journal locators for the run: sequence, event type, and payload digest. The event payload stays in the run log. Retrying a finished request returns those same receipts and does not start another execution. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib launch_reports_a_terminal_outcome_and_rejects_bad_host_settings` passed.
+
+## 2026-09-26 — Backup restore keeps teams and private history
+
+A verified pre-migration snapshot of the control database restores the team, its membership, and both private and team discussions. The private canary is readable by its owner after restore and still denied to another organization member. The team message remains readable by that member. The original database is unchanged. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib backup_restore_keeps_team_resources_and_private_history` passed.
+
+## 2026-09-26 — Managed cancel stops the process the attempt owns
+
+`cancel_run` now reaches a process started by the attempt's tool. The tool runs `ping` through the same sandbox waiter used for commands, and cancellation stops that process and returns before the command's own timeout. The receipt is canceled. Registered jobs still do not start a shell. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests managed_cancel_stops_the_owned_process` passed.
+
+## 2026-09-26 — Code search does not index the control database
+
+The workspace index skips `lokai.db` and its write-ahead sidecars before reading them, so a text-shaped database file is not searchable as source. A normal source file in the same directory still indexes. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-index --lib control_database_is_not_indexed` passed.
+
+## 2026-09-26 — Directory listings omit the control database
+
+`list_dir` and `glob` skip the protected audit database, and language-server tools refuse that path before they open a session. Search already skipped it. A normal workspace file is still listed and readable. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib read_and_search_refuse_the_control_database` passed.
+
+## 2026-09-26 — Daemon errors no longer echo internal payloads
+
+Persistence, tool, and internal failures returned over the daemon RPC now say `request failed`. The private text stays in the server log. Unknown sessions stay `unknown session_id`. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonicd internal_failures_do_not_echo_payloads` passed.
+
+## 2026-09-26 — Verify commands cannot name a protected store file
+
+Host verify runs through a separate command path from model shell. A verify command that names the audit database or its full path now fails before launch and does not return the file bytes. Other verify commands are unchanged. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_a_protected_store_inside_the_workspace` passed.
+
+## 2026-09-26 — Shell cannot read a protected store inside the workspace
+
+File tools already skip the audit database. A shell in that same workspace could still open it, because the sandbox does not carve one file out of the workspace tree. Shell now refuses before launch when a protected store file is inside the workspace, or when the command names that path. The refusal does not include the file bytes. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib shell_refuses_a_protected_store_inside_the_workspace` passed.
+
+## 2026-09-26 — Context compilation cannot read the control database
+
+The workspace file hook used by context compilation now refuses the audit database and its SQLite sidecars, the same grant as file tools. A normal workspace file is still readable. The error does not include the database bytes. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib compiler_file_hook_refuses_the_control_database` passed.
+
+## 2026-09-26 — Workspace tools cannot read the control database
+
+File reads, writes, and search skip the audit database and its SQLite sidecars when that path is bound to the tool host. A file in the same workspace is still readable. The refusal does not include the database bytes. Registered jobs protect the store path even when recall is not requested. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib read_and_search_refuse_the_control_database` passed.
+
+## 2026-09-26 — A live session handle rechecks membership
+
+`open_live` returns a handle instead of the raw conversation. Taking or restoring that conversation checks membership again. After the member is removed, the handle that was already issued is denied, and the conversation stays in the registry. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib scoped_live_lookup_requires_current_membership` passed.
+
+## 2026-09-26 — Guessed discussion ids do not create history
+
+Employee `context open --session` only reopens an open discussion in that context. A missing id and an id from another context are both denied, and neither inserts a row. `context open` without `--session` creates a discussion and returns a server-chosen id. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib guessed_discussion_id_does_not_create_or_reveal_another_context` passed.
+
+## 2026-09-26 — A finished job retry keeps its terminal outcome
+
+`tetonic job run` for an already finished request does not start another execution. The receipt now repeats the stored terminal state: completed, failed, or canceled. Active, canceling, and recovery stay blank rather than being called running. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib launch_reports_a_terminal_outcome_and_rejects_bad_host_settings` passed.
+
+## 2026-09-26 — Legacy live listing omits scoped sessions
+
+`SessionLiveStore::all` returns only `legacy-local` registrations. A private live session stays out of that list. The full map remains available only to in-process shutdown drain. Context recall now includes authorized tool results, and the control command says so. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib legacy_registry_cannot_read_or_remove_a_scoped_session` passed.
+
+## 2026-09-26 — Cancel stops an owned command and the processes it started
+
+Outside the OS sandbox, cancellation used to stop only the direct child. It now stops that process and the processes it started: a Windows job tree via `taskkill /T`, or the Unix process group created for the command. A ping child is stopped by cancel in under five seconds. The sandboxed Windows job path was already covered. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-sandbox --lib cancel_stops_the_spawned_process` passed.
+
+## 2026-09-26 — Restart does not resume private history as a legacy session
+
+After the process reopens the database, resuming a private discussion id through the legacy session door returns the same unknown-session error as a missing id. The error does not contain the private text, and no live session is created. The legacy transcript API still cannot read that discussion. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib private_history_resume_stays_unknown_after_restart` passed.
+
+## 2026-09-26 — Managed cancel reaches the attempt's tool
+
+A managed identity attempt that is inside a blocking tool observes `cancel_run` on that tool's cancellation signal, and the receipt is canceled. This is the same signal the sandbox uses to stop a process. The new test does not spawn an operating-system child. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests managed_cancel_reaches_a_blocking_tool` passed.
+
+## 2026-09-26 — History reads recheck membership before return
+
+Scoped recall, scoped transcripts, and context project memory check membership again after the read commits and before the content is returned. A project note write does the same immediately before insert. This does not add a concurrent revocation test. Existing revocation tests still deny the next call. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- recall_filters_before_limit_revalidates_sources_and_checks_revocation private_project_memory_stays_out_of_other_contexts private_and_team_content_require_participation_not_administration` passed.
+
+## 2026-09-26 — Scoped recall includes revalidated tool results
+
+Authorized recall now returns tool results from the requested context, not only messages. A hit is kept only when the current tool call is still successful and its stored body matches the index. A private tool canary is visible to the private context and absent from team recall. A denied tool call and a deleted tool call are not returned. Revocation still denies the next query. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib recall_filters_before_limit_revalidates_sources_and_checks_revocation` passed.
+
+## 2026-09-26 — Private approvals do not become global rules
+
+`get_approval` and approval/egress counts now return the same empty result for a private session as for an unknown id. Remembering an approval installs a global allow rule only for a legacy session. A private shell approval can still be stored, but it does not match later sessions. Legacy approval restore still works. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib legacy_readers_cannot_consume_private_history_or_derived_summaries` passed. `cargo test -p tetonic-app --lib granted_approval_is_restored_on_reopen` passed.
+
+## 2026-09-26 — Workspace undo cannot read private file bodies
+
+Legacy file-change reads, workspace undo range, and the workspace mark now include only `legacy-local` sessions. A private change id returns no body, the same as a missing id. A legacy change in the same workspace is still visible. Classification writes and project links on the legacy API require a legacy session. Scoped audit rows can still be written by the owning history path. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- legacy_readers_cannot_consume_private_history checkpoint_undo_redo_timeline session_data_class_persisted` passed.
+
+## 2026-09-26 — Legacy session lookups hide scoped sessions
+
+`session_workspace`, `session_workspace_root`, `session_status`, and `message_count` now return the same empty result for a private session as for an unknown id. Legacy resume therefore cannot tell those cases apart or read the private workspace. Turn-operation writes require a legacy session. Scoped recall indexing still uses an internal locator, and an authorized principal reads discussion status through `context_discussion_status`, where a missing id and a foreign id are both absent. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- legacy_readers_cannot_consume_private_history closing_requires_current_access publication_copies` passed. `cargo test -p tetonic-memory --lib recall_filters_before_limit_revalidates_sources_and_checks_revocation` passed.
+
+## 2026-09-26 — Managed submission runs a world attempt
+
+`submit_identity_job_with_context` now drives an agent that carries a world adapter through the existing admission, claim, execution, and finalization owner. One test records a completed world effect in the run receipt. A second test admits with an authority that passes admission and the pre-execution check, then denies the effect: the adapter is not called, and `cancel_run` ends the idle wait with a canceled receipt. The standalone server still starts its own world executor. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-run --test managed_service_tests -- managed_world_attempt_reaches_the_adapter_and_records_completion managed_world_denial_never_reaches_the_adapter_and_cancel_stops_the_wait` passed.
+
+## 2026-09-26 — Managed attempts can run the world executor
+
+`Agent::with_world_adapter` marks an attempt as world work. `ManagedRunService::execute_attempt` then uses `LocalWorldAttemptExecutor` and the same cancellation select as a coding turn. Coding attempts with no world adapter still use `LocalAgentAttemptExecutor`. The standalone server still starts its own world executor instead of admitting a managed run. No managed integration test drives a world adapter through admission yet. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib agent_is_send_and_sync_without_unsafe_overrides` passed. `cargo check -p tetonic-run --offline` passed.
+
+## 2026-09-26 — World attempts use the same executor trait
+
+`LocalWorldAttemptExecutor` now implements `AgentAttemptExecutor`, the same trait as a coding turn. It stamps one attempt id and refuses a second id before the world adapter is opened. The standalone server starts the world through that executor. Cancellation still ends the perception wait with a canceled outcome. The managed run service does not admit or launch world jobs yet, and this does not retire the server loop. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-runtime --lib world_executor_rejects_a_second_attempt_before_opening_the_world` passed. `cargo check -p tetonic-server --offline` passed.
+
+## 2026-09-26 — Reject unsupported registered shells before inference
+
+Registered submission now refuses `run_shell` before it writes an execution-audit history or contacts inference. Recall, finish, and workspace-jailed file tools remain supported. A host allow list that includes the shell does not start a process. This is not a complete process, credential, and egress matrix, and it does not add a sandboxed shell profile. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib -- shell_is_outside_the_registered_isolation_matrix registered_shell_is_rejected_before_inference` passed.
+
+## 2026-09-26 — Reject preparation when an admission ceiling is full
+
+Registered job preparation now checks the organization, principal, and team held-run ceilings before it writes an execution-audit history or assembles the agent. A full team ceiling returns `TeamCapacityExceeded` and does not create that history. A private run is not charged against the team ceiling. The run-command transaction still decides races where two preparations both observe free capacity. This is not a waiting queue, cumulative token budget, or fair scheduler. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib team_ceiling_blocks_a_second_held_run_without_canceling_the_first` passed. `cargo check -p tetonic-app --offline` passed.
+
+## 2026-09-26 — Authorized run event poll
+
+`ContextService::poll_run` reads the next durable lifecycle events only after the same membership check as inspection and replay. An empty batch on a terminal run is caught up. A retention gap is returned as a gap, not invented events. `tetonic control replay-run --follow` repeats that poll until the run is caught up, a gap is reported, or access is denied. Revoking the credential makes the next poll deny without returning event payloads. This is not an unrestricted live fanout and does not stream model tokens. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib poll_run_stops_when_the_credential_is_revoked` passed. `cargo check -p tetonic-cli --offline` passed.
+
+## 2026-09-26 — Membership-checked live session lookup
+
+`ContextService::open_live` verifies the credential and current context membership before returning a process-local live conversation, then checks membership again before the handle is released. A legacy lookup still cannot see a scoped registration. An administrator, a wrong context, and a removed member are all denied, with the same denial as a missing session. Holding the returned handle is not a grant that survives a later membership change. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib scoped_live_lookup_requires_current_membership` passed.
+
+## 2026-09-26 — Server shutdown cancels the world attempt
+
+The standalone world server now binds the agent to an attempt scope and a cancellation gate. Ctrl-C cancels that scope and waits for `run_in_world` to return, instead of dropping the loop. The gate denies the next effect after cancellation. The world loop is still not the managed run service. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib cancellation_denies_the_next_effect` passed. `cargo check -p tetonic-server --offline` passed.
+
+## 2026-09-26 — Denied world authority does not reach the adapter
+
+`Agent::run_in_world` checks the bound execution gate after manifest and E-stop validation and before `adapter.execute`. A denial drops the action and aborts staged mutations. The world adapter is not called. Hosts that do not bind a gate, including the current standalone server loop, keep the previous manifest and E-stop checks. This does not move that server loop onto the managed runtime. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib test_run_in_world` passed, including `test_run_in_world_denied_authority_does_not_reach_adapter`.
+
+## 2026-09-26 — Cancel an idle world wait before dispatch
+
+`Agent::run_in_world` now leaves the perception wait when the attempt scope is canceled, instead of blocking until the next world tick. Cancellation is checked again immediately before `adapter.execute`, so a canceled idle wait does not deliver an action. Manifest rejection and E-stop still skip the adapter. This does not move the world loop out of server main, authorize world effects through the managed capability gateway, or retire `run_in_world`. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-core --lib test_run_in_world` passed, including `test_run_in_world_idle_cancel_does_not_dispatch`.
+
+## 2026-09-26 — Noncoding job without a repository
+
+A registered general job whose tools are only `recall` and `finish` now runs through the same managed executor with `workspace_root: None`. File, search, and shell tools are refused before any repository path is opened. Asking the host to allow `read_file` without a workspace returns `WorkspaceUnavailable` and does not start inference. The recall job's inference request and scoped transcript contain a note that was stored only in private history. Operator host settings may omit `workspace`. This does not move the Village loop, extract coding prompts, or prove process isolation. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-tools --lib without_repository_serves_recall_and_refuses_files` and `cargo test -p tetonic-app --lib noncoding_recall_job_runs_without_a_repository` passed.
+
+## 2026-09-26 — Local registered job launch
+
+`tetonic job run` launches a registered job through `launch_registered_job` and the existing managed executor. Operator host settings are a JSON file. The employee request cannot set the workspace, model, tool ceiling, or deadline. The process waits on the same local task as admission. The receipt contains locators and, for the winning launch, a terminal outcome: completed, canceled, limited, or failed. It never reports Running. Invalid host settings fail before admission and produce no receipt. A retry of the same request returns locators only. This is a local command, not a remote setup UI, queue, or isolation matrix. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib launch_reports_a_terminal_outcome_and_rejects_bad_host_settings` passed.
+
+## 2026-09-26 — Team admission ceiling
+
+Schema 45 adds `team_execution_limits` and `run_projections.execution_team_id`. Creating a team records a default ceiling of four concurrent admitted runs. Admission counts held runs for that team inside the existing run-command transaction and returns `TeamCapacityExceeded` when the ceiling is full. Private-context runs are not charged to a team. Lowering the ceiling does not cancel work already admitted. `tetonic control team-execution-limits` reads and compare-and-sets the ceiling. This is concurrency, not cumulative token or money spend, a queue, or a process-isolation guarantee. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- team_ceiling_blocks_a_second_held_run_without_canceling_the_first v40_upgrade_preserves fresh_open_is_schema_target` passed. `cargo check -p tetonic-cli -p tetonicd -p tetonic-run -p tetonic-app --offline` passed.
+
+## 2026-09-26 — Bind live sessions to an information context
+
+`SessionLiveStore` now records the information context on each registration. Legacy `get`, `contains`, and `remove` only see `legacy-local`. A scoped registration is returned or removed only when the caller names that same context; a wrong context looks the same as a missing ID. Registering the same session ID again conflicts. Process drain still sees every registration because it is not an employee lookup. This does not check membership credentials inside the registry, subscribe to events, or activate a scoped live agent. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib legacy_registry_cannot_read_or_remove_a_scoped_session` passed.
+
+## 2026-09-26 — Team execution privacy canary
+
+A registered team job, using the production runtime and a capturing inference server, recalled with the granted team context. A unique secret stored only in private history was absent from the team inference requests, the team audit transcript, and legacy product events. The same secret was still absent from the private discussion after publication. After an authorized publication into the team discussion, a second team job's recall tool result contained the copy. The private transcript remained one message. This does not authorize live-session lookup, event subscriptions, employee launch transport, org/team budgets, or a noncoding external-tool workload. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-app --lib team_execution_cannot_retrieve_unpublished_private_history` passed.
+
+## 2026-09-26 — Explicit context publication
+
+Schema 44 adds `context_publications`. `publish_context_message` copies one stored user or assistant message into an open destination discussion. The caller cannot supply replacement text. The receipt records publisher, source coordinates, source digest, destination, and time, and does not include the body. The same request returns the original receipt; a reused request that names different source coordinates conflicts. Source and destination membership are both required in the write transaction. A team member who cannot read the private context cannot publish it, and team recall stays empty until publication. After publication, team recall and the destination transcript see the copy, while the private transcript stays one message and is still unreadable to the team. Removing team membership blocks later recall of the copy. This does not authorize live-session lookup, event subscriptions, or a capturing inference provider. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- publication_copies_into_destination fresh_open_is_schema_target sql_errors_roll_back_every_migration_marker upgrading_preserves_history` passed.
+
+## 2026-09-26 — Scope project notes and digests
+
+Schema 43 adds `project_memory.context_id`. Existing rows become explicit `legacy-local` knowledge; the migration does not infer an owner. Legacy load, notes, status, and consolidation read and write only that context. `load_context_project_memory`, `add_context_project_note`, and `consolidate_context_session` require current content access and keep the result in the named context. A guessed or cross-context session is denied before its text is read. ContextService exposes the same three operations after credential verification. Repository `project.md` remains an untrusted file grant, separate from private or team memory. This does not publish across contexts, authorize live-session lookup, or prove the end-to-end inference canary. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib -- project_memory fresh_open_is_schema_target legacy_readers_cannot_consume upgrading_preserves_history sql_errors_roll_back_every_migration_marker project_digest consolidate_skipped project_md_marked` passed.
+
+## 2026-09-26 — Fence legacy briefing workspace scans
+
+`list_recent_sessions_for_workspace` and `recent_touched_paths` previously returned every session and edited path on a workspace, including private and team contexts. Both now require `context_id='legacy-local'`, the same fence already used by recall and recent finish summaries. A private canary path and private session no longer appear in those legacy briefing inputs. This does not scope project digests to an information context, authorize live-session lookup, or prove the end-to-end private-versus-team inference canary. Sprint 1 and Sprint 2 exit criteria remain unmet.
+
+Validation: `cargo test -p tetonic-memory --lib legacy_readers_cannot_consume_private_history_or_derived_summaries` passed.
+
+
+
 ## 2026-09-25 — First persistence and boundary corrections
 
 MVP-001 and MVP-002 are in progress. MVP-101 has a storage prerequisite implemented; neither the resource service nor organization authorization is complete. No existing fleet caller has been cut over, and no retirement gate is closed.

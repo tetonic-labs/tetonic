@@ -103,7 +103,8 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         };
         let settings = || RegisteredExecutionSettings {
             max_elapsed_seconds: if scenario == "deadline" { 5 } else { 30 },
-            workspace_root: workspace.clone(),
+            reported_token_ceiling: None,
+            workspace_root: Some(workspace.clone()),
             model: "qwen3.5:latest".into(),
             num_ctx: 8192,
             data_class: tetonic_domain::DataClass::RepositorySource,
@@ -423,4 +424,554 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             "revoked grants must not disclose a retry receipt"
         );
     }
+}
+
+#[tokio::test]
+async fn team_execution_cannot_retrieve_unpublished_private_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let workspace = dir.path().join("workspace");
+    std::fs::create_dir(&workspace).unwrap();
+    let database = dir.path().join("control.db");
+    let local = LocalControl::open(database.clone(), "test".into())
+        .await
+        .unwrap();
+    local
+        .bootstrap("admin".into(), "org".into(), "Org".into())
+        .await
+        .unwrap();
+    let credential = local
+        .credentials()
+        .issue("admin".into(), 3600)
+        .await
+        .unwrap();
+    let secret = credential.expose_secret();
+    let resources = local.resources();
+    resources
+        .create_team(secret, "org".into(), "team".into(), "Team".into())
+        .await
+        .unwrap();
+    let contexts = local.contexts();
+    contexts
+        .create(
+            secret,
+            "private".into(),
+            ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .await
+        .unwrap();
+    contexts
+        .create(
+            secret,
+            "shared".into(),
+            ContextOwner::Team {
+                org_id: "org".into(),
+                team_id: "team".into(),
+            },
+        )
+        .await
+        .unwrap();
+    contexts
+        .provision_discussion(secret, "private".into(), "private-notes".into())
+        .await
+        .unwrap();
+    contexts
+        .provision_discussion(secret, "shared".into(), "shared-notes".into())
+        .await
+        .unwrap();
+    let seq = contexts
+        .append_message(
+            secret,
+            "private".into(),
+            "private-notes".into(),
+            "secret".into(),
+            "searchword PRIVATECANARY".into(),
+        )
+        .await
+        .unwrap();
+    let registered = resources.register_agent(secret,"org".into(),"agent".into(),"general".into(),
+        serde_json::json!({"instructions":"Look up prior notes","requested_tools":["recall"],"max_steps":4})).await.unwrap();
+    let limits = || HarnessPreparationLimits {
+        max_steps: 4,
+        max_input_bytes: 1024,
+    };
+    let prepared = resources
+        .prepare_general_revision(
+            secret,
+            "org".into(),
+            "agent".into(),
+            registered.identity.bound_definition_digest.clone(),
+            "Look up prior notes".into(),
+            limits(),
+        )
+        .await
+        .unwrap();
+    for (grant_id, recovery_id) in [("grant-1", "job-1"), ("grant-2", "job-2")] {
+        let command = prepared.start_command(recovery_id.into()).unwrap();
+        resources
+            .issue_execution_grant(
+                secret,
+                tetonic_memory::ExecutionGrant {
+                    grant_id: grant_id.into(),
+                    scope: ExecutionScope {
+                        principal_id: "admin".into(),
+                        organization_id: "org".into(),
+                        information_context_id: "shared".into(),
+                    },
+                    job: command.job_spec,
+                    expires_at: chrono::Utc::now().timestamp() + 3600,
+                },
+            )
+            .await
+            .unwrap();
+    }
+    let store = tetonic_memory::SharedStore::open(database, 1).unwrap();
+    let (sink, events) = RecordingEventSink::new();
+    let app = Application::bootstrap_mock_with_store(dir.path(), Some(store), sink, vec![]);
+    let (url, requests, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+        true,
+        "recall",
+        serde_json::json!({"query":"searchword"}),
+        false,
+    )
+    .await;
+    let guard = Arc::new(tetonic_egress::EgressGuard::new());
+    guard.configure_loopback_inference(url.rsplit(':').next().unwrap().parse().unwrap());
+    let plane = crate::build_compute_plane(ComputePlaneRequest {
+        guard,
+        ollama_base: url,
+        policy: app.turn.runtime.policy().clone(),
+        workspace_root: workspace.clone(),
+        artifact_store: app.turn.runtime.artifact_store().clone(),
+        store: app.run_manager.managed().store().cloned(),
+        coordinator: None,
+        placement_sink: None,
+        previous_pooled: None,
+    })
+    .await;
+    app.install_compute_services(&plane);
+    let submit = |request_id: &str, grant_id: &str, recovery_id: &str| {
+        let request = RegisteredAgentJob {
+            request_id: request_id.into(),
+            organization_id: "org".into(),
+            information_context_id: "shared".into(),
+            agent_key: "agent".into(),
+            definition_digest: registered.identity.bound_definition_digest.clone(),
+            execution_grant_id: grant_id.into(),
+            input: "Look up prior notes".into(),
+            recovery_id: recovery_id.into(),
+        };
+        app.submit_registered_job(
+            credential.expose_secret(),
+            local.credentials().clone(),
+            request,
+            RegisteredExecutionSettings {
+                max_elapsed_seconds: 30,
+                reported_token_ceiling: None,
+                workspace_root: Some(workspace.clone()),
+                model: "qwen3.5:latest".into(),
+                num_ctx: 8192,
+                data_class: tetonic_domain::DataClass::RepositorySource,
+                allowed_tools: ["recall".into()].into_iter().collect(),
+                limits: limits(),
+            },
+        )
+    };
+    let first = tokio::task::LocalSet::new()
+        .run_until(async {
+            let submission = submit("request-1", "grant-1", "job-1").await.unwrap();
+            let execution = submission.execution.expect("first launch owns execution");
+            let result =
+                tokio::time::timeout(std::time::Duration::from_secs(20), execution.completion)
+                    .await
+                    .unwrap()
+                    .unwrap();
+            (submission.run_id, submission.audit_session_id, result)
+        })
+        .await;
+    let captured = requests.lock().unwrap();
+    let before = serde_json::to_string(&captured[..]).unwrap();
+    assert!(
+        !before.contains("PRIVATECANARY"),
+        "unpublished private history entered team inference: {before}"
+    );
+    drop(captured);
+    assert!(!events
+        .lock()
+        .unwrap()
+        .iter()
+        .any(|event| format!("{event:?}").contains("PRIVATECANARY")));
+    let transcript = contexts
+        .transcript(secret, "shared".into(), first.1.clone(), 200)
+        .await
+        .unwrap();
+    assert!(transcript
+        .iter()
+        .all(|(_, _, text)| !text.contains("PRIVATECANARY")));
+    assert!(contexts
+        .inspect_run(secret, "org".into(), "private".into(), first.0 .0.clone())
+        .await
+        .is_err());
+    contexts
+        .publish_message(
+            secret,
+            "private".into(),
+            "private-notes".into(),
+            seq,
+            "shared".into(),
+            "shared-notes".into(),
+            "share-1".into(),
+        )
+        .await
+        .unwrap();
+    server.abort();
+    let (url, requests, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+        true,
+        "recall",
+        serde_json::json!({"query":"searchword"}),
+        false,
+    )
+    .await;
+    let guard = Arc::new(tetonic_egress::EgressGuard::new());
+    guard.configure_loopback_inference(url.rsplit(':').next().unwrap().parse().unwrap());
+    let plane = crate::build_compute_plane(ComputePlaneRequest {
+        guard,
+        ollama_base: url,
+        policy: app.turn.runtime.policy().clone(),
+        workspace_root: workspace.clone(),
+        artifact_store: app.turn.runtime.artifact_store().clone(),
+        store: app.run_manager.managed().store().cloned(),
+        coordinator: None,
+        placement_sink: None,
+        previous_pooled: None,
+    })
+    .await;
+    app.install_compute_services(&plane);
+    let second = tokio::task::LocalSet::new()
+        .run_until(async {
+            let submission = submit("request-2", "grant-2", "job-2").await.unwrap();
+            let execution = submission
+                .execution
+                .expect("published launch owns execution");
+            tokio::time::timeout(std::time::Duration::from_secs(20), execution.completion)
+                .await
+                .unwrap()
+                .unwrap();
+            submission.audit_session_id
+        })
+        .await;
+    server.abort();
+    let captured = requests.lock().unwrap();
+    let after = serde_json::to_string(&captured[..]).unwrap();
+    assert!(
+        after.contains("PRIVATECANARY"),
+        "authorized publication did not become visible to team recall: {after}"
+    );
+    let published = contexts
+        .transcript(secret, "shared".into(), second, 200)
+        .await
+        .unwrap();
+    assert!(published
+        .iter()
+        .any(|(_, _, text)| text.contains("PRIVATECANARY")));
+    assert_eq!(
+        contexts
+            .transcript(secret, "private".into(), "private-notes".into(), 20)
+            .await
+            .unwrap()
+            .len(),
+        1
+    );
+}
+
+#[tokio::test]
+async fn noncoding_recall_job_runs_without_a_repository() {
+    let dir = tempfile::tempdir().unwrap();
+    let database = dir.path().join("control.db");
+    let local = LocalControl::open(database.clone(), "test".into())
+        .await
+        .unwrap();
+    local
+        .bootstrap("admin".into(), "org".into(), "Org".into())
+        .await
+        .unwrap();
+    let credential = local
+        .credentials()
+        .issue("admin".into(), 3600)
+        .await
+        .unwrap();
+    let secret = credential.expose_secret();
+    let resources = local.resources();
+    let registered = resources.register_agent(secret,"org".into(),"agent".into(),"general".into(),
+        serde_json::json!({"instructions":"Use recall","requested_tools":["recall"],"max_steps":3})).await.unwrap();
+    let limits = || HarnessPreparationLimits {
+        max_steps: 3,
+        max_input_bytes: 1024,
+    };
+    let prepared = resources
+        .prepare_general_revision(
+            secret,
+            "org".into(),
+            "agent".into(),
+            registered.identity.bound_definition_digest.clone(),
+            "Look up the note".into(),
+            limits(),
+        )
+        .await
+        .unwrap();
+    local
+        .contexts()
+        .create(
+            secret,
+            "private".into(),
+            ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .await
+        .unwrap();
+    local
+        .contexts()
+        .provision_discussion(secret, "private".into(), "notes".into())
+        .await
+        .unwrap();
+    local
+        .contexts()
+        .append_message(
+            secret,
+            "private".into(),
+            "notes".into(),
+            "note".into(),
+            "EXTERNALCANARY from outside any repository".into(),
+        )
+        .await
+        .unwrap();
+    let command = prepared.start_command("job".into()).unwrap();
+    resources
+        .issue_execution_grant(
+            secret,
+            tetonic_memory::ExecutionGrant {
+                grant_id: "grant".into(),
+                scope: ExecutionScope {
+                    principal_id: "admin".into(),
+                    organization_id: "org".into(),
+                    information_context_id: "private".into(),
+                },
+                job: command.job_spec,
+                expires_at: chrono::Utc::now().timestamp() + 3600,
+            },
+        )
+        .await
+        .unwrap();
+    let store = tetonic_memory::SharedStore::open(database, 1).unwrap();
+    let (sink, _) = RecordingEventSink::new();
+    let app = Application::bootstrap_mock_with_store(dir.path(), Some(store.clone()), sink, vec![]);
+    let request = || RegisteredAgentJob {
+        request_id: "request-1".into(),
+        organization_id: "org".into(),
+        information_context_id: "private".into(),
+        agent_key: "agent".into(),
+        definition_digest: registered.identity.bound_definition_digest.clone(),
+        execution_grant_id: "grant".into(),
+        input: "Look up the note".into(),
+        recovery_id: "job".into(),
+    };
+    let settings = |tools: &[&str]| RegisteredExecutionSettings {
+        max_elapsed_seconds: 30,
+        reported_token_ceiling: None,
+        workspace_root: None,
+        model: "qwen3.5:latest".into(),
+        num_ctx: 8192,
+        data_class: tetonic_domain::DataClass::RepositorySource,
+        allowed_tools: tools.iter().map(|tool| (*tool).to_string()).collect(),
+        limits: limits(),
+    };
+    assert!(matches!(
+        app.submit_registered_job(
+            secret,
+            local.credentials().clone(),
+            request(),
+            settings(&["recall", "read_file"])
+        )
+        .await,
+        Err(AppError::WorkspaceUnavailable)
+    ));
+    let (url, requests, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+        true,
+        "recall",
+        serde_json::json!({"query":"EXTERNALCANARY"}),
+        false,
+    )
+    .await;
+    let guard = Arc::new(tetonic_egress::EgressGuard::new());
+    guard.configure_loopback_inference(url.rsplit(':').next().unwrap().parse().unwrap());
+    let plane = crate::build_compute_plane(ComputePlaneRequest {
+        guard,
+        ollama_base: url,
+        policy: app.turn.runtime.policy().clone(),
+        workspace_root: dir.path().to_path_buf(),
+        artifact_store: app.turn.runtime.artifact_store().clone(),
+        store: Some(store),
+        coordinator: None,
+        placement_sink: None,
+        previous_pooled: None,
+    })
+    .await;
+    app.install_compute_services(&plane);
+    let receipt = tokio::task::LocalSet::new()
+        .run_until(async {
+            let submission = app
+                .submit_registered_job(
+                    secret,
+                    local.credentials().clone(),
+                    request(),
+                    settings(&["recall"]),
+                )
+                .await
+                .unwrap();
+            let execution = submission.execution.expect("launch owns execution");
+            let result = tokio::time::timeout(
+                std::time::Duration::from_secs(20),
+                execution.completion,
+            )
+            .await
+            .unwrap()
+            .unwrap();
+            (submission.audit_session_id, result.outcome)
+        })
+        .await;
+    server.abort();
+    assert!(matches!(receipt.1, CandidateOutcome::Completed { .. }));
+    let body = serde_json::to_string(&requests.lock().unwrap().clone()).unwrap();
+    assert!(body.contains("EXTERNALCANARY"));
+    let transcript = local
+        .contexts()
+        .transcript(secret, "private".into(), receipt.0, 50)
+        .await
+        .unwrap();
+    assert!(transcript
+        .iter()
+        .any(|(_, _, text)| text.contains("EXTERNALCANARY")));
+}
+
+#[tokio::test]
+async fn registered_shell_is_rejected_before_inference() {
+    let dir = tempfile::tempdir().unwrap();
+    let database = dir.path().join("control.db");
+    let local = LocalControl::open(database.clone(), "test".into())
+        .await
+        .unwrap();
+    local
+        .bootstrap("admin".into(), "org".into(), "Org".into())
+        .await
+        .unwrap();
+    let credential = local
+        .credentials()
+        .issue("admin".into(), 3600)
+        .await
+        .unwrap();
+    let secret = credential.expose_secret();
+    let resources = local.resources();
+    let registered = resources
+        .register_agent(
+            secret,
+            "org".into(),
+            "agent".into(),
+            "general".into(),
+            serde_json::json!({"instructions":"Run a command","requested_tools":["run_shell"],"max_steps":2}),
+        )
+        .await
+        .unwrap();
+    let limits = HarnessPreparationLimits {
+        max_steps: 2,
+        max_input_bytes: 1024,
+    };
+    let prepared = resources
+        .prepare_general_revision(
+            secret,
+            "org".into(),
+            "agent".into(),
+            registered.identity.bound_definition_digest.clone(),
+            "Say hello".into(),
+            limits,
+        )
+        .await
+        .unwrap();
+    local
+        .contexts()
+        .create(
+            secret,
+            "private".into(),
+            ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .await
+        .unwrap();
+    let command = prepared.start_command("job".into()).unwrap();
+    resources
+        .issue_execution_grant(
+            secret,
+            tetonic_memory::ExecutionGrant {
+                grant_id: "grant".into(),
+                scope: ExecutionScope {
+                    principal_id: "admin".into(),
+                    organization_id: "org".into(),
+                    information_context_id: "private".into(),
+                },
+                job: command.job_spec,
+                expires_at: chrono::Utc::now().timestamp() + 3600,
+            },
+        )
+        .await
+        .unwrap();
+    let store = tetonic_memory::SharedStore::open(database.clone(), 1).unwrap();
+    let (sink, _) = RecordingEventSink::new();
+    let app = Application::bootstrap_mock_with_store(dir.path(), Some(store.clone()), sink, vec![]);
+    let submitted = app
+        .submit_registered_job(
+            secret,
+            local.credentials().clone(),
+            RegisteredAgentJob {
+                request_id: "request-1".into(),
+                organization_id: "org".into(),
+                information_context_id: "private".into(),
+                agent_key: "agent".into(),
+                definition_digest: registered.identity.bound_definition_digest,
+                execution_grant_id: "grant".into(),
+                input: "Say hello".into(),
+                recovery_id: "job".into(),
+            },
+            RegisteredExecutionSettings {
+                max_elapsed_seconds: 30,
+                reported_token_ceiling: None,
+                workspace_root: None,
+                model: "qwen3.5:latest".into(),
+                num_ctx: 8192,
+                data_class: tetonic_domain::DataClass::RepositorySource,
+                allowed_tools: ["run_shell".into()].into_iter().collect(),
+                limits: HarnessPreparationLimits {
+                    max_steps: 2,
+                    max_input_bytes: 1024,
+                },
+            },
+        )
+        .await;
+    let Err(error) = submitted else {
+        panic!("shell profile was admitted");
+    };
+    match error {
+        AppError::PolicyDenied(message) => assert!(message.contains("run_shell"), "{message}"),
+        other => panic!("expected isolation denial, got {other}"),
+    }
+    let count: i64 = rusqlite::Connection::open(&database)
+        .unwrap()
+        .query_row(
+            "SELECT COUNT(*) FROM sessions WHERE mode='execution-audit'",
+            [],
+            |row| row.get(0),
+        )
+        .unwrap();
+    assert_eq!(count, 0, "unsupported shell must not create an execution audit");
 }

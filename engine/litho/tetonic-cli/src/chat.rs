@@ -46,7 +46,7 @@ pub async fn run_tui_chat(
             match submit_res {
                 Ok(Err(e)) => {
                     if tx_errors
-                        .send(crate::terminal_task::bounded_error(e.to_string()))
+                        .send(crate::terminal_task::bounded_error(e.employee_message()))
                         .await
                         .is_err()
                     {
@@ -109,7 +109,7 @@ pub async fn run_one_shot(
             verify_cmd: None,
             llm_router: Some(ctx.llm_router),
         })
-        .map_err(|e| anyhow::anyhow!("{e}"))?;
+        .map_err(|e| anyhow::anyhow!(e.employee_message()))?;
     let finish = finish.await.unwrap_or(tetonic_app::TurnFinish {
         ok: false,
         canceled: false,
@@ -125,6 +125,10 @@ pub async fn run_one_shot(
     Ok(())
 }
 
+fn inspector_error(error: &tetonic_app::errors::AppError) -> String {
+    error.employee_message()
+}
+
 fn inspector_text(tx: &crate::event_queue::Sender, text: impl Into<String>) {
     let _ = tx.send(tetonic_app::events::ApplicationEvent::InspectorUpdate { text: text.into() });
 }
@@ -133,7 +137,7 @@ async fn inspector_doctor(ctx: &CliTurnContext, tx: &crate::event_queue::Sender)
     let selected = match ctx.app.session_inference(&ctx.session_id) {
         Ok(selected) => selected,
         Err(e) => {
-            inspector_text(tx, e.to_string());
+            inspector_text(tx, inspector_error(&e));
             return;
         }
     };
@@ -143,7 +147,7 @@ async fn inspector_doctor(ctx: &CliTurnContext, tx: &crate::event_queue::Sender)
         .await
     {
         Ok((text, _)) => inspector_text(tx, text),
-        Err(e) => inspector_text(tx, format!("capacity doctor failed: {e}\n")),
+        Err(e) => inspector_text(tx, format!("capacity doctor failed: {}\n", inspector_error(&e))),
     }
 }
 
@@ -151,7 +155,7 @@ async fn inspector_capacity_status(ctx: &CliTurnContext, tx: &crate::event_queue
     let selected = match ctx.app.session_inference(&ctx.session_id) {
         Ok(selected) => selected,
         Err(e) => {
-            inspector_text(tx, e.to_string());
+            inspector_text(tx, inspector_error(&e));
             return;
         }
     };
@@ -161,7 +165,7 @@ async fn inspector_capacity_status(ctx: &CliTurnContext, tx: &crate::event_queue
         .await
     {
         Ok(text) => inspector_text(tx, text),
-        Err(e) => inspector_text(tx, format!("capacity status failed: {e}\n")),
+        Err(e) => inspector_text(tx, format!("capacity status failed: {}\n", inspector_error(&e))),
     }
 }
 
@@ -169,7 +173,7 @@ async fn inspector_ps(ctx: &CliTurnContext, tx: &crate::event_queue::Sender) {
     inspector_text(tx, "> Fetching Ollama loaded models...\n\n");
     match ctx.app.ollama_ps().await {
         Ok(v) => inspector_text(tx, v),
-        Err(e) => inspector_text(tx, format!("Failed to query Ollama: {e}\n")),
+        Err(e) => inspector_text(tx, format!("Failed to query Ollama: {}\n", inspector_error(&e))),
     }
 }
 
@@ -177,7 +181,7 @@ async fn inspector_evict(ctx: &CliTurnContext, tx: &crate::event_queue::Sender) 
     inspector_text(tx, "> Evicting Ollama models from VRAM...\n\n");
     match ctx.app.ollama_evict().await {
         Ok(report) => inspector_text(tx, report),
-        Err(e) => inspector_text(tx, format!("Failed to evict: {e}\n")),
+        Err(e) => inspector_text(tx, format!("Failed to evict: {}\n", inspector_error(&e))),
     }
 }
 
@@ -192,12 +196,15 @@ fn inspector_egress(ctx: &CliTurnContext, tx: &crate::event_queue::Sender, rest:
                 Ok(()) => {
                     inspector_text(tx, format!("Egress allow `{label}` persisted.\n"));
                     if let Err(e) = ctx.app.reload_enrollment_egress() {
-                        inspector_text(tx, format!("[warning] egress reload failed: {e}\n"));
+                        inspector_text(
+                            tx,
+                            format!("[warning] egress reload failed: {}\n", inspector_error(&e)),
+                        );
                     } else {
                         inspector_text(tx, "[info] Egress rules reloaded for the active run.\n");
                     }
                 }
-                Err(e) => inspector_text(tx, format!("{e}\n")),
+                Err(e) => inspector_text(tx, format!("{}\n", inspector_error(&e))),
             }
         }
         ["remove", label] => match ctx.app.remove_egress_allow_rule(label) {
@@ -206,7 +213,7 @@ fn inspector_egress(ctx: &CliTurnContext, tx: &crate::event_queue::Sender, rest:
                 let _ = ctx.app.reload_enrollment_egress();
             }
             Ok(false) => inspector_text(tx, format!("egress allow rule not found: {label}\n")),
-            Err(e) => inspector_text(tx, format!("{e}\n")),
+            Err(e) => inspector_text(tx, format!("{}\n", inspector_error(&e))),
         },
         _ => inspector_text(
             tx,
@@ -279,7 +286,7 @@ async fn handle_slash_command(
                 })?;
                 Ok(format!("Inference updated for the next turn.\nprofile  {}\nfast     {}\nhard     {}\n", changed.profile, changed.model_fast, changed.model_hard))
             })();
-            inspector_text(tx_events, result.unwrap_or_else(|e| e.to_string()));
+            inspector_text(tx_events, result.unwrap_or_else(|e| inspector_error(&e)));
         }
         "status" => {
             if is_help {
@@ -342,7 +349,10 @@ async fn handle_slash_command(
                     return;
                 }
             };
-            inspector_text(tx_events, result.unwrap_or_else(|e| format!("Recovery failed: {e}\n")));
+            inspector_text(
+                tx_events,
+                result.unwrap_or_else(|e| format!("Recovery failed: {}\n", inspector_error(&e))),
+            );
         }
         "optimize" => inspector_text(
             tx_events,

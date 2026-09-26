@@ -104,6 +104,28 @@ impl crate::Tools {
         if !self.allow_shell {
             return Err(ToolError::ShellNotApproved);
         }
+        if self.reserved_store_inside_workspace()
+            || self.command_targets_reserved_store(&a.command)
+        {
+            return Err(ToolError::Other(
+                "shell cannot be used while a protected store file is reachable".into(),
+            ));
+        }
+        if crate::command_escapes_workspace(self.workspace().root(), &a.command) {
+            return Err(ToolError::Other(
+                "shell cannot use a path outside this workspace".into(),
+            ));
+        }
+        if crate::command_runs_inline_code(&a.command) {
+            return Err(ToolError::Other(
+                "shell cannot run inline interpreter code".into(),
+            ));
+        }
+        if crate::command_reads_credential_store(&a.command) {
+            return Err(ToolError::Other(
+                "shell cannot read a credential store".into(),
+            ));
+        }
         let r = self
             .executor
             .run_shell_with_signal(&a.command, exec::DEFAULT_SHELL_TIMEOUT, cancel)

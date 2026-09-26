@@ -7,7 +7,7 @@ impl Daemon {
             .app
             .daemon_capacity_status()
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(to_capacity_summary(status)))
     }
 
@@ -17,7 +17,7 @@ impl Daemon {
             .app
             .daemon_capacity_doctor()
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(CapacityDoctorResult {
             status: to_capacity_summary(status),
             summary: diagnosis.summary,
@@ -51,12 +51,7 @@ impl Daemon {
                 depth: p.depth.as_deref().unwrap_or("quick").to_string(),
                 auto_apply: p.auto_apply.unwrap_or(false),
             })
-            .map_err(|e| match &e {
-                tetonic_app::errors::AppError::InvalidRequest(_) => {
-                    RpcError::new(ErrorCode::InvalidRequest, format!("{e}"))
-                }
-                _ => RpcError::new(ErrorCode::InternalError, format!("{e}")),
-            })?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         let job_id = begin.job_id.clone();
         let depth = begin.depth;
         let auto_apply = begin.auto_apply;
@@ -85,13 +80,16 @@ impl Daemon {
 
             let outcome = match outcome {
                 Ok(out) => out,
-                Err(e) => OptimizeOutcome {
-                    job_id: job_id_spawn.clone(),
-                    state: JobState::Failed,
-                    profile_ids: vec![],
-                    applied_profile_id: None,
-                    error: Some(e.to_string()),
-                },
+                Err(_e) => {
+                    tracing::warn!("capacity optimize failed");
+                    OptimizeOutcome {
+                        job_id: job_id_spawn.clone(),
+                        state: JobState::Failed,
+                        profile_ids: vec![],
+                        applied_profile_id: None,
+                        error: Some("request failed".into()),
+                    }
+                }
             };
 
             if outcome.applied_profile_id.is_some() {
@@ -133,7 +131,7 @@ impl Daemon {
                 active_job_id,
                 capacity_busy: self.capacity.busy.load(Ordering::Relaxed),
             })
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         if accepted {
             self.capacity.cancel.store(true, Ordering::Relaxed);
         }
@@ -231,7 +229,7 @@ impl Daemon {
             .app
             .daemon_capacity_status()
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         let status = to_capacity_summary(status);
         Ok(to_value(CapacityProfilesActivateResult {
             ok: true,
@@ -270,7 +268,7 @@ impl Daemon {
             .app
             .daemon_capacity_status()
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         let status = to_capacity_summary(status);
         Ok(to_value(CapacityProfilesRollbackResult {
             ok: true,

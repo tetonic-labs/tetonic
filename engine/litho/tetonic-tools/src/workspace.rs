@@ -142,7 +142,59 @@ pub(crate) fn refresh_mutating_path(ws: &Workspace, path: &Path) -> Result<PathB
 }
 
 pub fn read_to_string_nofollow(path: &Path) -> Result<String, ToolError> {
+    if file_starts_with_sqlite_header(path) {
+        return Err(ToolError::Other(
+            "file is outside this execution grant".into(),
+        ));
+    }
     tetonic_transaction::fs_ops::read_to_string_nofollow(path).map_err(map_txn)
+}
+
+/// A SQLite database, its write-ahead log, or the shared-memory file beside it.
+/// Only headers are read. The shared-memory file has no stable header, so it
+/// is recognized as the `-shm` or `-wal` sibling of a database.
+pub fn file_starts_with_sqlite_header(path: &Path) -> bool {
+    if sqlite_header_prefix(path) {
+        return true;
+    }
+    sqlite_sidecar_sibling(path).is_some_and(|sibling| sqlite_header_prefix(&sibling))
+}
+
+fn sqlite_header_prefix(path: &Path) -> bool {
+    let Ok(mut file) = std::fs::File::open(path) else {
+        return false;
+    };
+    let mut magic = [0u8; 16];
+    let Ok(n) = std::io::Read::read(&mut file, &mut magic) else {
+        return false;
+    };
+    sqlite_family_header(&magic[..n])
+}
+
+fn sqlite_sidecar_sibling(path: &Path) -> Option<PathBuf> {
+    let name = path.file_name()?.to_str()?;
+    let stem = name
+        .strip_suffix("-wal")
+        .or_else(|| name.strip_suffix("-shm"))
+        .or_else(|| name.strip_suffix("-journal"))?;
+    if stem.is_empty() {
+        return None;
+    }
+    Some(path.with_file_name(stem))
+}
+
+fn sqlite_family_header(magic: &[u8]) -> bool {
+    if magic.len() >= 15 && magic.starts_with(b"SQLite format 3") {
+        return true;
+    }
+    magic.len() >= 4
+        && matches!(
+            [magic[0], magic[1], magic[2], magic[3]],
+            [0x37, 0x7f, 0x06, 0x82]
+                | [0x37, 0x7f, 0x06, 0x83]
+                | [0x82, 0x06, 0x7f, 0x37]
+                | [0x83, 0x06, 0x7f, 0x37]
+        )
 }
 
 pub fn write_bytes_nofollow(path: &Path, content: &[u8]) -> Result<(), ToolError> {

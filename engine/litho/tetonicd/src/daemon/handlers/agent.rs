@@ -27,7 +27,7 @@ impl Daemon {
                 role: p.role,
                 task: p.task,
             })
-            .map_err(|e| RpcError::new(ErrorCode::InvalidRequest, format!("{e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
 
         Ok(to_value(AgentSpawnResult {
             agent_id: spawned_id,

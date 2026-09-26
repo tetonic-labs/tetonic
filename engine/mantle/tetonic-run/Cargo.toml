@@ -28,6 +28,8 @@ sha2 = "0.10"
 
 [dev-dependencies]
 tempfile = "3"
+tetonic-inference = { path = "../../atmos/tetonic-inference" }
+tetonic-sandbox = { path = "../../core/tetonic-sandbox" }
 # M6 fault injection: tests/m6_durable_integrity.rs breaks the journal from a
 # second connection so the recovery write fails for real, rather than through a
 # test-only hook in production code.

@@ -21,7 +21,11 @@ pub fn compute_request_from_chat(req: &ChatRequest) -> ComputeRequest {
     let attempt_id = AttemptId::new(format!("att_{}", uuid::Uuid::new_v4()));
     let task_id = TaskId::new(format!("task_{}", attempt_id.0));
     let data_class = meta
-        .map(|m| m.data_class)
+        .map(|m| {
+            m.context_data_class
+                .map(|context| m.data_class.max(context))
+                .unwrap_or(m.data_class)
+        })
         .unwrap_or(DataClass::RepositorySource);
     let now = Utc::now();
     ComputeRequest {
@@ -72,5 +76,36 @@ pub fn compute_request_from_chat(req: &ChatRequest) -> ComputeRequest {
         scheduler_decision_id: meta
             .and_then(|m| m.scheduler_decision_id.clone())
             .or_else(|| meta.and_then(|m| m.trace_context.scheduler_decision_id.clone())),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use tetonic_inference::{ChatRequest, FabricCallMeta, Message};
+
+    #[test]
+    fn secret_context_class_raises_the_compute_request() {
+        let mut req = ChatRequest {
+            messages: vec![Message::user("hello")],
+            fabric: Some(FabricCallMeta {
+                data_class: DataClass::RepositorySource,
+                context_data_class: Some(DataClass::Secret),
+                ..Default::default()
+            }),
+            ..Default::default()
+        };
+        assert_eq!(
+            compute_request_from_chat(&req).data_class,
+            DataClass::Secret
+        );
+        req.fabric = Some(FabricCallMeta {
+            data_class: DataClass::RepositorySource,
+            ..Default::default()
+        });
+        assert_eq!(
+            compute_request_from_chat(&req).data_class,
+            DataClass::RepositorySource
+        );
     }
 }

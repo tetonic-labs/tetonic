@@ -20,6 +20,15 @@ fn map_symbol_row(r: &rusqlite::Row) -> rusqlite::Result<SymbolRow> {
     })
 }
 
+pub(crate) fn without_live_sqlite_hits(workspace: &str, hits: Vec<Hit>) -> Vec<Hit> {
+    hits.into_iter()
+        .filter(|hit| {
+            let rel = hit.rel.trim_start_matches(['/', '\\']);
+            !crate::schema::is_sqlite_database(&std::path::Path::new(workspace).join(rel))
+        })
+        .collect()
+}
+
 fn map_hit(r: &rusqlite::Row) -> rusqlite::Result<Hit> {
     Ok(Hit {
         rel: r.get(0)?,
@@ -123,6 +132,10 @@ impl Index {
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             fetched
         };
+        rows.retain(|row| {
+            let rel = row.rel.trim_start_matches(['/', '\\']);
+            !crate::schema::is_sqlite_database(&std::path::Path::new(ws).join(rel))
+        });
         rows.sort_by(|x, y| {
             definition_rank(y)
                 .cmp(&definition_rank(x))
@@ -152,7 +165,7 @@ impl Index {
         let rows = stmt
             .query_map(params![q, a, b, name, limit], map_hit)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        Ok(rows)
+        Ok(without_live_sqlite_hits(ws, rows))
     }
 
     /// Deprecated alias for [`Self::find_mentions`].
@@ -163,6 +176,10 @@ impl Index {
 
     /// Symbol outline of a single file (by workspace-relative path).
     pub fn outline(&self, ws: &str, rel: &str) -> Result<Vec<OutlineRow>> {
+        let rel_clean = rel.trim_start_matches(['/', '\\']);
+        if crate::schema::is_sqlite_database(&std::path::Path::new(ws).join(rel_clean)) {
+            return Ok(Vec::new());
+        }
         let [a, b] = workspace_roots(ws);
         let mut stmt = self.conn.prepare(
             "SELECT s.id, s.parent_id, s.kind, s.name, s.signature, s.start_line\n\
@@ -225,7 +242,7 @@ impl Index {
         let rows = stmt
             .query_map(params![q, a, b, limit], map_hit)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        Ok(rows)
+        Ok(without_live_sqlite_hits(ws, rows))
     }
 
     /// Coverage for a workspace (accepts any path spelling; matches aliased roots).

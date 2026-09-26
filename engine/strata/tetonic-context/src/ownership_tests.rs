@@ -298,7 +298,11 @@ async fn each_owner_dimension_is_required_before_reading_or_consuming_use() {
             _ => foreign.task_id = tetonic_domain::TaskId::new("other"),
         }
         let error = port.expand(&foreign).await.unwrap_err();
-        assert!(error.contains("does not belong"));
+        let mut missing = request.clone();
+        missing.handle_id = "missing-expansion-handle".into();
+        let missing_error = port.expand(&missing).await.unwrap_err();
+        assert_eq!(error, missing_error);
+        assert!(!error.contains("owned content"));
         assert_eq!(reads.load(Ordering::SeqCst), 0);
         assert_eq!(compiler.handles.lock().unwrap()[&request.handle_id].uses, 0);
     }
@@ -325,15 +329,20 @@ async fn simultaneous_valid_and_foreign_callers_cannot_steal_the_last_use() {
         compiler.expand_pack(&foreign),
         compiler.expand_pack(&request)
     );
-    assert!(duplicate.unwrap_err().contains("exhausted"));
+    let duplicate = duplicate.unwrap_err();
+    assert!(duplicate.contains("exhausted"));
+    assert!(
+        !duplicate.contains(request.handle_id.as_str()),
+        "{duplicate}"
+    );
     assert_eq!(valid.unwrap()[0].text, "owned content");
-    assert!(denied.unwrap_err().contains("does not belong"));
+    let denied = denied.unwrap_err();
+    assert_eq!(denied, "invalid or unknown expansion handle");
+    assert!(!denied.contains("owned content"));
     assert_eq!(reads.load(Ordering::SeqCst), 1);
-    assert!(compiler
-        .expand_pack(&request)
-        .await
-        .unwrap_err()
-        .contains("exhausted"));
+    let again = compiler.expand_pack(&request).await.unwrap_err();
+    assert!(again.contains("exhausted"));
+    assert!(!again.contains(request.handle_id.as_str()), "{again}");
 }
 
 #[tokio::test]

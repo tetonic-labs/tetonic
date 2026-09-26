@@ -505,7 +505,7 @@ async fn restart_during_task_states() {
             .get(&root)
             .unwrap()
             .state,
-        TaskState::Running
+        TaskState::Leased
     );
 }
 

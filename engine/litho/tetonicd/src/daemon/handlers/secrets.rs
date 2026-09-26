@@ -9,7 +9,10 @@ fn map_app(err: tetonic_app::errors::AppError) -> RpcError {
         tetonic_app::errors::AppError::InvalidRequest(m) => {
             RpcError::new(ErrorCode::InvalidParams, m)
         }
-        other => RpcError::new(ErrorCode::InternalError, other.to_string()),
+        _other => {
+            tracing::warn!("daemon hid an internal failure");
+            RpcError::new(ErrorCode::InternalError, "request failed")
+        }
     }
 }
 

@@ -85,7 +85,7 @@ async fn seed_agent_running(
         .as_ref()
         .unwrap();
     sup.handle(RunCommand::StartAttempt(StartAttempt {
-        envelope: command_envelope("cmp02_agent_running", Some(leased.sequence), "test"),
+        envelope: command_envelope("cmp02_agent_start_attempt", Some(leased.sequence), "test"),
         run_id: run_id.clone(),
         attempt_id: attempt_id.clone(),
         lease_proof: LeaseProof {
@@ -119,7 +119,7 @@ async fn cmp02_fail_hop_rejects_agent_run() {
     assert!(!hop_run_classified(&snap));
     assert_eq!(
         snap.attempts.get(&attempt).map(|a| a.state.clone()),
-        Some(AttemptState::Running)
+        Some(AttemptState::Starting)
     );
 }
 
@@ -139,7 +139,7 @@ async fn cmp02_cancel_hop_rejects_agent_run() {
     );
     assert_eq!(
         snap.attempts.get(&attempt).map(|a| a.state.clone()),
-        Some(AttemptState::Running)
+        Some(AttemptState::Starting)
     );
 }
 
@@ -171,7 +171,7 @@ async fn cmp02_create_hop_attempt_rejects_agent_run() {
     assert!(!snap.attempts.contains_key(&hop_att));
     assert_eq!(
         snap.attempts.get(&agent_att).map(|a| a.state.clone()),
-        Some(AttemptState::Running)
+        Some(AttemptState::Starting)
     );
 }
 
@@ -229,6 +229,6 @@ async fn cmp02_fail_hop_on_hop_run_fails_only_hop() {
     let agent = sup.snapshot(agent_run).await.unwrap();
     assert_eq!(
         agent.attempts.get(&agent_att).map(|a| a.state.clone()),
-        Some(AttemptState::Running)
+        Some(AttemptState::Starting)
     );
 }

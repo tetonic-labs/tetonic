@@ -81,9 +81,9 @@ After bootstrap, issue a currently valid credential for the intended principal (
 ```powershell
 $discussionKey = & .\engine\target\debug\tetonic.exe @controlArgs issue-credential --principal local/admin | ConvertFrom-Json
 $discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context private --org acme --context my-private-context
-$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context open --context my-private-context --session my-discussion
-$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context send --context my-private-context --session my-discussion --request message-1 --message-file .\message.txt
-$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context history --context my-private-context --session my-discussion --limit 50
+$opened = $discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context open --context my-private-context | ConvertFrom-Json
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context send --context my-private-context --session $opened.session --request message-1 --message-file .\message.txt
+$discussionKey.credential | & .\engine\target\debug\tetonic.exe @controlArgs context history --context my-private-context --session $opened.session --limit 50
 Remove-Variable discussionKey
 ```
 
@@ -93,7 +93,9 @@ For a shared discussion, use `context team --org acme --team maintainers --conte
 
 History returns the latest 1–200 messages in chronological order, not an assertion that all earlier history was returned. Human author attribution is stored separately from agent identity; the initial CLI history output exposes sequence, role and content. Full participant UI, streaming, archival and agent activation remain pending.
 
-Search authorized messages with `context recall --context my-private-context --query "deployment decision" --limit 8`, piping a currently valid credential on stdin. This searches only that context's message history, excludes system messages and rolled-back/deleted source messages, and returns at most 30 snippets. It does not search tool outputs or project digests. Results are ordered by session start time rather than global relevance statistics. Treat retrieved text as untrusted content. Query text is a CLI argument; avoid putting secrets in a search query if process command lines are recorded.
+`context open` without `--session` creates a discussion and prints a server-chosen id. Passing `--session` only reopens an open discussion in that context; a missing id and an id from another context are both denied and create nothing. Closed discussions stay closed.
+
+Search authorized messages with `context recall --context my-private-context --query "deployment decision" --limit 8`, piping a currently valid credential on stdin. This searches only that context's messages and revalidated tool results, excludes system messages and rolled-back/deleted source messages, and returns at most 30 snippets. It does not search project digests. Results are ordered by session start time rather than global relevance statistics. Treat retrieved text as untrusted content. Query text is a CLI argument; avoid putting secrets in a search query if process command lines are recorded.
 
 Scoped discussions can be closed with `tetonic control --database <path> --audience <audience> context close --context <context> --session <session>` using the existing stdin credential convention. Close preserves history and allows identical retries only while access remains valid. It does not cancel agent execution. Closed discussions reject new messages and an `open` retry does not reopen them; explicit resumable discussion lifecycle is not yet implemented.
 
@@ -120,6 +122,16 @@ $issued.credential | & .\engine\target\debug\tetonic.exe @controlArgs agent get 
 ```
 
 Publishing requires organization administration. It retains the identity, returns the configuration digest, and does not activate an agent or change the registration default. `agent get` without `--revision` still returns the original registration; `--revision` selects an exact authorized snapshot. Unknown digests fail rather than falling back to another version. Default selection and activation remain separate, unfinished operations.
+
+## Launch a registered job
+
+`tetonic job run` is a local launch, not a remote UI. Host settings (workspace, model, tool ceiling, deadline, context size) come from an operator JSON file. The employee request supplies the organization, information context, agent, definition digest, grant, request id, recovery id, and input file. Pipe the bearer credential to stdin.
+
+```powershell
+$issued.credential | & .\engine\target\debug\tetonic.exe job --database .\acme.db --audience acme --host-settings .\host.json run --org acme --context '<context-id>' --agent researcher --definition-digest '<digest>' --grant '<grant-id>' --request-id request-1 --recovery-id job-1 --input-file .\task.txt
+```
+
+The command waits for a terminal outcome. Success prints `run_id`, `task_id`, `audit_session_id`, `launched`, and `outcome` (`completed`, `canceled`, `limited`, or `failed`). It does not report Running. `launched` is true only for the winning process. The same request id returns the original locators with `launched: false` and does not start a second execution. Invalid host settings fail before admission and print no receipt. Inspect events with `inspect-run` and `replay-run`.
 
 ## Inspect a governed run
 

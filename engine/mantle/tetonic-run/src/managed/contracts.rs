@@ -5,6 +5,14 @@ use tetonic_domain::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedRunError {
+    #[error("organization execution capacity is occupied; retry after admitted work quiesces")]
+    OrganizationCapacityExceeded,
+    #[error("team execution capacity is occupied; retry after admitted work quiesces")]
+    TeamCapacityExceeded,
+    #[error(
+        "initiating principal execution capacity is occupied; retry after admitted work quiesces"
+    )]
+    PrincipalCapacityExceeded,
     #[error("registered agent already has admitted work; retry after it has quiesced")]
     ExecutionCapacityExceeded,
     #[error("Invalid request: {0}")]
@@ -13,6 +21,58 @@ pub enum ManagedRunError {
     PersistenceFailed(String),
     #[error("Internal invariant violation: {0}")]
     InternalViolation(String),
+}
+
+impl ManagedRunError {
+    /// Persistence and internal text stay off employee-visible outcomes.
+    pub fn redacts_detail(&self) -> bool {
+        matches!(
+            self,
+            Self::PersistenceFailed(_) | Self::InternalViolation(_)
+        )
+    }
+
+    pub fn employee_message(&self) -> String {
+        if self.redacts_detail() {
+            "request failed".to_string()
+        } else {
+            self.to_string()
+        }
+    }
+}
+
+pub(crate) fn published_managed(error: &ManagedRunError) -> String {
+    if error.redacts_detail() {
+        tracing::warn!("managed run hid an internal failure");
+    }
+    error.employee_message()
+}
+
+pub(crate) fn published_supervisor(error: &tetonic_domain::RunSupervisorError) -> String {
+    if error.redacts_detail() {
+        tracing::warn!("managed run hid an internal failure");
+    }
+    error.employee_message()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ManagedRunError;
+
+    #[test]
+    fn employee_message_hides_persistence_bodies() {
+        for error in [
+            ManagedRunError::PersistenceFailed("sqlite: PRIVATECANARY".into()),
+            ManagedRunError::InternalViolation("digest PRIVATECANARY".into()),
+        ] {
+            let message = super::published_managed(&error);
+            assert_eq!(message, "request failed");
+            assert!(!message.contains("PRIVATECANARY"));
+        }
+        let shown = ManagedRunError::ExecutionCapacityExceeded;
+        assert!(shown.employee_message().contains("quiesced"));
+        assert!(!shown.redacts_detail());
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -138,6 +198,9 @@ pub struct FinalizeJob {
 
 pub trait ManagedRunHooks: Send + Sync {
     fn started(&self, binding: &ManagedBinding);
+    /// Execution has been claimed. This is the first point a sessionless job
+    /// may be reported as started.
+    fn execution_claimed(&self, _binding: &ManagedBinding) {}
     fn step(&self, binding: &ManagedBinding, step: &tetonic_core::Step);
     fn terminal(&self, result: &StartIdentityJobResult);
     fn fail_approval_waits(&self, attempt: &AttemptId);
@@ -170,6 +233,17 @@ pub trait ExecutionAuthority: Send + Sync {
         identity: &AgentIdentity,
         job: &AgentJobSpec,
     ) -> Result<(), ()>;
+
+    /// Checked while an attempt is already running. The default keeps the
+    /// admission decision. A grant that can be revoked must override this.
+    async fn revoked_during_execution(
+        &self,
+        _scope: &tetonic_domain::ExecutionScope,
+        _identity: &AgentIdentity,
+        _job: &AgentJobSpec,
+    ) -> bool {
+        false
+    }
 }
 
 /// Host-composed binding, never accepted as a deserialized employee request.

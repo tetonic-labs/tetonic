@@ -295,7 +295,7 @@ async fn tui_mvp_planning_failure_reports_error_and_releases_session() {
         .collect();
     assert_eq!(terminal.len(), 2);
     assert!(
-        matches!(terminal[0], ApplicationEvent::TurnCompleted { status, error: Some(error), run_id: None, .. } if status == "error" && error.contains("injected planning failure"))
+        matches!(terminal[0], ApplicationEvent::TurnCompleted { status, error: Some(error), run_id: None, .. } if status == "error" && error == "request failed" && !error.contains("injected planning failure"))
     );
     assert!(
         matches!(terminal[1], ApplicationEvent::TurnCompleted { status, .. } if status == "ok"),

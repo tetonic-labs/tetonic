@@ -31,11 +31,8 @@ impl std::fmt::Display for CompilationFailure {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::StageError(msg) => write!(f, "compilation stage error: {msg}"),
-            Self::StaleWorkspace { expected, actual } => {
-                write!(
-                    f,
-                    "workspace changed during compilation (expected={expected}, actual={actual})"
-                )
+            Self::StaleWorkspace { .. } => {
+                write!(f, "workspace changed during compilation")
             }
             Self::BadBudget(msg) => write!(f, "invalid budget configuration: {msg}"),
         }
@@ -100,6 +97,10 @@ pub struct ContextCompiler {
     expansion_admission: admission::Admission,
     // None fails the whole compiler closed after bounded revocation capacity.
     revoked_sessions: Mutex<Option<HashSet<tetonic_domain::SessionId>>>,
+}
+
+fn unknown_expansion_handle() -> String {
+    "invalid or unknown expansion handle".into()
 }
 
 impl ContextCompiler {
@@ -363,42 +364,32 @@ impl ContextCompiler {
                 .is_some_and(|state| Utc::now() >= state.handle.expires_at)
             {
                 h.remove(handle_id);
-                return Err(format!("expansion handle {handle_id} has expired"));
+                return Err(unknown_expansion_handle());
             }
             h.retain(|_, state| state.handle.expires_at > Utc::now());
-            let state = h
-                .get_mut(handle_id)
-                .ok_or_else(|| "invalid or unknown expansion handle".to_string())?;
+            let state = h.get_mut(handle_id).ok_or_else(unknown_expansion_handle)?;
 
             if state.handle.session_id != request.session_id
                 || state.handle.run_id != request.run_id
                 || state.handle.task_id != request.task_id
             {
-                return Err(
-                    "expansion handle does not belong to this session, run and task".into(),
-                );
+                return Err(unknown_expansion_handle());
             }
 
             // Expiry check
             if Utc::now() > state.handle.expires_at {
-                return Err(format!("expansion handle {handle_id} has expired"));
+                return Err(unknown_expansion_handle());
             }
 
             // Use-count check
             if state.uses >= state.handle.max_uses {
-                return Err(format!(
-                    "expansion handle {handle_id} exhausted ({} / {} uses)",
-                    state.uses, state.handle.max_uses
-                ));
+                return Err("expansion handle exhausted".into());
             }
 
             // Workspace staleness check
             let issued_fp = state.handle.workspace_version.state_fingerprint();
             if current_workspace_fp.is_empty() || issued_fp != current_workspace_fp {
-                return Err(format!(
-                    "expansion handle {handle_id} rejected: workspace changed since handle was \
-                     issued (issued={issued_fp}, current={current_workspace_fp})"
-                ));
+                return Err("workspace changed".into());
             }
 
             state.uses += 1;

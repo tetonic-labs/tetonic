@@ -18,6 +18,9 @@ mod tests {
         assert!(split_verify_command("make check", &dir).is_ok());
         assert!(split_verify_command("mvn test", &dir).is_ok());
         assert!(split_verify_command("unknown_bad_bin test", &dir).is_err());
+        assert!(split_verify_command("python -c \"print(1)\"", &dir).is_err());
+        assert!(split_verify_command("powershell -Command Get-Content secret.txt", &dir).is_err());
+        assert!(split_verify_command("python -m pytest", &dir).is_ok());
         let _ = std::fs::remove_dir_all(&dir);
     }
 

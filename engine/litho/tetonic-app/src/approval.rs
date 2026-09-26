@@ -83,7 +83,8 @@ pub fn format_confinement_prompt(
     lines.join("\n")
 }
 
-/// High-risk missing OS controls override remembered rules and `--allow-shell`.
+/// High-risk missing OS controls override remembered rules, `--allow-shell`,
+/// and automatic approval. A person can still accept the gap explicitly.
 pub fn must_prompt_interactively(req: &ApprovalRequest) -> bool {
     req.user_approval_required
 }
@@ -177,7 +178,7 @@ impl DefaultApprovalService {
                     )
                     .map_err(|e| AppError::PersistenceFailed(format!("audit: {e}")))?;
                     if allowed && remember {
-                        db.add_approval_rule(&kind, &detail)
+                        db.remember_session_approval_rule(&session_id, &kind, &detail)
                             .map_err(|e| AppError::PersistenceFailed(format!("audit: {e}")))?;
                     }
                     Ok::<_, AppError>(())
@@ -233,18 +234,21 @@ impl ApprovalService for DefaultApprovalService {
                 record_proposed_tool(store, &cmd.call_id, &cmd.session_id, &cmd.tool, &args_json)?;
             }
             if cmd.auto_grant_approvals {
+                // A skipped prompt may allow a confined command. It must not
+                // allow a command the OS cannot keep off the network.
+                let allowed = !cmd.user_approval_required;
                 self.persist_decision(
                     &cmd.approval_id,
                     &cmd.session_id,
                     &cmd.kind,
                     &cmd.detail,
-                    true,
+                    allowed,
                     false,
                 )?;
                 self.completed
                     .lock_recover()
                     .insert(cmd.approval_id.clone());
-                let _ = tx.send(true);
+                let _ = tx.send(allowed);
             } else {
                 parked.insert(
                     cmd.approval_id.clone(),
@@ -404,6 +408,50 @@ mod tests {
         let (events, _) = crate::events::RecordingEventSink::new();
         let svc = DefaultApprovalService::new(None, events);
         assert_eq!(svc.preapprove(&req).unwrap(), None);
+    }
+
+    #[test]
+    fn auto_grant_does_not_approve_an_unconfined_shell() {
+        let (events, _) = crate::events::RecordingEventSink::new();
+        let svc = DefaultApprovalService::new(None, events);
+        let rx = svc
+            .register_request(crate::commands::RegisterApprovalCommand {
+                session_id: "session".into(),
+                approval_id: "approval".into(),
+                call_id: "call".into(),
+                kind: "run_shell".into(),
+                detail: "echo hi".into(),
+                tool: "run_shell".into(),
+                args: serde_json::json!({ "command": "echo hi" }),
+                missing_controls: vec![],
+                user_approval_required: true,
+                auto_grant_approvals: true,
+                attempt_id: None,
+            })
+            .unwrap();
+        assert_eq!(rx.blocking_recv().unwrap(), false);
+    }
+
+    #[test]
+    fn auto_grant_still_approves_a_confined_shell() {
+        let (events, _) = crate::events::RecordingEventSink::new();
+        let svc = DefaultApprovalService::new(None, events);
+        let rx = svc
+            .register_request(crate::commands::RegisterApprovalCommand {
+                session_id: "session".into(),
+                approval_id: "approval-ok".into(),
+                call_id: "call".into(),
+                kind: "run_shell".into(),
+                detail: "echo hi".into(),
+                tool: "run_shell".into(),
+                args: serde_json::json!({ "command": "echo hi" }),
+                missing_controls: vec![],
+                user_approval_required: false,
+                auto_grant_approvals: true,
+                attempt_id: None,
+            })
+            .unwrap();
+        assert_eq!(rx.blocking_recv().unwrap(), true);
     }
 
     #[test]

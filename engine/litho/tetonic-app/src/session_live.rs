@@ -262,9 +262,16 @@ impl LiveSession {
     }
 }
 
+struct LiveRegistration {
+    context_id: String,
+    live: Arc<LiveSession>,
+}
+
 /// Process-wide live session map. `Application` is `Send + Sync`.
+/// Legacy lookup and removal only see `legacy-local` registrations. A scoped
+/// session is returned only when the caller names its bound context.
 pub struct SessionLiveStore {
-    inner: Mutex<HashMap<String, Arc<LiveSession>>>,
+    inner: Mutex<HashMap<String, LiveRegistration>>,
 }
 
 impl SessionLiveStore {
@@ -275,24 +282,62 @@ impl SessionLiveStore {
     }
 
     pub fn insert(&self, session_id: String, live: Arc<LiveSession>) -> Result<(), AppError> {
+        self.insert_in_context(session_id, "legacy-local".into(), live)
+    }
+
+    /// Bind a live conversation to one information context for its lifetime.
+    /// The same session ID cannot be registered twice, even for another context.
+    pub fn insert_in_context(
+        &self,
+        session_id: String,
+        context_id: String,
+        live: Arc<LiveSession>,
+    ) -> Result<(), AppError> {
+        if context_id.is_empty() || context_id.contains('\0') || context_id.len() > 256 {
+            return Err(AppError::InvalidRequest(
+                "invalid information context".into(),
+            ));
+        }
         let mut map = self.inner.lock_recover();
         if map.contains_key(&session_id) {
             return Err(AppError::SessionConflict);
         }
-        map.insert(session_id, live);
+        map.insert(session_id, LiveRegistration { context_id, live });
         Ok(())
     }
 
     pub fn get(&self, session_id: &str) -> Option<Arc<LiveSession>> {
-        self.inner.lock_recover().get(session_id).cloned()
+        self.get_in_context(session_id, "legacy-local")
+    }
+
+    /// Missing and wrong-context IDs both return `None`.
+    pub fn get_in_context(&self, session_id: &str, context_id: &str) -> Option<Arc<LiveSession>> {
+        self.inner
+            .lock_recover()
+            .get(session_id)
+            .and_then(|entry| (entry.context_id == context_id).then(|| entry.live.clone()))
     }
 
     pub fn remove(&self, session_id: &str) -> Option<Arc<LiveSession>> {
-        self.inner.lock_recover().remove(session_id)
+        self.remove_in_context(session_id, "legacy-local")
+    }
+
+    pub fn remove_in_context(
+        &self,
+        session_id: &str,
+        context_id: &str,
+    ) -> Option<Arc<LiveSession>> {
+        let mut map = self.inner.lock_recover();
+        match map.get(session_id) {
+            Some(entry) if entry.context_id == context_id => {
+                map.remove(session_id).map(|entry| entry.live)
+            }
+            _ => None,
+        }
     }
 
     pub fn contains(&self, session_id: &str) -> bool {
-        self.inner.lock_recover().contains_key(session_id)
+        self.get(session_id).is_some()
     }
 
     pub fn len(&self) -> usize {
@@ -307,18 +352,25 @@ impl SessionLiveStore {
         self.inner
             .lock_recover()
             .values()
-            .any(|s| s.turn_in_flight())
+            .any(|entry| entry.live.turn_in_flight())
     }
 
+    /// Legacy-local sessions only. A private or team registration is not listed.
     pub fn all(&self) -> Vec<Arc<LiveSession>> {
-        self.inner.lock_recover().values().cloned().collect()
+        self.inner
+            .lock_recover()
+            .values()
+            .filter(|entry| entry.context_id == "legacy-local")
+            .map(|entry| entry.live.clone())
+            .collect()
     }
 
-    pub fn all_pairs(&self) -> Vec<(String, Arc<LiveSession>)> {
+    /// Process drain only. Not an employee lookup.
+    pub(crate) fn all_pairs(&self) -> Vec<(String, Arc<LiveSession>)> {
         self.inner
             .lock_recover()
             .iter()
-            .map(|(k, v)| (k.clone(), v.clone()))
+            .map(|(id, entry)| (id.clone(), entry.live.clone()))
             .collect()
     }
 }
@@ -417,6 +469,33 @@ pub fn admit_chat_turn(
 }
 
 #[cfg(test)]
+pub(crate) fn fixture_live_session() -> Arc<LiveSession> {
+    use tetonic_domain::{DataClass, DisclosureTier};
+    use tetonic_orchestrator::SessionStartPlan;
+    LiveSession::new(
+        tetonic_core::Conversation::new(),
+        tetonic_orchestrator::OrchestrationMode::Single,
+        false,
+        false,
+        16,
+        "fast".into(),
+        "hard".into(),
+        false,
+        SessionStartPlan {
+            data_class: DataClass::default(),
+            disclosure_tier: DisclosureTier::default(),
+            briefing: None,
+            project_context: None,
+            verify_cmd: None,
+        },
+        std::path::PathBuf::from("."),
+        false,
+        false,
+        false,
+    )
+}
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use tetonic_domain::{DataClass, DisclosureTier};
@@ -433,21 +512,7 @@ mod tests {
     }
 
     fn live() -> Arc<LiveSession> {
-        LiveSession::new(
-            Conversation::new(),
-            OrchestrationMode::Single,
-            false,
-            false,
-            16,
-            "fast".into(),
-            "hard".into(),
-            false,
-            empty_plan(),
-            PathBuf::from("."),
-            false,
-            false,
-            false,
-        )
+        super::fixture_live_session()
     }
 
     #[test]
@@ -561,6 +626,35 @@ mod tests {
         assert!(join.join().is_err());
         assert!(b.take_conversation().is_ok());
         assert!(store.get("b").is_some());
+    }
+
+    #[test]
+    fn legacy_registry_cannot_read_or_remove_a_scoped_session() {
+        let store = SessionLiveStore::new();
+        let private = live();
+        store
+            .insert_in_context("secret".into(), "private".into(), private.clone())
+            .unwrap();
+        assert!(store.get("secret").is_none());
+        assert!(store.all().is_empty());
+        assert_eq!(store.all_pairs().len(), 1);
+        assert!(!store.contains("secret"));
+        assert!(store.remove("secret").is_none());
+        assert!(store.get_in_context("secret", "team").is_none());
+        assert!(store.remove_in_context("secret", "team").is_none());
+        assert!(Arc::ptr_eq(
+            &store.get_in_context("secret", "private").unwrap(),
+            &private
+        ));
+        assert!(matches!(
+            store.insert("secret".into(), live()),
+            Err(AppError::SessionConflict)
+        ));
+        assert!(store.remove_in_context("secret", "private").is_some());
+        assert!(store.get_in_context("secret", "private").is_none());
+        assert!(store
+            .insert_in_context("next".into(), "".into(), live())
+            .is_err());
     }
 
     #[test]

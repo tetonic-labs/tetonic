@@ -2,6 +2,25 @@
 use crate::{Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
+/// Stable id for the private working context created when a principal joins a team.
+/// It is not that principal's other private history and not the shared team context.
+pub fn team_participation_context_id(org: &str, team: &str, principal: &str) -> Result<String> {
+    if org.is_empty()
+        || team.is_empty()
+        || principal.is_empty()
+        || org.contains('\0')
+        || team.contains('\0')
+        || principal.contains('\0')
+    {
+        return Err(StoreError::InvalidControlResource("context_id".into()));
+    }
+    let id = format!("participation/{org}/{team}/{principal}");
+    if id.len() > 256 {
+        return Err(StoreError::InvalidControlResource("context_id".into()));
+    }
+    Ok(id)
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ContextOwner {
     /// The authenticated actor owns the context; callers cannot name another owner.
@@ -12,6 +31,20 @@ pub enum ContextOwner {
         org_id: String,
         team_id: String,
     },
+}
+
+impl Store {
+    /// `private`, `team`, or `legacy_local`. Missing ids are `None`.
+    pub fn information_context_kind(&self, context_id: &str) -> Result<Option<String>> {
+        self.conn
+            .query_row(
+                "SELECT kind FROM information_contexts WHERE context_id=?1",
+                [context_id],
+                |row| row.get(0),
+            )
+            .optional()
+            .map_err(Into::into)
+    }
 }
 
 #[cfg(test)]
@@ -70,7 +103,14 @@ mod tests {
         }
         db.append_message("t", "assistant", "rolled-back", "discarded branch", None)
             .unwrap();
-        db.record_spawn_rollback("t", "rolled-back").unwrap();
+        assert!(db.record_spawn_rollback("t", "rolled-back").is_err());
+        db.conn
+            .execute(
+                "INSERT OR IGNORE INTO spawn_rollbacks(session_id, agent_id, rolled_at)
+                 VALUES('t','rolled-back','t')",
+                [],
+            )
+            .unwrap();
         db.add_team_member("org", "team", "bob").unwrap();
         assert_eq!(
             db.scoped_transcript("bob", "shared", "t", 10).unwrap()[0].2,
@@ -185,8 +225,9 @@ impl Store {
         Ok(())
     }
 
-    /// Authorization and bounded history share one database snapshot. Never
-    /// falls back to the legacy transcript API. Excludes rolled-back branches.
+    /// Bounded history is read in one snapshot, then membership is checked again
+    /// before the rows are returned. Never falls back to the legacy transcript
+    /// API. Excludes rolled-back branches.
     pub fn scoped_transcript(
         &self,
         actor: &str,
@@ -219,6 +260,9 @@ impl Store {
             rows
         };
         tx.commit()?;
+        if !self.context_access(actor, context)? {
+            return Err(StoreError::ControlAccessDenied);
+        }
         Ok(rows.into_iter().rev().collect())
     }
 }

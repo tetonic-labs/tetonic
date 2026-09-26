@@ -82,6 +82,9 @@ pub(crate) fn build_minimal_env(policy: &crate::types::EnvironmentPolicy) -> Vec
         if policy.strip_secrets && looks_secret(&k, &v) {
             continue;
         }
+        if crate::exec::is_profile_home(&k) || crate::exec::is_temp_dir_key(&k) {
+            continue;
+        }
         if policy.allowlist.iter().any(|a| a.eq_ignore_ascii_case(&k)) {
             out.push((k, v));
         }
@@ -97,8 +100,17 @@ pub(crate) fn build_minimal_env(policy: &crate::types::EnvironmentPolicy) -> Vec
         out.push(("LANG".into(), locale.clone()));
     }
     if let Some(tmp) = &policy.controlled_temp_dir {
-        out.push(("TMP".into(), tmp.display().to_string()));
-        out.push(("TEMP".into(), tmp.display().to_string()));
+        let tmp = tmp.display().to_string();
+        out.retain(|(key, _)| !crate::exec::is_temp_dir_key(key));
+        out.push(("TMP".into(), tmp.clone()));
+        out.push(("TEMP".into(), tmp.clone()));
+        out.push(("TMPDIR".into(), tmp));
+    }
+    if let Some(home) = &policy.home_dir {
+        let home = home.display().to_string();
+        out.retain(|(key, _)| !crate::exec::is_profile_home(key));
+        out.push(("HOME".into(), home.clone()));
+        out.push(("USERPROFILE".into(), home));
     }
     out
 }

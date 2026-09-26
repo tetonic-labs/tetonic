@@ -39,6 +39,11 @@ struct AppRootExecute {
     envelopes: Arc<Mutex<std::collections::HashMap<String, crate::events::EventEnvelope>>>,
     runtime: Arc<EngineRuntime>,
     approval_hook: tetonic_core::ApprovalHook,
+    /// Session and agent to mark started only after the specialist is built.
+    announce_start: Option<(String, String)>,
+    /// Root-turn sink. Admission does not emit `started`; the first execution does.
+    events: Option<Arc<dyn ApplicationEventSink>>,
+    started_once: Arc<AtomicBool>,
 }
 
 struct AttemptApprovalGuard {
@@ -75,7 +80,7 @@ impl RootExecute for AppRootExecute {
         };
         self.envelopes
             .lock_recover()
-            .insert(agent.execution_agent_id().into(), envelope);
+            .insert(agent.execution_agent_id().into(), envelope.clone());
         self.runtime
             .action_broker()
             .register_attempt_approval(attempt_id.clone(), self.approval_hook.clone());
@@ -83,6 +88,37 @@ impl RootExecute for AppRootExecute {
             runtime: self.runtime.clone(),
             attempt_id: attempt_id.clone(),
         };
+        if let Some(sink) = &self.events {
+            if self
+                .started_once
+                .compare_exchange(false, true, Ordering::SeqCst, Ordering::SeqCst)
+                .is_ok()
+            {
+                if let Some(run_id) = envelope.run_id.clone() {
+                    emit(
+                        sink,
+                        ApplicationEvent::run_status(
+                            run_id,
+                            "started".into(),
+                            None,
+                            None,
+                            &envelope,
+                        ),
+                    );
+                }
+            }
+        }
+        if let Some((session_id, agent_id)) = &self.announce_start {
+            let _ = self
+                .runs
+                .report_run_status(&crate::commands::ReportRunStatusCommand {
+                    session_id: session_id.clone(),
+                    status: "started".into(),
+                    agent_id: Some(agent_id.clone()),
+                    error: None,
+                })
+                .await;
+        }
         self.runs
             .execute_attempt(attempt_id, agent, conversation, invocation, on_step)
             .await
@@ -198,6 +234,39 @@ pub(crate) struct TurnExecutionHost {
 /// Builds session-scoped audit sinks for agent assembly.
 pub trait AuditFactory: Send + Sync {
     fn session_audit(&self, session_id: &str, agent_id: &str) -> Box<dyn tetonic_core::AuditSink>;
+}
+
+pub(crate) fn redact_failure_text(
+    scanner: Option<&ScannerEngine>,
+    sink: Option<&dyn OutboundRedactionSink>,
+    session_id: &str,
+    text: String,
+) -> String {
+    redact_step_text(scanner, sink, session_id, "failure", text.clone()).unwrap_or(text)
+}
+
+fn redact_outcome(host: &TurnExecutionHost, outcome: CandidateOutcome) -> CandidateOutcome {
+    let redact = |text: String| {
+        redact_failure_text(
+            host.secret_scanner.as_deref(),
+            host.redaction_sink.as_deref(),
+            &host.session_id,
+            text,
+        )
+    };
+    match outcome {
+        CandidateOutcome::Failed { message } => CandidateOutcome::Failed {
+            message: redact(message),
+        },
+        CandidateOutcome::Limited { kind, message } => CandidateOutcome::Limited {
+            kind,
+            message: redact(message),
+        },
+        CandidateOutcome::Canceled { reason } => CandidateOutcome::Canceled {
+            reason: redact(reason),
+        },
+        other => other,
+    }
 }
 
 fn redact_step_text(
@@ -426,14 +495,21 @@ pub fn step_to_events(
                 },
             )
         }
-        Step::Stopped(reason) => emit(
-            events,
-            ApplicationEvent::LogDiagnostic {
-                session_id: Some(session_id.to_string()),
-                agent_id: Some(agent_id.to_string()),
-                message: format!("stopped: {reason}"),
-            },
-        ),
+        Step::Stopped(reason) => {
+            let Some(message) =
+                redact_step_text(scanner, sink, session_id, "stopped", reason.to_string())
+            else {
+                return;
+            };
+            emit(
+                events,
+                ApplicationEvent::LogDiagnostic {
+                    session_id: Some(session_id.to_string()),
+                    agent_id: Some(agent_id.to_string()),
+                    message: format!("stopped: {message}"),
+                },
+            )
+        }
     }
 }
 
@@ -572,18 +648,128 @@ pub(crate) fn composition_capability_hooks() -> (PostEditSnapshot, ResolveUnderR
     )
 }
 
-pub(crate) fn composition_fs_hooks() -> ContextFsHooks {
+fn git_args_leave_workspace(args: &[&str]) -> bool {
+    args.iter().any(|arg| {
+        let arg = arg.replace('\\', "/");
+        arg == ".." || arg.starts_with("../") || arg.contains("/../")
+    })
+}
+
+fn reserved_markers(reserved: &[std::path::PathBuf], root: &Path) -> Vec<String> {
+    let mut markers = Vec::new();
+    for path in reserved {
+        if let Some(name) = path.file_name().and_then(|name| name.to_str()) {
+            let name = name.to_ascii_lowercase();
+            if !name.is_empty() {
+                markers.push(name);
+            }
+        }
+        if let Ok(rel) = path.strip_prefix(root) {
+            let rel = rel.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+            if !rel.is_empty() {
+                markers.push(rel);
+            }
+        }
+    }
+    markers
+}
+
+fn line_mentions_reserved(line: &str, markers: &[String]) -> bool {
+    let lower = line.replace('\\', "/").to_ascii_lowercase();
+    markers.iter().any(|marker| lower.contains(marker))
+}
+
+fn git_line_names_sqlite(line: &str, root: &Path) -> bool {
+    let mut candidates = Vec::new();
+    if let Some(rest) = line.trim().strip_prefix("diff --git ") {
+        candidates.extend(rest.split_whitespace().map(str::to_string));
+    } else {
+        let raw = line.trim_end();
+        if raw.len() > 3 {
+            candidates.push(raw[3..].trim().trim_matches('"').to_string());
+        }
+    }
+    candidates.into_iter().any(|token| {
+        let rel = token
+            .strip_prefix("a/")
+            .or_else(|| token.strip_prefix("b/"))
+            .unwrap_or(token.as_str());
+        if rel.is_empty() || rel.contains("..") || rel.contains('\0') {
+            return false;
+        }
+        tetonic_context::workspace::path_is_sqlite_store_family(&root.join(rel))
+    })
+}
+
+/// Drop git diff sections and status lines for the protected store or any live
+/// SQLite database. A text diff of that file would otherwise enter the model prompt.
+pub(crate) fn without_reserved_git_output(
+    output: &str,
+    reserved: &[std::path::PathBuf],
+    root: &Path,
+) -> String {
+    let markers = reserved_markers(reserved, root);
+    let hidden = |line: &str| {
+        line_mentions_reserved(line, &markers) || git_line_names_sqlite(line, root)
+    };
+    if !output.contains("diff --git") {
+        return output
+            .lines()
+            .filter(|line| !hidden(line))
+            .collect::<Vec<_>>()
+            .join("\n");
+    }
+    let mut kept = String::new();
+    let mut section = String::new();
+    let mut drop_section = false;
+    let mut in_section = false;
+    for line in output.lines() {
+        if line.starts_with("diff --git") {
+            if in_section && !drop_section {
+                kept.push_str(&section);
+            }
+            in_section = true;
+            drop_section = hidden(line);
+            section = String::new();
+            if !drop_section {
+                section.push_str(line);
+                section.push('\n');
+            }
+        } else if !in_section || !drop_section {
+            if in_section {
+                section.push_str(line);
+                section.push('\n');
+            } else if !hidden(line) {
+                kept.push_str(line);
+                kept.push('\n');
+            }
+        }
+    }
+    if in_section && !drop_section {
+        kept.push_str(&section);
+    }
+    kept
+}
+
+pub(crate) fn composition_fs_hooks(reserved: Vec<std::path::PathBuf>) -> ContextFsHooks {
+    let git_reserved = reserved.clone();
     ContextFsHooks {
         skip_symlink: Arc::new(tetonic_transaction::fs_ops::is_symlink_or_reparse),
-        jailed_read: Arc::new(|root, rel| {
+        jailed_read: Arc::new(move |root, rel| {
             let ws = Workspace::new(root).map_err(|e| e.to_string())?;
             let path = ws.resolve(rel).map_err(|e| e.to_string())?;
+            if tetonic_tools::path_is_reserved(&reserved, &path) {
+                return Err("file is outside this execution grant".into());
+            }
             tetonic_tools::read_to_string_nofollow(&path).map_err(|e| e.to_string())
         }),
-        run_git: Arc::new(|root, args| {
+        run_git: Arc::new(move |root, args| {
+            if git_args_leave_workspace(args) {
+                return Err("git command is outside this execution grant".into());
+            }
             let pe = tetonic_tools::coding_executor(root, EnforcementLevel::Sandboxed);
             let r = pe.run_git(args.iter().map(|s| (*s).to_string()))?;
-            Ok(r.output)
+            Ok(without_reserved_git_output(&r.output, &git_reserved, root))
         }),
     }
 }
@@ -641,18 +827,22 @@ impl ExecutionProjectionAudit {
         let tool_calls_json = tool_calls_json.map(str::to_string);
         let tool_name = tool_name.map(str::to_string);
         let tool_call_id = tool_call_id.map(str::to_string);
-        if let Err(e) = store.write_sync(move |db| {
-            db.append_message_with(
-                &session,
-                &role,
-                &agent_id,
-                &content,
-                tool_calls_json.as_deref(),
-                tool_name.as_deref(),
-                tool_call_id.as_deref(),
-            )
-        }) {
-            tracing::warn!("product persist: append_message_with failed: {e}");
+        if store
+            .write_sync(move |db| {
+                db.require_legacy_session(&session)?;
+                db.append_message_with(
+                    &session,
+                    &role,
+                    &agent_id,
+                    &content,
+                    tool_calls_json.as_deref(),
+                    tool_name.as_deref(),
+                    tool_call_id.as_deref(),
+                )
+            })
+            .is_err()
+        {
+            tracing::warn!("product persist failed");
         }
     }
 }
@@ -861,7 +1051,12 @@ fn build_agent(
                         Arc::new(tetonic_index::IndexTextSkeleton)
                             as Arc<dyn tetonic_domain::TextSkeleton>
                     }),
-                    composition_fs_hooks(),
+                    composition_fs_hooks(
+                        memory_db
+                            .as_deref()
+                            .map(tetonic_tools::store_sidecar_paths)
+                            .unwrap_or_default(),
+                    ),
                 );
             compiler
         });
@@ -933,7 +1128,9 @@ async fn execute_turn_scoped(
         &turn_plan.run_id.0,
         Some(turn_plan.task_id.0.as_str()),
     );
-    if host.cancel.load(Ordering::Relaxed) || runs.is_canceled_attempt(&turn_plan.attempt_id) {
+    if host.cancel.load(Ordering::Relaxed)
+        || runs.attempt_must_not_infer(&turn_plan.attempt_id)
+    {
         host.runtime
             .action_broker()
             .unregister_attempt_approval(&turn_plan.attempt_id);
@@ -970,6 +1167,60 @@ async fn execute_turn_scoped(
     host.approvals.fail_attempt_waits(&turn_plan.attempt_id.0);
     task_timer.finish(res.is_ok());
     res
+}
+
+/// Drop an in-flight classifier call when stop arrives. The check before
+/// `provider.chat` does not abort a call that has already started.
+pub(crate) async fn stop_or<T, F, Fut>(
+    cancel: &AtomicBool,
+    attempt_closed: impl Fn() -> bool,
+    mut authority_revoked: F,
+    work: impl std::future::Future<Output = T>,
+) -> Option<T>
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = bool>,
+{
+    tokio::select! {
+        biased;
+        _ = async {
+            let mut next_authority = std::time::Instant::now();
+            loop {
+                if cancel.load(Ordering::Relaxed) || attempt_closed() {
+                    break;
+                }
+                if std::time::Instant::now() >= next_authority {
+                    if authority_revoked().await {
+                        break;
+                    }
+                    next_authority =
+                        std::time::Instant::now() + std::time::Duration::from_millis(200);
+                }
+                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+        } => None,
+        result = work => Some(result),
+    }
+}
+
+/// The intent classifier sends the user text before the agent loop. It must
+/// carry the session class so a secret session is not placed on a remote worker.
+pub(crate) fn session_classifier_fabric(
+    plan: &tetonic_orchestrator::SessionStartPlan,
+    session_id: &str,
+    run_id: &str,
+    task_id: &str,
+    attempt_id: &str,
+) -> FabricCallMeta {
+    FabricCallMeta {
+        session_id: Some(session_id.to_string()),
+        run_id: Some(run_id.to_string()),
+        task_id: Some(task_id.to_string()),
+        attempt_id: Some(attempt_id.to_string()),
+        data_class: plan.data_class,
+        disclosure_tier: plan.disclosure_tier,
+        ..Default::default()
+    }
 }
 
 async fn run_turn_body(
@@ -1032,7 +1283,11 @@ async fn run_turn_body(
         .as_ref()
         .map(|_| &fs_index as &dyn CodeIndexOpen);
 
-    let llm_route = if llm_router && orchestration == OrchestrationMode::Auto {
+    let route_attempt = turn_plan.attempt_id.clone();
+    let route_cancel = host.cancel.clone();
+    let route_blocked = runs.attempt_must_not_infer(&route_attempt)
+        || runs.attempt_authority_revoked(&route_attempt).await;
+    let llm_route = if llm_router && orchestration == OrchestrationMode::Auto && !route_blocked {
         emit(
             events,
             ApplicationEvent::StageTransition {
@@ -1044,7 +1299,10 @@ async fn run_turn_body(
                 detail: Some("Classifying intent & selecting specialist...".to_string()),
             },
         );
-        Some(
+        stop_or(
+            &route_cancel,
+            || runs.attempt_must_not_infer(&route_attempt),
+            || runs.attempt_authority_revoked(&route_attempt),
             llm_route_task(
                 host.provider.as_ref(),
                 &host.model_fast,
@@ -1056,16 +1314,20 @@ async fn run_turn_body(
                     code_index: code_index_ref,
                     pack: &CodingPack,
                 },
-                FabricCallMeta {
-                    session_id: Some(host.session_id.clone()),
-                    run_id: Some(turn_plan.run_id.to_string()),
-                    task_id: Some(turn_plan.task_id.to_string()),
-                    attempt_id: Some(turn_plan.attempt_id.to_string()),
-                    ..Default::default()
+                session_classifier_fabric(
+                    &host.plan,
+                    &host.session_id,
+                    &turn_plan.run_id.to_string(),
+                    &turn_plan.task_id.to_string(),
+                    &turn_plan.attempt_id.to_string(),
+                ),
+                || {
+                    !route_cancel.load(Ordering::Relaxed)
+                        && !runs.attempt_must_not_infer(&route_attempt)
                 },
-            )
-            .await,
+            ),
         )
+        .await
     } else {
         None
     };
@@ -1131,6 +1393,9 @@ async fn run_turn_body(
                 envelopes: execution_envelopes.clone(),
                 runtime: host.runtime.clone(),
                 approval_hook: approval_hook.clone(),
+                announce_start: None,
+                events: None,
+                started_once: Arc::new(AtomicBool::new(false)),
             }),
         }))
     } else {
@@ -1149,7 +1414,9 @@ async fn run_turn_body(
     let host_tools = turn_tools.clone();
     let body_plan_user = plan_user.clone();
     let body_skipped = skipped_plan_user.clone();
-    let outcome = if cancel.load(Ordering::Relaxed) {
+    let outcome = if cancel.load(Ordering::Relaxed)
+        || runs.attempt_must_not_infer(&turn_identity.attempt_id)
+    {
         Err("canceled".into())
     } else {
         run_orchestrated_turn(
@@ -1175,22 +1442,14 @@ async fn run_turn_body(
                 if let Some(ref track) = host_for_turn.spawn_track {
                     track.register_agent(&build.agent_id);
                 }
-                if let Some(role) = &build.role {
-                    let meta = make_specialist_node_meta(
-                        &build.agent_id,
-                        tetonic_orchestrator::ROOT_AGENT,
-                        &turn_identity.run_id.to_string(),
-                        &host_for_turn.session_id,
-                        role.as_str(),
-                    );
-                    emit(events, ApplicationEvent::NodeStarted { meta });
-                }
+                let started_role = build.role.clone();
+                let started_agent = build.agent_id.clone();
                 let hook = if build.orchestration_tools {
                     spawn_host.as_ref().map(|h| h.hook())
                 } else {
                     None
                 };
-                build_agent(
+                let built = build_agent(
                     &host_for_turn,
                     Some(&turn_identity),
                     build,
@@ -1203,7 +1462,18 @@ async fn run_turn_body(
                         skipped_plan_user: &body_skipped,
                     },
                 )
-                .map_err(|e| e.to_string())
+                .map_err(|e| e.to_string())?;
+                if let Some(role) = started_role {
+                    let meta = make_specialist_node_meta(
+                        &started_agent,
+                        tetonic_orchestrator::ROOT_AGENT,
+                        &turn_identity.run_id.to_string(),
+                        &host_for_turn.session_id,
+                        role.as_str(),
+                    );
+                    emit(events, ApplicationEvent::NodeStarted { meta });
+                }
+                Ok(built)
             },
             |aid, step| on_step.lock_recover()(aid, step),
             Some(|route, tier| {
@@ -1221,6 +1491,9 @@ async fn run_turn_body(
                 envelopes: execution_envelopes.clone(),
                 runtime: host.runtime.clone(),
                 approval_hook: approval_hook.clone(),
+                announce_start: None,
+                events: Some(events.clone()),
+                started_once: Arc::new(AtomicBool::new(false)),
             },
             runs.child_job(&cmd.session_id),
         )
@@ -1234,9 +1507,19 @@ async fn run_turn_body(
             .as_ref()
             .is_ok_and(|o| matches!(o.outcome, CandidateOutcome::Canceled { .. }));
     let turn_error = match &outcome {
-        Err(e) => Some(e.to_string()),
+        Err(e) => Some(redact_failure_text(
+            host.secret_scanner.as_deref(),
+            host.redaction_sink.as_deref(),
+            &host.session_id,
+            e.to_string(),
+        )),
         Ok(o) => match &o.outcome {
-            CandidateOutcome::Failed { message } => Some(message.clone()),
+            CandidateOutcome::Failed { message } => Some(redact_failure_text(
+                host.secret_scanner.as_deref(),
+                host.redaction_sink.as_deref(),
+                &host.session_id,
+                message.clone(),
+            )),
             _ => None,
         },
     };
@@ -1257,7 +1540,10 @@ async fn run_turn_body(
                 .or_else(|| host.plan.verify_cmd.clone()),
         })
     };
-    let terminal = outcome.as_ref().ok().map(|o| o.outcome.clone());
+    let terminal = outcome
+        .as_ref()
+        .ok()
+        .map(|o| redact_outcome(host, o.outcome.clone()));
     let finalization_timer =
         tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Finalization);
     let final_outcome = runs
@@ -1332,14 +1618,6 @@ pub(crate) async fn execute_spawn(
     let spawn_run_id = runs
         .run_id_for_attempt(&spawn_attempt_id)
         .ok_or_else(|| AppError::InvalidRequest("spawn parent run not found".into()))?;
-    runs.report_run_status(&crate::commands::ReportRunStatusCommand {
-        session_id: cmd.session_id.clone(),
-        status: "started".into(),
-        agent_id: Some(cmd.agent_id.clone()),
-        error: None,
-    })
-    .await?;
-
     conversation.begin_turn();
     let turn_tools = ensure_turn_tools(host)?;
     let spawn_serial_cell = Arc::new(AtomicU32::new(*spawn_serial));
@@ -1427,6 +1705,9 @@ pub(crate) async fn execute_spawn(
                 host.tool_workspace.clone(),
                 host.auto_grant_approvals,
             ),
+            announce_start: Some((cmd.session_id.clone(), cmd.agent_id.clone())),
+            events: None,
+            started_once: Arc::new(AtomicBool::new(false)),
         },
         Some(spawn_attempt_id.clone()),
     )
@@ -1497,3 +1778,57 @@ pub(crate) async fn execute_spawn(
 #[cfg(test)]
 #[path = "code01_build_agent_tests.rs"]
 mod code01_build_agent_tests;
+
+#[cfg(test)]
+mod projection_audit_tests {
+    use super::ExecutionProjectionAudit;
+    use std::sync::atomic::AtomicBool;
+    use std::sync::Arc;
+    use tetonic_runtime::NullAudit;
+
+    #[test]
+    fn projection_does_not_write_a_private_session() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("projection.db");
+        let store = tetonic_memory::SharedStore::open(&path, 1).unwrap();
+        store
+            .write_sync(|db| {
+                db.bootstrap_control("admin", "org", "Org").unwrap();
+                db.create_information_context(
+                    "admin",
+                    "private",
+                    &tetonic_memory::ContextOwner::Private {
+                        org_id: "org".into(),
+                    },
+                )
+                .unwrap();
+                db.insert_open_discussion("admin", "private", "private-notes")
+                    .unwrap();
+            })
+            .unwrap();
+        let audit = ExecutionProjectionAudit {
+            inner: Box::new(NullAudit),
+            store: Some(store),
+            session_id: "private-notes".into(),
+            agent_id: "agent".into(),
+            plan_user: String::new(),
+            skipped_plan_user: Arc::new(AtomicBool::new(false)),
+        };
+        audit.persist(
+            "assistant",
+            "PRIVATECANARY projection",
+            None,
+            None,
+            None,
+        );
+        let raw = rusqlite::Connection::open(&path).unwrap();
+        let hits: i64 = raw
+            .query_row(
+                "SELECT COUNT(*) FROM messages WHERE content='PRIVATECANARY projection'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(hits, 0);
+    }
+}

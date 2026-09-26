@@ -249,7 +249,7 @@ impl FleetManager {
         })
     }
 
-    /// Launches and registers a continuous Standing Agent into a Squad and binds it to the supervisor.
+    /// Registers agent metadata in a squad. This does not start execution or charge tokens.
     pub async fn create_agent(
         &self,
         squad_id: &str,
@@ -266,19 +266,10 @@ impl FleetManager {
             .ok_or_else(|| FleetApiError::SquadNotFound(squad_id.to_string()))?;
         drop(squad_to_org);
 
-        // Verify and reserve initial creation token quota from organization
+        // Metadata registration is not inference and does not consume a token budget.
         let orgs = self.orgs.lock().await;
-        let org = orgs
-            .get(&org_id)
-            .ok_or_else(|| FleetApiError::OrgNotFound(org_id.clone()))?;
-
-        let creation_cost = 1000; // standard admission budget cost
-        if let Err(_) = org.record_tokens(creation_cost) {
-            return Err(FleetApiError::BudgetExceeded {
-                org_id: org_id.clone(),
-                attempted: creation_cost,
-                available: org.quota.max_tokens_per_hour.saturating_sub(org.tokens_consumed()),
-            });
+        if !orgs.contains_key(&org_id) {
+            return Err(FleetApiError::OrgNotFound(org_id));
         }
         drop(orgs);
 
@@ -308,7 +299,7 @@ impl FleetManager {
             squad_id: squad_id.to_string(),
             org_id,
             role: req.role,
-            status: AgentLifecycleState::Running,
+            status: AgentLifecycleState::Idle,
             world_adapters: req.world_adapters,
             active_boundaries_count,
         };
@@ -460,7 +451,15 @@ mod tests {
             .await
             .expect("create agent");
         assert_eq!(agent.agent_id, "agent-001");
-        assert_eq!(agent.status, AgentLifecycleState::Running);
+        assert_eq!(agent.status, AgentLifecycleState::Idle);
+        assert_eq!(
+            manager
+                .get_org("org-1")
+                .await
+                .expect("org")
+                .tokens_consumed_this_hour,
+            0
+        );
 
         // Confirm agent was registered in FleetSupervisor
         let sup = supervisor.lock().await;
@@ -468,7 +467,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_over_budget_agent_creation_refused() {
+    async fn metadata_creation_does_not_charge_or_report_running() {
         let supervisor = Arc::new(Mutex::new(FleetSupervisor::new()));
         let manager = FleetManager::new(supervisor);
 
@@ -477,7 +476,7 @@ mod tests {
             .create_org(CreateOrgRequest {
                 org_id: "org-broke".into(),
                 name: "Budget Exhausted Corp".into(),
-                token_budget_hourly: 500, // below 1000 admission cost
+                token_budget_hourly: 500,
             })
             .await
             .expect("create org");
@@ -494,7 +493,20 @@ mod tests {
             .await
             .expect("create squad");
 
-        let res = manager
+        let created = manager
+            .create_agent(
+                "squad-broke",
+                CreateAgentRequest {
+                    agent_id: "agent-broke-1".into(),
+                    role: "Tester".into(),
+                    charter: None,
+                    world_adapters: vec!["mock".into()],
+                },
+            )
+            .await
+            .expect("metadata creation");
+        assert_eq!(created.status, AgentLifecycleState::Idle);
+        let duplicate = manager
             .create_agent(
                 "squad-broke",
                 CreateAgentRequest {
@@ -505,8 +517,26 @@ mod tests {
                 },
             )
             .await;
-
-        assert!(matches!(res, Err(FleetApiError::BudgetExceeded { .. })));
+        assert!(matches!(
+            duplicate,
+            Err(FleetApiError::AgentAlreadyExists(_))
+        ));
+        assert_eq!(
+            manager
+                .get_org("org-broke")
+                .await
+                .expect("org")
+                .tokens_consumed_this_hour,
+            0
+        );
+        assert_eq!(
+            manager
+                .get_agent("agent-broke-1")
+                .await
+                .expect("agent")
+                .status,
+            AgentLifecycleState::Idle
+        );
     }
 
     #[tokio::test]

@@ -430,6 +430,24 @@ impl super::service::ManagedRunService {
                     }
                     if matches!(
                         other,
+                        Err(tetonic_domain::RunSupervisorError::OrganizationCapacityExceeded)
+                    ) {
+                        return Err(ManagedRunError::OrganizationCapacityExceeded);
+                    }
+                    if matches!(
+                        other,
+                        Err(tetonic_domain::RunSupervisorError::TeamCapacityExceeded)
+                    ) {
+                        return Err(ManagedRunError::TeamCapacityExceeded);
+                    }
+                    if matches!(
+                        other,
+                        Err(tetonic_domain::RunSupervisorError::PrincipalCapacityExceeded)
+                    ) {
+                        return Err(ManagedRunError::PrincipalCapacityExceeded);
+                    }
+                    if matches!(
+                        other,
                         Err(tetonic_domain::RunSupervisorError::ExecutionCapacityExceeded)
                     ) {
                         return Err(ManagedRunError::ExecutionCapacityExceeded);

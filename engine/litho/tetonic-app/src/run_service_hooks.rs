@@ -20,18 +20,22 @@ impl ManagedRunHooks for ProductRunHooks {
         self.bindings
             .lock_recover()
             .insert(binding.attempt_id.clone(), binding.clone());
-        if binding.execution_scope.is_none() && binding.session_id.is_none() {
-            emit(
-                &self.events,
-                ApplicationEvent::run_status(
-                    binding.run_id.0.clone(),
-                    "started".into(),
-                    None,
-                    None,
-                    &envelope(binding),
-                ),
-            );
+    }
+
+    fn execution_claimed(&self, binding: &ManagedBinding) {
+        if binding.execution_scope.is_some() || binding.session_id.is_some() {
+            return;
         }
+        emit(
+            &self.events,
+            ApplicationEvent::run_status(
+                binding.run_id.0.clone(),
+                "started".into(),
+                None,
+                None,
+                &envelope(binding),
+            ),
+        );
     }
     fn step(&self, binding: &ManagedBinding, step: &tetonic_core::Step) {
         if binding.execution_scope.is_none() && binding.session_id.is_none() {

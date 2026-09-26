@@ -206,7 +206,7 @@ impl Index {
     ) -> Result<Vec<PendingChunk>> {
         let [a, b] = workspace_roots(ws);
         let mut stmt = self.conn.prepare(
-            "SELECT c.id, fts.content\n\
+            "SELECT c.id, fts.content, f.rel\n\
              FROM chunks c\n\
              JOIN files f ON c.file_path = f.path\n\
              JOIN fts_chunks fts ON fts.chunk_id = c.id\n\
@@ -216,13 +216,23 @@ impl Index {
         )?;
         let rows = stmt
             .query_map(params![a, b, model_id, limit], |r| {
-                Ok(PendingChunk {
-                    chunk_id: r.get(0)?,
-                    content: r.get::<_, Option<String>>(1)?.unwrap_or_default(),
-                })
+                Ok((
+                    r.get::<_, i64>(0)?,
+                    r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                    r.get::<_, String>(2)?,
+                ))
             })?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        Ok(rows)
+        let root = std::path::Path::new(ws);
+        let pending = rows
+            .into_iter()
+            .filter(|(_, _, rel)| {
+                let rel = rel.trim_start_matches(['/', '\\']);
+                !crate::schema::is_sqlite_database(&root.join(rel))
+            })
+            .map(|(chunk_id, content, _)| PendingChunk { chunk_id, content })
+            .collect();
+        Ok(pending)
     }
 
     /// Store (or replace) the embedding for a chunk under `model_id`.
@@ -392,7 +402,7 @@ impl Index {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         hits.truncate(limit as usize);
-        Ok(hits)
+        Ok(crate::query::without_live_sqlite_hits(ws, hits))
     }
 
     /// Cheap staleness signature for a (workspace, model)'s stored vectors:
@@ -491,12 +501,18 @@ impl Index {
             return Ok(Vec::new());
         }
 
-        self.rerank_shortlist(query_vec, &shortlist, limit)
+        self.rerank_shortlist(ws, query_vec, &shortlist, limit)
     }
 
     /// Phase 2 shared by the ANN path: fetch vector + metadata + content for a
     /// shortlist of chunk ids, apply the content-aware rerank, return top hits.
-    fn rerank_shortlist(&self, query_vec: &[f32], ids: &[i64], limit: u32) -> Result<Vec<Hit>> {
+    fn rerank_shortlist(
+        &self,
+        ws: &str,
+        query_vec: &[f32],
+        ids: &[i64],
+        limit: u32,
+    ) -> Result<Vec<Hit>> {
         let placeholders = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
         let sql = format!(
             "SELECT v.vec, f.rel, c.start_line, c.end_line, c.symbol_name, c.kind, fc.content\n\
@@ -534,6 +550,6 @@ impl Index {
                 .unwrap_or(std::cmp::Ordering::Equal)
         });
         hits.truncate(limit as usize);
-        Ok(hits)
+        Ok(crate::query::without_live_sqlite_hits(ws, hits))
     }
 }

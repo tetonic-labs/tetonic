@@ -52,11 +52,7 @@ pub async fn seal(
         if ev.repository_path.is_some() {
             let ev_fp = ev.workspace_version.state_fingerprint();
             if ev_fp != workspace_fp {
-                return Err(format!(
-                    "evidence {:?} has stale workspace version ({ev_fp} vs {workspace_fp}) — \
-                     source content changed during compilation",
-                    ev.evidence_id
-                ));
+                return Err("workspace changed during compilation".into());
             }
         }
 
@@ -161,15 +157,15 @@ pub async fn seal(
         let mut writer = store
             .begin_write(declaration)
             .await
-            .map_err(|e| format!("artifact begin_write: {e}"))?;
+            .map_err(|_| "artifact storage failed".to_string())?;
         writer
             .write_chunk(&bytes)
             .await
-            .map_err(|e| format!("artifact write_chunk: {e}"))?;
+            .map_err(|_| "artifact storage failed".to_string())?;
         let meta = writer
             .seal()
             .await
-            .map_err(|e| format!("artifact seal: {e}"))?;
+            .map_err(|_| "artifact storage failed".to_string())?;
         pack.stored_artifact_id = Some(meta.artifact_id);
     }
 

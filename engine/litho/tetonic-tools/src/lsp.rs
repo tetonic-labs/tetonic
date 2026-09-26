@@ -136,30 +136,85 @@ impl Tools {
         self.lsp_open.as_deref()
     }
 
-    pub(crate) fn lsp_goto_definition(&self, args: Value) -> Result<ToolOutcome, ToolError> {
+    pub(crate) fn lsp_goto_definition(
+        &self,
+        args: Value,
+        cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
+    ) -> Result<ToolOutcome, ToolError> {
         let a: LspPositionArgs = Tools::parse(args)?;
-        self.ws.resolve(&a.path)?;
+        let path = self.ws.resolve(&a.path)?;
+        self.deny_reserved(&path)?;
+        self.deny_sqlite_database(&path)?;
+        self.deny_credential_store(&path)?;
         let session = open_lsp(self)?;
-        session
-            .goto_definition(&a.path, a.line, char_arg(&a))
-            .map_err(ToolError::Other)
+        drive_lsp(&session, cancel, || {
+            session
+                .goto_definition(&a.path, a.line, char_arg(&a))
+                .map_err(ToolError::Other)
+        })
     }
 
-    pub(crate) fn lsp_find_references(&self, args: Value) -> Result<ToolOutcome, ToolError> {
+    pub(crate) fn lsp_find_references(
+        &self,
+        args: Value,
+        cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
+    ) -> Result<ToolOutcome, ToolError> {
         let a: LspPositionArgs = Tools::parse(args)?;
-        self.ws.resolve(&a.path)?;
+        let path = self.ws.resolve(&a.path)?;
+        self.deny_reserved(&path)?;
+        self.deny_sqlite_database(&path)?;
+        self.deny_credential_store(&path)?;
         let session = open_lsp(self)?;
-        session
-            .find_references(&a.path, a.line, char_arg(&a))
-            .map_err(ToolError::Other)
+        drive_lsp(&session, cancel, || {
+            session
+                .find_references(&a.path, a.line, char_arg(&a))
+                .map_err(ToolError::Other)
+        })
     }
 
-    pub(crate) fn lsp_diagnostics(&self, args: Value) -> Result<ToolOutcome, ToolError> {
+    pub(crate) fn lsp_diagnostics(
+        &self,
+        args: Value,
+        cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
+    ) -> Result<ToolOutcome, ToolError> {
         let a: LspPathArgs = Tools::parse(args)?;
-        self.ws.resolve(&a.path)?;
+        let path = self.ws.resolve(&a.path)?;
+        self.deny_reserved(&path)?;
+        self.deny_sqlite_database(&path)?;
+        self.deny_credential_store(&path)?;
         let session = open_lsp(self)?;
-        session.diagnostics(&a.path).map_err(ToolError::Other)
+        drive_lsp(&session, cancel, || {
+            session.diagnostics(&a.path).map_err(ToolError::Other)
+        })
     }
+}
+
+fn drive_lsp<T>(
+    session: &Arc<dyn tetonic_domain::LspSession>,
+    cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
+    call: impl FnOnce() -> T,
+) -> T {
+    let done = Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let watcher = cancel.map(|signal| {
+        let signal = signal.clone();
+        let session = Arc::clone(session);
+        let done = done.clone();
+        std::thread::spawn(move || {
+            while !done.load(std::sync::atomic::Ordering::Relaxed) {
+                if signal.is_canceled() {
+                    session.request_stop();
+                    break;
+                }
+                std::thread::sleep(std::time::Duration::from_millis(50));
+            }
+        })
+    });
+    let result = call();
+    done.store(true, std::sync::atomic::Ordering::Relaxed);
+    if let Some(watcher) = watcher {
+        let _ = watcher.join();
+    }
+    result
 }
 
 #[cfg(test)]

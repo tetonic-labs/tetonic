@@ -116,7 +116,7 @@ async fn seed_agent_running(
         .unwrap();
 
     sup.handle(RunCommand::StartAttempt(StartAttempt {
-        envelope: command_envelope("v4_proof_09_running", Some(leased.sequence), "test"),
+        envelope: command_envelope("v4_proof_09_start_attempt", Some(leased.sequence), "test"),
         run_id: run_id.clone(),
         attempt_id: attempt_id.clone(),
         lease_proof: LeaseProof {
@@ -137,10 +137,10 @@ async fn v4_proof_09_infer_hop_failover_isolation_with_running_attempt() {
     let (agent_run, agent_task, agent_att) =
         seed_agent_running(&sup, "run_agent_09", "task_agent_09", "att_agent_09").await;
 
-    // Verify initial agent Attempt is Running
+    // Admitted work is not Running until execution is claimed.
     let snap_before = sup.snapshot(agent_run.clone()).await.unwrap();
     let att_state = &snap_before.attempts.get(&agent_att).unwrap().state;
-    assert_eq!(*att_state, AttemptState::Running);
+    assert_eq!(*att_state, AttemptState::Starting);
 
     // Issue infer hop. Hop IDs must be minted and live in hop-classified Runs
     let hop_run = RunId::new("hop_run_09");
@@ -201,14 +201,14 @@ async fn v4_proof_09_infer_hop_failover_isolation_with_running_attempt() {
     let agent_att_rec = agent_snap_after.attempts.get(&agent_att).unwrap();
     assert_eq!(
         agent_att_rec.state,
-        AttemptState::Running,
-        "Agent Attempt must remain Running when infer hop fails!"
+        AttemptState::Starting,
+        "Agent Attempt must stay unclaimed when infer hop fails"
     );
     let agent_task_rec = agent_snap_after.tasks.get(&agent_task).unwrap();
     assert_eq!(
         agent_task_rec.state,
-        TaskState::Running,
-        "Agent Task must remain Running when infer hop fails!"
+        TaskState::Leased,
+        "Agent Task must not be reported running when infer hop fails"
     );
 
     // Verify: Attempting fail_hop on the agent Run is strictly rejected
@@ -292,8 +292,8 @@ async fn v4_proof_09_infer_hop_speculation_cancel_isolation() {
     let agent_snap = sup.snapshot(agent_run.clone()).await.unwrap();
     assert_eq!(
         agent_snap.attempts.get(&agent_att).unwrap().state,
-        AttemptState::Running,
-        "Agent Attempt must remain Running during hop speculation cancellation"
+        AttemptState::Starting,
+        "Agent Attempt must stay unclaimed during hop speculation cancellation"
     );
 
     // Cancel hop cannot cancel agent Run

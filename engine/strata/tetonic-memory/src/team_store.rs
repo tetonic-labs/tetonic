@@ -112,6 +112,23 @@ impl Store {
         if self.get_team(&row.org_id, &row.team_id)?.as_ref() != Some(row) {
             return Err(StoreError::ControlResourceConflict);
         }
+        // The owner participates by creating the team. A low-level insert whose
+        // owner is not an enabled organization member still persists the team
+        // and does not invent a working context.
+        let owner_participates: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM organization_members m
+             JOIN control_principals p ON p.principal_id=m.principal_id AND p.enabled=1
+             WHERE m.org_id=?1 AND m.principal_id=?2)",
+            params![row.org_id, row.owner_principal_id],
+            |r| r.get(0),
+        )?;
+        if owner_participates {
+            self.ensure_team_participation_context(
+                &row.org_id,
+                &row.team_id,
+                &row.owner_principal_id,
+            )?;
+        }
         tx.commit()?;
         Ok(())
     }

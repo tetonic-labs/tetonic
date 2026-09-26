@@ -250,6 +250,92 @@ async fn in_flight_run_journal_is_restored() {
 }
 
 #[tokio::test]
+async fn legacy_turn_cannot_write_a_private_or_missing_session() {
+    let dir = temp_dir();
+    let ws = dir.join("ws");
+    std::fs::create_dir_all(&ws).unwrap();
+    let (app, store) = make_app(&dir);
+    store
+        .write_sync(|db| {
+            db.bootstrap_control("alice", "org", "Org")?;
+            db.create_information_context(
+                "alice",
+                "private",
+                &tetonic_memory::ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )?;
+            db.insert_open_discussion("alice", "private", "private-session")?;
+            db.append_context_message(
+                "alice",
+                "private",
+                "private-session",
+                "m1",
+                "PRIVATECANARY resume",
+            )?;
+            Ok::<_, tetonic_memory::StoreError>(())
+        })
+        .unwrap()
+        .unwrap();
+    let private_turn = commands::RunTurnCommand {
+        session_id: "private-session".into(),
+        user_input: "INJECTED into private history".into(),
+        verify_cmd: None,
+        llm_router: Some(false),
+    };
+    let missing_turn = commands::RunTurnCommand {
+        session_id: "missing-session".into(),
+        user_input: "INJECTED into a new session".into(),
+        verify_cmd: None,
+        llm_router: Some(false),
+    };
+    let private_err = match app.runs.plan_turn(&private_turn).await {
+        Err(err) => err,
+        Ok(_) => panic!("private session must not accept a legacy turn"),
+    };
+    let missing_err = match app.runs.plan_turn(&missing_turn).await {
+        Err(err) => err,
+        Ok(_) => panic!("missing session must not accept a legacy turn"),
+    };
+    assert_eq!(private_err.to_string(), missing_err.to_string());
+    assert!(
+        !private_err.to_string().contains("PRIVATECANARY")
+            && !private_err.to_string().contains("INJECTED"),
+        "turn error leaked history: {private_err}"
+    );
+    let history = store
+        .read_sync(|db| db.scoped_transcript("alice", "private", "private-session", 10))
+        .unwrap()
+        .unwrap();
+    assert_eq!(history.len(), 1);
+    assert_eq!(history[0].2, "PRIVATECANARY resume");
+    assert_eq!(
+        store
+            .read_sync(|db| db.message_count("missing-session"))
+            .unwrap()
+            .unwrap(),
+        0
+    );
+    let legacy = start_ws(&app, &ws).await;
+    app.runs
+        .plan_turn(&commands::RunTurnCommand {
+            session_id: legacy.session_id.clone(),
+            user_input: "legacy-turn-note".into(),
+            verify_cmd: None,
+            llm_router: Some(false),
+        })
+        .await
+        .expect("legacy session still accepts a turn");
+    let legacy_history = store
+        .read_sync(|db| db.transcript(&legacy.session_id))
+        .unwrap()
+        .unwrap();
+    assert!(legacy_history
+        .iter()
+        .any(|(_, _, text)| text == "legacy-turn-note"));
+}
+
+#[tokio::test]
 async fn live_session_maps_do_not_survive_reopen() {
     let dir = temp_dir();
     let ws = dir.join("ws");
@@ -263,4 +349,92 @@ async fn live_session_maps_do_not_survive_reopen() {
     let (app2, _) = make_app(&dir);
     assert!(!app2.sessions.has_live(&sid));
     assert_eq!(app2.sessions.live_count(), 0);
+}
+
+#[tokio::test]
+async fn private_history_resume_stays_unknown_after_restart() {
+    let dir = temp_dir();
+    let ws = dir.join("ws");
+    std::fs::create_dir_all(&ws).unwrap();
+    let (app, store) = make_app(&dir);
+    store
+        .write_sync(|db| {
+            db.bootstrap_control("alice", "org", "Org")?;
+            db.create_information_context(
+                "alice",
+                "private",
+                &tetonic_memory::ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )?;
+            db.insert_open_discussion("alice", "private", "private-session")?;
+            db.append_context_message(
+                "alice",
+                "private",
+                "private-session",
+                "m1",
+                "PRIVATECANARY resume",
+            )?;
+            Ok::<_, tetonic_memory::StoreError>(())
+        })
+        .unwrap()
+        .unwrap();
+    drop(app);
+    drop(store);
+    let (app2, store2) = make_app(&dir);
+    let err = match app2
+        .sessions
+        .start_session(commands::StartSessionCommand {
+            workspace_root: ws.display().to_string(),
+            resume: Some(true),
+            session_id: Some("private-session".into()),
+            briefing: Some(false),
+            ..Default::default()
+        })
+        .await
+    {
+        Err(err) => err,
+        Ok(_) => panic!("private history must not resume into a legacy session"),
+    };
+    let text = err.to_string();
+    assert!(
+        !text.contains("PRIVATECANARY"),
+        "resume error leaked private history: {text}"
+    );
+    assert!(
+        matches!(err, crate::errors::AppError::InvalidRequest(ref message) if message == "unknown session_id"),
+        "private and missing sessions must look the same, got {err:?}"
+    );
+    assert!(
+        !err.to_string().contains("private-session"),
+        "resume error echoed the session id: {err}"
+    );
+    assert_eq!(app2.sessions.live_count(), 0);
+    let missing = match app2
+        .sessions
+        .start_session(commands::StartSessionCommand {
+            workspace_root: ws.display().to_string(),
+            resume: Some(true),
+            session_id: Some("missing-session".into()),
+            briefing: Some(false),
+            ..Default::default()
+        })
+        .await
+    {
+        Err(err) => err,
+        Ok(_) => panic!("missing session"),
+    };
+    assert_eq!(
+        err.to_string(),
+        missing.to_string(),
+        "private and missing resume errors must be identical"
+    );
+    assert!(
+        !missing.to_string().contains("missing-session"),
+        "resume error echoed the missing id: {missing}"
+    );
+    assert!(store2
+        .read_sync(|db| db.transcript("private-session"))
+        .unwrap()
+        .is_err());
 }

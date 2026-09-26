@@ -73,7 +73,7 @@ impl Daemon {
             .policies
             .get_policy(cmd)
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {}", e)))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(PolicyGetResult {
             mode: result.mode,
             default_data_class: result.default_data_class,
@@ -108,7 +108,7 @@ impl Daemon {
             .policies
             .set_policy(cmd)
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {}", e)))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
 
         Self::bump_policy_epoch(services);
         tracing::info!("workspace policy updated via app service");
@@ -120,7 +120,7 @@ impl Daemon {
                 workspace_root: services.workspace_root.clone(),
             })
             .await
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {}", e)))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
 
         Ok(to_value(PolicySetResult {
             ok: true,
@@ -144,7 +144,7 @@ impl Daemon {
             .app
             .estate
             .get_estate_status(cmd)
-            .map_err(|e| RpcError::new(ErrorCode::InternalError, format!("app: {e}")))?;
+            .map_err(crate::daemon::rpc::map::map_app_error)?;
         Ok(to_value(EstateStatusResult {
             policy_mode: result.policy_mode,
             workers_enrolled: result.workers_enrolled,

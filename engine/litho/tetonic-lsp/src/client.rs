@@ -82,6 +82,7 @@ pub struct LspSession {
     open_docs: HashMap<String, OpenDoc>,
     inbox: Inbox,
     reader_alive: Arc<AtomicBool>,
+    stop: Arc<AtomicBool>,
     _reader: Option<JoinHandle<()>>,
     diags: HashMap<String, Vec<DiagnosticHit>>,
 }
@@ -142,6 +143,7 @@ impl LspSession {
             open_docs: HashMap::new(),
             inbox: rx,
             reader_alive,
+            stop: Arc::new(AtomicBool::new(false)),
             _reader: Some(reader),
             diags: HashMap::new(),
         };
@@ -158,6 +160,11 @@ impl LspSession {
             }
         }
         Ok(session)
+    }
+
+    /// Later requests observe this flag. A set flag stops the owned process.
+    pub(crate) fn share_stop_flag(&mut self, flag: Arc<AtomicBool>) {
+        self.stop = flag;
     }
 
     pub fn lang(&self) -> Lang {
@@ -397,6 +404,10 @@ impl LspSession {
         });
         self.send_message(&msg, deadline)?;
         loop {
+            if self.stop.load(Ordering::SeqCst) {
+                self.mark_unhealthy();
+                return Err(LspError::Server("LSP stopped".into()));
+            }
             let remaining = deadline.saturating_duration_since(Instant::now());
             if remaining.is_zero() {
                 self.mark_unhealthy();

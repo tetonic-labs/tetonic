@@ -273,3 +273,128 @@ fn simultaneous_upgrade_openers_serialize_and_preserve_rows() {
     }
     assert_eq!(snapshots(&db).len(), 1);
 }
+
+#[test]
+fn backup_restore_keeps_team_resources_and_private_history() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("lokai.db");
+    let backup = {
+        let store = Store::open(&db).unwrap();
+        store.bootstrap_control("alice", "org", "Org").unwrap();
+        store.register_control_principal("bob").unwrap();
+        store
+            .set_organization_member("org", "bob", OrganizationRole::Member)
+            .unwrap();
+        store
+            .create_team(&TeamRow {
+                org_id: "org".into(),
+                team_id: "team".into(),
+                name: "Team".into(),
+                owner_principal_id: "alice".into(),
+            })
+            .unwrap();
+        store.add_team_member("org", "team", "bob").unwrap();
+        store
+            .create_information_context(
+                "alice",
+                "private",
+                &ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )
+            .unwrap();
+        store
+            .create_information_context(
+                "alice",
+                "shared",
+                &ContextOwner::Team {
+                    org_id: "org".into(),
+                    team_id: "team".into(),
+                },
+            )
+            .unwrap();
+        let private_session = store.create_context_history("alice", "private").unwrap();
+        store
+            .append_context_message(
+                "alice",
+                "private",
+                &private_session,
+                "private-1",
+                "PRIVATECANARY",
+            )
+            .unwrap();
+        let team_session = store.create_context_history("alice", "shared").unwrap();
+        store
+            .append_context_message("alice", "shared", &team_session, "team-1", "TEAMVISIBLE")
+            .unwrap();
+        let backup = store.create_pre_migration_backup().unwrap();
+        drop(store);
+        backup
+    };
+    let restored = Store::open(&backup).unwrap();
+    let private = restored
+        .scoped_transcript("alice", "private", 
+            &restored
+                .conn
+                .query_row(
+                    "SELECT id FROM sessions WHERE context_id='private'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            10,
+        )
+        .unwrap();
+    assert!(private.iter().any(|(_, _, text)| text == "PRIVATECANARY"));
+    let denied = restored.scoped_transcript(
+        "bob",
+        "private",
+        &restored
+            .conn
+            .query_row(
+                "SELECT id FROM sessions WHERE context_id='private'",
+                [],
+                |row| row.get::<_, String>(0),
+            )
+            .unwrap(),
+        10,
+    );
+    match denied {
+        Err(StoreError::ControlAccessDenied) => {}
+        other => panic!("restored private history must stay denied, got {other:?}"),
+    }
+    let team_session = restored
+        .conn
+        .query_row(
+            "SELECT id FROM sessions WHERE context_id='shared'",
+            [],
+            |row| row.get::<_, String>(0),
+        )
+        .unwrap();
+    let shared = restored
+        .scoped_transcript("bob", "shared", &team_session, 10)
+        .unwrap();
+    assert!(shared.iter().any(|(_, _, text)| text == "TEAMVISIBLE"));
+    assert_eq!(
+        restored.get_team("org", "team").unwrap().unwrap().name,
+        "Team"
+    );
+    let original = Store::open(&db).unwrap();
+    assert!(original
+        .scoped_transcript(
+            "alice",
+            "private",
+            &original
+                .conn
+                .query_row(
+                    "SELECT id FROM sessions WHERE context_id='private'",
+                    [],
+                    |row| row.get::<_, String>(0),
+                )
+                .unwrap(),
+            10,
+        )
+        .unwrap()
+        .iter()
+        .any(|(_, _, text)| text == "PRIVATECANARY"));
+}

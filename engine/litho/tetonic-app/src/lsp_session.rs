@@ -66,6 +66,10 @@ fn truncate_lsp(s: &str) -> String {
 }
 
 impl LspSession for PoolLspSession {
+    fn request_stop(&self) {
+        self.pool.request_stop();
+    }
+
     fn goto_definition(
         &self,
         path: &str,

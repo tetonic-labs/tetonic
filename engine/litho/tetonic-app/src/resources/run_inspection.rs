@@ -3,6 +3,12 @@ use super::*;
 use tetonic_domain::{RunId, RunSnapshot};
 use tetonic_run::RunSupervisor;
 
+pub enum RunPoll {
+    Events(Vec<tetonic_domain::RunEventEnvelope>),
+    Gap(tetonic_domain::ReplayGap),
+    CaughtUp,
+}
+
 impl ContextService {
     /// Content membership permits inspection, independently of execution grants.
     /// Legacy and mixed-context runs are not exposed through this employee door.
@@ -75,6 +81,46 @@ impl ContextService {
         self.inspect_run(credential, organization, context, run)
             .await?;
         Ok(replay)
+    }
+
+    /// One authorized read of new durable events. Membership is checked by
+    /// `replay_run` before any event is returned. An empty batch on a terminal
+    /// run is caught up. This is not an unrestricted live fanout.
+    pub async fn poll_run(
+        &self,
+        credential: &str,
+        organization: String,
+        context: String,
+        run: String,
+        after: u64,
+        limit: u32,
+    ) -> Result<RunPoll, ResourceError> {
+        let snapshot = self
+            .inspect_run(
+                credential,
+                organization.clone(),
+                context.clone(),
+                run.clone(),
+            )
+            .await?;
+        let replay = self
+            .replay_run(credential, organization, context, run, after, limit)
+            .await?;
+        match replay {
+            Err(gap) => Ok(RunPoll::Gap(gap)),
+            Ok(events)
+                if events.is_empty()
+                    && matches!(
+                        snapshot.state,
+                        tetonic_domain::RunState::Succeeded
+                            | tetonic_domain::RunState::Failed
+                            | tetonic_domain::RunState::Canceled
+                    ) =>
+            {
+                Ok(RunPoll::CaughtUp)
+            }
+            Ok(events) => Ok(RunPoll::Events(events)),
+        }
     }
 
     async fn authorize_run_context(
@@ -185,8 +231,88 @@ mod tests {
                     "private".into(),
                     run.0
                 )
-                .await
-                .is_err());
+            .await
+            .is_err());
         }
+    }
+
+    #[tokio::test]
+    async fn poll_run_stops_when_the_credential_is_revoked() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = LocalControl::open(dir.path().join("db"), "test".into())
+            .await
+            .unwrap();
+        local
+            .bootstrap("alice".into(), "org".into(), "Org".into())
+            .await
+            .unwrap();
+        let credential = local
+            .credentials()
+            .issue("alice".into(), 3600)
+            .await
+            .unwrap();
+        let contexts = local.contexts();
+        contexts
+            .create(
+                credential.expose_secret(),
+                "private".into(),
+                ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )
+            .await
+            .unwrap();
+        let supervisor = tetonic_run::DurableRunSupervisor::new(Some(contexts.store.clone()));
+        supervisor
+            .handle(tetonic_domain::RunCommand::CreateRun(
+                tetonic_domain::CreateRun {
+                    envelope: tetonic_run::command_envelope("create", None, "test"),
+                    session_id: None,
+                    run_id: RunId::new("followed"),
+                    root_task_id: tetonic_domain::TaskId::new("root"),
+                    root_binding: tetonic_domain::TaskInputBinding {
+                        execution_scope: Some(tetonic_domain::ExecutionScope {
+                            principal_id: "alice".into(),
+                            organization_id: "org".into(),
+                            information_context_id: "private".into(),
+                        }),
+                        ..Default::default()
+                    },
+                    speculation: None,
+                    job_spec: None,
+                },
+            ))
+            .await
+            .unwrap();
+        let first = contexts
+            .poll_run(
+                credential.expose_secret(),
+                "org".into(),
+                "private".into(),
+                "followed".into(),
+                0,
+                20,
+            )
+            .await
+            .unwrap();
+        assert!(matches!(first, RunPoll::Events(events) if !events.is_empty()));
+        local
+            .credentials()
+            .revoke(credential.credential_id.clone())
+            .await
+            .unwrap();
+        assert!(matches!(
+            contexts
+                .poll_run(
+                    credential.expose_secret(),
+                    "org".into(),
+                    "private".into(),
+                    "followed".into(),
+                    0,
+                    20,
+                )
+                .await,
+            Err(ResourceError::Denied)
+        ));
     }
 }

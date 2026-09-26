@@ -5,9 +5,9 @@ This is the authoritative proposed sequence after product discovery. All tickets
 | Sprint | Tickets | Exit evidence | Retirements |
 |---|---|---|---|
 | [0 — Contracts](mvp-0-contracts/plan.md) | MVP-001/002 | Product, privacy, deployment and failure contracts; baseline scenarios | REC-001/002; no cosmetic rewrite |
-| [1 — Resources and privacy](mvp-1-resources-privacy/plan.md) | MVP-101/102 | Create a team; durable identities and private/team contexts | REC-101/102; D02/D11; start D01/D15 |
-| [2 — Managed workers](mvp-2-managed-workers/plan.md) | MVP-201/202 | Controlled coding and noncoding execution through one runtime | REC-201/202; D07/D08 |
-| [3 — Team work](mvp-3-team-work/plan.md) | MVP-301/302 | Huddles, backlog, delegation, budgets, autonomous activation and overlap | DAG/spawn reuse; D03/D14 |
+| [1 — Resources and privacy](mvp-1-resources-privacy/plan.md) | MVP-101/102 | Create a team; durable identities and private/team contexts | **Exited** (local preview); remote UI / D01/D11 deletion deferred |
+| [2 — Managed workers](mvp-2-managed-workers/plan.md) | MVP-201/202 | Controlled coding and noncoding execution through one runtime | **Exited** (local preview); remote setup UI, spend ledger, D07/D08 deferred |
+| [3 — Team work](mvp-3-team-work/plan.md) | MVP-301/302 | Huddles, backlog, delegation, budgets, autonomous activation and overlap | **Exited** (local preview, 2nd pass); managed child admission, spend ledger, D03 deferred to 4+ |
 | [4 — Human controls](mvp-4-human-controls/plan.md) | MVP-401/402 | Bound approvals, hierarchical stop, accounting and truthful inspection | REC-301/302; close D01/D04/D05/D10 |
 | [5 — Placement](mvp-5-placement/plan.md) | MVP-501/502 | Enrolled workstation and remote execution with grants/fencing | REC-401/402; D06 |
 | [6 — Product cutover](mvp-6-product-cutover/plan.md) | MVP-601/602 | Coherent team interface and removal of superseded paths | REC-501/502; D09/D12 and removal audit |

@@ -1,7 +1,9 @@
 //! Offline/local operator control. Never starts inference or an agent session.
 use clap::{Parser, Subcommand};
-mod contexts;
 mod agents;
+mod contexts;
+mod execution_limits;
+mod work;
 use std::{
     io::{IsTerminal, Read},
     path::PathBuf,
@@ -25,6 +27,16 @@ pub struct ControlCli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Durable organization admission ceilings; does not cancel already admitted work.
+    ExecutionLimits {
+        #[command(subcommand)]
+        command: execution_limits::ExecutionLimitsCommand,
+    },
+    /// Durable team admission ceiling; does not cancel already admitted work.
+    TeamExecutionLimits {
+        #[command(subcommand)]
+        command: execution_limits::TeamExecutionLimitsCommand,
+    },
     /// Replay authorized governed lifecycle events; credential on stdin.
     ReplayRun {
         #[arg(long)]
@@ -37,6 +49,9 @@ enum Command {
         after: u64,
         #[arg(long, default_value_t = 100)]
         limit: u32,
+        /// Keep reading new events until the run is terminal or access is denied.
+        #[arg(long, default_value_t = false)]
+        follow: bool,
     },
     /// Inspect a governed run through current context membership; credential on stdin.
     InspectRun {
@@ -46,6 +61,11 @@ enum Command {
         context: String,
         #[arg(long)]
         run: String,
+    },
+    /// Durable team goals, work items and huddles (does not activate agents).
+    Work {
+        #[command(subcommand)]
+        command: work::WorkCommand,
     },
     /// Organization-owned agent configuration; no execution privileges are granted.
     Agent {
@@ -164,21 +184,67 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
 pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
     let control = LocalControl::open(args.database, args.audience).await?;
     match args.command {
-        Command::ReplayRun { org, context, run, after, limit } => {
+        Command::ExecutionLimits { command } => {
+            execution_limits::dispatch(&control, command).await?
+        }
+        Command::TeamExecutionLimits { command } => {
+            execution_limits::dispatch_team(&control, command).await?
+        }
+        Command::ReplayRun {
+            org,
+            context,
+            run,
+            after,
+            limit,
+            follow,
+        } => {
             let credential = credential_from_stdin().await?;
-            let replay = control.contexts().replay_run(&credential, org, context, run, after, limit).await?;
-            let output = match replay {
-                Ok(events) => serde_json::json!({"events":events}),
-                Err(gap) => serde_json::json!({"gap":gap}),
-            };
-            println!("{output}");
+            if !follow {
+                let replay = control
+                    .contexts()
+                    .replay_run(&credential, org, context, run, after, limit)
+                    .await?;
+                let output = match replay {
+                    Ok(events) => serde_json::json!({"events":events}),
+                    Err(gap) => serde_json::json!({"gap":gap}),
+                };
+                println!("{output}");
+            } else {
+                let mut cursor = after;
+                loop {
+                    match control
+                        .contexts()
+                        .poll_run(&credential, org.clone(), context.clone(), run.clone(), cursor, limit)
+                        .await?
+                    {
+                        tetonic_app::resources::RunPoll::CaughtUp => break,
+                        tetonic_app::resources::RunPoll::Gap(gap) => {
+                            println!("{}", serde_json::json!({"gap": gap}));
+                            break;
+                        }
+                        tetonic_app::resources::RunPoll::Events(events) => {
+                            if let Some(last) = events.last() {
+                                cursor = last.sequence;
+                            }
+                            if !events.is_empty() {
+                                println!("{}", serde_json::json!({"events": events}));
+                            }
+                            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
+                        }
+                    }
+                }
+            }
         }
         Command::InspectRun { org, context, run } => {
             let credential = credential_from_stdin().await?;
-            let snapshot = control.contexts().inspect_run(&credential, org, context, run).await?;
+            let snapshot = control
+                .contexts()
+                .inspect_run(&credential, org, context, run)
+                .await?;
             println!("{}", serde_json::to_string(&snapshot)?);
         }
         Command::Agent { command } => agents::dispatch(&control, command).await?,
+        Command::Work { command } => work::dispatch(&control, command).await?,
         Command::Context { command } => contexts::dispatch(&control, command).await?,
         Command::AddTeamMember {
             org,
@@ -188,11 +254,16 @@ pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
             let credential = credential_from_stdin().await?;
             control
                 .resources()
-                .set_team_member(&credential, org, team, principal, true)
+                .set_team_member(&credential, org.clone(), team.clone(), principal.clone(), true)
                 .await?;
+            let working_context_id =
+                tetonic_app::resources::team_participation_context_id(&org, &team, &principal)?;
             println!(
                 "{}",
-                serde_json::json!({"explicit_membership_updated":true})
+                serde_json::json!({
+                    "explicit_membership_updated": true,
+                    "working_context_id": working_context_id
+                })
             );
         }
         Command::RemoveTeamMember {
@@ -270,9 +341,20 @@ pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
                 .resources()
                 .create_team(&credential, org, team, name)
                 .await?;
+            let working_context_id = tetonic_app::resources::team_participation_context_id(
+                &row.org_id,
+                &row.team_id,
+                &row.owner_principal_id,
+            )?;
             println!(
                 "{}",
-                serde_json::json!({"org_id":row.org_id,"team_id":row.team_id,"name":row.name,"owner_principal_id":row.owner_principal_id})
+                serde_json::json!({
+                    "org_id": row.org_id,
+                    "team_id": row.team_id,
+                    "name": row.name,
+                    "owner_principal_id": row.owner_principal_id,
+                    "working_context_id": working_context_id
+                })
             );
         }
         Command::GetTeam { org, team } => {

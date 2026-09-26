@@ -222,7 +222,7 @@ impl SessionService for DefaultSessionService {
                         .session_workspace(&sid)
                         .map_err(|e| AppError::PersistenceFailed(format!("audit: {e}")))?
                         .ok_or_else(|| {
-                            AppError::InvalidRequest(format!("unknown session_id `{sid}`"))
+                            AppError::InvalidRequest("unknown session_id".into())
                         })?;
                     let active_ws = db.normalize_workspace(&cmd_workspace_root);
                     if ws != active_ws {

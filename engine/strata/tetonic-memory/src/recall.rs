@@ -106,11 +106,16 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn session_started_at(&self, session_id: &str) -> Result<Option<String>> {
+    /// Workspace for a legacy session. A scoped or unknown id is `None`, so resume
+    /// cannot distinguish a private session from one that does not exist.
+    pub fn session_workspace(&self, session_id: &str) -> Result<Option<String>> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(None);
+        }
         let v: Option<String> = self
             .conn
             .query_row(
-                "SELECT started_at FROM sessions WHERE id = ?1",
+                "SELECT workspace_root FROM sessions WHERE id = ?1 AND context_id='legacy-local'",
                 params![session_id],
                 |r| r.get(0),
             )
@@ -118,16 +123,19 @@ impl Store {
         Ok(v)
     }
 
-    pub fn session_workspace(&self, session_id: &str) -> Result<Option<String>> {
-        let v: Option<String> = self
-            .conn
+    /// Index locator for the trusted recall writer. Not an employee read.
+    pub(crate) fn session_index_locator(
+        &self,
+        session_id: &str,
+    ) -> Result<Option<(String, String)>> {
+        self.conn
             .query_row(
-                "SELECT workspace_root FROM sessions WHERE id = ?1",
+                "SELECT workspace_root, started_at FROM sessions WHERE id = ?1",
                 params![session_id],
-                |r| r.get(0),
+                |r| Ok((r.get(0)?, r.get(1)?)),
             )
-            .optional()?;
-        Ok(v)
+            .optional()
+            .map_err(Into::into)
     }
 
     /// Keyword search over prior sessions in this workspace (excludes current session).
@@ -201,6 +209,9 @@ impl Store {
 
     /// Count egress log rows for a session (daemon mirror verification).
     pub fn egress_count_for_session(&self, session_id: &str) -> Result<i64> {
+        if self.require_legacy_session(session_id).is_err() {
+            return Ok(0);
+        }
         Ok(self.conn.query_row(
             "SELECT COUNT(*) FROM egress_log WHERE session_id = ?1",
             params![session_id],
@@ -211,27 +222,27 @@ impl Store {
 
 /// Hook after a message row is inserted (recall FTS index).
 pub(crate) fn after_message_insert(store: &Store, session_id: &str, role: &str, content: &str) {
-    let Ok(Some(ws)) = store.session_workspace(session_id) else {
+    let Ok(Some((ws, started))) = store.session_index_locator(session_id) else {
         return;
     };
-    let Ok(Some(started)) = store.session_started_at(session_id) else {
-        return;
-    };
-    if let Err(e) = store.index_recall_message(&ws, session_id, &started, role, content) {
-        tracing::warn!(%session_id, error = %e, "recall FTS index failed for message");
+    if store
+        .index_recall_message(&ws, session_id, &started, role, content)
+        .is_err()
+    {
+        tracing::warn!(%session_id, "recall FTS index failed for message");
     }
 }
 
 /// Hook after a successful tool call is recorded (recall FTS index).
 pub(crate) fn after_tool_insert(store: &Store, session_id: &str, tool: &str, body: &str) {
-    let Ok(Some(ws)) = store.session_workspace(session_id) else {
+    let Ok(Some((ws, started))) = store.session_index_locator(session_id) else {
         return;
     };
-    let Ok(Some(started)) = store.session_started_at(session_id) else {
-        return;
-    };
-    if let Err(e) = store.index_recall_tool(&ws, session_id, &started, tool, body) {
-        tracing::warn!(%session_id, tool, error = %e, "recall FTS index failed for tool");
+    if store
+        .index_recall_tool(&ws, session_id, &started, tool, body)
+        .is_err()
+    {
+        tracing::warn!(%session_id, tool, "recall FTS index failed for tool");
     }
 }
 
@@ -338,6 +349,52 @@ mod tests {
         assert!(
             hits.is_empty(),
             "system messages must not appear in recall, got: {hits:?}"
+        );
+    }
+
+    #[test]
+    fn recall_history_does_not_return_private_context_in_the_same_workspace() {
+        use crate::ContextOwner;
+        let dir = tempdir().unwrap();
+        let store = Store::open(dir.path().join("lokai.db")).unwrap();
+        store.bootstrap_control("alice", "org", "Org").unwrap();
+        let root = dir.path().join("ws");
+        std::fs::create_dir_all(&root).unwrap();
+        let ws = root.to_string_lossy().to_string();
+        let legacy = store.start_session(&ws, "single-agent", "m").unwrap();
+        let stored = store.session_workspace(&legacy).unwrap().unwrap();
+        store
+            .create_information_context(
+                "alice",
+                "private",
+                &ContextOwner::Private {
+                    org_id: "org".into(),
+                },
+            )
+            .unwrap();
+        let private_session = store.create_context_history("alice", "private").unwrap();
+        store
+            .conn
+            .execute(
+                "UPDATE sessions SET workspace_root=?1 WHERE id=?2",
+                rusqlite::params![stored, private_session],
+            )
+            .unwrap();
+        store
+            .append_context_message(
+                "alice",
+                "private",
+                &private_session,
+                "note-1",
+                "searchword PRIVATECANARY",
+            )
+            .unwrap();
+        let hits = store
+            .recall_history(&root, "PRIVATECANARY", 5, Some(&legacy))
+            .unwrap();
+        assert!(
+            hits.iter().all(|hit| !hit.snippet.contains("PRIVATECANARY")),
+            "legacy recall returned private history: {hits:?}"
         );
     }
 }

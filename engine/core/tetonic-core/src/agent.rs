@@ -52,6 +52,7 @@ pub struct Agent {
     turn_ops: Option<TurnOpsHook>,
     context_compiler: Option<Arc<dyn ContextCompiler>>,
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
+    world_adapter: Option<Arc<dyn tetonic_domain::WorldAdapter>>,
 }
 
 // Thread safety must follow from every field's trait bounds; never override
@@ -60,6 +61,12 @@ pub struct Agent {
 fn agent_is_send_and_sync_without_unsafe_overrides() {
     fn assert_thread_safe<T: Send + Sync>() {}
     assert_thread_safe::<Agent>();
+}
+
+async fn wait_until_canceled(signal: tetonic_domain::work_scope::CancellationSignal) {
+    while !signal.is_canceled() {
+        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
 }
 
 impl Agent {
@@ -269,6 +276,19 @@ impl ToolHost for EmptyToolHost {
     }
 }
 
+fn token_ceiling_reached(ceiling: Option<u64>, reported_tokens: u64) -> bool {
+    ceiling.is_some_and(|limit| reported_tokens >= limit)
+}
+
+fn add_reported_tokens(usage: &tetonic_inference::GenUsage, reported_tokens: &mut u64) {
+    if !usage.reported() {
+        return;
+    }
+    *reported_tokens = reported_tokens
+        .saturating_add(usage.prompt_tokens.unwrap_or(0))
+        .saturating_add(usage.eval_tokens.unwrap_or(0));
+}
+
 impl Agent {
     pub fn with_tokenizer(
         provider: Arc<dyn InferenceProvider>,
@@ -308,6 +328,7 @@ impl Agent {
             context_compiler: None,
             work_scope: Default::default(),
             brain: None,
+            world_adapter: None,
             execution_gate: None,
         }
     }
@@ -321,6 +342,16 @@ impl Agent {
     /// Access the agent's attached brain, if any.
     pub fn brain(&self) -> Option<&Arc<dyn tetonic_domain::Brain>> {
         self.brain.as_ref()
+    }
+
+    /// When set, a managed attempt runs the world executor instead of a coding turn.
+    pub fn with_world_adapter(mut self, adapter: Arc<dyn tetonic_domain::WorldAdapter>) -> Self {
+        self.world_adapter = Some(adapter);
+        self
+    }
+
+    pub fn world_adapter(&self) -> Option<Arc<dyn tetonic_domain::WorldAdapter>> {
+        self.world_adapter.clone()
     }
 
     /// Run an ongoing continuous actor loop in a live environment.
@@ -389,7 +420,7 @@ impl Agent {
     pub async fn run_in_world(
         &self,
         adapter: Arc<dyn tetonic_domain::WorldAdapter>,
-    ) -> Result<(), AgentError> {
+    ) -> Result<CandidateOutcome, AgentError> {
         let brain = self.brain.as_ref().ok_or_else(|| {
             AgentError::Capability("agent has no configured brain for continuous execution".into())
         })?;
@@ -399,9 +430,23 @@ impl Agent {
         drop(sender);
 
         let mut sensory_filter = SensoryFilter::new();
+        let cancel = self.work_scope.cancellation_signal();
+        let mut canceled = false;
 
-        while let Some(perception) = perception_rx.recv().await {
-            if self.work_scope.is_canceled() {
+        loop {
+            let perception = tokio::select! {
+                biased;
+                _ = wait_until_canceled(cancel.clone()) => {
+                    canceled = true;
+                    break;
+                }
+                incoming = perception_rx.recv() => incoming,
+            };
+            let Some(perception) = perception else {
+                break;
+            };
+            if cancel.is_canceled() {
+                canceled = true;
                 break;
             }
 
@@ -439,6 +484,21 @@ impl Agent {
                         continue;
                     }
 
+                    if cancel.is_canceled() {
+                        canceled = true;
+                        break;
+                    }
+                    if let Some(gate) = &self.execution_gate {
+                        if gate.authorize().await.is_err() {
+                            tracing::warn!(
+                                agent_id = %self.config.agent_id,
+                                action = %action.kind,
+                                "world action denied by execution authority"
+                            );
+                            self.abort_staged_mutations().await;
+                            continue;
+                        }
+                    }
                     // 3. Dispatch to World Actuators
                     match adapter.execute(action).await {
                         Ok(res) => {
@@ -478,7 +538,16 @@ impl Agent {
             }
         }
 
-        Ok(())
+        if canceled {
+            Ok(CandidateOutcome::Canceled {
+                reason: "world attempt canceled".into(),
+            })
+        } else {
+            Ok(CandidateOutcome::Completed {
+                summary: "world perception stream ended".into(),
+                kind: CompletionKind::Finish,
+            })
+        }
     }
 
     /// Persist operational turn state for crash recovery (AC2-6).
@@ -692,6 +761,15 @@ impl Agent {
     ) -> ToolOutcome {
         // Check after any asynchronous approval/capability wait and before
         // handing the effect to a blocking worker.
+        if self.work_scope.is_canceled() {
+            return ToolOutcome {
+                ok: false,
+                summary: "canceled".into(),
+                content: "canceled".into(),
+                error_kind: Some("denied".into()),
+                change: None,
+            };
+        }
         if !self.execution_authorized().await {
             return ToolOutcome { ok: false, summary: "execution authorization denied".into(),
                 content: "execution authorization denied".into(), error_kind: Some("denied".into()), change: None };
@@ -984,6 +1062,7 @@ impl Agent {
         prefix_len: &mut usize,
         compaction_threshold: f32,
         compaction_prompt: Option<&str>,
+        reported_tokens: &mut u64,
     ) -> anyhow::Result<Option<usize>> {
         let total: usize = messages
             .iter()
@@ -1014,7 +1093,12 @@ impl Agent {
             .unwrap_or_default();
         let to_fold: Vec<Message> = messages[start..end].to_vec();
         let summary = self
-            .summarize(&existing_summary, &to_fold, compaction_prompt)
+            .summarize(
+                &existing_summary,
+                &to_fold,
+                compaction_prompt,
+                reported_tokens,
+            )
             .await?;
 
         let system = messages[0].clone();
@@ -1038,6 +1122,7 @@ impl Agent {
         prior: &str,
         msgs: &[Message],
         compaction_prompt: &str,
+        reported_tokens: &mut u64,
     ) -> anyhow::Result<String> {
         let mut transcript = String::new();
         if !prior.is_empty() {
@@ -1060,6 +1145,9 @@ impl Agent {
         let sys = Message::system(compaction_prompt);
         let user = Message::user(format!("Summarize the session so far:\n\n{transcript}"));
 
+        if self.work_scope.is_canceled() {
+            anyhow::bail!("canceled");
+        }
         if !self.execution_authorized().await {
             anyhow::bail!("execution authorization denied");
         }
@@ -1081,6 +1169,7 @@ impl Agent {
                     fabric: Some(FabricCallMeta {
                         session_id: self.config.session_id.clone(),
                         agent_id: Some(self.config.agent_id.clone()),
+                        information_context_id: self.config.information_context_id.clone(),
                         data_class: self.config.data_class,
                         disclosure_tier: self.config.disclosure_tier,
                         model_tier: self.config.model_tier.clone(),
@@ -1092,6 +1181,7 @@ impl Agent {
                 &mut noop,
             )
             .await?;
+        add_reported_tokens(&resp.usage, reported_tokens);
         Ok(resp.message.content)
     }
 
@@ -1339,11 +1429,19 @@ impl Agent {
 
         let mut step_index: u32 = 0;
         let mut steps_used: u32 = 0;
+        let mut reported_tokens: u64 = 0;
         let max_steps = invocation.max_steps.min(self.config.max_steps);
 
         'steps: for _ in 0..max_steps {
             steps_used += 1;
-            if convo.is_canceled() {
+            if token_ceiling_reached(self.config.reported_token_ceiling, reported_tokens) {
+                on_step(Step::Stopped("reported token ceiling reached".into()));
+                return CandidateOutcome::Limited {
+                    kind: LimitKind::EffortCap,
+                    message: "reported token ceiling reached".into(),
+                };
+            }
+            if convo.is_canceled() || self.work_scope.is_canceled() {
                 self.abort_staged_mutations().await;
                 on_step(Step::Stopped("canceled".into()));
                 return CandidateOutcome::Canceled {
@@ -1357,6 +1455,7 @@ impl Agent {
                         &mut convo.prefix_len,
                         compaction_threshold,
                         invocation.discipline.compaction_system_prompt.as_deref(),
+                        &mut reported_tokens,
                     )
                     .await
                 {
@@ -1376,6 +1475,13 @@ impl Agent {
                         };
                     }
                 }
+            }
+            if token_ceiling_reached(self.config.reported_token_ceiling, reported_tokens) {
+                on_step(Step::Stopped("reported token ceiling reached".into()));
+                return CandidateOutcome::Limited {
+                    kind: LimitKind::EffortCap,
+                    message: "reported token ceiling reached".into(),
+                };
             }
 
             let context_timer =
@@ -1411,6 +1517,7 @@ impl Agent {
                             .or_else(|| convo.turn_id().map(String::from))
                     }),
                     attempt_id: self.config.attempt_id.clone(),
+                    information_context_id: self.config.information_context_id.clone(),
                     data_class: self.config.data_class,
                     context_data_class: compiled_context_data_class,
                     workspace_version: compiled_workspace_version.clone(),
@@ -1440,11 +1547,18 @@ impl Agent {
                         }
                     }
                 };
-                let inference_timer =
-                    tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Inference);
+                if convo.is_canceled() || self.work_scope.is_canceled() {
+                    self.abort_staged_mutations().await;
+                    on_step(Step::Stopped("canceled".into()));
+                    return CandidateOutcome::Canceled {
+                        reason: "canceled".into(),
+                    };
+                }
                 if !self.execution_authorized().await {
                     return CandidateOutcome::Failed { message: "execution authorization denied".into() };
                 }
+                let inference_timer =
+                    tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Inference);
                 let result = self.provider.chat(req, &mut on_token).await;
                 inference_timer.finish(result.is_ok());
                 for chunk in demuxer.finish() {
@@ -1472,6 +1586,7 @@ impl Agent {
             // Surface generation throughput (prefill/decode) for this step, since
             // prefill is re-paid every step and dominates end-to-end latency.
             if resp.usage.reported() {
+                add_reported_tokens(&resp.usage, &mut reported_tokens);
                 if let Some(a) = self.audit() {
                     a.note(&format_usage(&resp.usage));
                 }
@@ -1558,6 +1673,14 @@ impl Agent {
             // Execute only after those checks, preserving the requested order.
             for tc in tool_calls {
                 // Includes in-loop finish/spawn paths as well as ordinary tools.
+                // Cancellation wins before finish can record a completed outcome.
+                if convo.is_canceled() || self.work_scope.is_canceled() {
+                    self.abort_staged_mutations().await;
+                    on_step(Step::Stopped("canceled".into()));
+                    return CandidateOutcome::Canceled {
+                        reason: "canceled".into(),
+                    };
+                }
                 if !self.execution_authorized().await {
                     return CandidateOutcome::Failed { message: "execution authorization denied".into() };
                 }
@@ -1674,14 +1797,6 @@ impl Agent {
                     return CandidateOutcome::Completed {
                         summary,
                         kind: CompletionKind::Finish,
-                    };
-                }
-
-                if convo.is_canceled() {
-                    self.abort_staged_mutations().await;
-                    on_step(Step::Stopped("canceled".into()));
-                    return CandidateOutcome::Canceled {
-                        reason: "canceled".into(),
                     };
                 }
 
@@ -2255,6 +2370,247 @@ mod tests {
             completion_tool: "finish".into(),
             discipline: tetonic_domain::LoopDiscipline::default(),
         }
+    }
+
+    struct CountingTool;
+
+    impl ToolHost for CountingTool {
+        fn clone_box(&self) -> Box<dyn ToolHost> {
+            Box::new(CountingTool)
+        }
+        fn propose(
+            &self,
+            _: &str,
+            _: &serde_json::Value,
+        ) -> Option<tetonic_domain::tool_host::ToolProposal> {
+            None
+        }
+        fn is_tool_allowed(&self, name: &str) -> bool {
+            name == "again"
+        }
+        fn is_read_only(&self, _: &str) -> bool {
+            true
+        }
+        fn advertisements(&self) -> Vec<ToolAdvertisement> {
+            vec![ToolAdvertisement {
+                name: "again".into(),
+                description: "continue".into(),
+                parameters: serde_json::json!({"type":"object","properties":{}}),
+            }]
+        }
+        fn validate_tool_args(&self, _: &str, _: &serde_json::Value) -> Result<(), String> {
+            Ok(())
+        }
+        fn execute_authorized(
+            &self,
+            _: &str,
+            _: &serde_json::Value,
+            _: Option<&tetonic_domain::AuthorizedAction>,
+            _: &tetonic_domain::work_scope::CancellationSignal,
+        ) -> ToolOutcome {
+            ToolOutcome::ok("continued", "continued")
+        }
+    }
+
+    struct CeilingProvider {
+        calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+        report_tokens: bool,
+    }
+
+    #[async_trait]
+    impl InferenceProvider for CeilingProvider {
+        async fn chat(
+            &self,
+            _: ChatRequest,
+            _: &mut TokenSink<'_>,
+        ) -> Result<ChatResponse, InferenceError> {
+            self.calls
+                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            let mut usage = tetonic_inference::GenUsage::default();
+            if self.report_tokens {
+                usage.prompt_tokens = Some(4);
+                usage.eval_tokens = Some(1);
+            }
+            Ok(ChatResponse {
+                message: Message::assistant("").with_tool_calls(vec![tetonic_inference::ToolCall {
+                    function: tetonic_inference::FunctionCall {
+                        name: "again".into(),
+                        arguments: serde_json::json!({}),
+                    },
+                }]),
+                usage,
+                provenance: Default::default(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn reported_token_ceiling_stops_the_next_model_call() {
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let provider = std::sync::Arc::new(CeilingProvider {
+            calls: calls.clone(),
+            report_tokens: true,
+        });
+        let agent = Agent::new(
+            provider,
+            CountingTool,
+            AgentConfig {
+                reported_token_ceiling: Some(5),
+                max_steps: 4,
+                ..AgentConfig::default()
+            },
+        );
+        let mut convo = Conversation::new();
+        let outcome = agent.turn(&mut convo, test_inv("continue"), |_| {}).await;
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(
+            matches!(
+                outcome,
+                CandidateOutcome::Limited {
+                    kind: LimitKind::EffortCap,
+                    ..
+                }
+            ),
+            "ceiling must stop the loop, got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn unreported_usage_does_not_count_toward_the_token_ceiling() {
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let provider = std::sync::Arc::new(CeilingProvider {
+            calls: calls.clone(),
+            report_tokens: false,
+        });
+        let agent = Agent::new(
+            provider,
+            CountingTool,
+            AgentConfig {
+                reported_token_ceiling: Some(1),
+                max_steps: 3,
+                ..AgentConfig::default()
+            },
+        );
+        let mut convo = Conversation::new();
+        let mut invocation = test_inv("continue");
+        invocation.max_steps = 3;
+        let _ = agent.turn(&mut convo, invocation, |_| {}).await;
+        assert_eq!(
+            calls.load(std::sync::atomic::Ordering::SeqCst),
+            3,
+            "missing provider usage must not be invented as spend"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_during_compaction_does_not_start_the_next_model_call() {
+        let calls = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let saw_user_turn = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+        let mut convo = Conversation::new();
+        let cancel = convo.cancel_handle();
+        convo.messages.push(Message::system("system"));
+        for _ in 0..8 {
+            convo
+                .messages
+                .push(Message::user("WORD ".repeat(800)));
+        }
+        struct CancelDuringSummary {
+            calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
+            saw_user_turn: std::sync::Arc<std::sync::atomic::AtomicBool>,
+            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        #[async_trait]
+        impl InferenceProvider for CancelDuringSummary {
+            async fn chat(
+                &self,
+                request: ChatRequest,
+                _: &mut TokenSink<'_>,
+            ) -> Result<ChatResponse, InferenceError> {
+                self.calls
+                    .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+                if request.messages.iter().any(|message| {
+                    message.role == "user" && message.content.contains("FRESHUSER")
+                }) {
+                    self.saw_user_turn
+                        .store(true, std::sync::atomic::Ordering::SeqCst);
+                }
+                self.cancel
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                Ok(ChatResponse {
+                    message: Message::assistant("folded"),
+                    usage: Default::default(),
+                    provenance: Default::default(),
+                })
+            }
+        }
+        let provider = std::sync::Arc::new(CancelDuringSummary {
+            calls: calls.clone(),
+            saw_user_turn: saw_user_turn.clone(),
+            cancel,
+        });
+        let agent = Agent::new(provider, CountingTool, AgentConfig::default());
+        let mut invocation = test_inv("FRESHUSER");
+        invocation.discipline.compaction_system_prompt = Some("summarize older turns".into());
+        let outcome = agent.turn(&mut convo, invocation, |_| {}).await;
+        assert_eq!(calls.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert!(
+            !saw_user_turn.load(std::sync::atomic::Ordering::SeqCst),
+            "the canceled turn still called the model with the user request"
+        );
+        assert!(
+            matches!(outcome, CandidateOutcome::Canceled { .. }),
+            "cancel during compaction must stop the turn, got {outcome:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn cancel_before_finish_does_not_record_completion() {
+        let mut convo = Conversation::new();
+        let cancel = convo.cancel_handle();
+        struct FinishAfterCancel {
+            cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
+        }
+        #[async_trait]
+        impl InferenceProvider for FinishAfterCancel {
+            async fn chat(
+                &self,
+                _: ChatRequest,
+                _: &mut TokenSink<'_>,
+            ) -> Result<ChatResponse, InferenceError> {
+                self.cancel
+                    .store(true, std::sync::atomic::Ordering::SeqCst);
+                Ok(ChatResponse {
+                    message: Message::assistant("").with_tool_calls(vec![
+                        tetonic_inference::ToolCall {
+                            function: tetonic_inference::FunctionCall {
+                                name: "finish".into(),
+                                arguments: serde_json::json!({"summary": "SHOULD_NOT_FINISH"}),
+                            },
+                        },
+                    ]),
+                    usage: Default::default(),
+                    provenance: Default::default(),
+                })
+            }
+        }
+        let agent = Agent::new(
+            std::sync::Arc::new(FinishAfterCancel { cancel }),
+            CountingTool,
+            AgentConfig {
+                max_steps: 2,
+                ..AgentConfig::default()
+            },
+        );
+        let outcome = agent.turn(&mut convo, test_inv("finish the task"), |_| {}).await;
+        assert!(
+            matches!(outcome, CandidateOutcome::Canceled { .. }),
+            "finish must not complete a canceled turn, got {outcome:?}"
+        );
+        let rendered = format!("{outcome:?}");
+        assert!(
+            !rendered.contains("SHOULD_NOT_FINISH"),
+            "canceled turn recorded the finish summary: {rendered}"
+        );
     }
 
     struct MockTestProvider {
@@ -3496,6 +3852,71 @@ mod tests {
 
         let executed = adapter.executed_actions.lock().unwrap();
         assert_eq!(executed.len(), 0); // Action was rejected by manifest!
+    }
+
+    #[tokio::test]
+    async fn test_run_in_world_idle_cancel_does_not_dispatch() {
+        let brain = Arc::new(MockContinuousBrain);
+        let scope = tetonic_domain::work_scope::WorkScope::default();
+        let mut agent = Agent::default().with_brain(brain);
+        agent.bind_work_scope(scope.clone()).unwrap();
+        let manifest = tetonic_domain::WorldManifest::new("mock_world", "1.0")
+            .with_affordance(tetonic_domain::Affordance::instant(
+                "emergency_action",
+                "Execute emergency response",
+            ));
+        let (adapter, _perception_tx) = MockWorldAdapter::new(manifest);
+        let adapter_clone = adapter.clone();
+        let agent_handle = tokio::spawn(async move { agent.run_in_world(adapter_clone).await });
+        tokio::time::sleep(std::time::Duration::from_millis(40)).await;
+        scope.cancel();
+        let outcome = tokio::time::timeout(std::time::Duration::from_secs(1), agent_handle)
+            .await
+            .expect("idle world wait must observe cancellation")
+            .unwrap()
+            .unwrap();
+        assert!(matches!(outcome, CandidateOutcome::Canceled { .. }));
+        assert!(adapter.executed_actions.lock().unwrap().is_empty());
+    }
+
+    #[tokio::test]
+    async fn test_run_in_world_denied_authority_does_not_reach_adapter() {
+        struct DenyGate;
+        #[async_trait::async_trait]
+        impl crate::ExecutionGate for DenyGate {
+            async fn authorize(&self) -> Result<(), ()> {
+                Err(())
+            }
+        }
+        let brain = Arc::new(MockContinuousBrain);
+        let mut agent = Agent::default().with_brain(brain);
+        agent.bind_execution_gate(Some(Arc::new(DenyGate)));
+        let manifest = tetonic_domain::WorldManifest::new("mock_world", "1.0")
+            .with_affordance(tetonic_domain::Affordance::instant(
+                "emergency_action",
+                "Execute emergency response",
+            ));
+        let (adapter, perception_tx) = MockWorldAdapter::new(manifest);
+        let adapter_clone = adapter.clone();
+        let agent_handle = tokio::spawn(async move { agent.run_in_world(adapter_clone).await });
+        perception_tx
+            .send(tetonic_domain::Perception {
+                when: chrono::Utc::now(),
+                sequence: 1,
+                urgency: tetonic_domain::Urgency::High,
+                signals: vec![],
+                events: vec![],
+                state: tetonic_domain::WorldState {
+                    schema_id: "test".into(),
+                    data: serde_json::Value::Null,
+                },
+            })
+            .await
+            .unwrap();
+        tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+        drop(perception_tx);
+        agent_handle.await.unwrap().unwrap();
+        assert!(adapter.executed_actions.lock().unwrap().is_empty());
     }
 
     #[tokio::test]

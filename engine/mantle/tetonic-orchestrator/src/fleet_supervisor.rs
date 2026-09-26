@@ -49,7 +49,7 @@ impl ManagedAgent {
         Self {
             agent_id,
             squad_id,
-            state: RwLock::new(AgentLifecycleState::Running),
+            state: RwLock::new(AgentLifecycleState::Idle),
             last_heartbeat: RwLock::new(Utc::now()),
             perception_tx,
             adapter,
@@ -229,7 +229,8 @@ impl FleetSupervisor {
 
         let agents_guard = self.agents.read().unwrap();
         for agent in agents_guard.values() {
-            *agent.state.write().unwrap() = AgentLifecycleState::Running;
+            // Clearing an emergency stop is not an execution claim.
+            *agent.state.write().unwrap() = AgentLifecycleState::Idle;
             if let Some(ref adapter) = agent.adapter {
                 let _ = adapter.resume();
             }
@@ -288,7 +289,8 @@ impl FleetSupervisor {
         let agent = guard
             .get(agent_id)
             .ok_or_else(|| FleetError::AgentNotFound(agent_id.clone()))?;
-        *agent.state.write().unwrap() = AgentLifecycleState::Running;
+        // Clearing an emergency stop is not an execution claim.
+        *agent.state.write().unwrap() = AgentLifecycleState::Idle;
         if let Some(ref adapter) = agent.adapter {
             let _ = adapter.resume();
         }

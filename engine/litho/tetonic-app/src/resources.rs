@@ -12,12 +12,17 @@ mod local_credentials;
 pub use local_control::LocalControl;
 mod membership;
 mod administration;
+mod team_work;
+mod team_work_activation;
+pub use team_work_activation::TeamWorkLaunch;
 mod contexts;
 mod context_compiler;
 mod credential_binding;
 mod context_artifacts;
 pub use contexts::ContextService;
+pub use tetonic_memory::team_participation_context_id;
 pub use tetonic_memory::ContextOwner;
+pub use tetonic_memory::HuddleProposal;
 pub use tetonic_memory::OrganizationRole;
 pub use local_credentials::{IssuedCredential, LocalCredentials};
 pub use membership::CredentialVerifier;
@@ -236,8 +241,11 @@ pub use general_harness::{HarnessPreparationLimits, PreparedAgentRevision};
 mod execution_authority;
 
 mod execution_grants;
+mod execution_limits;
+pub use execution_limits::OrganizationExecutionLimits;
 
 mod run_inspection;
+pub use run_inspection::RunPoll;
 
 mod activation;
 pub use activation::RegisteredAgentJob;

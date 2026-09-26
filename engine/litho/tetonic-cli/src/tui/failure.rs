@@ -7,7 +7,21 @@ pub struct TurnFailureCopy {
     pub hint: Option<String>,
 }
 
+/// Employee-visible failure text. A persistence, tool, or internal body is not repeated.
+pub fn visible_failure(raw: &str) -> String {
+    let trimmed = raw.trim();
+    let lower = trimmed.to_ascii_lowercase();
+    if lower.starts_with("persistence failed:")
+        || lower.starts_with("tool execution failed:")
+        || lower.starts_with("internal invariant violation:")
+    {
+        return "request failed".into();
+    }
+    trimmed.to_string()
+}
+
 pub fn explain_turn_failure(raw: &str) -> TurnFailureCopy {
+    let raw = visible_failure(raw);
     let lower = raw.to_ascii_lowercase();
     if (lower.contains("capability stale") && lower.contains("node_local"))
         || lower.contains("worker capabilities not cached")
@@ -50,13 +64,13 @@ pub fn explain_turn_failure(raw: &str) -> TurnFailureCopy {
     if lower.contains("egress") {
         return TurnFailureCopy {
             headline: "Turn failed — network policy denied the call.",
-            summary: sanitize_error(raw),
+            summary: sanitize_error(&raw),
             hint: Some("Use `/egress` to inspect allow rules. Loopback Ollama should not need extra rules.".into()),
         };
     }
     TurnFailureCopy {
         headline: "Turn failed.",
-        summary: sanitize_error(raw),
+        summary: sanitize_error(&raw),
         hint: None,
     }
 }
@@ -73,7 +87,8 @@ pub fn explain_capacity_warning(raw: &str) -> TurnFailureCopy {
 }
 
 pub fn inspector_failure_text(raw: &str) -> String {
-    let copy = explain_turn_failure(raw);
+    let raw = visible_failure(raw);
+    let copy = explain_turn_failure(&raw);
     let mut out = String::from("Turn failed\n\n");
     out.push_str(&copy.summary);
     out.push('\n');
@@ -105,6 +120,23 @@ pub fn is_same_failure(prev: &str, next: &str) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn persistence_and_tool_bodies_are_not_shown() {
+        for raw in [
+            "Persistence failed: sqlite: PRIVATECANARY",
+            "Tool execution failed: stdout PRIVATECANARY",
+            "Internal invariant violation: PRIVATECANARY",
+        ] {
+            let copy = explain_turn_failure(raw);
+            let shown = inspector_failure_text(raw);
+            assert_eq!(copy.summary, "request failed");
+            assert!(!shown.contains("PRIVATECANARY"), "{shown}");
+            assert!(shown.contains("request failed"), "{shown}");
+        }
+        assert!(inspector_failure_text("Invalid request: unknown session_id")
+            .contains("unknown session_id"));
+    }
 
     #[test]
     fn execution_failure_does_not_claim_the_model_never_replied() {

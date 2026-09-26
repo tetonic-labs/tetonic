@@ -6,11 +6,17 @@ use anyhow::{ensure, Context};
 use clap::Parser;
 use serde::Deserialize;
 use std::{path::PathBuf, sync::Arc, time::Duration};
-use tetonic_core::{agent::EmptyToolHost, Agent, AgentConfig};
-use tetonic_domain::{Affordance, WorldManifest};
+use tetonic_core::{agent::EmptyToolHost, Agent, AgentConfig, ScopeCancellationGate};
+use tetonic_domain::work_scope::WorkScope;
+use tetonic_domain::{
+    Affordance, AgentAttemptExecutor, AgentInvocation, AttemptExecutionContext, AttemptId,
+    LoopDiscipline, WorldManifest,
+};
 use tetonic_egress::EgressGuard;
 use tetonic_inference::OllamaProvider;
-use tetonic_runtime::{websocket_adapter::WebSocketWorldAdapter, SingleModelBrain};
+use tetonic_runtime::{
+    websocket_adapter::WebSocketWorldAdapter, LocalWorldAttemptExecutor, SingleModelBrain,
+};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 #[derive(Parser)]
@@ -167,7 +173,8 @@ async fn main() -> anyhow::Result<()> {
         trace.clone(),
         context_budget::ContextBudget {context:cfg.inference.context_tokens,completion:cfg.inference.completion_tokens,margin:cfg.inference.context_margin},
     ).with_event_acknowledger(event_ack).with_idle_interval(Duration::from_millis(cfg.agent.idle_interval_ms)));
-    let agent = Agent::new(
+    let scope = WorkScope::default();
+    let mut agent = Agent::new(
         provider,
         EmptyToolHost,
         AgentConfig {
@@ -177,6 +184,10 @@ async fn main() -> anyhow::Result<()> {
         },
     )
     .with_brain(brain);
+    agent
+        .bind_work_scope(scope.clone())
+        .context("bind world attempt scope")?;
+    agent.bind_execution_gate(Some(Arc::new(ScopeCancellationGate::new(scope.clone()))));
     let health_adapter = adapter.clone();
     let agent_id = cfg.agent.id.clone();
     tokio::spawn(async move {
@@ -205,9 +216,29 @@ async fn main() -> anyhow::Result<()> {
         }
     });
     tracing::info!(agent=%cfg.agent.id, model=%cfg.inference.model, bind=%cfg.node.bind, "tetonic-server started");
+    let mut world_attempt = LocalWorldAttemptExecutor::new(&mut agent, adapter);
+    let world = world_attempt.execute(
+        AgentInvocation {
+            instructions: String::new(),
+            user_input: String::new(),
+            explain_turn: false,
+            empty_tool_nudge: false,
+            max_steps: 1,
+            completion_tool: "finish".into(),
+            discipline: LoopDiscipline::default(),
+        },
+        AttemptExecutionContext {
+            attempt_id: AttemptId::new(format!("world-{}", cfg.agent.id)),
+        },
+    );
+    tokio::pin!(world);
     tokio::select! {
-        result = agent.run_in_world(adapter) => result.context("agent world loop")?,
-        _ = tokio::signal::ctrl_c() => tracing::info!("shutdown requested"),
+        _outcome = &mut world => {}
+        _ = tokio::signal::ctrl_c() => {
+            tracing::info!("shutdown requested");
+            scope.cancel();
+            let _outcome = world.await;
+        }
     }
     Ok(())
 }

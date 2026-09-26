@@ -108,7 +108,7 @@ mod tests {
                 },
             )
             .unwrap();
-            db.open_context_history("alice", "private", "session")
+            db.insert_open_discussion("alice", "private", "session")
                 .unwrap();
             db.append_context_message("alice", "private", "session", "request", "preserved")
                 .unwrap();
