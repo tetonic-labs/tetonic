@@ -16,6 +16,55 @@ pub struct CompactReport {
 }
 
 impl Store {
+    #[cfg(test)]
+    pub(crate) fn remove_run_capacity_schema_for_test(&self) {
+        self.conn.execute_batch("DROP INDEX idx_run_execution_capacity; ALTER TABLE run_projections DROP COLUMN registered_identity_id; ALTER TABLE run_projections DROP COLUMN execution_held;").unwrap();
+    }
+
+    pub(crate) fn migrate_run_capacity_v41(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=41)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
+        self.conn.execute_batch(
+            "ALTER TABLE run_projections ADD COLUMN registered_identity_id TEXT;
+             ALTER TABLE run_projections ADD COLUMN execution_held INTEGER NOT NULL DEFAULT 0;
+             CREATE INDEX idx_run_execution_capacity ON run_projections(registered_identity_id)
+                 WHERE execution_held=1;",
+        )?;
+        // Old terminal rows have no physical-completion acknowledgement. Preserve
+        // every such hold, even if several legacy runs name the same identity.
+        let rows: Vec<String> = self
+            .conn
+            .prepare(
+                "SELECT projection_json FROM run_projections r WHERE EXISTS (
+                SELECT 1 FROM json_each(r.projection_json,'$.tasks') t
+                WHERE json_type(t.value,'$.binding.activation')='object')",
+            )?
+            .query_map([], |r| r.get(0))?
+            .collect::<rusqlite::Result<_>>()?;
+        for json in rows {
+            let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
+                StoreError::InvalidControlResource(format!("registered run projection: {e}"))
+            })?;
+            let (identity, held) = crate::run_capacity::registered_capacity(&snapshot)?;
+            self.conn.execute(
+                "UPDATE run_projections SET registered_identity_id=?2, execution_held=?3 WHERE run_id=?1",
+                params![snapshot.run_id.0, identity, held],
+            )?;
+        }
+        self.conn.execute(
+            "INSERT INTO schema_versions(version,applied_at) VALUES(41,?1)",
+            [crate::util::now()],
+        )?;
+        Ok(())
+    }
+}
+
+impl Store {
     /// Atomically append an authoritative run event and persist the projection.
     pub fn commit_run_command(
         &self,
@@ -31,6 +80,19 @@ impl Store {
             rusqlite::TransactionBehavior::Immediate,
         )?;
         let new_seq = snapshot.sequence;
+        let (registered_identity, execution_held) =
+            crate::run_capacity::registered_capacity(snapshot)?;
+        if new_seq == 1 && execution_held {
+            let occupied: bool = tx.query_row(
+                "SELECT EXISTS(SELECT 1 FROM run_projections WHERE registered_identity_id=?1
+                    AND execution_held=1 AND run_id<>?2)",
+                params![registered_identity, snapshot.run_id.0],
+                |r| r.get(0),
+            )?;
+            if occupied {
+                return Err(StoreError::ExecutionCapacityExceeded);
+            }
+        }
         let existing_floor: i64 = tx
             .query_row(
                 "SELECT replay_floor FROM run_projections WHERE run_id = ?1",
@@ -49,8 +111,8 @@ impl Store {
             .flatten();
         tx.execute(
             "INSERT OR REPLACE INTO run_projections
-             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 snapshot.run_id.0,
                 snapshot.session_id.as_ref().map(|s| s.0.as_str()),
@@ -66,6 +128,8 @@ impl Store {
                 now(),
                 existing_floor,
                 existing_recovery,
+                registered_identity,
+                execution_held,
             ],
         )?;
         // Verify the digest against the exact bytes about to be stored (M6,
@@ -153,6 +217,8 @@ impl Store {
     /// `replay_floor` and `recovery_snapshot_json` are carried forward, matching
     /// `commit_run_command`.
     pub fn persist_run_projection(&self, snapshot: &RunSnapshot) -> Result<()> {
+        let (registered_identity, execution_held) =
+            crate::run_capacity::registered_capacity(snapshot)?;
         let tx = self.conn.unchecked_transaction()?;
         let existing_floor: i64 = tx
             .query_row(
@@ -178,8 +244,8 @@ impl Store {
         };
         tx.execute(
             "INSERT OR REPLACE INTO run_projections
-             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
+             (run_id, session_id, sequence, state, projection_json, updated_at, replay_floor, recovery_snapshot_json, registered_identity_id, execution_held)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
             params![
                 snapshot.run_id.0,
                 snapshot.session_id.as_ref().map(|s| s.0.as_str()),
@@ -189,6 +255,8 @@ impl Store {
                 now(),
                 existing_floor,
                 existing_recovery,
+                registered_identity,
+                execution_held,
             ],
         )?;
         tx.commit()?;

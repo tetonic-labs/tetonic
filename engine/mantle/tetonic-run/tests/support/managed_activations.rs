@@ -183,7 +183,7 @@ async fn interrupted_admission_keeps_key_bound_without_creating_another_attempt(
         .unwrap();
     let reopened = durable_service(&database, base.artifacts().clone());
     let replay = receipt(
-        admit(&reopened, context(allowed, "discarded-audit"))
+        admit(&reopened, context(allowed.clone(), "discarded-audit"))
             .await
             .unwrap(),
     );
@@ -192,6 +192,15 @@ async fn interrupted_admission_keeps_key_bound_without_creating_another_attempt(
     assert_eq!(snapshot.sequence, 1);
     assert!(snapshot.attempts.is_empty());
     assert!(reopened.active_bindings(&replay.run_id).is_empty());
+    let mut new_key = context(allowed, "next-audit");
+    new_key.activation.as_mut().unwrap().request_id = "launch-after-crash".into();
+    assert!(
+        matches!(
+            admit(&reopened, new_key).await,
+            Err(tetonic_run::ManagedRunError::ExecutionCapacityExceeded)
+        ),
+        "an ambiguous admission must retain capacity across restart"
+    );
     assert_eq!(
         reopened
             .store()
@@ -202,5 +211,230 @@ async fn interrupted_admission_keeps_key_bound_without_creating_another_attempt(
             .unwrap()
             .len(),
         1
+    );
+}
+
+fn new_context(key: &str) -> AdmissionContext {
+    let mut ctx = context(Arc::new(AtomicBool::new(true)), key);
+    ctx.activation.as_mut().unwrap().request_id = key.into();
+    ctx
+}
+
+fn admitted(result: ManagedAdmission) -> tetonic_run::ManagedBinding {
+    match result {
+        ManagedAdmission::Admitted(binding) => binding,
+        _ => panic!("expected a new activation"),
+    }
+}
+
+#[tokio::test]
+async fn identity_capacity_is_atomic_across_managers_and_initiating_principals() {
+    let (base, dir) = test_service();
+    let database = dir.path().join("capacity-race.db");
+    let a = durable_service(&database, base.artifacts().clone());
+    let b = durable_service(&database, base.artifacts().clone());
+    let barrier = Arc::new(tokio::sync::Barrier::new(2));
+    a.set_pre_admission_barrier(barrier.clone());
+    b.set_pre_admission_barrier(barrier);
+    let mut bob = new_context("bob-launch");
+    bob.authorization.as_mut().unwrap().scope.principal_id = "bob".into();
+    bob.authorization
+        .as_mut()
+        .unwrap()
+        .scope
+        .information_context_id = "bob-private".into();
+    let (first, second) = tokio::join!(admit(&a, new_context("alice-launch")), admit(&b, bob));
+    a.set_pre_admission_barrier(Arc::new(tokio::sync::Barrier::new(1)));
+    b.set_pre_admission_barrier(Arc::new(tokio::sync::Barrier::new(1)));
+    let (binding, owner) = match (first, second) {
+        (
+            Ok(ManagedAdmission::Admitted(binding)),
+            Err(tetonic_run::ManagedRunError::ExecutionCapacityExceeded),
+        ) => (binding, &a),
+        (
+            Err(tetonic_run::ManagedRunError::ExecutionCapacityExceeded),
+            Ok(ManagedAdmission::Admitted(binding)),
+        ) => (binding, &b),
+        other => panic!("one admitted identity expected: {other:?}"),
+    };
+    assert_eq!(
+        a.store()
+            .unwrap()
+            .read(|db| db.list_all_run_ids())
+            .await
+            .unwrap()
+            .unwrap()
+            .len(),
+        1
+    );
+    // A distinct registered identity can still run concurrently.
+    let (mut identity, mut job_spec) = test_identity_and_spec();
+    identity.id = IdentityId::new("another_agent");
+    job_spec.identity_id = identity.id.clone();
+    let separate = admitted(
+        a.admit_submission(
+            &a.reserve_dispatch().id,
+            AdmitJob {
+                identity,
+                job_spec,
+                role: None,
+                parent_attempt: None,
+            },
+            new_context("separate-agent"),
+        )
+        .await
+        .unwrap(),
+    );
+    a.cancel_run(&separate.run_id).await.unwrap();
+    owner.cancel_run(&binding.run_id).await.unwrap();
+    let next = admitted(admit(&b, new_context("next-launch")).await.unwrap());
+    b.cancel_run(&next.run_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn canceled_registered_run_holds_capacity_until_actual_blocking_worker_returns() {
+    let (base, dir) = test_service();
+    let database = dir.path().join("capacity-drain.db");
+    let a = durable_service(&database, base.artifacts().clone());
+    let b = durable_service(&database, base.artifacts().clone());
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            for abort_finalizer in [false, true] {
+                let key = format!("blocking-{abort_finalizer}");
+                let binding = admitted(admit(&a, new_context(&key)).await.unwrap());
+                let entered = Arc::new(Notify::new());
+                let (release, released) = tokio::sync::oneshot::channel();
+                let driver = Arc::new(BlockingEffects {
+                    entered: entered.clone(),
+                    release: std::sync::Mutex::new(Some(released)),
+                });
+                let runs = a.clone();
+                let attempt = binding.attempt_id.clone();
+                let finalizer = tokio::task::spawn_local(async move {
+                    runs.finalize(completed(attempt, driver)).await
+                });
+                tokio::time::timeout(std::time::Duration::from_secs(5), entered.notified())
+                    .await
+                    .unwrap();
+                if abort_finalizer {
+                    finalizer.abort();
+                }
+                let cancel = a.cancel_run(&binding.run_id);
+                tokio::pin!(cancel);
+                assert!(
+                    tokio::time::timeout(std::time::Duration::from_millis(50), &mut cancel)
+                        .await
+                        .is_err()
+                );
+                let snapshot = a.inspect_run(&binding.run_id).await.unwrap();
+                assert_eq!(snapshot.state, tetonic_domain::RunState::Canceled);
+                assert!(!snapshot.attempts[&binding.attempt_id].execution_quiesced);
+                assert!(matches!(
+                    admit(&b, new_context(&format!("blocked-{abort_finalizer}"))).await,
+                    Err(tetonic_run::ManagedRunError::ExecutionCapacityExceeded)
+                ));
+                release.send(()).unwrap();
+                tokio::time::timeout(std::time::Duration::from_secs(5), &mut cancel)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let _ = finalizer.await;
+                let snapshot = a.inspect_run(&binding.run_id).await.unwrap();
+                assert!(snapshot.attempts[&binding.attempt_id].execution_quiesced);
+                let events = a
+                    .resume_events(&binding.run_id, 0, 100)
+                    .await
+                    .unwrap()
+                    .unwrap();
+                let replay = tetonic_run::replay::replay_from_events(
+                    &tetonic_run::replay::empty_snapshot(binding.run_id.clone(), None),
+                    &events,
+                )
+                .unwrap();
+                assert_eq!(replay.attempts, snapshot.attempts);
+                let next = admitted(
+                    admit(&b, new_context(&format!("blocked-{abort_finalizer}")))
+                        .await
+                        .unwrap(),
+                );
+                b.cancel_run(&next.run_id).await.unwrap();
+            }
+        })
+        .await;
+}
+
+#[tokio::test]
+async fn failed_quiescence_write_retains_capacity_and_is_retryable() {
+    let (base, dir) = test_service();
+    let database = dir.path().join("capacity-write-failure.db");
+    let service = durable_service(&database, base.artifacts().clone());
+    let binding = admitted(admit(&service, new_context("first")).await.unwrap());
+    let connection = rusqlite::Connection::open(&database).unwrap();
+    connection.execute_batch("CREATE TRIGGER fail_quiescence BEFORE INSERT ON run_events WHEN NEW.event_type LIKE '%attempt.quiesced%' BEGIN SELECT RAISE(ABORT,'injected quiescence failure'); END;").unwrap();
+    assert!(service.cancel_run(&binding.run_id).await.is_err());
+    assert!(service.binding(&binding.attempt_id).is_some());
+    assert!(
+        !service.inspect_run(&binding.run_id).await.unwrap().attempts[&binding.attempt_id]
+            .execution_quiesced
+    );
+    assert!(matches!(
+        admit(&service, new_context("next")).await,
+        Err(tetonic_run::ManagedRunError::ExecutionCapacityExceeded)
+    ));
+    connection
+        .execute_batch("DROP TRIGGER fail_quiescence;")
+        .unwrap();
+    service.cancel_run(&binding.run_id).await.unwrap();
+    let next = admitted(admit(&service, new_context("next")).await.unwrap());
+    service.cancel_run(&next.run_id).await.unwrap();
+}
+
+#[tokio::test]
+async fn quiescence_acknowledgement_requires_terminal_attempt_and_exact_owner() {
+    use tetonic_domain::{LeaseProof, RunCommand, RunSupervisorError, StartAttempt};
+    let (base, dir) = test_service();
+    let service = durable_service(
+        &dir.path().join("quiescence-proof.db"),
+        base.artifacts().clone(),
+    );
+    let binding = admitted(admit(&service, new_context("first")).await.unwrap());
+    let snapshot = service.inspect_run(&binding.run_id).await.unwrap();
+    let lease = snapshot.attempts[&binding.attempt_id]
+        .lease
+        .as_ref()
+        .unwrap();
+    let ack = StartAttempt {
+        envelope: tetonic_run::command_envelope("quiescence-proof", None, "tetonic-manager"),
+        run_id: binding.run_id.clone(),
+        attempt_id: binding.attempt_id.clone(),
+        lease_proof: LeaseProof {
+            lease_id: lease.lease_id.clone(),
+            lease_epoch: lease.lease_epoch,
+            holder: lease.holder.clone(),
+        },
+    };
+    assert!(matches!(
+        tetonic_run::apply_command(&snapshot, &RunCommand::RecordAttemptQuiescence(ack.clone())),
+        Err(RunSupervisorError::InvalidTransition(_))
+    ));
+    service.cancel_run(&binding.run_id).await.unwrap();
+    let terminal = service.inspect_run(&binding.run_id).await.unwrap();
+    for mismatch in 0..3 {
+        let mut wrong = ack.clone();
+        match mismatch {
+            0 => wrong.lease_proof.lease_epoch += 1,
+            1 => wrong.lease_proof.lease_id = tetonic_domain::LeaseId::new("wrong"),
+            _ => wrong.lease_proof.holder = tetonic_domain::ExecutionTargetId::worker("wrong"),
+        }
+        assert!(
+            tetonic_run::apply_command(&terminal, &RunCommand::RecordAttemptQuiescence(wrong))
+                .is_err()
+        );
+    }
+    assert!(
+        tetonic_run::apply_command(&terminal, &RunCommand::RecordAttemptQuiescence(ack))
+            .unwrap()
+            .attempts[&binding.attempt_id]
+            .execution_quiesced
     );
 }

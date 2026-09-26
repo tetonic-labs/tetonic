@@ -396,6 +396,9 @@ pub enum RunCommand {
     RecordSideEffectCommit(RecordSideEffectCommit),
     ExpireLease(ExpireLease),
     FinishRun(FinishRun),
+    /// Trusted worker acknowledgement; terminal status alone does not prove
+    /// that owned processes and effects have stopped.
+    RecordAttemptQuiescence(StartAttempt),
 }
 
 impl RunCommand {
@@ -421,6 +424,7 @@ impl RunCommand {
             RunCommand::RecordSideEffectCommit(c) => &c.envelope,
             RunCommand::ExpireLease(c) => &c.envelope,
             RunCommand::FinishRun(c) => &c.envelope,
+            RunCommand::RecordAttemptQuiescence(c) => &c.envelope,
         }
     }
 
@@ -446,6 +450,7 @@ impl RunCommand {
             RunCommand::RecordSideEffectCommit(c) => Some(&c.run_id),
             RunCommand::ExpireLease(c) => Some(&c.run_id),
             RunCommand::FinishRun(c) => Some(&c.run_id),
+            RunCommand::RecordAttemptQuiescence(c) => Some(&c.run_id),
         }
     }
 }
@@ -471,6 +476,8 @@ pub struct TaskRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AttemptRecord {
+    #[serde(default, skip_serializing_if = "is_false")]
+    pub execution_quiesced: bool,
     #[serde(default, skip_serializing_if = "is_false")]
     pub execution_claimed: bool,
     pub attempt_id: AttemptId,
@@ -608,6 +615,8 @@ pub struct RunCommandResult {
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq, Eq)]
 pub enum RunSupervisorError {
+    #[error("registered agent already has admitted work; retry after it has quiesced")]
+    ExecutionCapacityExceeded,
     #[error("run not found: {0}")]
     RunNotFound(String),
     #[error("task not found: {0}")]

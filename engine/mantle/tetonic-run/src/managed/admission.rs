@@ -428,6 +428,12 @@ impl super::service::ManagedRunService {
                             return Ok(ManagedAdmission::Existing(receipt));
                         }
                     }
+                    if matches!(
+                        other,
+                        Err(tetonic_domain::RunSupervisorError::ExecutionCapacityExceeded)
+                    ) {
+                        return Err(ManagedRunError::ExecutionCapacityExceeded);
+                    }
                     return Err(ManagedRunError::PersistenceFailed(match other {
                         Err(error) => error.to_string(),
                         Ok(_) => "replayed activation is missing its durable binding".into(),

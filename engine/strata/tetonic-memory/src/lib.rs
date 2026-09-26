@@ -28,21 +28,20 @@ mod compute_reservation;
 mod durability_tests;
 mod estate;
 mod identity_store;
-mod organization_agents;
 mod organization_agent_revisions;
+mod organization_agents;
 pub use organization_agents::RegisteredAgent;
-mod control_credentials;
-mod control_bootstrap;
-mod membership_store;
-mod membership_admin;
-mod team_admin;
-mod context_scope;
 mod context_access;
-mod context_history;
 mod context_artifacts;
+mod context_history;
 mod context_recall;
+mod context_scope;
+mod control_bootstrap;
+mod control_credentials;
+mod membership_admin;
+mod membership_store;
+mod team_admin;
 pub use context_access::ContextOwner;
-mod team_store;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
@@ -50,11 +49,13 @@ mod policy;
 mod projects;
 mod recall;
 mod result_disposition;
+mod run_capacity;
 mod run_store;
 mod scheduler_decision;
 mod schema;
 mod secret_overrides;
 mod sync_lock;
+mod team_store;
 mod trust;
 mod util;
 mod worker_store;
@@ -66,11 +67,11 @@ pub use backup::{
 pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
-pub use identity_store::AgentIdentityRow;
 pub use control_credentials::ControlCredentialRow;
+pub use identity_store::AgentIdentityRow;
 pub use membership_store::{ControlPermission, OrganizationRole};
-pub use team_store::{OrganizationRow, TeamRow};
 pub use recall::RecallHit;
+pub use team_store::{OrganizationRow, TeamRow};
 pub use trust::{ApprovalRow, EgressAllowRow};
 
 pub use capacity::RuntimeProfileRow;
@@ -84,6 +85,8 @@ pub use worker_store::{CoordinatorPinRow, WorkerStore, WorkerStoreError};
 
 #[derive(Debug, Error)]
 pub enum StoreError {
+    #[error("registered agent already has admitted work; retry after it has quiesced")]
+    ExecutionCapacityExceeded,
     #[error("database schema {found} is newer than supported schema {supported}; use a compatible binary")]
     FutureSchema { found: i64, supported: i64 },
     #[error("sqlite: {0}")]

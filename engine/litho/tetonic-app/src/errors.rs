@@ -2,6 +2,8 @@ use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("registered agent already has admitted work; retry after it has quiesced")]
+    ExecutionCapacityExceeded,
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
     #[error("Session not found: {0}")]
@@ -29,6 +31,9 @@ pub enum AppError {
 impl From<tetonic_run::ManagedRunError> for AppError {
     fn from(error: tetonic_run::ManagedRunError) -> Self {
         match error {
+            tetonic_run::ManagedRunError::ExecutionCapacityExceeded => {
+                Self::ExecutionCapacityExceeded
+            }
             tetonic_run::ManagedRunError::InvalidRequest(message) => Self::InvalidRequest(message),
             tetonic_run::ManagedRunError::PersistenceFailed(message) => {
                 Self::PersistenceFailed(message)

@@ -14,6 +14,13 @@ pub struct ExecutionGrant {
 
 impl Store {
     pub(crate) fn migrate_execution_grants_v40(&self) -> Result<()> {
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=40)",
+            [],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Ok(());
+        }
         self.conn.execute_batch("CREATE TABLE execution_grants (
             grant_id TEXT PRIMARY KEY NOT NULL, org_id TEXT NOT NULL REFERENCES organizations(org_id),
             principal_id TEXT NOT NULL REFERENCES control_principals(principal_id),

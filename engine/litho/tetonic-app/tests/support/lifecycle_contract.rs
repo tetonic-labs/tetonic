@@ -95,11 +95,26 @@ pub fn assert_contract(contract: Contract) {
         }
         Cleanup => {
             let s = source("finalization");
+            let owner = s.split("async fn finalize_owned").next().unwrap();
             before(
-                &s,
-                "RunCommand::AcceptArtifact",
-                "self.deliver_terminal(&active, final_outcome.clone())",
+                owner,
+                "self.finalize_owned(job, active.clone())",
+                "self.record_quiescence(&active).await?",
             );
+            before(
+                owner,
+                "self.record_quiescence(&active).await?",
+                "self.deliver_terminal(&active, outcome.clone())",
+            );
+            let finalizer = s
+                .split("async fn finalize_owned")
+                .nth(1)
+                .unwrap()
+                .split("pub(crate) async fn record_quiescence")
+                .next()
+                .unwrap();
+            before(finalizer, "RunCommand::AcceptArtifact", "Ok(final_outcome)");
+            assert!(!finalizer.contains("self.deliver_terminal"));
             assert!(
                 s.contains("self.active.lock_recover().remove(&active.binding.attempt_id)")
                     || compact(&s)

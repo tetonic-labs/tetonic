@@ -45,6 +45,7 @@ pub fn apply_command(
         RunCommand::RejectArtifact(c) => apply_reject_artifact(snapshot, c),
         RunCommand::RecordSideEffectCommit(c) => apply_record_side_effect_commit(snapshot, c),
         RunCommand::FinishRun(c) => apply_finish_run(snapshot, c),
+        RunCommand::RecordAttemptQuiescence(c) => apply_attempt_quiescence(snapshot, c),
     }
 }
 
@@ -298,6 +299,7 @@ fn apply_create_attempt(
     out.attempts.insert(
         cmd.attempt_id.clone(),
         AttemptRecord {
+            execution_quiesced: false,
             execution_claimed: false,
             attempt_id: cmd.attempt_id.clone(),
             task_id: cmd.task_id.clone(),
@@ -814,6 +816,28 @@ fn apply_finish_run(
     Ok(out)
 }
 
+fn apply_attempt_quiescence(
+    snapshot: &RunSnapshot,
+    cmd: &StartAttempt,
+) -> Result<RunSnapshot, RunSupervisorError> {
+    let attempt = snapshot
+        .attempts
+        .get(&cmd.attempt_id)
+        .ok_or_else(|| RunSupervisorError::AttemptNotFound(cmd.attempt_id.to_string()))?;
+    validate_lease_proof(attempt, &cmd.lease_proof)?;
+    if !crate::lease::is_terminal_attempt(&attempt.state) {
+        return Err(RunSupervisorError::InvalidTransition(
+            "quiescence requires a terminal attempt".into(),
+        ));
+    }
+    let mut out = snapshot.clone();
+    out.attempts
+        .get_mut(&cmd.attempt_id)
+        .unwrap()
+        .execution_quiesced = true;
+    Ok(out)
+}
+
 pub fn event_type_for(command: &RunCommand) -> &'static str {
     match command {
         RunCommand::CreateRun(_) => "run.created",
@@ -836,6 +860,7 @@ pub fn event_type_for(command: &RunCommand) -> &'static str {
         RunCommand::RejectArtifact(_) => "artifact.rejected",
         RunCommand::RecordSideEffectCommit(_) => "side_effect.committed",
         RunCommand::FinishRun(_) => "run.finished",
+        RunCommand::RecordAttemptQuiescence(_) => "attempt.quiesced",
     }
 }
 

@@ -112,6 +112,7 @@ mod tests {
                 .unwrap();
             db.append_context_message("alice", "private", "session", "request", "preserved")
                 .unwrap();
+            db.remove_run_capacity_schema_for_test();
             db.conn
                 .execute_batch(
                     "DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version>=37;",

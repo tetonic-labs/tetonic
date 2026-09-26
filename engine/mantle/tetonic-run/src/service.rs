@@ -138,37 +138,6 @@ impl DurableRunSupervisor {
         }
     }
 
-    #[allow(dead_code)] // sync path; production uses persist via store.write_sync in async helpers
-    fn persist(
-        &self,
-        snapshot: &RunSnapshot,
-        event: &RunEventEnvelope,
-        idempotency: Option<(&str, &RunCommandResult)>,
-    ) -> Result<(), RunSupervisorError> {
-        if let Some(store) = &self.store {
-            store
-                .write_sync({
-                    let snapshot = snapshot.clone();
-                    let event = event.clone();
-                    let idempotency = idempotency.map(|(k, v)| (k.to_string(), v.clone()));
-                    move |db| {
-                        db.commit_run_command(
-                            &snapshot,
-                            &event,
-                            idempotency.as_ref().map(|(k, v)| (k.as_str(), v)),
-                        )
-                        .map_err(|e| RunSupervisorError::Persistence(e.to_string()))
-                    }
-                })
-                .map_err(|e| RunSupervisorError::Persistence(e.to_string()))??;
-        } else {
-            self.memory
-                .lock_recover()
-                .insert(snapshot.run_id.0.clone(), snapshot.clone());
-        }
-        Ok(())
-    }
-
     async fn persist_async(
         &self,
         snapshot: &RunSnapshot,
@@ -187,7 +156,12 @@ impl DurableRunSupervisor {
                             &event,
                             idempotency.as_ref().map(|(k, v)| (k.as_str(), v)),
                         )
-                        .map_err(|e| RunSupervisorError::Persistence(e.to_string()))
+                        .map_err(|e| match e {
+                            tetonic_memory::StoreError::ExecutionCapacityExceeded => {
+                                RunSupervisorError::ExecutionCapacityExceeded
+                            }
+                            other => RunSupervisorError::Persistence(other.to_string()),
+                        })
                     }
                 })
                 .await
@@ -347,7 +321,12 @@ impl DurableRunSupervisor {
         if (base.state == RunState::Canceled
             || base.state == RunState::Failed
             || base.state == RunState::Succeeded)
-            && !matches!(command, RunCommand::FinishRun(_) | RunCommand::CreateRun(_))
+            && !matches!(
+                command,
+                RunCommand::FinishRun(_)
+                    | RunCommand::CreateRun(_)
+                    | RunCommand::RecordAttemptQuiescence(_)
+            )
         {
             return Err(RunSupervisorError::RunNotAccepting(base.state.clone()));
         }

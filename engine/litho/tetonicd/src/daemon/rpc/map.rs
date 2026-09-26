@@ -5,6 +5,10 @@ use tetonic_rpc::protocol::{ErrorCode, RpcError};
 
 pub fn map_app_error(err: AppError) -> RpcError {
     match err {
+        AppError::ExecutionCapacityExceeded => RpcError::new(
+            ErrorCode::InvalidRequest,
+            "registered agent already has admitted work; retry after it has quiesced",
+        ),
         AppError::InvalidRequest(msg) => RpcError::new(ErrorCode::InvalidRequest, msg),
         AppError::SessionNotFound(msg) => RpcError::new(ErrorCode::UnknownSession, msg),
         AppError::SessionConflict => {

@@ -28,15 +28,17 @@ impl super::service::ManagedRunService {
         // Keep the effect owner alive at the deadline. Cancellation closes work
         // admission and reaches cooperative workers; it is not quiescence.
         let finish_run = job.finish_run;
-        let finalizing = self.finalize_owned(job, active.clone());
-        tokio::pin!(finalizing);
-        let result = tokio::select! {
-            biased;
-            result = &mut finalizing => result,
-            _ = active.wait_for_deadline() => {
-                active.work_scope.cancel();
-                self.notify_hooks(|hooks| hooks.fail_approval_waits(&active.binding.attempt_id));
-                finalizing.await
+        let mut result = {
+            let finalizing = self.finalize_owned(job, active.clone());
+            tokio::pin!(finalizing);
+            tokio::select! {
+                biased;
+                result = &mut finalizing => result,
+                _ = active.wait_for_deadline() => {
+                    active.work_scope.cancel();
+                    self.notify_hooks(|hooks| hooks.fail_approval_waits(&active.binding.attempt_id));
+                    finalizing.await
+                }
             }
         };
         if result.is_err()
@@ -55,8 +57,15 @@ impl super::service::ManagedRunService {
                 while !active.work_scope.is_quiescent() {
                     tokio::time::sleep(std::time::Duration::from_millis(10)).await;
                 }
-                return self.finish_deadline_exceeded(&active, finish_run).await;
+                result = self.finish_deadline_exceeded(&active, finish_run).await;
             }
+        }
+        if let Ok(outcome) = &result {
+            // finalize_owned has returned and dropped its finalization lease.
+            // Record completion of actual workers before returning admission
+            // capacity or notifying consumers of terminal completion.
+            self.record_quiescence(&active).await?;
+            self.deliver_terminal(&active, outcome.clone());
         }
         result
     }
@@ -137,7 +146,6 @@ impl super::service::ManagedRunService {
                     )
                     .await?;
                     let outcome = CandidateOutcome::Failed { message };
-                    self.deliver_terminal(&active, outcome.clone());
                     return Ok(outcome);
                 }
             };
@@ -259,7 +267,6 @@ impl super::service::ManagedRunService {
                                     )
                                     .await?;
                                     let outcome = CandidateOutcome::Failed { message: error };
-                                    self.deliver_terminal(&active, outcome.clone());
                                     return Ok(outcome);
                                 }
                             };
@@ -334,7 +341,6 @@ impl super::service::ManagedRunService {
                             )
                             .await?;
                             let outcome = CandidateOutcome::Failed { message };
-                            self.deliver_terminal(&active, outcome.clone());
                             return Ok(outcome);
                         }
                     }
@@ -453,15 +459,57 @@ impl super::service::ManagedRunService {
         };
 
         drop(finalization_lease);
-        self.deliver_terminal(&active, final_outcome.clone());
         Ok(final_outcome)
+    }
+
+    pub(crate) async fn record_quiescence(
+        &self,
+        active: &super::lifetime::ActiveAttempt,
+    ) -> Result<(), ManagedRunError> {
+        // Closing first prevents a late tool from entering after the drain.
+        active.work_scope.cancel();
+        while !active.work_scope.is_quiescent() {
+            tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+        }
+        if active.authorization.is_none() {
+            return Ok(());
+        }
+        let snapshot = self.inspect_run(&active.binding.run_id).await?;
+        if !snapshot
+            .tasks
+            .values()
+            .any(|t| t.binding.activation.is_some())
+        {
+            return Ok(());
+        }
+        self.supervisor
+            .handle(RunCommand::RecordAttemptQuiescence(
+                tetonic_domain::StartAttempt {
+                    envelope: command_envelope(
+                        format!("quiesced:{}", active.binding.attempt_id),
+                        None,
+                        "tetonic-manager",
+                    ),
+                    run_id: active.binding.run_id.clone(),
+                    attempt_id: active.binding.attempt_id.clone(),
+                    lease_proof: active.lease_proof.clone(),
+                },
+            ))
+            .await
+            .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()))?;
+        Ok(())
     }
 
     fn deliver_terminal(&self, active: &super::lifetime::ActiveAttempt, outcome: CandidateOutcome) {
         active.heartbeat_cancel.store(true, Ordering::Relaxed);
-        self.active
+        if self
+            .active
             .lock_recover()
-            .remove(&active.binding.attempt_id);
+            .remove(&active.binding.attempt_id)
+            .is_none()
+        {
+            return;
+        }
         let dispatch = self
             .attempt_dispatches
             .lock_recover()
@@ -533,7 +581,6 @@ impl super::service::ManagedRunService {
         self.fail_and_finish(active, 0, FailureClass::PolicyDenied, &message, finish_run)
             .await?;
         let outcome = CandidateOutcome::Failed { message };
-        self.deliver_terminal(active, outcome.clone());
         Ok(Some(outcome))
     }
 
@@ -547,7 +594,6 @@ impl super::service::ManagedRunService {
         self.fail_and_finish(active, 0, FailureClass::TimedOut, &message, finish_run)
             .await?;
         let outcome = CandidateOutcome::Failed { message };
-        self.deliver_terminal(active, outcome.clone());
         Ok(outcome)
     }
 

@@ -176,10 +176,11 @@ impl ManagedRunService {
             }
             self.notify_hooks(|h| h.fail_approval_waits(&active.binding.attempt_id));
         }
-        let result = self
+        let mut result = self
             .supervisor
             .handle(tetonic_domain::RunCommand::CancelRun(cmd))
             .await
+            .map(|_| ())
             .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()));
         for active in actives {
             // Cancellation is an admission barrier, not evidence of physical
@@ -190,6 +191,9 @@ impl ManagedRunService {
             }
             while !active.work_scope.is_quiescent() {
                 tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+            }
+            if result.is_ok() {
+                result = self.record_quiescence(&active).await;
             }
             // Execution observes the cancellation flag. Let its owner drain,
             // especially while awaiting a blocking finalization effect: aborting

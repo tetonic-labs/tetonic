@@ -128,6 +128,7 @@ fn attempt(state: AttemptState) -> AttemptRecord {
         last_heartbeat_sequence: 0,
     });
     AttemptRecord {
+        execution_quiesced: false,
         execution_claimed: false,
         attempt_id: AttemptId::new("att_wf02"),
         task_id: TaskId::new("task_wf02"),

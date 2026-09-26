@@ -5,6 +5,8 @@ use tetonic_domain::{
 
 #[derive(Debug, thiserror::Error)]
 pub enum ManagedRunError {
+    #[error("registered agent already has admitted work; retry after it has quiesced")]
+    ExecutionCapacityExceeded,
     #[error("Invalid request: {0}")]
     InvalidRequest(String),
     #[error("Persistence failed: {0}")]

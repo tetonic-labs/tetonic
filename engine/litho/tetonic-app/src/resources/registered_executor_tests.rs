@@ -102,7 +102,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             recovery_id: "job".into(),
         };
         let settings = || RegisteredExecutionSettings {
-            max_elapsed_seconds: if scenario == "deadline" { 2 } else { 30 },
+            max_elapsed_seconds: if scenario == "deadline" { 5 } else { 30 },
             workspace_root: workspace.clone(),
             model: "qwen3.5:latest".into(),
             num_ctx: 8192,
@@ -217,6 +217,14 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
                     attempt_id,
                     completion,
                 } = execution.unwrap();
+                if scenario == "deadline" {
+                    let mut competing = request();
+                    competing.request_id = "distinct-work-while-busy".into();
+                    assert!(matches!(app.submit_registered_job(
+                        credential.expose_secret(), local.credentials().clone(), competing, settings()
+                    ).await, Err(AppError::ExecutionCapacityExceeded)),
+                        "the product entry must reject a distinct concurrent job for the same identity");
+                }
                 let result = tokio::time::timeout(std::time::Duration::from_secs(15), completion)
                     .await
                     .unwrap()
@@ -274,6 +282,10 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             .await
             .unwrap();
         assert!(snapshot.tasks[&result.task_id].binding.deadline.is_some());
+        assert!(
+            snapshot.attempts[&result.attempt_id].execution_quiesced,
+            "completion must acknowledge actual worker drain for every terminal scenario"
+        );
         assert_eq!(
             snapshot.deadlines.run_deadline,
             snapshot.tasks[&result.task_id].binding.deadline
