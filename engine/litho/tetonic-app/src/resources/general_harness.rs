@@ -44,17 +44,9 @@ impl PreparedAgentRevision {
         &self.invocation
     }
 
-    pub fn requested_tools(&self) -> &[String] {
-        &self.requested_tools
-    }
-
-    /// Definition conformance only, never an execution authorization. The host
-    /// must additionally authorize the initiating principal, context and every
-    /// requested capability before admission and protected effects.
-    /// No role overlays, artifacts or extra executable tools are implicit.
-    pub fn execution_policy(&self) -> Result<tetonic_run::ExecutionPolicy, ResourceError> {
+    fn domain_identity(&self) -> Result<tetonic_domain::AgentIdentity, ResourceError> {
         let row = &self.identity;
-        let expected_identity = tetonic_domain::AgentIdentity {
+        let identity = tetonic_domain::AgentIdentity {
             id: tetonic_domain::IdentityId::new(row.identity_id.clone()),
             owning_application: row.owning_application.clone(),
             bound_definition_digest: row.bound_definition_digest.clone(),
@@ -65,6 +57,43 @@ impl PreparedAgentRevision {
                 .map_err(|_| ResourceError::Invalid)?,
             recovery_id: row.recovery_id.clone(),
         };
+        Ok(identity)
+    }
+
+    /// Pins the exact prepared input/revision and requested capability names.
+    /// This is a job description, not permission to execute it.
+    pub fn start_command(
+        &self,
+        recovery_id: String,
+    ) -> Result<tetonic_run::StartIdentityJobCommand, ResourceError> {
+        if recovery_id.trim().is_empty() || recovery_id.len() > 256 || recovery_id.contains('\0') {
+            return Err(ResourceError::Invalid);
+        }
+        let identity = self.domain_identity()?;
+        Ok(tetonic_run::StartIdentityJobCommand {
+            job_spec: tetonic_domain::AgentJobSpec {
+                identity_id: identity.id.clone(),
+                definition_digest: identity.bound_definition_digest.clone(),
+                input_digest: tetonic_run::job_input_digest(&self.invocation.user_input),
+                capability_bindings: self.requested_tools.clone(),
+                artifact_bindings: vec![],
+                recovery_id,
+            },
+            identity,
+            invocation: self.invocation.clone(),
+        })
+    }
+
+    pub fn requested_tools(&self) -> &[String] {
+        &self.requested_tools
+    }
+
+    /// Definition conformance only, never an execution authorization. The host
+    /// must additionally authorize the initiating principal, context and every
+    /// requested capability before admission and protected effects.
+    /// No role overlays, artifacts or extra executable tools are implicit.
+    pub fn execution_policy(&self) -> Result<tetonic_run::ExecutionPolicy, ResourceError> {
+        let expected_identity = self.domain_identity()?;
         let expected_invocation = self.invocation.clone();
         let requested = self.requested_tools.clone();
         let mut host_tools = requested.clone();

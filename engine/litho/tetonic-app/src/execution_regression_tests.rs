@@ -382,6 +382,8 @@ async fn full_invocation_policy_denies_changes_before_claim_or_inference() {
 
 #[tokio::test]
 async fn registered_general_revision_completes_through_existing_managed_runtime() {
+    tokio::task::LocalSet::new().run_until(async {
+
     let tmp = tempfile::tempdir().unwrap();
     let local = crate::resources::LocalControl::open(tmp.path().join("run.db"), "test".into())
         .await
@@ -493,78 +495,50 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .authorize(&substituted, &identity, &spec)
         .await
         .is_err());
-    let active = runs
-        .managed
-        .admit_with_context(
-            &runs.managed.reserve_dispatch().id,
-            tetonic_run::AdmitJob {
-                identity: identity.clone(),
-                job_spec: spec.clone(),
-                role: None,
-                parent_attempt: None,
-            },
-            tetonic_run::managed::AdmissionContext {
-                authorization: Some(authorization.clone()),
-                ..Default::default()
-            },
-        )
-        .await
-        .unwrap();
+    let calls = Arc::new(AtomicUsize::new(0));
+    let request = || crate::resources::RegisteredAgentJob {
+        organization_id: "org".into(), information_context_id: "private".into(),
+        agent_key: "agent".into(), definition_digest: identity.bound_definition_digest.clone(),
+        execution_grant_id: "job-grant".into(), input: "A question".into(),
+        recovery_id: "general-job".into(),
+    };
+    let limits = || crate::resources::HarnessPreparationLimits { max_steps: 2, max_input_bytes: 1024 };
+    let executor = |extra_tool: bool| {
+        let tools = tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
+            .with_allowed_tools(if extra_tool { ["finish", "read_file"].into_iter().map(str::to_owned).collect() }
+                else { ["finish".to_owned()].into_iter().collect() });
+        Agent::new(Arc::new(GeneralFinisher { calls: calls.clone() }), tools, AgentConfig::default())
+    };
+    // Product entry rejects mismatched grants/input/credentials/tool host before
+    // creating a durable run or invoking inference.
+    for case in 0..5 {
+        let mut changed = request();
+        match case {
+            0 => changed.input = "substituted task".into(),
+            1 => changed.execution_grant_id = "missing".into(),
+            2 => changed.information_context_id = "missing".into(),
+            _ => {},
+        }
+        let bearer = if case == 3 { "forged" } else { credential.expose_secret() };
+        assert!(runs.submit_registered_job(bearer, local.credentials().clone(), changed, limits(), executor(case == 4)).await.is_err());
+    }
+    assert_eq!(calls.load(Ordering::SeqCst), 0);
+    assert!(runs.managed.store().unwrap().read(|db| db.list_all_run_ids()).await.unwrap().unwrap().is_empty());
+    let (attempt, completion) = runs.submit_registered_job(
+        credential.expose_secret(), local.credentials().clone(), request(), limits(), executor(false),
+    ).await.unwrap();
+    let active = runs.managed.binding(&attempt).expect("existing manager owns admission");
+    let result = tokio::time::timeout(std::time::Duration::from_secs(3), completion).await.unwrap().unwrap();
+    assert_eq!(result.attempt_id, attempt);
+    assert_eq!(result.run_id, active.run_id);
+    assert!(matches!(result.outcome, CandidateOutcome::Completed { ref summary, .. } if summary == "GOVERNEDRESULTCANARY"));
     let reopened = tetonic_memory::SharedStore::open(tmp.path().join("run.db"), 1).unwrap();
     let supervisor = tetonic_run::DurableRunSupervisor::new(Some(reopened));
     let snapshot = tetonic_run::RunSupervisor::snapshot(&supervisor, active.run_id.clone())
         .await
         .unwrap();
-    assert_eq!(
-        snapshot.tasks[&active.task_id]
-            .binding
-            .execution_grant_id
-            .as_deref(),
-        Some("job-grant")
-    );
-    let calls = Arc::new(AtomicUsize::new(0));
-    let tools =
-        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
-            .with_allowed_tools(["finish".to_string()].into_iter().collect());
-    let mut executor = Agent::new(
-        Arc::new(GeneralFinisher {
-            calls: calls.clone(),
-        }),
-        tools,
-        AgentConfig::default(),
-    );
-    let mut conversation = Conversation::new();
-    let mut on_step = |_| {};
-    let outcome = tokio::time::timeout(
-        std::time::Duration::from_secs(3),
-        runs.execute_bound_attempt(
-            active.attempt_id.clone(),
-            &mut executor,
-            &mut conversation,
-            prepared.invocation().clone(),
-            &mut on_step,
-        ),
-    )
-    .await
-    .unwrap();
-    assert!(
-        matches!(outcome, CandidateOutcome::Completed { ref summary, .. } if summary == "GOVERNEDRESULTCANARY")
-    );
-    let finalized = runs
-        .managed
-        .finalize(tetonic_run::FinalizeJob {
-            attempt: active.attempt_id.clone(),
-            outcome,
-            policy: None,
-            finish_run: true,
-        })
-        .await
-        .unwrap();
-    assert!(matches!(finalized, CandidateOutcome::Completed { .. }));
-    let snapshot = tetonic_run::RunSupervisor::snapshot(&supervisor, active.run_id.clone())
-        .await
-        .unwrap();
     assert_eq!(snapshot.state, tetonic_domain::RunState::Succeeded);
+    assert_eq!(snapshot.tasks[&active.task_id].binding.execution_grant_id.as_deref(), Some("job-grant"));
     let receipt = snapshot.tasks[&active.task_id]
         .accepted_artifact
         .as_ref()
@@ -705,6 +679,21 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         .is_err());
 
     assert_eq!(calls.load(Ordering::SeqCst), 1);
+    let (entered_tx, mut entered_rx) = tokio::sync::mpsc::unbounded_channel();
+    let cancel_calls = Arc::new(AtomicUsize::new(0));
+    let pending = Agent::new(Arc::new(PendingProvider { entered: entered_tx, calls: cancel_calls.clone() }),
+        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
+            .with_allowed_tools(["finish".to_string()].into_iter().collect()), AgentConfig::default());
+    let (cancel_attempt, canceled_result) = runs.submit_registered_job(
+        credential.expose_secret(), local.credentials().clone(), request(), limits(), pending,
+    ).await.unwrap();
+    let cancel_binding = runs.managed.binding(&cancel_attempt).unwrap();
+    tokio::time::timeout(std::time::Duration::from_secs(3), entered_rx.recv()).await.unwrap().unwrap();
+    runs.cancel_run(CancelByRunCommand { run_id: cancel_binding.run_id.0.clone() }).await.unwrap();
+    let canceled = tokio::time::timeout(std::time::Duration::from_secs(3), canceled_result).await.unwrap().unwrap();
+    assert!(matches!(canceled.outcome, CandidateOutcome::Canceled { .. }));
+    assert!(runs.managed.inspect_run(&cancel_binding.run_id).await.unwrap().cancellation.run_canceled);
+    assert_eq!(cancel_calls.load(Ordering::SeqCst), 1);
     let revoked_attempt = runs
         .managed
         .admit_with_context(
@@ -814,6 +803,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         legacy_events.0.lock_recover().is_empty(),
         "scoped events reached the unscoped product sink"
     );
+    }).await;
 }
 
 #[tokio::test]

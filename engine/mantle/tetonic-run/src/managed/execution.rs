@@ -264,7 +264,25 @@ impl super::service::ManagedRunService {
     pub async fn submit_identity_job(
         &self,
         cmd: StartIdentityJobCommand,
+        agent: tetonic_core::Agent,
+    ) -> Result<
+        (
+            tetonic_domain::AttemptId,
+            tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
+        ),
+        ManagedRunError,
+    > {
+        self.submit_identity_job_with_context(cmd, agent, AdmissionContext::default())
+            .await
+    }
+
+    /// Same managed submission owner, with host-verified scope/grants. Scoped
+    /// callers must still supply a conformant harness and an authorized tool host.
+    pub async fn submit_identity_job_with_context(
+        &self,
+        cmd: StartIdentityJobCommand,
         mut agent: tetonic_core::Agent,
+        context: AdmissionContext,
     ) -> Result<
         (
             tetonic_domain::AttemptId,
@@ -288,7 +306,9 @@ impl super::service::ManagedRunService {
             role: agent.execution_role().map(str::to_owned),
             parent_attempt: None,
         };
-        let binding = self.admit(&ticket.id, admit_job).await?;
+        let binding = self
+            .admit_with_context(&ticket.id, admit_job, context)
+            .await?;
         let attempt_id = binding.attempt_id.clone();
         let rx = self.arm_attempt_join(&attempt_id);
 

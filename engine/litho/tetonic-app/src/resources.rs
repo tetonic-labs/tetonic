@@ -238,3 +238,6 @@ mod execution_authority;
 mod execution_grants;
 
 mod run_inspection;
+
+mod activation;
+pub use activation::RegisteredAgentJob;
