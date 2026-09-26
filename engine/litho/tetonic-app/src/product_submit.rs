@@ -19,6 +19,15 @@ use crate::store_audit::product_audit_factory;
 use crate::turn_execution::{outbound_event_scanner, TurnExecutionHost};
 use crate::Application;
 
+/// One installed binding: the provider and its broker cannot be replaced independently.
+enum InstalledInference {
+    Host {
+        provider: Arc<dyn InferenceProvider>,
+        broker: Option<Arc<tetonic_broker::DefaultComputeBroker>>,
+    },
+    Compute(Arc<tetonic_broker::BrokerInferenceProvider>),
+}
+
 pub struct TurnBind {
     pub(crate) inference_profiles: crate::inference_selection::InferenceProfiles,
     pub runtime: Arc<tetonic_runtime::EngineRuntime>,
@@ -30,8 +39,7 @@ pub struct TurnBind {
     pub policy: Arc<tetonic_policy::PolicyEngine>,
     guard: Mutex<Option<Arc<EgressGuard>>>,
     ollama_base: Mutex<String>,
-    provider: Mutex<Option<Arc<dyn InferenceProvider>>>,
-    compute_broker: Mutex<Option<Arc<tetonic_broker::DefaultComputeBroker>>>,
+    inference: Mutex<Option<InstalledInference>>,
     pooled: Mutex<Option<Arc<tetonic_inference::PooledProvider>>>,
     compute_registry: Mutex<Option<Arc<tetonic_inference::ComputeTargetRegistry>>>,
     tokenizer: Mutex<Arc<dyn Tokenizer>>,
@@ -59,8 +67,7 @@ impl TurnBind {
             policy,
             guard: Mutex::new(None),
             ollama_base: Mutex::new("http://127.0.0.1:11434".into()),
-            provider: Mutex::new(None),
-            compute_broker: Mutex::new(None),
+            inference: Mutex::new(None),
             pooled: Mutex::new(None),
             compute_registry: Mutex::new(None),
             tokenizer: Mutex::new(Arc::new(HeuristicTokenizer) as Arc<dyn Tokenizer>),
@@ -93,12 +100,37 @@ impl TurnBind {
         self.ollama_base.lock_recover().clone()
     }
 
+    fn inference_snapshot(
+        &self,
+    ) -> Option<(
+        Arc<dyn InferenceProvider>,
+        Option<Arc<tetonic_broker::DefaultComputeBroker>>,
+    )> {
+        match self.inference.lock_recover().as_ref()? {
+            InstalledInference::Host { provider, broker } => {
+                Some((provider.clone(), broker.clone()))
+            }
+            InstalledInference::Compute(provider) => {
+                Some((provider.clone(), Some(provider.broker().clone())))
+            }
+        }
+    }
+
+    pub(crate) fn registered_provider(
+        &self,
+    ) -> Option<Arc<tetonic_broker::BrokerInferenceProvider>> {
+        match self.inference.lock_recover().as_ref()? {
+            InstalledInference::Compute(provider) => Some(provider.clone()),
+            InstalledInference::Host { .. } => None,
+        }
+    }
+
     pub fn provider(&self) -> Option<Arc<dyn InferenceProvider>> {
-        self.provider.lock_recover().clone()
+        self.inference_snapshot().map(|(provider, _)| provider)
     }
 
     pub fn compute_broker(&self) -> Option<Arc<tetonic_broker::DefaultComputeBroker>> {
-        self.compute_broker.lock_recover().clone()
+        self.inference_snapshot().and_then(|(_, broker)| broker)
     }
 }
 
@@ -150,18 +182,18 @@ impl Application {
         provider: Arc<dyn InferenceProvider>,
         compute_broker: Option<Arc<tetonic_broker::DefaultComputeBroker>>,
     ) {
-        *self.turn.provider.lock_recover() = Some(provider);
-        *self.turn.compute_broker.lock_recover() = compute_broker;
+        *self.turn.inference.lock_recover() = Some(InstalledInference::Host {
+            provider,
+            broker: compute_broker,
+        });
     }
 
     /// Install the complete product compute state, including management handles.
     pub fn install_compute_services(&self, plane: &crate::ComputePlane) {
         self.set_fabric_plane(plane.pooled.clone(), plane.compute_registry.clone());
-        self.install_compute_plane(
-            plane.provider.clone(),
-            Some(plane.compute_broker.clone()),
-            &plane.fabric_remotes,
-        );
+        self.attach_compute_lifecycle(Some(plane.provider.broker()), &plane.fabric_remotes);
+        *self.turn.inference.lock_recover() =
+            Some(InstalledInference::Compute(plane.provider.clone()));
     }
 
     /// Bind the inference plane and attach the private supervisor (021).
@@ -526,11 +558,9 @@ impl Application {
                     })?,
             )
         };
-        let provider = self
+        let (provider, compute_broker) = self
             .turn
-            .provider
-            .lock_recover()
-            .clone()
+            .inference_snapshot()
             .ok_or_else(|| AppError::InvalidRequest("inference provider not bound".into()))?;
         let (scanner, sink) = outbound_event_scanner(&self.turn.store);
         Ok(TurnExecutionHost {
@@ -573,7 +603,7 @@ impl Application {
             compute_broker: selected_profile
                 .as_ref()
                 .and_then(|p| p.broker.clone())
-                .or_else(|| self.turn.compute_broker.lock_recover().clone()),
+                .or(compute_broker),
             secret_scanner: Some(scanner),
             redaction_sink: Some(sink),
             auto_grant_approvals: live.auto_grant_approvals,

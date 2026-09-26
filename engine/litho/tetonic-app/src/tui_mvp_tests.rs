@@ -5,6 +5,14 @@ use std::sync::{Arc, Mutex};
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
 async fn inference_server() -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    inference_server_with_finish(false).await
+}
+
+pub(crate) async fn inference_server_with_finish(finish_tool: bool) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    inference_server_with_tool(finish_tool, "read_file", json!({"path":"fixture.txt"})).await
+}
+
+pub(crate) async fn inference_server_with_tool(finish_tool: bool, tool: &'static str, arguments: Value) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));
@@ -46,7 +54,9 @@ async fn inference_server() -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::Joi
                 let mut requests = captured.lock().unwrap();
                 requests.push(request);
                 let message = if requests.len() == 1 {
-                    json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":"read_file","arguments":{"path":"fixture.txt"}}}]})
+                    json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":tool,"arguments":arguments.clone()}}]})
+                } else if finish_tool {
+                    json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":"finish","arguments":{"summary":"The fixture contains cobalt orchard."}}}]})
                 } else {
                     json!({"role":"assistant", "content":"The fixture contains cobalt orchard."})
                 };

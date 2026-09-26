@@ -241,3 +241,6 @@ mod run_inspection;
 
 mod activation;
 pub use activation::RegisteredAgentJob;
+
+mod registered_executor;
+pub use registered_executor::{RegisteredExecutionSettings, RegisteredAgentSubmission};

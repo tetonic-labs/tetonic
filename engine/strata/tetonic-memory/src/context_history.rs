@@ -2,6 +2,40 @@ use crate::{Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
 impl Store {
+    /// Trusted execution host: create a fresh audit history in an authorized
+    /// information context. This record is not a live session or run status.
+    pub fn create_execution_audit_history(
+        &self,
+        actor: &str,
+        context: &str,
+        session: &str,
+    ) -> Result<()> {
+        validate_id(session)?;
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        self.require_context_access(actor, context)?;
+        if self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1)",
+            [session],
+            |r| r.get::<_, bool>(0),
+        )? {
+            return Err(StoreError::ControlResourceConflict);
+        }
+        self.conn.execute("INSERT INTO sessions(id,workspace_root,mode,model,status,started_at,context_id) VALUES(?1,'','execution-audit','','audit',?2,?3)", params![session,crate::util::now(),context])?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Immutable content boundary for trusted audit writes. Recording terminal
+    /// evidence after revocation must remain possible; readers check membership.
+    pub fn require_execution_audit_history(&self, context: &str, session: &str) -> Result<()> {
+        let valid = self.conn.query_row("SELECT EXISTS(SELECT 1 FROM sessions WHERE id=?1 AND context_id=?2 AND mode='execution-audit')", params![session,context], |r| r.get::<_, bool>(0))?;
+        if valid {
+            Ok(())
+        } else {
+            Err(StoreError::ControlAccessDenied)
+        }
+    }
+
     /// Close a discussion without deleting its history or stopping any execution.
     pub fn close_context_history(&self, actor: &str, context: &str, session: &str) -> Result<()> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
@@ -267,5 +301,72 @@ mod tests {
             )
             .unwrap();
         assert_eq!(count, 0);
+    }
+
+    #[test]
+    fn execution_audit_is_scoped_fresh_and_not_a_discussion() {
+        let db = Store::open(":memory:").unwrap();
+        db.bootstrap_control("admin", "org", "Org").unwrap();
+        db.register_control_principal("peer").unwrap();
+        db.set_organization_member("org", "peer", crate::OrganizationRole::Member)
+            .unwrap();
+        db.create_information_context(
+            "admin",
+            "private",
+            &crate::ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .unwrap();
+        db.create_information_context(
+            "admin",
+            "other",
+            &crate::ContextOwner::Private {
+                org_id: "org".into(),
+            },
+        )
+        .unwrap();
+        assert!(db
+            .create_execution_audit_history("peer", "private", "denied")
+            .is_err());
+        db.create_execution_audit_history("admin", "private", "audit")
+            .unwrap();
+        assert!(db
+            .create_execution_audit_history("admin", "other", "audit")
+            .is_err());
+        assert!(db
+            .create_execution_audit_history("admin", "private", "audit")
+            .is_err());
+        assert!(db
+            .require_execution_audit_history("private", "audit")
+            .is_ok());
+        assert!(db
+            .require_execution_audit_history("other", "audit")
+            .is_err());
+        assert!(db.require_legacy_session("audit").is_err());
+        assert!(db
+            .open_context_history("admin", "private", "audit")
+            .is_err());
+        assert!(db
+            .append_context_message(
+                "admin",
+                "private",
+                "audit",
+                "request",
+                "forged human message"
+            )
+            .is_err());
+        db.append_message("audit", "assistant", "agent", "EXECUTIONCANARY", None)
+            .unwrap();
+        assert!(db
+            .scoped_transcript("peer", "private", "audit", 10)
+            .is_err());
+        assert!(db.scoped_transcript("admin", "other", "audit", 10).is_err());
+        assert_eq!(
+            db.scoped_transcript("admin", "private", "audit", 10)
+                .unwrap()[0]
+                .2,
+            "EXECUTIONCANARY"
+        );
     }
 }

@@ -102,7 +102,7 @@ use crate::redaction_audit::{MissingStoreRedactionSink, StoreRedactionSink};
 use crate::services::{FinalizationEffectDriver, FinalizationPolicy, RunService, RunTurnPlan};
 use crate::spawn_budget::LedgerSpawnBudgetGate;
 
-struct ToolsFinalizationDriver(std::sync::Arc<tetonic_tools::Tools>);
+pub(crate) struct ToolsFinalizationDriver(pub(crate) std::sync::Arc<tetonic_tools::Tools>);
 
 impl FinalizationEffectDriver for ToolsFinalizationDriver {
     fn bind_effect_identity(&self, task_id: &TaskId, attempt_id: &AttemptId) -> Result<(), String> {
@@ -558,7 +558,7 @@ fn compile_build_agent_config(
     config
 }
 
-fn composition_capability_hooks() -> (PostEditSnapshot, ResolveUnderRoot, CaptureWorkspaceVersion) {
+pub(crate) fn composition_capability_hooks() -> (PostEditSnapshot, ResolveUnderRoot, CaptureWorkspaceVersion) {
     (
         Arc::new(tetonic_tools::format_post_edit_snapshot),
         Arc::new(|root, rel| {

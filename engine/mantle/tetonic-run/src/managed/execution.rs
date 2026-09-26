@@ -272,7 +272,7 @@ impl super::service::ManagedRunService {
         ),
         ManagedRunError,
     > {
-        self.submit_identity_job_with_context(cmd, agent, AdmissionContext::default())
+        self.submit_identity_job_with_context(cmd, agent, AdmissionContext::default(), None)
             .await
     }
 
@@ -283,6 +283,7 @@ impl super::service::ManagedRunService {
         cmd: StartIdentityJobCommand,
         mut agent: tetonic_core::Agent,
         context: AdmissionContext,
+        finalization: Option<FinalizationPolicy>,
     ) -> Result<
         (
             tetonic_domain::AttemptId,
@@ -330,7 +331,7 @@ impl super::service::ManagedRunService {
                 .finalize(FinalizeJob {
                     attempt: att,
                     outcome,
-                    policy: None,
+                    policy: finalization,
                     finish_run: true,
                 })
                 .await;

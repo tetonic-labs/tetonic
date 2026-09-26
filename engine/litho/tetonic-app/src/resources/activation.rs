@@ -16,7 +16,7 @@ pub struct RegisteredAgentJob {
     pub recovery_id: String,
 }
 
-fn resource_error(error: ResourceError) -> AppError {
+pub(super) fn resource_error(error: ResourceError) -> AppError {
     match error {
         ResourceError::Denied => AppError::PolicyDenied("registered job access denied".into()),
         ResourceError::Storage | ResourceError::StorageRequired => {
@@ -31,7 +31,8 @@ impl crate::services::DefaultRunService {
     /// the verifier, preparation ceilings, provider and resource-restricted tool
     /// executor. A stored job grant does not itself sandbox tools or reserve spend.
     /// Submission returns the existing managed attempt and completion receiver.
-    pub async fn submit_registered_job(
+    #[cfg(test)]
+    pub(crate) async fn submit_registered_job(
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
@@ -45,6 +46,19 @@ impl crate::services::DefaultRunService {
         ),
         AppError,
     > {
+        let prepared = self
+            .prepare_registered_job(credential, verifier, request, limits)
+            .await?;
+        self.submit_prepared_registered_job(prepared, agent).await
+    }
+
+    pub(super) async fn prepare_registered_job(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        request: RegisteredAgentJob,
+        limits: HarnessPreparationLimits,
+    ) -> Result<PreparedRegisteredJob, AppError> {
         let store = self
             .managed()
             .store()
@@ -91,6 +105,33 @@ impl crate::services::DefaultRunService {
             .authorize(&authorization.scope, &command.identity, &command.job_spec)
             .await
             .map_err(|_| resource_error(ResourceError::Denied))?;
+        Ok(PreparedRegisteredJob {
+            command,
+            policy,
+            authorization,
+            contexts,
+            finalization: None,
+        })
+    }
+
+    pub(super) async fn submit_prepared_registered_job(
+        &self,
+        prepared: PreparedRegisteredJob,
+        agent: tetonic_core::Agent,
+    ) -> Result<
+        (
+            tetonic_domain::AttemptId,
+            tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
+        ),
+        AppError,
+    > {
+        let PreparedRegisteredJob {
+            command,
+            policy,
+            authorization,
+            finalization,
+            ..
+        } = prepared;
         // Preparation failures must not create a run or report an active attempt.
         policy(
             Some(&command.identity),
@@ -115,31 +156,18 @@ impl crate::services::DefaultRunService {
                     authorization: Some(authorization),
                     ..Default::default()
                 },
+                finalization,
             )
             .await
             .map_err(Into::into)
     }
 }
 
-impl crate::Application {
-    /// Host composition entry shared by transports. The caller must construct the
-    /// agent using the configured inference/effect controls before submitting it.
-    pub async fn submit_registered_job(
-        &self,
-        credential: &str,
-        verifier: Arc<dyn CredentialVerifier>,
-        request: RegisteredAgentJob,
-        limits: HarnessPreparationLimits,
-        agent: tetonic_core::Agent,
-    ) -> Result<
-        (
-            tetonic_domain::AttemptId,
-            tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
-        ),
-        AppError,
-    > {
-        self.run_manager
-            .submit_registered_job(credential, verifier, request, limits, agent)
-            .await
-    }
+/// In-memory preparation owned by the application, not a new lifecycle record.
+pub(super) struct PreparedRegisteredJob {
+    pub command: tetonic_run::StartIdentityJobCommand,
+    pub policy: tetonic_run::ExecutionPolicy,
+    pub authorization: tetonic_run::managed::AuthorizedExecution,
+    pub contexts: ContextService,
+    pub finalization: Option<tetonic_run::FinalizationPolicy>,
 }

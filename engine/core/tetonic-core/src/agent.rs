@@ -113,6 +113,10 @@ impl Agent {
         self.config.run_id = Some(run_id.to_string());
         self.config.task_id = Some(task_id.to_string());
         self.config.attempt_id = Some(attempt_id.to_string());
+        if let Some(audit) = &self.audit {
+            audit.note(&serde_json::json!({"kind":"managed_binding", "run_id":run_id,
+                "task_id":task_id, "attempt_id":attempt_id}).to_string());
+        }
     }
 
     pub fn managed_run_id(&self) -> Option<&str> {
