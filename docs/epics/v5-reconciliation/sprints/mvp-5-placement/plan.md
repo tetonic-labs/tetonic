@@ -1,6 +1,8 @@
 # Sprint 5 — Enrolled workstations and remote execution
 
-Status: planned. Depends on the preceding MVP sprint; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria.
+Status: **exited** (local MVP preview). Schema 50 adds org-scoped workstations with distinct device credentials, owner-approved resource grants, opt-in shared assignment, work placement pins, durable assignment generations and claim fencing. Team membership alone never grants laptop access. Offline parks pinned work in place (no upload/move); reconnect keeps generation and does not duplicate work. Drain refuses new claims; revoke bumps generation, clears grants, parks pins and fences in-flight claims. `activate_team_work` denies when a pin targets an offline/draining/revoked device. ResourceService + `tetonic control workstation` expose enroll/grant/pin/offline/reconnect/drain/revoke. Existing fabric estate enrollment remains for Infer workers and is not a second work-assignment authority.
+
+Deferred: full fabric TLS/lease cutover for harness workers; multi-controller HA (sprint 7); D06 prototype ownership deletion after broader parity; unsupported checkpoint/migration catalog polish. Depends on sprints 1–4. See [implementation progress](../../progress.md).
 
 ## MVP-501 — Enroll and operate a workstation as an execution location
 
@@ -16,4 +18,4 @@ Acceptance: stale workers cannot obtain new mediated effects or commit outcomes 
 
 Reuse: REC-401/402; replace D06 prototype ownership after parity. Production multi-controller correctness is exercised in sprint 7 before HA claims.
 
-Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations. No production changes were made by the planning ticket.
+Commit discipline: characterization/contract, replacement behavior, caller cutover, then gated removal. Record focused tests and remaining compatibility obligations.

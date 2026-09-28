@@ -5,6 +5,8 @@
 //! 2. Execute authoritative emergency stops (`EstopSwitch`) at agent, squad, or fleet levels.
 //! 3. Inspect high-level fleet dashboard states with real-time status cards and live thought snippets.
 
+#![allow(deprecated)]
+
 use std::sync::Arc;
 
 use chrono::Utc;
@@ -90,12 +92,18 @@ pub struct OperatorDashboardView {
 }
 
 /// The operator control surface managing steering, E-stops, and dashboard assembly.
+#[deprecated(
+    since = "0.6.0",
+    note = "D05 prototype operator controller; use ResourceService / LocalControl instead"
+)]
+#[allow(deprecated)]
 pub struct OperatorController {
     supervisor: Arc<Mutex<FleetSupervisor>>,
     fleet_manager: Arc<FleetManager>,
     thought_hub: Arc<ThoughtStreamHub>,
 }
 
+#[allow(deprecated)]
 impl OperatorController {
     pub fn new(
         supervisor: Arc<Mutex<FleetSupervisor>>,
@@ -355,6 +363,7 @@ impl OperatorController {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
     use crate::fleet_api::{CreateAgentRequest, CreateOrgRequest, CreateSquadRequest};

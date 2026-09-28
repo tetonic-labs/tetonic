@@ -15,6 +15,8 @@ mod administration;
 mod team_work;
 mod team_work_activation;
 pub use team_work_activation::TeamWorkLaunch;
+mod human_controls;
+mod workstation_placement;
 mod contexts;
 mod context_compiler;
 mod credential_binding;

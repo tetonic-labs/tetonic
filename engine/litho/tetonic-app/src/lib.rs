@@ -90,14 +90,17 @@ pub use tetonic_policy::data_class_name;
 pub use tetonic_secrets::ScannerEngine;
 pub use tetonic_telemetry;
 
+#[allow(deprecated)]
 pub use fleet_api::{
     AgentResponse, CreateAgentRequest, CreateOrgRequest, CreateSquadRequest, FleetApiError,
     FleetManager, OrgResponse, SquadResponse,
 };
+#[allow(deprecated)]
 pub use operator_control::{
     EstopRequest, EstopResponse, OperatorControlError, OperatorController, OperatorDashboardView,
     SteerAgentRequest, SteerResponse,
 };
+#[allow(deprecated)]
 pub use thought_stream::{TelemetryEvent, ThoughtStreamHub};
 
 use crate::services::*;

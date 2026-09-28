@@ -33,8 +33,22 @@ use args::Args;
 use offline::{code_index, project_memory, show_history, time_travel};
 use session::{CliSessionConfig, CliTurnContext};
 
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
+fn main() -> anyhow::Result<()> {
+    const STACK_SIZE: usize = 8 * 1024 * 1024;
+    std::thread::Builder::new()
+        .stack_size(STACK_SIZE)
+        .spawn(|| {
+            let rt = tokio::runtime::Builder::new_multi_thread()
+                .enable_all()
+                .thread_stack_size(STACK_SIZE)
+                .build()?;
+            rt.block_on(Box::pin(run_cli()))
+        })?
+        .join()
+        .unwrap_or_else(|e| std::panic::resume_unwind(e))
+}
+
+async fn run_cli() -> anyhow::Result<()> {
     if std::env::args().nth(1).as_deref() == Some("help") && std::env::args().len() == 2 {
         return help::print_cli_help();
     }

@@ -8,9 +8,9 @@ This is the authoritative proposed sequence after product discovery. All tickets
 | [1 — Resources and privacy](mvp-1-resources-privacy/plan.md) | MVP-101/102 | Create a team; durable identities and private/team contexts | **Exited** (local preview); remote UI / D01/D11 deletion deferred |
 | [2 — Managed workers](mvp-2-managed-workers/plan.md) | MVP-201/202 | Controlled coding and noncoding execution through one runtime | **Exited** (local preview); remote setup UI, spend ledger, D07/D08 deferred |
 | [3 — Team work](mvp-3-team-work/plan.md) | MVP-301/302 | Huddles, backlog, delegation, budgets, autonomous activation and overlap | **Exited** (local preview, 2nd pass); managed child admission, spend ledger, D03 deferred to 4+ |
-| [4 — Human controls](mvp-4-human-controls/plan.md) | MVP-401/402 | Bound approvals, hierarchical stop, accounting and truthful inspection | REC-301/302; close D01/D04/D05/D10 |
-| [5 — Placement](mvp-5-placement/plan.md) | MVP-501/502 | Enrolled workstation and remote execution with grants/fencing | REC-401/402; D06 |
-| [6 — Product cutover](mvp-6-product-cutover/plan.md) | MVP-601/602 | Coherent team interface and removal of superseded paths | REC-501/502; D09/D12 and removal audit |
+| [4 — Human controls](mvp-4-human-controls/plan.md) | MVP-401/402 | Bound approvals, hierarchical stop, accounting and truthful inspection | **Exited** (local preview); D01/D04/D05/D10 deletion and remote stop deferred |
+| [5 — Placement](mvp-5-placement/plan.md) | MVP-501/502 | Enrolled workstation and remote execution with grants/fencing | **Exited** (local preview); fabric harness cutover, D06 deletion, HA deferred |
+| [6 — Product cutover](mvp-6-product-cutover/plan.md) | MVP-601/602 | Coherent team interface and removal of superseded paths | **Exited** (local preview); D01/D04/D05/D06/D10 deprecated, arch gate clean |
 | [7 — Release evidence](mvp-7-release-evidence/plan.md) | MVP-701/702 | Supported installation, HA evidence and measured capacity | Config and fault tests |
 
 Authentication, private/team context separation and baseline enforcement precede collaboration and actual tool use. Sprint 4 extends controls to persisted hierarchy and recovery; it does not retroactively secure unrestricted earlier execution. The thin UI starts in sprint 1 and real work in sprint 2; sprint 6 polishes it.

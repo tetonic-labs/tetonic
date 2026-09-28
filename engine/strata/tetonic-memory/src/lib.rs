@@ -61,6 +61,8 @@ mod secret_overrides;
 mod sync_lock;
 mod team_store;
 mod team_work;
+mod human_controls;
+mod workstation_placement;
 mod trust;
 mod util;
 mod worker_store;
@@ -78,6 +80,12 @@ pub use membership_store::{ControlPermission, OrganizationRole};
 pub use recall::RecallHit;
 pub use team_store::{OrganizationRow, TeamRow};
 pub use team_work::{HuddleProposal, TeamGoal, TeamWorkItem, WorkActivationCursor, WorkDelegation};
+pub use human_controls::{
+    ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection,
+};
+pub use workstation_placement::{
+    WorkPlacementPin, WorkerAssignmentClaim, Workstation, WorkstationGrant,
+};
 pub use trust::{ApprovalRow, EgressAllowRow};
 
 pub use capacity::RuntimeProfileRow;

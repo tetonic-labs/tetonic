@@ -212,6 +212,8 @@ impl Store {
         self.migrate_team_work_v46()?;
         self.migrate_team_work_activation_v47()?;
         self.migrate_team_work_run_binding_v48()?;
+        self.migrate_human_controls_v49()?;
+        self.migrate_workstation_placement_v50()?;
         Ok(())
     }
 

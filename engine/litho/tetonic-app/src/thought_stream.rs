@@ -89,6 +89,10 @@ impl TelemetryEvent {
 }
 
 /// Central pub-sub hub for live agent thoughts and telemetry inspection.
+#[deprecated(
+    since = "0.6.0",
+    note = "D10 prototype volatile thought stream hub; use session event journal and redacted telemetry instead"
+)]
 #[derive(Clone)]
 pub struct ThoughtStreamHub {
     tx: broadcast::Sender<TelemetryEvent>,
@@ -96,6 +100,7 @@ pub struct ThoughtStreamHub {
     buffer_capacity: usize,
 }
 
+#[allow(deprecated)]
 impl ThoughtStreamHub {
     pub fn new(channel_capacity: usize, buffer_capacity: usize) -> Self {
         let (tx, _) = broadcast::channel(channel_capacity);
@@ -154,6 +159,7 @@ impl ThoughtStreamHub {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 

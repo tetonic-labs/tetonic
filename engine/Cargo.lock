@@ -3514,7 +3514,6 @@ dependencies = [
  "tetonic-inference",
  "tetonic-memory",
  "tetonic-policy",
- "tetonic-rpc",
  "tetonic-runtime",
  "tetonic-tools",
  "tetonic-transaction",
@@ -3947,17 +3946,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tetonic-rpc"
-version = "0.0.0"
-dependencies = [
- "schemars",
- "serde",
- "serde_json",
- "tetonic-telemetry",
- "tokio",
-]
-
-[[package]]
 name = "tetonic-run"
 version = "0.0.0"
 dependencies = [
@@ -4126,26 +4114,6 @@ dependencies = [
  "tetonic-domain",
  "tetonic-telemetry",
  "thiserror 2.0.18",
-]
-
-[[package]]
-name = "tetonicd"
-version = "0.0.0"
-dependencies = [
- "anyhow",
- "async-trait",
- "chrono",
- "directories",
- "regex",
- "serde",
- "serde_json",
- "subtle",
- "tetonic-app",
- "tetonic-rpc",
- "tokio",
- "tracing",
- "tracing-subscriber",
- "uuid",
 ]
 
 [[package]]

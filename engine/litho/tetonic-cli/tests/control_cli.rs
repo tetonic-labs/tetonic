@@ -25,7 +25,11 @@ fn run(db: &std::path::Path, args: &[&str], credential: Option<&str>) -> Output 
     } else {
         drop(child.stdin.take());
     }
-    child.wait_with_output().unwrap()
+    let res = child.wait_with_output().unwrap();
+    if !res.status.success() {
+        eprintln!("CMD FAILED: args={:?}, stderr={}", args, String::from_utf8_lossy(&res.stderr));
+    }
+    res
 }
 
 #[test]
@@ -98,16 +102,29 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
             "open",
             "--context",
             "private-a",
-            "--session",
-            "discussion",
         ],
         Some(&alice),
     );
     assert!(open.status.success());
+    let open_json: serde_json::Value = serde_json::from_slice(&open.stdout).unwrap();
     assert_eq!(
-        serde_json::from_slice::<serde_json::Value>(&open.stdout).unwrap()["agent_activated"],
+        open_json["agent_activated"],
         false
     );
+    let session = open_json["session"].as_str().unwrap().to_owned();
+    let reopen = run(
+        &db,
+        &[
+            "context",
+            "open",
+            "--context",
+            "private-a",
+            "--session",
+            &session,
+        ],
+        Some(&alice),
+    );
+    assert!(reopen.status.success());
     let file = dir.path().join("message.txt");
     std::fs::write(&file, "PRIVATECANARY — a personal thought").unwrap();
     let send = [
@@ -116,7 +133,7 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
         "--context",
         "private-a",
         "--session",
-        "discussion",
+        &session,
         "--request",
         "request-1",
         "--message-file",
@@ -131,7 +148,7 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
         "--context",
         "private-a",
         "--session",
-        "discussion",
+        &session,
     ];
     let own = run(&db, &history, Some(&alice));
     assert!(own.status.success());
@@ -237,7 +254,7 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
         "--context",
         "shared",
         "--session",
-        "discussion",
+        &session,
     ];
     assert!(!run(&db, &wrong_scope, Some(&alice)).status.success());
     let close = [
@@ -246,7 +263,7 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
         "--context",
         "private-a",
         "--session",
-        "discussion",
+        &session,
     ];
     assert!(!run(&db, &close, Some(&admin)).status.success());
     for _ in 0..2 {
@@ -662,4 +679,532 @@ fn registered_agent_cli_is_durable_idempotent_and_not_activation() {
         assert!(!text.contains("AGENTCONFIGCANARY"));
         assert!(!text.contains(credential));
     }
+}
+
+#[test]
+fn team_work_and_human_controls_cli_lifecycle() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("team_work.db");
+    assert!(run(
+        &db,
+        &[
+            "bootstrap",
+            "--principal",
+            "admin",
+            "--org",
+            "org",
+            "--name",
+            "Org"
+        ],
+        None
+    )
+    .status
+    .success());
+    assert!(
+        run(&db, &["register-principal", "--principal", "alice"], None)
+            .status
+            .success()
+    );
+    let issue = |principal| {
+        let output = run(&db, &["issue-credential", "--principal", principal], None);
+        assert!(output.status.success());
+        serde_json::from_slice::<serde_json::Value>(&output.stdout).unwrap()["credential"]
+            .as_str()
+            .unwrap()
+            .to_owned()
+    };
+    let admin = issue("admin");
+    assert!(run(
+        &db,
+        &[
+            "set-member",
+            "--org",
+            "org",
+            "--principal",
+            "alice",
+            "--role",
+            "team-creator"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+    let alice = issue("alice");
+
+    // Create team
+    assert!(run(
+        &db,
+        &[
+            "create-team",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--name",
+            "Team Alpha"
+        ],
+        Some(&alice)
+    )
+    .status
+    .success());
+
+    // 1. Create a team goal
+    let goal_out = run(
+        &db,
+        &[
+            "work",
+            "create-goal",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--goal",
+            "goal-1",
+            "--title",
+            "Deliver Sprint 6",
+        ],
+        Some(&alice),
+    );
+    assert!(goal_out.status.success());
+    let goal_json: serde_json::Value = serde_json::from_slice(&goal_out.stdout).unwrap();
+    assert_eq!(goal_json["goal_id"], "goal-1");
+
+    // 2. Accept a huddle proposal producing multiple work items
+    let huddle_out = run(
+        &db,
+        &[
+            "work",
+            "accept-huddle",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--huddle",
+            "huddle-1",
+            "--request-id",
+            "req-hud-1",
+            "--title",
+            "Task 1: Cutover Config",
+            "--title",
+            "Task 2: Retire Scaffolding",
+        ],
+        Some(&alice),
+    );
+    assert!(huddle_out.status.success());
+    let huddle_json: serde_json::Value = serde_json::from_slice(&huddle_out.stdout).unwrap();
+    assert_eq!(huddle_json.as_array().unwrap().len(), 2);
+
+    // 3. Create a quick work item
+    let quick_out = run(
+        &db,
+        &[
+            "work",
+            "create",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--work",
+            "work-quick",
+            "--title",
+            "Task 3: Quick Task",
+            "--request-id",
+            "req-quick-1",
+            "--goal",
+            "goal-1",
+        ],
+        Some(&alice),
+    );
+    assert!(quick_out.status.success());
+
+    // 4. List work items
+    let list_out = run(
+        &db,
+        &["work", "list", "--org", "org", "--team", "team-alpha"],
+        Some(&alice),
+    );
+    assert!(list_out.status.success());
+    let list_json: serde_json::Value = serde_json::from_slice(&list_out.stdout).unwrap();
+    assert_eq!(list_json.as_array().unwrap().len(), 3);
+
+    // 5. Park and resume work
+    let park_out = run(
+        &db,
+        &[
+            "work",
+            "park",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--work",
+            "work-quick",
+        ],
+        Some(&alice),
+    );
+    assert!(park_out.status.success());
+    let park_json: serde_json::Value = serde_json::from_slice(&park_out.stdout).unwrap();
+    assert_eq!(park_json["status"], "parked");
+
+    let resume_out = run(
+        &db,
+        &[
+            "work",
+            "resume",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--work",
+            "work-quick",
+        ],
+        Some(&alice),
+    );
+    assert!(resume_out.status.success());
+    let resume_json: serde_json::Value = serde_json::from_slice(&resume_out.stdout).unwrap();
+    assert_eq!(resume_json["status"], "open");
+
+    // 6. Propose an effect approval for work-quick
+    let future_ts = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap()
+        .as_secs()
+        + 3600;
+    let propose_out = run(
+        &db,
+        &[
+            "work",
+            "propose-approval",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--approval",
+            "app-1",
+            "--digest",
+            "sha256:fedcba9876543210",
+            "--request-id",
+            "req-app-1",
+            "--expires-at",
+            &future_ts.to_string(),
+            "--work",
+            "work-quick",
+        ],
+        Some(&alice),
+    );
+    assert!(propose_out.status.success());
+
+    // 7. Inspect team - verifies pending approvals exist and sibling tasks remain open
+    let inspect_out = run(
+        &db,
+        &[
+            "work",
+            "inspect-team",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+        ],
+        Some(&alice),
+    );
+    assert!(inspect_out.status.success());
+    let inspect_json: serde_json::Value = serde_json::from_slice(&inspect_out.stdout).unwrap();
+    assert_eq!(inspect_json["pending_approvals"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        inspect_json["pending_approvals"][0]["approval_id"],
+        "app-1"
+    );
+    // Sibling work items remain open
+    let items = inspect_json["work_items"].as_array().unwrap();
+    assert_eq!(items.len(), 3);
+    assert!(items.iter().any(|i| i["title"] == "Task 1: Cutover Config" && i["status"] == "open"));
+
+    // 8. Hierarchical stop & clear stop
+    let stop_out = run(
+        &db,
+        &[
+            "work",
+            "stop",
+            "--org",
+            "org",
+            "--scope",
+            "team",
+            "--id",
+            "team-alpha",
+            "--mode",
+            "pause",
+            "--reason",
+            "Pre-flight verification pause",
+        ],
+        Some(&alice),
+    );
+    assert!(stop_out.status.success());
+
+    let inspect_stopped = run(
+        &db,
+        &[
+            "work",
+            "inspect-team",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+        ],
+        Some(&alice),
+    );
+    assert!(inspect_stopped.status.success());
+    let inspect_stopped_json: serde_json::Value =
+        serde_json::from_slice(&inspect_stopped.stdout).unwrap();
+    assert_eq!(inspect_stopped_json["active_stops"].as_array().unwrap().len(), 1);
+
+    let clear_out = run(
+        &db,
+        &[
+            "work",
+            "clear-stop",
+            "--org",
+            "org",
+            "--scope",
+            "team",
+            "--id",
+            "team-alpha",
+        ],
+        Some(&alice),
+    );
+    assert!(clear_out.status.success());
+
+    // 9. Resolve approval
+    let resolve_out = run(
+        &db,
+        &[
+            "work",
+            "resolve-approval",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+            "--approval",
+            "app-1",
+            "--digest",
+            "sha256:fedcba9876543210",
+            "--allow",
+        ],
+        Some(&alice),
+    );
+    assert!(resolve_out.status.success());
+
+    // Final inspection: pending approvals now empty
+    let inspect_final = run(
+        &db,
+        &[
+            "work",
+            "inspect-team",
+            "--org",
+            "org",
+            "--team",
+            "team-alpha",
+        ],
+        Some(&alice),
+    );
+    assert!(inspect_final.status.success());
+    let inspect_final_json: serde_json::Value =
+        serde_json::from_slice(&inspect_final.stdout).unwrap();
+    assert!(inspect_final_json["pending_approvals"].as_array().unwrap().is_empty());
+}
+
+#[test]
+fn workstation_placement_cli_lifecycle() {
+    let dir = tempfile::tempdir().unwrap();
+    let db = dir.path().join("workstations.db");
+    assert!(run(
+        &db,
+        &[
+            "bootstrap",
+            "--principal",
+            "admin",
+            "--org",
+            "org",
+            "--name",
+            "Org"
+        ],
+        None
+    )
+    .status
+    .success());
+    let issued = run(&db, &["issue-credential", "--principal", "admin"], None);
+    let admin = serde_json::from_slice::<serde_json::Value>(&issued.stdout).unwrap()["credential"]
+        .as_str()
+        .unwrap()
+        .to_owned();
+
+    // 1. Enroll workstation
+    let enroll_out = run(
+        &db,
+        &[
+            "workstation",
+            "enroll",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+            "--label",
+            "Linux Build Node",
+            "--platform",
+            "linux",
+            "--device-secret",
+            "device-secret-12345",
+            "--shared-assignment",
+        ],
+        Some(&admin),
+    );
+    assert!(enroll_out.status.success());
+    let enroll_json: serde_json::Value = serde_json::from_slice(&enroll_out.stdout).unwrap();
+    assert_eq!(enroll_json["workstation_id"], "ws-agent-1");
+    assert_eq!(enroll_json["platform"], "linux");
+    assert_eq!(enroll_json["status"], "enrolled");
+
+    // 2. Approve resource grant
+    let grant_out = run(
+        &db,
+        &[
+            "workstation",
+            "approve-grant",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+            "--grant",
+            "grant-gpu",
+            "--kind",
+            "model_capacity",
+            "--resource",
+            "local/qwen2.5-coder",
+        ],
+        Some(&admin),
+    );
+    assert!(grant_out.status.success());
+
+    // 3. Create team & work item to test pinning
+    assert!(run(
+        &db,
+        &[
+            "create-team",
+            "--org",
+            "org",
+            "--team",
+            "team-gpu",
+            "--name",
+            "GPU Team"
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+
+    assert!(run(
+        &db,
+        &[
+            "work",
+            "create",
+            "--org",
+            "org",
+            "--team",
+            "team-gpu",
+            "--work",
+            "work-gpu-1",
+            "--title",
+            "Model fine-tuning task",
+            "--request-id",
+            "req-gpu-1",
+        ],
+        Some(&admin)
+    )
+    .status
+    .success());
+
+    // 4. Pin work to workstation
+    let pin_out = run(
+        &db,
+        &[
+            "workstation",
+            "pin",
+            "--org",
+            "org",
+            "--team",
+            "team-gpu",
+            "--work",
+            "work-gpu-1",
+            "--workstation",
+            "ws-agent-1",
+        ],
+        Some(&admin),
+    );
+    assert!(pin_out.status.success());
+
+    // 5. Offline and Reconnect
+    let off_out = run(
+        &db,
+        &[
+            "workstation",
+            "offline",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+        ],
+        Some(&admin),
+    );
+    assert!(off_out.status.success());
+    let off_json: serde_json::Value = serde_json::from_slice(&off_out.stdout).unwrap();
+    assert_eq!(off_json["workstation"]["status"], "offline");
+
+    let rec_out = run(
+        &db,
+        &[
+            "workstation",
+            "reconnect",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+        ],
+        Some(&admin),
+    );
+    assert!(rec_out.status.success());
+    let rec_json: serde_json::Value = serde_json::from_slice(&rec_out.stdout).unwrap();
+    assert_eq!(rec_json["status"], "enrolled");
+
+    // 6. Drain workstation
+    let drain_out = run(
+        &db,
+        &[
+            "workstation",
+            "drain",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+        ],
+        Some(&admin),
+    );
+    assert!(drain_out.status.success());
+    let drain_json: serde_json::Value = serde_json::from_slice(&drain_out.stdout).unwrap();
+    assert_eq!(drain_json["status"], "draining");
+
+    // 7. Revoke workstation
+    let revoke_out = run(
+        &db,
+        &[
+            "workstation",
+            "revoke",
+            "--org",
+            "org",
+            "--workstation",
+            "ws-agent-1",
+        ],
+        Some(&admin),
+    );
+    assert!(revoke_out.status.success());
+    let revoke_json: serde_json::Value = serde_json::from_slice(&revoke_out.stdout).unwrap();
+    assert_eq!(revoke_json["status"], "revoked");
 }

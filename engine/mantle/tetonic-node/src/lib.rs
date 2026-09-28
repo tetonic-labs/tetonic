@@ -28,6 +28,7 @@ pub use tls_identity::{
 };
 
 pub mod role;
+#[allow(deprecated)]
 pub use role::{
     FailoverEvent, KeeperError, KeeperRegistry, NodeCapabilities, NodeLifecycle, NodeRole,
     RunnerClient, RunnerRegistration, RunnerStatus,

@@ -101,6 +101,10 @@ pub struct AgentResponse {
 }
 
 /// In-memory state and operational supervisor for the fleet management plane.
+#[deprecated(
+    since = "0.6.0",
+    note = "D01 prototype fleet manager; use ResourceService / LocalControl instead"
+)]
 pub struct FleetManager {
     orgs: Mutex<HashMap<String, Arc<Organization>>>,
     squads: Mutex<HashMap<String, Arc<Squad>>>,
@@ -109,6 +113,7 @@ pub struct FleetManager {
     supervisor: Arc<Mutex<FleetSupervisor>>,
 }
 
+#[allow(deprecated)]
 impl FleetManager {
     pub fn new(supervisor: Arc<Mutex<FleetSupervisor>>) -> Self {
         Self {
@@ -384,6 +389,7 @@ impl FleetManager {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 

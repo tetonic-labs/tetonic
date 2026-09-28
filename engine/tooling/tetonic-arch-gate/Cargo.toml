@@ -12,12 +12,10 @@ path = "src/lib.rs"
 [[bin]]
 name = "tetonic-arch-gate"
 path = "src/main.rs"
-
 [dependencies]
 syn = { version = "2", features = ["full", "visit"] }
 proc-macro2 = { version = "1", features = ["span-locations"] }
 regex = { workspace = true }
-tetonic-rpc = { path = "../../atmos/tetonic-rpc" }
 clap = { workspace = true }
 
 [dev-dependencies]

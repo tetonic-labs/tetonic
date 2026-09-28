@@ -142,6 +142,10 @@ pub enum KeeperError {
 }
 
 /// Cluster coordinator registry ("The Keeper") managing runners, leases, and failover.
+#[deprecated(
+    since = "0.6.0",
+    note = "D06 prototype in-process keeper registry; superseded by durable workstation and lease placement"
+)]
 #[derive(Debug, Default)]
 pub struct KeeperRegistry {
     runners: HashMap<String, RunnerRegistration>,
@@ -149,6 +153,7 @@ pub struct KeeperRegistry {
     epoch_counter: u64,
 }
 
+#[allow(deprecated)]
 impl KeeperRegistry {
     pub fn new() -> Self {
         Self::default()
@@ -318,6 +323,10 @@ impl KeeperRegistry {
 }
 
 /// Client running inside a Runner node managing handshake and heartbeats with the Coordinator.
+#[deprecated(
+    since = "0.6.0",
+    note = "D06 prototype runner client; superseded by durable workstation placement"
+)]
 #[derive(Debug)]
 pub struct RunnerClient {
     pub runner_id: String,
@@ -326,6 +335,7 @@ pub struct RunnerClient {
     active_proof: Option<LeaseProof>,
 }
 
+#[allow(deprecated)]
 impl RunnerClient {
     pub fn new(
         runner_id: impl Into<String>,
@@ -362,6 +372,7 @@ impl RunnerClient {
 }
 
 /// High-level lifecycle coordinator for a node instance.
+#[allow(deprecated)]
 #[derive(Debug)]
 pub struct NodeLifecycle {
     pub role: NodeRole,
@@ -372,6 +383,7 @@ pub struct NodeLifecycle {
     pub is_running: bool,
 }
 
+#[allow(deprecated)]
 impl NodeLifecycle {
     /// Initializes node lifecycle based on configured role.
     pub fn init(role: NodeRole, node_id: impl Into<String>, bind_addr: impl Into<String>) -> Self {
@@ -416,6 +428,7 @@ impl NodeLifecycle {
 }
 
 #[cfg(test)]
+#[allow(deprecated)]
 mod tests {
     use super::*;
 

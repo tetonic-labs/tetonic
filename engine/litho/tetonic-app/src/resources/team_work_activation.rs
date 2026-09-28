@@ -71,6 +71,41 @@ impl crate::Application {
                 "team work item is not activatable".into(),
             ));
         }
+        let org_check = launch.organization_id.clone();
+        let team_check = launch.team_id.clone();
+        let work_check = launch.work_id.clone();
+        let goal_check = work.goal_id.clone();
+        let agent_check = launch.agent_key.clone();
+        if let Some(stop) = store
+            .read(move |db| {
+                db.activation_blocked_by_stop(
+                    &org_check,
+                    &team_check,
+                    &work_check,
+                    goal_check.as_deref(),
+                    Some(&agent_check),
+                )
+            })
+            .await
+            .map_err(|_| resource_error(ResourceError::Storage))?
+            .map_err(|e| resource_error(e.into()))?
+        {
+            return Err(AppError::PolicyDenied(format!(
+                "activation blocked by {} stop on {}/{}",
+                stop.mode, stop.scope_kind, stop.scope_id
+            )));
+        }
+        let org_pin = launch.organization_id.clone();
+        let team_pin = launch.team_id.clone();
+        let work_pin = launch.work_id.clone();
+        if let Some(reason) = store
+            .read(move |db| db.placement_blocks_activation(&org_pin, &team_pin, &work_pin))
+            .await
+            .map_err(|_| resource_error(ResourceError::Storage))?
+            .map_err(|e| resource_error(e.into()))?
+        {
+            return Err(AppError::PolicyDenied(reason));
+        }
         let org = launch.organization_id.clone();
         let team = launch.team_id.clone();
         let work_id = launch.work_id.clone();
@@ -144,6 +179,84 @@ impl crate::Application {
             .await
             .map_err(resource_error)?;
         Ok((bound, submission))
+    }
+
+    /// Record a hierarchical stop, park matching work, and cancel known managed runs.
+    /// Unreachable cancellation targets are recorded as unresolved effects.
+    pub async fn apply_control_stop(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        org: String,
+        scope_kind: String,
+        scope_id: String,
+        mode: String,
+        reason: String,
+    ) -> Result<tetonic_memory::ControlStop, AppError> {
+        let store = self
+            .run_manager
+            .managed()
+            .store()
+            .cloned()
+            .ok_or_else(|| resource_error(ResourceError::StorageRequired))?;
+        let resources = ResourceService {
+            store: store.clone(),
+            authority: Arc::new(membership::MembershipAuthority {
+                store: store.clone(),
+                verifier,
+            }),
+        };
+        let org_runs = org.clone();
+        let kind_runs = scope_kind.clone();
+        let id_runs = scope_id.clone();
+        let run_ids = store
+            .read(move |db| db.run_ids_under_stop(&org_runs, &kind_runs, &id_runs))
+            .await
+            .map_err(|_| resource_error(ResourceError::Storage))?
+            .map_err(|e| resource_error(e.into()))?;
+        let stop = resources
+            .request_control_stop(
+                credential,
+                org.clone(),
+                scope_kind.clone(),
+                scope_id.clone(),
+                mode.clone(),
+                reason,
+            )
+            .await
+            .map_err(resource_error)?;
+        if matches!(mode.as_str(), "cancel" | "estop") {
+            for run_id in run_ids {
+                match self
+                    .run_manager
+                    .managed()
+                    .cancel_run(&tetonic_domain::RunId::new(run_id.clone()))
+                    .await
+                {
+                    Ok(()) => {}
+                    Err(_) => {
+                        let org = org.clone();
+                        let kind = scope_kind.clone();
+                        let sid = scope_id.clone();
+                        let generation = stop.generation;
+                        let effect = run_id.clone();
+                        let _ = store
+                            .write(move |db| {
+                                db.record_unresolved_stop_effect(
+                                    &org,
+                                    &kind,
+                                    &sid,
+                                    generation,
+                                    &effect,
+                                    "managed cancel did not confirm quiescence",
+                                )
+                            })
+                            .await;
+                    }
+                }
+            }
+        }
+        Ok(stop)
     }
 }
 
@@ -379,6 +492,38 @@ mod tests {
         assert_eq!(bound.status, "running");
         assert!(bound.attempt_id.is_some());
         assert_eq!(bound.run_id.as_deref(), Some(submission.run_id.0.as_str()));
+        resources
+            .request_control_stop(
+                secret,
+                "org".into(),
+                "team".into(),
+                "team".into(),
+                "estop".into(),
+                "halt".into(),
+            )
+            .await
+            .unwrap();
+        assert!(
+            app.activate_team_work(
+                secret,
+                local.credentials().clone(),
+                TeamWorkLaunch {
+                    organization_id: "org".into(),
+                    team_id: "team".into(),
+                    work_id: "child".into(),
+                    information_context_id: "shared".into(),
+                    agent_key: "agent".into(),
+                    definition_digest: registered.identity.bound_definition_digest.clone(),
+                    execution_grant_id: "grant".into(),
+                    input: None,
+                    recovery_id: "job-child-2".into(),
+                },
+                settings(),
+            )
+            .await
+            .is_err(),
+            "team estop must block new activation"
+        );
         drop(server);
     }
 }

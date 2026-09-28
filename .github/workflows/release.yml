@@ -58,7 +58,7 @@ jobs:
           workspaces: engine
 
       - name: Build release binaries
-        run: cargo build --release --target ${{ matrix.target }} -p tetonic-cli -p tetonicd
+        run: cargo build --release --target ${{ matrix.target }} -p tetonic-cli -p tetonic-server
 
       - name: Stage release artifacts (Windows)
         if: matrix.is_windows
@@ -67,7 +67,7 @@ jobs:
           $stage = "target/stage"
           New-Item -ItemType Directory -Force -Path $stage | Out-Null
           Copy-Item "target/${{ matrix.target }}/release/tetonic.exe" "$stage/tetonic.exe"
-          Copy-Item "target/${{ matrix.target }}/release/tetonicd.exe" "$stage/tetonicd.exe"
+          Copy-Item "target/${{ matrix.target }}/release/tetonic-server.exe" "$stage/tetonic-server.exe"
           Copy-Item "../README.md" "$stage/README.txt"
           Copy-Item "../LICENSE" "$stage/LICENSE.txt"
           
@@ -82,10 +82,10 @@ jobs:
           DIST="target/dist"
           mkdir -p "$STAGE" "$DIST"
           cp "target/${{ matrix.target }}/release/tetonic" "$STAGE/tetonic"
-          cp "target/${{ matrix.target }}/release/tetonicd" "$STAGE/tetonicd"
+          cp "target/${{ matrix.target }}/release/tetonic-server" "$STAGE/tetonic-server"
           cp "../README.md" "$STAGE/README.txt"
           cp "../LICENSE" "$STAGE/LICENSE.txt"
-          chmod +x "$STAGE/tetonic" "$STAGE/tetonicd"
+          chmod +x "$STAGE/tetonic" "$STAGE/tetonic-server"
           
           tar -czvf "$DIST/tetonic-${{ matrix.asset_prefix }}.tar.gz" -C "$STAGE" .
 

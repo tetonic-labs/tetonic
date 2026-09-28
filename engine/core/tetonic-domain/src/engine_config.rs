@@ -282,6 +282,8 @@ pub enum EngineConfigError {
     InvalidValue { field: String, value: String },
     #[error("Missing required configuration section '{0}'")]
     MissingSection(String),
+    #[error("Unsupported configuration combination: {0}")]
+    Unsupported(String),
 }
 
 impl EngineConfig {
@@ -578,6 +580,112 @@ impl EngineConfig {
 
         out
     }
+
+    /// Validates configuration invariants according to the operator specification (operator-configuration.md).
+    /// Rejects unimplemented distributed storage engines and invalid topology combinations deterministically.
+    pub fn validate(&self) -> Result<(), EngineConfigError> {
+        match self.storage.storage_mode {
+            StorageMode::LocalSqlite => {}
+            StorageMode::MoveableVolume => {
+                if self.storage.volume_mount_path.as_os_str().is_empty() {
+                    return Err(EngineConfigError::InvalidValue {
+                        field: "storage.volume_mount_path".to_string(),
+                        value: "empty path (required when storage_mode is moveable_volume)".to_string(),
+                    });
+                }
+            }
+            StorageMode::DistributedDb => {
+                return Err(EngineConfigError::Unsupported(
+                    "storage_mode 'distributed_db' is not implemented in the MVP release; supported modes are 'local_sqlite' and 'moveable_volume'".to_string(),
+                ));
+            }
+        }
+
+        match self.node.mode {
+            NodeMode::Standalone | NodeMode::Coordinator => {}
+            NodeMode::Runner => {
+                if self.node.coordinator_url.is_none() {
+                    return Err(EngineConfigError::InvalidValue {
+                        field: "node.coordinator_url".to_string(),
+                        value: "missing (runner nodes require coordinator_url)".to_string(),
+                    });
+                }
+            }
+        }
+
+        match self.inference.provider {
+            InferenceProviderKind::Cloud | InferenceProviderKind::RemoteFabric => {
+                if self.inference.endpoint_url.is_none() {
+                    return Err(EngineConfigError::InvalidValue {
+                        field: "inference.endpoint_url".to_string(),
+                        value: format!("missing (required for {} provider)", self.inference.provider),
+                    });
+                }
+            }
+            InferenceProviderKind::Local => {}
+        }
+
+        Ok(())
+    }
+
+    /// Produces an operator-safe view of the configuration with sensitive credentials redacted.
+    pub fn redacted(&self) -> Self {
+        let mut copy = self.clone();
+        if let Some(endpoint) = &copy.inference.endpoint_url {
+            copy.inference.endpoint_url = Some(redact_url_credentials(endpoint));
+        }
+        if let Some(coord) = &copy.node.coordinator_url {
+            copy.node.coordinator_url = Some(redact_url_credentials(coord));
+        }
+        if let Some(telem) = &copy.telemetry.endpoint_url {
+            copy.telemetry.endpoint_url = Some(redact_url_credentials(telem));
+        }
+        copy
+    }
+}
+
+/// Redacts passwords in URL authority and tokens/secrets in query parameters.
+pub fn redact_url_credentials(url: &str) -> String {
+    let mut s = url.to_string();
+    if let Some(scheme_end) = s.find("://") {
+        let after_scheme = &s[scheme_end + 3..];
+        if let Some(at_pos) = after_scheme.find('@') {
+            let auth_part = &after_scheme[..at_pos];
+            let host_part = &after_scheme[at_pos + 1..];
+            let redacted_auth = if let Some(colon) = auth_part.find(':') {
+                format!("{}:[REDACTED]", &auth_part[..colon])
+            } else {
+                "[REDACTED]".to_string()
+            };
+            s = format!("{}://{}@{}", &s[..scheme_end], redacted_auth, host_part);
+        }
+    }
+    if let Some(q_pos) = s.find('?') {
+        let base = &s[..q_pos];
+        let query = &s[q_pos + 1..];
+        let pairs: Vec<String> = query
+            .split('&')
+            .map(|pair| {
+                if let Some((k, _)) = pair.split_once('=') {
+                    let k_lower = k.to_ascii_lowercase();
+                    if k_lower.contains("token")
+                        || k_lower.contains("secret")
+                        || k_lower.contains("key")
+                        || k_lower.contains("auth")
+                        || k_lower.contains("pass")
+                    {
+                        format!("{k}=[REDACTED]")
+                    } else {
+                        pair.to_string()
+                    }
+                } else {
+                    pair.to_string()
+                }
+            })
+            .collect();
+        s = format!("{base}?{}", pairs.join("&"));
+    }
+    s
 }
 
 fn unquote_str(s: &str) -> String {
@@ -700,5 +808,59 @@ timeout_ms = 15000
         std::env::remove_var("TETONIC_NODE_MODE");
         std::env::remove_var("TETONIC_INFERENCE_ENDPOINT");
         std::env::remove_var("TETONIC_TELEMETRY_SINK");
+    }
+
+    #[test]
+    fn test_config_validation_rules() {
+        let valid_desktop = EngineConfig::default();
+        assert!(valid_desktop.validate().is_ok());
+
+        // DistributedDb unsupported
+        let mut dist_db = EngineConfig::default();
+        dist_db.storage.storage_mode = StorageMode::DistributedDb;
+        assert!(matches!(dist_db.validate(), Err(EngineConfigError::Unsupported(_))));
+
+        // MoveableVolume requires volume_mount_path
+        let mut volume_empty = EngineConfig::default();
+        volume_empty.storage.storage_mode = StorageMode::MoveableVolume;
+        volume_empty.storage.volume_mount_path = PathBuf::new();
+        assert!(matches!(volume_empty.validate(), Err(EngineConfigError::InvalidValue { .. })));
+
+        // Runner requires coordinator_url
+        let mut runner_missing_coord = EngineConfig::default();
+        runner_missing_coord.node.mode = NodeMode::Runner;
+        runner_missing_coord.node.coordinator_url = None;
+        assert!(matches!(runner_missing_coord.validate(), Err(EngineConfigError::InvalidValue { .. })));
+
+        // Cloud provider requires endpoint_url
+        let mut cloud_missing_endpoint = EngineConfig::default();
+        cloud_missing_endpoint.inference.provider = InferenceProviderKind::Cloud;
+        cloud_missing_endpoint.inference.endpoint_url = None;
+        assert!(matches!(cloud_missing_endpoint.validate(), Err(EngineConfigError::InvalidValue { .. })));
+    }
+
+    #[test]
+    fn test_redacted_config_and_urls() {
+        let mut cfg = EngineConfig::default();
+        cfg.inference.endpoint_url = Some("https://user:supersecret@api.provider.com/v1?token=tok123&model=llama3".into());
+        cfg.node.coordinator_url = Some("https://admin:pass456@coord.internal:4430/status?api_key=key789".into());
+        cfg.telemetry.endpoint_url = Some("http://otel.internal:4317/ingest?secret=s99".into());
+
+        let red = cfg.redacted();
+        let inf = red.inference.endpoint_url.unwrap();
+        assert!(inf.contains("user:[REDACTED]@api.provider.com"));
+        assert!(inf.contains("token=[REDACTED]"));
+        assert!(!inf.contains("supersecret"));
+        assert!(!inf.contains("tok123"));
+
+        let coord = red.node.coordinator_url.unwrap();
+        assert!(coord.contains("admin:[REDACTED]@coord.internal"));
+        assert!(coord.contains("api_key=[REDACTED]"));
+        assert!(!coord.contains("pass456"));
+        assert!(!coord.contains("key789"));
+
+        let telem = red.telemetry.endpoint_url.unwrap();
+        assert!(telem.contains("secret=[REDACTED]"));
+        assert!(!telem.contains("s99"));
     }
 }

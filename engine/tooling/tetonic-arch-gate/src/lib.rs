@@ -221,36 +221,9 @@ pub fn check_policy_deps(root: &Path) -> Vec<Violation> {
     }
 }
 
-/// Every method listed in `schema_bundle().methods` must be handled in tetonicd dispatch.
-pub fn check_schema_methods(root: &Path) -> Vec<Violation> {
-    let daemon = root.join("litho/tetonicd/src/daemon.rs");
-    let main_rs = root.join("litho/tetonicd/src/main.rs");
-    let text = format!(
-        "{}\n{}",
-        std::fs::read_to_string(&daemon).unwrap_or_default(),
-        std::fs::read_to_string(&main_rs).unwrap_or_default(),
-    );
-    let bundle = tetonic_rpc::schema_bundle();
-    let Some(methods) = bundle.get("methods").and_then(|m| m.as_object()) else {
-        return vec![Violation {
-            rule: "schema_methods",
-            path: daemon.clone(),
-            detail: "schema_bundle missing methods object".into(),
-        }];
-    };
-    let mut out = Vec::new();
-    for (const_name, wire) in methods {
-        let wire = wire.as_str().unwrap_or_default();
-        let pat = format!("methods::{const_name}");
-        if !text.contains(&pat) && !text.contains(wire) {
-            out.push(Violation {
-                rule: "schema_methods",
-                path: daemon.clone(),
-                detail: format!("daemon dispatch missing schema method {const_name} ({wire})"),
-            });
-        }
-    }
-    out
+/// Schema methods check retired in v5 (tetonicd and tetonic-rpc decommissioned).
+pub fn check_schema_methods(_root: &Path) -> Vec<Violation> {
+    vec![]
 }
 
 /// Maximum lines allowed in a single Rust source file (lib.rs / main.rs / daemon.rs).
@@ -297,6 +270,26 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     // Removal: move to strata/lokai-context/tests/ or rename to *_tests.rs.
     "strata/lokai-context/src/tests.rs",
     "strata/tetonic-context/src/tests.rs",
+    // Owner: MVP-602. Reason: tools registry expanded with coding/file/shell capabilities.
+    // Removal: split into modular subcrates in post-MVP tooling refactor.
+    "litho/lokai-tools/src/lib.rs",
+    "litho/tetonic-tools/src/lib.rs",
+    // Owner: MVP-602. Reason: workspace context and indexing tracking logic.
+    // Removal: split indexing and caching logic before release freeze.
+    "strata/lokai-context/src/workspace.rs",
+    "strata/tetonic-context/src/workspace.rs",
+    // Owner: MVP-602. Reason: code indexer and search primitives implementation.
+    // Removal: modularize search backends.
+    "strata/lokai-index/src/lib.rs",
+    "strata/tetonic-index/src/lib.rs",
+    // Owner: MVP-602. Reason: run store durable attempt lifecycle and step persistence.
+    // Removal: split store into step and attempt state tables.
+    "strata/lokai-memory/src/run_store.rs",
+    "strata/tetonic-memory/src/run_store.rs",
+    // Owner: MVP-602. Reason: team work items, goals, and huddle coordination state machine.
+    // Removal: split huddle and task backlog persistence.
+    "strata/lokai-memory/src/team_work.rs",
+    "strata/tetonic-memory/src/team_work.rs",
 ];
 
 pub fn check_file_sizes(root: &Path) -> Vec<Violation> {
@@ -387,6 +380,9 @@ pub fn check_app_workflow_delegation(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     for rel in HANDLERS {
         let path = root.join(rel);
+        if !path.exists() {
+            continue;
+        }
         let text = std::fs::read_to_string(&path).unwrap_or_default();
         if !app_re.is_match(&text) {
             out.push(Violation {

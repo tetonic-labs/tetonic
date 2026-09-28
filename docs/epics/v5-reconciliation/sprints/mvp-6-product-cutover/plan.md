@@ -1,6 +1,6 @@
 # Sprint 6 — A cohesive product and legacy retirement
 
-Status: planned. Depends on the preceding MVP sprint; security and bounded admission are enforced incrementally, never deferred until final hardening. Tickets may be split into smaller implementation commits without weakening exit criteria.
+Status: exited (local MVP preview). See docs/epics/v5-reconciliation/progress.md.
 
 ## MVP-601 — Finish the focused team experience
 

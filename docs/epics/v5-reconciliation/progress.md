@@ -1,5 +1,32 @@
 # MVP implementation progress
 
+## 2026-09-26 — Sprint 6 exited (local MVP preview)
+
+Sprint 6 written exits are treated as met for the local single-authority preview. Evidence:
+- MVP-601: `tetonic control` CLI surface polished and verified across full team workflow: private discussion sessions preserve history and deny non-participants (`tetonic control discuss`); team work items, goals, and huddle acceptances (`tetonic control work {create-goal, accept-huddle, create, list, park, resume}`); human controls with hierarchical pause/stop and effect approval resolution (`tetonic control work {propose-approval, resolve-approval, stop, clear-stop, inspect-team}`); workstation placement lifecycle (`tetonic control workstation {enroll, approve-grant, pin, offline, reconnect, drain, revoke}`). Approval waits on an item leave sibling work items open.
+- MVP-602: Engine configuration validated against operator contracts (`EngineConfig::validate`), rejecting unimplemented storage backends (`distributed_db`) and incomplete runner topologies deterministically. Redacted effective-config view (`EngineConfig::redacted`) scrubs embedded endpoint credentials and sensitive query tokens. Prototype fleet/operator/keeper authorities (`D01` FleetManager, `D04` FleetSupervisor, `D05` OperatorController, `D06` KeeperRegistry/RunnerClient, `D10` ThoughtStreamHub) are deprecated with migration notices pointing to `ResourceService`/`LocalControl` and verified not called by production binaries.
+- Architecture Gate: `tetonic-arch-gate` passes cleanly (100% OK) after extracting test modules in `human_controls` and `workstation_placement` and updating allowlist rationale for monolithic core modules. Windows stack overflow in CLI entrypoint resolved with dedicated thread stack.
+
+Deferred: Production deletion of surviving prototype structs (`D01`, `D04`, `D05`, `D06`) until client/service callers fully decommission; remote multi-controller HA (sprint 7).
+
+Validation: `cargo test -p tetonic-domain --lib -- test_config_validation_rules test_redacted_config_and_urls` passed. `cargo test -p tetonic-memory --lib -- workstation_placement human_controls migration -- --test-threads=1` passed. `cargo test -p tetonic-app --lib -- resource_service_` passed. `cargo test -p tetonic-cli --test control_cli` passed (all 6 tests). `cargo test -p tetonic-node` passed (all 57 tests). `cargo run -p tetonic-arch-gate --` passed (OK).
+
+## 2026-09-26 — Sprint 5 exited (local MVP preview)
+
+Sprint 5 written exits are treated as met for the local single-authority preview. Evidence: schema 50 workstations with device credentials distinct from employees; owner grants; shared assignment opt-in; pins; offline parks pinned work only; reconnect preserves generation and work count; drain blocks claims; revoke fences prior generation and clears grants; activation denies offline pins. Platforms are explicit (`linux`/`macos`/`windows`).
+
+Deferred: fabric harness worker cutover, D06 deletion, multi-controller HA (sprint 7).
+
+Validation: `cargo test -p tetonic-memory --lib -- workstation_placement migration -- --test-threads=1` passed. `cargo test -p tetonic-app --lib -- resource_service_workstation_placement_and_fencing` passed.
+
+## 2026-09-26 — Sprint 4 exited (local MVP preview)
+
+Sprint 4 written exits are treated as met for the local single-authority preview. Evidence: schema 49 control stops park matching work and block descendant activation; effect approvals reject/expire/digest-mismatch never authorize dispatch; team effort records unknown vs measured; `inspect_team_work` returns work/stops/effort/approvals without private bodies; ResourceService and `tetonic control work` expose stop/approval/inspect. `apply_control_stop` cancels known managed runs and records unresolved failures.
+
+Deferred: D01/D04/D05/D10 deletion; remote stop propagation; exporter soak; money ledgers; governed child admission receipts.
+
+Validation: `cargo test -p tetonic-memory --lib -- human_controls migration -- --test-threads=1` passed. `cargo test -p tetonic-app --lib -- resource_service_stops_approvals_and_team_inspection activate_team_work_binds_managed_run_and_respects_delegation_ceiling` passed.
+
 ## 2026-09-26 — Sprint 3 second pass: work activates on the managed path
 
 Team work is no longer a disconnected binder. `Application::activate_team_work` loads the work item, applies delegation token ceilings, calls `submit_registered_job`, and binds the returned run/attempt onto the work row (schema 48 adds `run_id`). A parked parent blocks child activation. `launch_team_work` and `tetonic job run --team --work` reuse the same host launch path as ordinary registered jobs. `tetonic control work` covers goal/create/list/park/resume/accept-huddle without starting inference.

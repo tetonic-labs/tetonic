@@ -233,146 +233,6 @@ impl Brain for SingleModelBrain {
     }
 }
 
-// ── ScriptedBrain ───────────────────────────────────────────────────────────
-
-/// A deterministic, zero-LLM brain implementation.
-///
-/// Executes a pure function or heuristic on each perception.
-/// Returns immediately with zero token cost. Ideal for testing,
-/// heuristic controllers, and deterministic simulation actors.
-pub struct ScriptedBrain {
-    handler: Arc<dyn Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync>,
-    description: String,
-}
-
-impl ScriptedBrain {
-    pub fn new<F>(name: impl Into<String>, handler: F) -> Self
-    where
-        F: Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync + 'static,
-    {
-        let name = name.into();
-        Self {
-            description: format!("scripted:{name}"),
-            handler: Arc::new(handler),
-        }
-    }
-}
-
-#[async_trait]
-impl Brain for ScriptedBrain {
-    async fn complete(
-        &self,
-        _req: BrainRequest,
-        _on_token: &mut BrainTokenSink<'_>,
-    ) -> Result<BrainResponse, BrainError> {
-        Ok(BrainResponse {
-            content: "scripted response".into(),
-            tool_calls: None,
-            pathway: BrainPathway::Single {
-                model: "scripted".into(),
-            },
-            finish_reason: BrainFinishReason::Stop,
-            cost: BrainCost::default(),
-        })
-    }
-
-    async fn perceive(
-        &self,
-        perception: tetonic_domain::Perception,
-    ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
-        Ok((self.handler)(&perception))
-    }
-
-    fn describe(&self) -> &str {
-        &self.description
-    }
-
-    fn last_cost(&self) -> BrainCost {
-        BrainCost::default()
-    }
-}
-
-// ── DualProcessBrain ────────────────────────────────────────────────────────
-
-/// An advanced dual-process cognitive architecture (System 1 + System 2).
-///
-/// Composes two pluggable brains:
-/// - `reflexive`: High-frequency, low-latency sensory processing (System 1).
-/// - `deliberative`: Deep-reasoning, long-horizon synthesis (System 2).
-///
-/// Escalates to the deliberative brain when perception urgency meets or exceeds
-/// `escalation_threshold` or when discrete events require reasoning.
-pub struct DualProcessBrain {
-    reflexive: Arc<dyn Brain>,
-    deliberative: Arc<dyn Brain>,
-    escalation_threshold: tetonic_domain::Urgency,
-    description: String,
-    last_cost: std::sync::Mutex<BrainCost>,
-}
-
-impl DualProcessBrain {
-    pub fn new(
-        reflexive: Arc<dyn Brain>,
-        deliberative: Arc<dyn Brain>,
-        escalation_threshold: tetonic_domain::Urgency,
-    ) -> Self {
-        let description = format!(
-            "dual:{}+{}",
-            reflexive.describe(),
-            deliberative.describe()
-        );
-        Self {
-            reflexive,
-            deliberative,
-            escalation_threshold,
-            description,
-            last_cost: std::sync::Mutex::new(BrainCost::default()),
-        }
-    }
-}
-
-#[async_trait]
-impl Brain for DualProcessBrain {
-    async fn complete(
-        &self,
-        req: BrainRequest,
-        on_token: &mut BrainTokenSink<'_>,
-    ) -> Result<BrainResponse, BrainError> {
-        // Turn-based reasoning delegates directly to the deliberative system
-        let resp = self.deliberative.complete(req, on_token).await?;
-        *self.last_cost.lock().unwrap() = resp.cost.clone();
-        Ok(resp)
-    }
-
-    async fn perceive(
-        &self,
-        perception: tetonic_domain::Perception,
-    ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
-        let should_deliberate =
-            perception.urgency >= self.escalation_threshold || !perception.events.is_empty();
-
-        if should_deliberate {
-            let action = self.deliberative.perceive(perception).await?;
-            let mut total_cost = self.deliberative.last_cost();
-            total_cost.add(&self.reflexive.last_cost());
-            *self.last_cost.lock().unwrap() = total_cost;
-            Ok(action)
-        } else {
-            let action = self.reflexive.perceive(perception).await?;
-            *self.last_cost.lock().unwrap() = self.reflexive.last_cost();
-            Ok(action)
-        }
-    }
-
-    fn describe(&self) -> &str {
-        &self.description
-    }
-
-    fn last_cost(&self) -> BrainCost {
-        self.last_cost.lock().unwrap().clone()
-    }
-}
-
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /// Convert the domain-level brain message format into the inference layer's
@@ -430,6 +290,57 @@ mod tests {
         assert_eq!(events[3].2["message"]["content"],"not valid JSON");
     }
 
+    struct ScriptedBrain {
+        handler: Arc<dyn Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync>,
+        description: String,
+    }
+
+    impl ScriptedBrain {
+        fn new<F>(name: impl Into<String>, handler: F) -> Self
+        where
+            F: Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync + 'static,
+        {
+            Self {
+                description: format!("scripted:{}", name.into()),
+                handler: Arc::new(handler),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl Brain for ScriptedBrain {
+        async fn complete(
+            &self,
+            _req: BrainRequest,
+            _on_token: &mut BrainTokenSink<'_>,
+        ) -> Result<BrainResponse, BrainError> {
+            Ok(BrainResponse {
+                content: "scripted response".into(),
+                tool_calls: None,
+                pathway: BrainPathway::Single {
+                    model: "scripted".into(),
+                },
+                finish_reason: BrainFinishReason::Stop,
+                cost: BrainCost::default(),
+            })
+        }
+
+        async fn perceive(
+            &self,
+            perception: tetonic_domain::Perception,
+        ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
+            Ok((self.handler)(&perception))
+        }
+
+        fn describe(&self) -> &str {
+            &self.description
+        }
+
+        fn last_cost(&self) -> BrainCost {
+            BrainCost::default()
+        }
+    }
+
     #[tokio::test]
     async fn test_scripted_brain_perceives_and_acts() {
         let brain = ScriptedBrain::new("patrol", |p| {
@@ -468,48 +379,5 @@ mod tests {
         };
         let action = brain.perceive(p_med).await.unwrap().expect("action emitted");
         assert_eq!(action.kind, "alert");
-    }
-
-    #[tokio::test]
-    async fn test_dual_process_brain_routes_between_reflex_and_deliberation() {
-        let reflex = Arc::new(ScriptedBrain::new("reflex", |_| {
-            Some(WorldAction::bare("reflex_step", BrainPathway::Reflexive { model: "fast".into() }))
-        }));
-
-        let deliberative = Arc::new(ScriptedBrain::new("planner", |_| {
-            Some(WorldAction::bare("deep_plan", BrainPathway::Deliberative { model: "slow".into() }))
-        }));
-
-        let dual = DualProcessBrain::new(reflex, deliberative, Urgency::High);
-
-        // Low urgency routes to reflex
-        let p_low = Perception {
-            when: Utc::now(),
-            sequence: 1,
-            urgency: Urgency::Low,
-            signals: vec![],
-            events: vec![],
-            state: WorldState {
-                schema_id: "test".into(),
-                data: serde_json::Value::Null,
-            },
-        };
-        let act_low = dual.perceive(p_low).await.unwrap().unwrap();
-        assert_eq!(act_low.kind, "reflex_step");
-
-        // High urgency routes to deliberative planner
-        let p_high = Perception {
-            when: Utc::now(),
-            sequence: 2,
-            urgency: Urgency::High,
-            signals: vec![],
-            events: vec![],
-            state: WorldState {
-                schema_id: "test".into(),
-                data: serde_json::Value::Null,
-            },
-        };
-        let act_high = dual.perceive(p_high).await.unwrap().unwrap();
-        assert_eq!(act_high.kind, "deep_plan");
     }
 }

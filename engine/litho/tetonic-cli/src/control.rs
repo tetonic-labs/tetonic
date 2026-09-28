@@ -4,6 +4,7 @@ mod agents;
 mod contexts;
 mod execution_limits;
 mod work;
+mod workstation;
 use std::{
     io::{IsTerminal, Read},
     path::PathBuf,
@@ -61,6 +62,11 @@ enum Command {
         context: String,
         #[arg(long)]
         run: String,
+    },
+    /// Org workstations and placement pins (does not start inference).
+    Workstation {
+        #[command(subcommand)]
+        command: workstation::WorkstationCommand,
     },
     /// Durable team goals, work items and huddles (does not activate agents).
     Work {
@@ -245,6 +251,7 @@ pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
         }
         Command::Agent { command } => agents::dispatch(&control, command).await?,
         Command::Work { command } => work::dispatch(&control, command).await?,
+        Command::Workstation { command } => workstation::dispatch(&control, command).await?,
         Command::Context { command } => contexts::dispatch(&control, command).await?,
         Command::AddTeamMember {
             org,
