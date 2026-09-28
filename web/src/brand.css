@@ -1,0 +1,177 @@
+/* Shared with tetonic-site's brand-experiment / brand-paper styles.
+   Source: hugo/themes/tetonic/assets/css/main.css, September 2026.
+   The app uses the site's paper treatment for long reading sessions. */
+:root {
+  --brand-field: #bb7046;
+  --brand-ink: #1c1917;
+  --brand-paper: #f6f3ee;
+  --brand-wash: #eee5d9;
+  --brand-mono: 'Courier New', monospace;
+  --brand-serif: Georgia, 'Times New Roman', serif;
+  --brand-rule: rgba(28, 25, 23, 0.3);
+  --bg-sidebar: var(--brand-wash);
+  --bg-surface: #faf7f2;
+  --bg-surface-elevated: #f0e9df;
+  --color-border: rgba(139, 94, 63, 0.28);
+  --color-mid-text: #655f59; /* 5:1+ on the site's paper wash, including small labels. */
+  --radius-sm: 0;
+  --radius-md: 0;
+  --radius-lg: 0;
+}
+.dark {
+  --bg-sidebar: #211c18;
+  --bg-surface: #24201d;
+  --bg-surface-elevated: #2b241e;
+  --color-border: #665346;
+}
+.tetonic-wordmark::after {
+  display: none;
+}
+.brand-symbol {
+  width: 28px;
+  height: 18px;
+  background: var(--brand-ink);
+  mask: url('/tetonic-symbol.png') center / 36px 36px no-repeat;
+}
+.ui-button {
+  border-radius: 0;
+  box-shadow: none;
+}
+.brand-primary {
+  background: var(--text-primary);
+  color: var(--bg-ground);
+  border: 1px solid var(--text-primary);
+}
+.brand-primary:hover {
+  background: var(--color-accent);
+  color: var(--bg-ground);
+  border-color: var(--color-accent);
+}
+.count,
+.segmented,
+.segmented button,
+.panel,
+.approval-layout,
+.reason-block,
+.code-block,
+.diff-block,
+.event,
+.map-node,
+.graph-canvas,
+.trace-list li,
+input,
+select,
+textarea,
+.capability-list code,
+.inline-error {
+  border-radius: 0;
+  box-shadow: none;
+}
+.eyebrow,
+.event-meta,
+.connection-location,
+.metric-label {
+  font-family: var(--brand-mono);
+  letter-spacing: 0.025em;
+}
+.eyebrow {
+  text-transform: uppercase;
+}
+.screen-heading {
+  padding-bottom: 24px;
+  border-bottom: 1px solid var(--color-border);
+}
+.screen-heading h1 {
+  font-size: clamp(30px, 3.3vw, 46px);
+  letter-spacing: -0.06em;
+  line-height: 1.15;
+}
+.screen-heading p {
+  max-width: 580px;
+}
+.status-label {
+  border-radius: 0;
+  font: 12px/1.6 var(--brand-mono);
+  letter-spacing: 0;
+  text-transform: none;
+}
+.segmented {
+  border: 0;
+  border-bottom: 1px solid var(--color-border);
+  background: transparent;
+  padding: 0;
+  gap: 20px;
+}
+.segmented button {
+  border-bottom: 2px solid transparent;
+  padding-inline: 2px;
+}
+.segmented button[aria-pressed='true'] {
+  background: transparent;
+  border-bottom-color: var(--color-accent);
+  box-shadow: none;
+}
+.panel {
+  border-width: 1px 0 0;
+  background: transparent;
+  padding: 24px 0;
+}
+.team-summary,
+.workstation-summary,
+.activity-summary {
+  background: var(--bg-surface-elevated);
+  padding: 24px;
+  border: 1px solid var(--color-border);
+}
+.agent-card,
+.member-list {
+  border: 1px solid var(--color-border);
+  padding: 24px;
+  background: var(--bg-surface);
+}
+.metrics-grid {
+  gap: 24px;
+}
+.metric-value {
+  font-family: var(--font-display);
+  letter-spacing: -0.045em;
+}
+.metric-label {
+  text-transform: uppercase;
+  font-size: 12px;
+}
+.connection-card {
+  border: 1px solid var(--color-border);
+  background: var(--bg-surface);
+  padding: 22px;
+}
+.connection-card:hover {
+  background: var(--bg-surface-elevated);
+}
+.composer {
+  border: 1px solid var(--control-border);
+  padding: 24px;
+  background: var(--bg-surface);
+}
+.empty-state h2 {
+  font: italic 400 38px/1.15 var(--brand-serif);
+  letter-spacing: -0.04em;
+}
+.graph-canvas {
+  background-color: var(--bg-surface-elevated);
+  background-image: radial-gradient(var(--color-border) 0.75px, transparent 0.75px);
+  background-size: 20px 20px;
+}
+@media (max-width: 760px) {
+  .screen-heading {
+    padding-bottom: 20px;
+  }
+  .team-summary,
+  .workstation-summary,
+  .activity-summary,
+  .agent-card,
+  .member-list,
+  .composer {
+    padding: 20px;
+  }
+}

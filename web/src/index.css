@@ -1,0 +1,218 @@
+@import 'tailwindcss';
+@custom-variant dark (&:where(.dark, .dark *));
+
+/*
+  Tetonic Design Tokens directly sourced from SITE-CONVENTIONS.md and main.css:
+  - Ground: #1C1917 (ink)
+  - Paper: #F6F3EE (warm paper)
+  - Accent: #8B5E3F (clay)
+  - Highlight: #D08A4C (copper)
+  - Light Text: #E6E0D6
+  - Mid Text: #6F6A63
+  - Border: rgba(155, 107, 74, 0.18)
+  - Radii: sm: 4px, md: 8px, lg: 16px, full: 9999px
+*/
+:root {
+  color-scheme: light;
+  --color-ground: #1c1917;
+  --color-accent: #8b5e3f;
+  --color-accent-hover: #73482b;
+  --color-highlight: #d08a4c;
+  --color-white: #ffffff;
+  --color-off-white: #f6f3ee;
+  --color-light-text: #e6e0d6;
+  --color-mid-text: #6f6a63;
+  --color-border: rgba(155, 107, 74, 0.18);
+  --color-border-subtle: rgba(155, 107, 74, 0.1);
+
+  /* Theme mappings */
+  --bg-ground: var(--color-off-white);
+  --bg-surface: var(--color-white);
+  --bg-surface-elevated: #faf8f5;
+  --bg-surface-hover: #efebe4;
+  --bg-sidebar: #efece6;
+  --bg-sunken: #e5dfd5;
+  --text-primary: var(--color-ground);
+  --text-secondary: var(--color-mid-text);
+  --text-muted: #6f6a63;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-full: 9999px;
+
+  --shadow-card: 0 4px 24px rgba(28, 25, 23, 0.08);
+  --shadow-card-hover: 0 8px 28px rgba(28, 25, 23, 0.1);
+  --shadow-header: 0 8px 24px rgba(28, 25, 23, 0.045);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --transition: 0.2s ease;
+  --motion-ui: 0.22s var(--ease-out);
+}
+
+.dark {
+  color-scheme: dark;
+  --bg-ground: #1c1917;
+  --bg-surface: #24201d;
+  --bg-surface-elevated: #282420;
+  --bg-surface-hover: #2d2824;
+  --bg-sidebar: #181513;
+  --bg-sunken: #13110f;
+  --text-primary: #e6e0d6;
+  --text-secondary: #a8a29e;
+  --text-muted: #ada49b;
+  --color-accent: #d8a682;
+  --color-border: rgba(155, 107, 74, 0.22);
+  --color-border-subtle: rgba(155, 107, 74, 0.12);
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.3);
+  --shadow-card-hover: 0 8px 28px rgba(0, 0, 0, 0.45);
+}
+
+@theme {
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Plus Jakarta Sans', 'Inter Variable', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --color-ground: var(--bg-ground);
+  --color-surface: var(--bg-surface);
+  --color-surface-elevated: var(--bg-surface-elevated);
+  --color-surface-hover: var(--bg-surface-hover);
+  --color-sidebar: var(--bg-sidebar);
+  --color-sunken: var(--bg-sunken);
+  --color-txt-primary: var(--text-primary);
+  --color-txt-secondary: var(--text-secondary);
+  --color-txt-muted: var(--text-muted);
+  --color-clay: var(--color-accent);
+  --color-clay-hover: var(--color-accent-hover);
+  --color-copper: var(--color-highlight);
+  --color-border-warm: var(--color-border);
+}
+
+body {
+  font-family: var(--font-sans);
+  background-color: var(--bg-ground);
+  color: var(--text-primary);
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  transition:
+    background-color var(--transition),
+    color var(--transition);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-ground);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bg-surface-hover);
+  border-radius: var(--radius-sm);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-accent);
+}
+
+/* Typography styles matching site */
+h1,
+h2,
+h3,
+.font-display {
+  font-family: var(--font-display);
+  letter-spacing: -0.03em;
+}
+
+code,
+pre,
+.font-mono {
+  font-family: var(--font-mono);
+}
+
+/* Tetonic Official Wordmark with floating copper pip */
+.tetonic-wordmark {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-decoration: none;
+  color: var(--text-primary);
+  display: inline-flex;
+  align-items: baseline;
+}
+.tetonic-wordmark::after {
+  content: '';
+  display: inline-block;
+  width: 0.38em;
+  height: 0.38em;
+  margin-left: 0.28em;
+  background: var(--color-highlight);
+  border-radius: 2px;
+  vertical-align: 0.22em;
+  transition: transform var(--motion-ui);
+}
+.tetonic-wordmark:hover::after {
+  transform: scale(1.15);
+}
+
+/* Tetonic Section Eyebrow */
+.section-eyebrow {
+  font-family: var(--font-sans);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-accent);
+}
+
+/* Copper underline accent rule for headlines */
+.headline-accent::after {
+  content: '';
+  display: block;
+  width: 2.75rem;
+  height: 3px;
+  margin-top: 0.65rem;
+  background: var(--color-highlight);
+  border-radius: var(--radius-full);
+}
+
+/* Pill status tag */
+.tetonic-tag {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.12rem 0.55rem;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-full);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* Official Tetonic Terminal styling */
+.tetonic-terminal {
+  overflow: hidden;
+  background: #1c1917;
+  border: 1px solid rgba(208, 138, 76, 0.35);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-card);
+}
+.tetonic-terminal-chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0.9rem;
+  border-bottom: 1px solid rgba(230, 224, 214, 0.12);
+  background: #201d1a;
+}
+.tetonic-terminal-dot {
+  width: 0.45rem;
+  height: 0.45rem;
+  border-radius: var(--radius-full);
+  background: rgba(230, 224, 214, 0.25);
+}
+.tetonic-terminal-dot:first-child {
+  background: var(--color-highlight);
+}

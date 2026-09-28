@@ -1,0 +1,270 @@
+/* One everyday room. Operational detail is intentionally off the main canvas. */
+.team-room {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg-ground);
+}
+.room-header {
+  height: 76px;
+  padding: 0 40px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  border-bottom: 1px solid var(--color-border);
+}
+.room-header .tetonic-wordmark {
+  align-items: center;
+  gap: 7px;
+  font-size: 24px;
+  letter-spacing: -0.05em;
+}
+.room-header .brand-symbol {
+  background: var(--text-primary);
+}
+.room-header-actions {
+  margin-left: auto;
+  display: flex;
+  gap: 12px;
+}
+.room-header-actions button {
+  min-width: 44px;
+  min-height: 44px;
+  display: grid;
+  place-items: center;
+  color: var(--text-secondary);
+  border-radius: 8px;
+}
+.room-header-actions button:hover {
+  background: var(--bg-surface-hover);
+}
+.room-preview {
+  position: relative;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.room-preview summary {
+  padding: 8px;
+  font-size: 12px;
+  font-weight: 400;
+  min-height: 36px;
+}
+.room-preview p {
+  position: absolute;
+  z-index: 25;
+  top: 40px;
+  width: 270px;
+  padding: 18px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-card);
+}
+.teammate-portrait {
+  flex-shrink: 0;
+  border-radius: 50%;
+}
+.room-bottom {
+  padding: 0 0 36px;
+}
+.room-composer {
+  border: 1px solid var(--control-border);
+  background: var(--bg-surface);
+  display: flex;
+  gap: 16px;
+  padding: 18px;
+  align-items: flex-end;
+  border-radius: 12px;
+  box-shadow: 0 4px 20px #1c191706;
+}
+.room-composer:focus-within {
+  border-color: var(--color-accent);
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+.room-composer textarea {
+  flex: 1;
+  padding: 4px;
+  resize: vertical;
+  min-height: 64px;
+  max-height: 240px;
+  border: 0;
+  background: transparent;
+  font-size: 15px;
+}
+.room-composer textarea:focus {
+  outline: none;
+}
+.room-composer button {
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  background: var(--color-accent);
+  color: var(--bg-ground);
+  border-radius: 50%;
+}
+.room-composer button:disabled {
+  background: var(--bg-sunken);
+  color: var(--text-secondary);
+}
+.room-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  align-items: flex-end;
+}
+.room-messages li {
+  max-width: 80%;
+}
+.room-messages span {
+  display: block;
+  text-align: right;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.room-messages p {
+  background: var(--bg-surface-elevated);
+  padding: 16px 20px;
+  border-radius: 16px 16px 3px 16px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.room-receipt {
+  font-size: 13px;
+  color: var(--text-secondary);
+  text-align: center;
+  margin-top: 24px;
+}
+.teammate-profile {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(400px, calc(100% - 32px));
+  max-height: calc(100dvh - 32px);
+  overflow: auto;
+  z-index: 50;
+  padding: 36px;
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 12px;
+  box-shadow: var(--shadow-card);
+}
+.profile-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+}
+.profile-kind {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-top: 8px;
+}
+.teammate-profile h2 {
+  font-size: 28px;
+}
+.teammate-profile > p:not(.profile-kind) {
+  font-size: 14px;
+  color: var(--text-secondary);
+}
+.profile-purpose {
+  padding-top: 16px;
+  border-top: 1px solid var(--color-border);
+  margin-top: 8px;
+}
+.teammate-profile details {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.teammate-profile details summary {
+  font-weight: 400;
+}
+.teammate-profile code {
+  overflow-wrap: anywhere;
+}
+.workspace-panel {
+  position: fixed;
+  inset: 24px;
+  z-index: 50;
+  margin: auto;
+  width: min(1240px, calc(100% - 48px));
+  max-height: calc(100dvh - 48px);
+  background: var(--bg-ground);
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+}
+.workspace-panel-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--color-border);
+  background: var(--bg-surface);
+}
+.workspace-panel-header select {
+  width: auto;
+  max-width: 220px;
+  font-size: 13px;
+}
+.workspace-panel-body {
+  min-height: 0;
+  overflow-y: auto;
+}
+.workspace-panel .screen-heading h1 {
+  font-size: 28px;
+}
+@media (max-width: 760px) {
+  .room-header {
+    height: 64px;
+    padding: 0 20px;
+    gap: 12px;
+  }
+  .room-header-actions {
+    gap: 0;
+  }
+  .room-header .tetonic-wordmark {
+    font-size: 21px;
+  }
+  .room-bottom {
+    padding-bottom: 22px;
+  }
+  .room-composer {
+    padding: 12px;
+    gap: 8px;
+  }
+  .room-preview p {
+    left: -100px;
+    width: 260px;
+  }
+  .workspace-panel {
+    inset: 0;
+    width: 100%;
+    max-height: 100dvh;
+    border-radius: 0;
+  }
+  .workspace-panel-header {
+    padding: 10px;
+    gap: 8px;
+  }
+  .workspace-panel-header .ui-button {
+    padding: 6px;
+    font-size: 12px;
+  }
+  .workspace-panel-header select {
+    width: 140px;
+  }
+  .room-messages li {
+    max-width: 95%;
+  }
+}
