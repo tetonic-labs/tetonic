@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CSSProperties } from 'react';
 import {
   Play,
@@ -9,6 +9,7 @@ import {
   Maximize2,
   Terminal,
   Files,
+  Plug,
   SkipForward,
   SkipBack,
   MessageCircle,
@@ -29,6 +30,8 @@ import { useMapCamera } from './useMapCamera';
 import { useLocalMapMotion } from './useLocalMapMotion';
 import { localEntities, LOCAL_AGENT_LIMIT, mapSignal } from '../../lib/localMapMotion';
 import { TeamInspection } from './TeamInspection';
+import { TeamMapResources } from './TeamMapResources';
+import { resourcesFromGraph, type WorkspaceResource } from '../../lib/toolLibrary';
 interface Props {
   agents: Agent[];
   teams?: Team[];
@@ -38,11 +41,16 @@ interface Props {
   approvals: ApprovalRequest[];
   activity: OrganizationActivity;
   onWork: (id: string) => void;
+  onTeam?: (id: string, restore: () => void) => void;
   scope: string;
   onAgent: (id: string) => void;
   onDestination: (id: string) => void;
   onRequest: (id: string) => void;
   onAddAgent: () => void;
+  onTools?: (teamId?: string, resourceId?: string) => void;
+  resources?: WorkspaceResource[];
+  onFocusedTeam?: (teamId: string | null) => void;
+  onExploreTeam?: () => void;
   visible?: boolean;
 }
 const emptyTeams: Team[] = [];
@@ -54,18 +62,22 @@ export function TeamActivityMap({
   approvals,
   activity,
   onWork,
+  onTeam,
   scope,
   onAgent,
   onDestination,
   onRequest,
   onAddAgent,
+  onTools,
+  resources,
+  onFocusedTeam,
+  onExploreTeam,
   visible = true,
 }: Props) {
   const [pinned, setPinned] = useState<string | null>(null),
     [options, setOptions] = useState(false),
     [reduced, setReduced] = useState(false),
     [lessMotion, setLessMotion] = useState(false);
-  const [focusedTeam, setFocusedTeam] = useState<string | null>(null);
   const [hoveredTeam, setHoveredTeam] = useState<string | null>(null);
   const [inquiry, setInquiry] = useState<string | null>(null);
   useEffect(() => {
@@ -77,7 +89,6 @@ export function TeamActivityMap({
   }, []);
   useEffect(() => {
     setOptions(false);
-    setFocusedTeam(null);
     setInquiry(null);
   }, [scope]);
   useEffect(() => {
@@ -87,16 +98,22 @@ export function TeamActivityMap({
     activity.setReading(options);
     return () => activity.setReading(false);
   }, [options, activity.setReading]);
-  const allocator = useRef(new MapLayout());
+  const [allocator] = useState(
+    () =>
+      new MapLayout(
+        window.innerWidth /
+          Math.max(240, window.innerHeight - (window.innerWidth < 700 ? 420 : 290)),
+      ),
+  );
   const layout = useMemo(
     () =>
-      allocator.current.build(
+      allocator.build(
         activity.agents,
         teams,
         destinationsFor(activity.agents, nodes, edges),
         edges,
       ),
-    [activity.agents, teams, nodes, edges],
+    [allocator, activity.agents, teams, nodes, edges],
   );
   const contextualIds = new Set<string>();
   for (const agent of agents) {
@@ -145,6 +162,35 @@ export function TeamActivityMap({
         }
       : undefined;
   const camera = useMapCamera(scope, noMotion, layout.world, scopeBounds);
+  const focusedTeam = camera.context || null;
+  // The lens is driven by camera distance, so wheel, pinch, Back and Home all
+  // reverse the same transition without changing layout homes or playback.
+  const [focusRanges, setFocusRanges] = useState<Record<string, { from: number; to: number }>>({});
+  const focusRange = focusRanges[focusedTeam || ''] || { from: 0, to: 1 };
+  const focusProgress = focusedTeam
+    ? Math.min(
+        1,
+        Math.max(
+          0,
+          (camera.scale - focusRange.from) / Math.max(0.01, focusRange.to - focusRange.from),
+        ),
+      )
+    : 0;
+  const teamBlend = focusProgress * focusProgress * (3 - 2 * focusProgress);
+  const contextualTeam = teamBlend > 0.5 ? focusedTeam : null;
+  useEffect(() => {
+    onFocusedTeam?.(contextualTeam);
+  }, [contextualTeam, onFocusedTeam]);
+  const focusMembers = new Set([
+    ...(teams.find((t) => t.id === focusedTeam)?.pledgedAgentIds || []),
+    ...(layout.groups.find((g) => g.id === focusedTeam)?.agentIds || []),
+  ]);
+  const library = useMemo(
+    () => resources || resourcesFromGraph(nodes, edges, teams),
+    [resources, nodes, edges, teams],
+  );
+  const teamResources = library.filter((resource) => resource.teamIds.includes(focusedTeam || ''));
+  const memberOpacity = (id: string) => (focusMembers.has(id) ? 1 : 1 - teamBlend * 0.96);
   const [mapLevel, setMapLevel] = useState<'overview' | 'teams' | 'local'>('overview');
   useEffect(() => {
     setMapLevel((previous) => {
@@ -219,21 +265,61 @@ export function TeamActivityMap({
   const frameById = new Map(localFrames.map((f) => [f.id, f]));
   const dockingIds = new Set(localFrames.filter((f) => f.interaction).map((f) => f.id));
   const blendProgress = Math.min(1, Math.max(0, (camera.scale - 0.5) / 0.34));
-  const localBlend = blendProgress * blendProgress * (3 - 2 * blendProgress);
+  const localBlend = Math.max(teamBlend, blendProgress * blendProgress * (3 - 2 * blendProgress));
   const pointFor = (id: string, blend = localBlend) => {
     const home = layout.points.get(id),
       live = frameById.get(id)?.position;
-    return home && live
-      ? { x: home.x + (live.x - home.x) * blend, y: home.y + (live.y - home.y) * blend }
-      : home;
+    if (!home || !live) return home;
+    const work = motion.states.get(id);
+    const target =
+      frameById.get(id)?.interaction?.targetId ||
+      work?.interaction?.targetId ||
+      work?.previous?.interaction.targetId;
+    const targetHome = target ? layout.points.get(target) : undefined;
+    const localTarget =
+      targetHome &&
+      focusedGroup &&
+      focusMembers.has(target!) &&
+      targetHome.x >= focusedGroup.x &&
+      targetHome.x <= focusedGroup.x + focusedGroup.width &&
+      targetHome.y >= focusedGroup.y &&
+      targetHome.y <= focusedGroup.y + focusedGroup.height;
+    const distance = Math.hypot(live.x - home.x, live.y - home.y);
+    // Remote work stays legible beside the team resource shelf. Project its
+    // travel into the agent's home cell; the underlying solver keeps running.
+    const remoteScale =
+      teamBlend && focusMembers.has(id) && !localTarget && distance > 20
+        ? 1 - teamBlend + (teamBlend * 20) / distance
+        : 1;
+    return {
+      x: home.x + (live.x - home.x) * blend * remoteScale,
+      y: home.y + (live.y - home.y) * blend * remoteScale,
+    };
   };
   const explore = (id: string) => {
     const group = visibleGroups.find((g) => g.id === id);
     if (!group) return;
-    setFocusedTeam(id);
+    if (scope !== 'all' && onExploreTeam) {
+      camera.preserveNextScopeChange();
+      onExploreTeam();
+    }
+    setPinned(null);
+    setInquiry(null);
+    const bounds = { width: group.width + 120, height: group.height + 200 };
+    const space = camera.size.width < 700 ? { bottom: 142 } : { right: 290 };
+    const closeScale = camera.focusScale(bounds, space);
+    setFocusRanges((ranges) => ({
+      ...ranges,
+      [id]: {
+        from: Math.min(camera.organizationScale * 1.22, closeScale * 0.55),
+        to: closeScale * 0.94,
+      },
+    }));
     camera.focus(
       { x: group.x + group.width / 2, y: group.y + group.height / 2 },
-      { width: group.width + 120, height: group.height + 130 },
+      bounds,
+      space,
+      id,
     );
   };
   const followActivity = (id: string) => {
@@ -241,7 +327,7 @@ export function TeamActivityMap({
     const progress = Math.min(1, Math.max(0, (camera.focusScale(bounds) - 0.5) / 0.34));
     // Center the representation at the destination zoom, including an existing dock.
     const point = pointFor(id, progress * progress * (3 - 2 * progress));
-    if (point) camera.focus(point, bounds);
+    if (point) camera.focus(point, bounds, undefined, focusedTeam || undefined);
   };
   const zoom = (factor: number) => {
     const point = pinned ? pointFor(pinned) : undefined;
@@ -343,7 +429,6 @@ export function TeamActivityMap({
   const ended = !!example && motion.elapsed >= example.duration;
   const resetOverview = () => {
     setPinned(null);
-    setFocusedTeam(null);
     camera.fit();
   };
   function clearFocus() {
@@ -381,7 +466,9 @@ export function TeamActivityMap({
       }
       ref={camera.viewport}
       data-reduced-motion={noMotion}
-      data-map-level={mapLevel}
+      data-map-level={teamBlend > 0.98 ? 'local' : mapLevel}
+      data-team-focus={teamBlend > 0.02 ? focusedTeam : undefined}
+      data-team-blend={teamBlend.toFixed(3)}
       style={
         {
           '--map-detail': detail,
@@ -397,6 +484,7 @@ export function TeamActivityMap({
           '--map-resource-scale': Math.max(1, 0.23 / camera.scale),
           '--map-group-fill': `${7 + (1 - detail) * 7}%`,
           '--map-route-opacity': 0.28 + (1 - detail) * 0.25,
+          '--team-focus-blend': teamBlend,
         } as CSSProperties
       }
     >
@@ -417,6 +505,7 @@ export function TeamActivityMap({
         onPointerCancel={camera.onPointerCancel}
         onClickCapture={camera.onClickCapture}
         onLostPointerCapture={camera.onPointerCancel}
+        onDragStart={(event) => event.preventDefault()}
         style={{
           backgroundSize: `${Math.max(12, 26 * camera.scale)}px ${Math.max(12, 26 * camera.scale)}px`,
           backgroundPosition: `${camera.offset.x}px ${camera.offset.y}px`,
@@ -430,10 +519,15 @@ export function TeamActivityMap({
             transform: `translate(${camera.offset.x}px,${camera.offset.y}px) scale(${camera.scale})`,
           }}
         >
-          {summaries.map((g, i) => (
+          {summaries.map((g) => (
             <div
               key={g.id}
               className="team-neighborhood"
+              data-team={g.id}
+              onClick={(event) => {
+                if (!(event.target as Element).closest('button')) explore(g.id);
+              }}
+              inert={focusedTeam !== g.id && teamBlend > 0.95}
               data-highlighted={hoveredTeam === g.id || focusedTeam === g.id || inquiry === g.id}
               onPointerEnter={() => setHoveredTeam(g.id)}
               onPointerLeave={() => setHoveredTeam(null)}
@@ -446,9 +540,15 @@ export function TeamActivityMap({
                 top: g.y,
                 width: g.width,
                 height: g.height,
-                borderRadius: i % 2 ? '44% 38% 42% 32%' : '32% 45% 36% 42%',
+                borderRadius: '5% 5% 18% 5%',
+                opacity: focusedTeam === g.id ? 1 : 1 - teamBlend * 0.96,
               }}
             >
+              <button
+                className="team-zoom-target"
+                onClick={() => explore(g.id)}
+                aria-label={`Explore ${g.name}`}
+              />
               <div
                 className="neighborhood-heading"
                 style={{
@@ -460,13 +560,14 @@ export function TeamActivityMap({
                 <button
                   className="neighborhood-label"
                   onClick={() => explore(g.id)}
-                  aria-label={`Explore ${g.name}`}
+                  aria-label={`Zoom into ${g.name}`}
                   aria-description={`${g.count} ${g.shared ? 'shared contributors' : 'home agents'}, ${g.attention} need review`}
                   title={`${g.name}: ${g.count} agents, ${g.working} working${g.attention ? `, ${g.attention} need attention` : ''}`}
                 >
                   <strong>
                     {g.name}
                     {g.shared ? ' · shared' : ''}
+                    <ArrowUpRight size={13} className="team-conversation-hint" />
                   </strong>
                   {g.requests > 0 && (
                     <span className="team-attention" data-signal="input">
@@ -486,18 +587,41 @@ export function TeamActivityMap({
                       : `${g.count} ${g.shared ? 'shared' : 'agents'} · ${g.working - g.waiting} working${g.waiting ? ` · ${g.waiting} waiting` : ''}`}
                   </span>
                 </button>
-                <button
-                  className="team-ask"
-                  onClick={() => setInquiry(g.id)}
-                  aria-label={`Ask about ${g.name}`}
-                >
-                  Ask about team <MessageCircle size={12} />
-                </button>
+                {teams.some((team) => team.id === g.id) && (
+                  <button
+                    className="team-open-chat"
+                    onClick={() => onTeam?.(g.id, () => {})}
+                    aria-label={`Open ${g.name} conversation`}
+                  >
+                    <MessageCircle size={12} /> Conversation
+                  </button>
+                )}
+                {!(mapLevel === 'overview' && teamBlend < 0.98) && (
+                  <button
+                    className="team-ask"
+                    onClick={() => setInquiry(g.id)}
+                    aria-label={`Ask about ${g.name}`}
+                  >
+                    Ask about team <MessageCircle size={12} />
+                  </button>
+                )}
               </div>
+              {mapLevel === 'overview' && teamBlend < 0.98 && (
+                <button
+                  className="team-ask-overview"
+                  aria-label={`Ask about ${g.name}`}
+                  title={`Ask about ${g.name}`}
+                  style={{ transform: `scale(${badgeScale})` }}
+                  onClick={() => setInquiry(g.id)}
+                >
+                  <MessageCircle size={16} />
+                </button>
+              )}
             </div>
           ))}
           <svg
             className="universe-routes"
+            style={{ opacity: 1 - teamBlend * 0.88 }}
             width={layout.world.width}
             height={layout.world.height}
             aria-hidden="true"
@@ -590,7 +714,12 @@ export function TeamActivityMap({
                     cx={host.x}
                     cy={host.y}
                     r={f.radius}
-                    style={{ opacity: f.attachment * 0.3 }}
+                    style={{
+                      opacity:
+                        f.attachment *
+                        0.3 *
+                        (focusMembers.has(f.interaction!.targetId) ? 1 : 1 - teamBlend),
+                    }}
                   />
                 ) : null;
               })}
@@ -620,10 +749,35 @@ export function TeamActivityMap({
                 </span>
               );
             })()}
+          {scope === 'all' &&
+            layout.resourceAreas.map((area) => (
+              <div
+                key={area.id}
+                className="map-resource-area"
+                inert={teamBlend > 0.95}
+                style={{
+                  left: area.x,
+                  top: area.y,
+                  width: area.width,
+                  height: area.height,
+                  opacity: 1 - teamBlend,
+                }}
+              >
+                <button
+                  onClick={() => onTools?.()}
+                  aria-label={`Manage ${area.name}`}
+                  style={{ transform: `scale(${labelScale})` }}
+                >
+                  {area.name} <span>{area.count}</span>
+                  <ArrowUpRight size={14} />
+                </button>
+              </div>
+            ))}
           {destinations.map((place) => {
             const count = active.filter((w) => w.interaction!.targetId === place.id).length;
             const point = pointFor(place.id) || place.point;
-            const Icon = place.kind === 'tool' ? Terminal : Files;
+            const Icon =
+              place.kind === 'tool' ? Terminal : place.kind === 'connector' ? Plug : Files;
             return (
               <div
                 key={place.id}
@@ -633,8 +787,10 @@ export function TeamActivityMap({
                   (pinned && !relevant.has(place.id) ? 'map-dimmed' : '')
                 }
                 data-entity={place.id}
+                inert={teamBlend > 0.95}
                 style={{
                   transform: `translate(${point.x}px,${point.y}px) translate(-50%,-50%)`,
+                  opacity: (mapLevel === 'overview' ? 0.6 : 1) * (1 - teamBlend),
                 }}
               >
                 <button
@@ -693,7 +849,14 @@ export function TeamActivityMap({
                 data-phase={phase}
                 data-signal={signal}
                 data-host={action?.targetId || ''}
-                style={{ transform: `translate(${point.x}px,${point.y}px) translate(-50%,-50%)` }}
+                inert={!focusMembers.has(agent.id) && teamBlend > 0.95}
+                style={{
+                  transform: `translate(${point.x}px,${point.y}px) translate(-50%,-50%)`,
+                  opacity:
+                    memberOpacity(agent.id) *
+                    (pinned === agent.id ? 1 : portraitDetail) *
+                    (pinned && !relevant.has(agent.id) && !alert ? 0.24 : 1),
+                }}
               >
                 <button
                   className="person-orb"
@@ -713,17 +876,18 @@ export function TeamActivityMap({
                 <div className="person-label">
                   <strong title={person.name}>{person.name}</strong>
                   {(action || pinned === agent.id) && <span className="agent-detail">{label}</span>}
-                  {(layout.memberships.get(agent.id)?.length || 0) > 1 && (
-                    <span
-                      className="agent-detail"
-                      title={layout.memberships
-                        .get(agent.id)!
-                        .map((id) => teams.find((t) => t.id === id)?.name)
-                        .join(', ')}
-                    >
-                      Shared across {layout.memberships.get(agent.id)!.length} teams
-                    </span>
-                  )}
+                  {(layout.memberships.get(agent.id)?.length || 0) > 1 &&
+                    (!action || pinned === agent.id) && (
+                      <span
+                        className="agent-detail"
+                        title={layout.memberships
+                          .get(agent.id)!
+                          .map((id) => teams.find((t) => t.id === id)?.name)
+                          .join(', ')}
+                      >
+                        Shared across {layout.memberships.get(agent.id)!.length} teams
+                      </span>
+                    )}
                 </div>
                 {action && (
                   <span className="agent-work-status" aria-hidden="true">
@@ -780,7 +944,11 @@ export function TeamActivityMap({
                   style={{
                     left: point.x,
                     top: point.y,
-                    opacity: (pinned ? 1 : detail) * (dockingIds.has(work.id) ? 1 - localBlend : 1),
+                    opacity:
+                      memberOpacity(work.id) *
+                      (1 - teamBlend) *
+                      (pinned ? 1 : detail) *
+                      (dockingIds.has(work.id) ? 1 - localBlend : 1),
                     pointerEvents: !pinned && detail < 0.1 ? 'none' : 'auto',
                   }}
                   tabIndex={!pinned && detail < 0.1 ? -1 : 0}
@@ -795,6 +963,27 @@ export function TeamActivityMap({
             })}
         </div>
       </div>
+      {focusedGroup && (
+        <div
+          className="team-map-resource-lens"
+          style={{ opacity: teamBlend }}
+          inert={teamBlend < 0.15}
+          aria-hidden={teamBlend < 0.15}
+        >
+          <TeamMapResources
+            name={focusedGroup.name}
+            resources={teamResources}
+            memberIds={focusMembers}
+            activity={activity}
+            onManage={() => onTools?.(focusedGroup.id)}
+            onInspect={(resource) =>
+              resource.source === 'draft'
+                ? onTools?.(focusedGroup.id, resource.id)
+                : onDestination(resource.id)
+            }
+          />
+        </div>
+      )}
       {inquiry && (
         <TeamInspection
           key={inquiry}
@@ -978,7 +1167,12 @@ export function TeamActivityMap({
         </button>
       </div>
       <div className="map-distance" aria-live="polite">
-        {mapLevel === 'local' && localGroup ? (
+        {teamBlend > 0.5 && focusedGroup ? (
+          <>
+            <span>{focusedGroup.name}</span>
+            <button onClick={resetOverview}>Back to organization</button>
+          </>
+        ) : mapLevel === 'local' && localGroup ? (
           <>
             <span>
               {localGroup.name} · {actorIds.length} in local motion

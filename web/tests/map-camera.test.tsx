@@ -35,6 +35,22 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('continuous map camera', () => {
+  it('frames a team clear of the resource shelf on wide and narrow viewports', () => {
+    render(<Harness />);
+    const point = { x: 700, y: 600 },
+      bounds = { width: 700, height: 600 };
+    act(() => camera.focus(point, bounds, { right: 290 }));
+    expect(point.x * camera.scale + camera.offset.x).toBeCloseTo((1000 - 290) / 2, 6);
+    expect((point.x + bounds.width / 2) * camera.scale + camera.offset.x).toBeLessThanOrEqual(
+      1000 - 290,
+    );
+    act(() => resize([{ contentRect: { width: 390, height: 844 } }]));
+    act(() => camera.focus(point, bounds, { bottom: 142 }));
+    expect(point.x * camera.scale + camera.offset.x).toBeCloseTo(195, 6);
+    expect((point.y + bounds.height / 2) * camera.scale + camera.offset.y).toBeLessThanOrEqual(
+      844 - 250 - 142,
+    );
+  });
   it('anchors wheel zoom at the pointer even over a portrait and preserves exact view history', () => {
     render(<Harness />);
     const start = anchor(),
@@ -99,6 +115,7 @@ describe('continuous map camera', () => {
         clientY: y,
         currentTarget: el,
         target: el,
+        preventDefault: vi.fn(),
       }) as unknown as ReactPointerEvent;
     const scale = camera.scale;
     act(() => {
@@ -115,5 +132,48 @@ describe('continuous map camera', () => {
     const click = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
     camera.onClickCapture(click as never);
     expect(click.preventDefault).toHaveBeenCalledOnce();
+  });
+  it('clears map text selection and permits repeated drags without stealing normal button clicks', () => {
+    render(<Harness />);
+    const el = screen.getByTestId('map');
+    const button = screen.getByRole('button', { name: 'Portrait' });
+    el.setPointerCapture = vi.fn();
+    el.hasPointerCapture = () => false;
+    const event = (x: number, target: Element = el) =>
+      ({
+        pointerId: 1,
+        pointerType: 'mouse',
+        button: 0,
+        clientX: x,
+        clientY: 300,
+        currentTarget: el,
+        target,
+        preventDefault: vi.fn(),
+      }) as unknown as ReactPointerEvent;
+    const range = document.createRange();
+    range.selectNodeContents(button);
+    window.getSelection()!.addRange(range);
+    expect(window.getSelection()!.toString()).toBe('Portrait');
+    const start = camera.offset.x;
+    for (const target of [el, button]) {
+      const down = event(300, target);
+      act(() => camera.onPointerDown(down));
+      expect(window.getSelection()!.toString()).toBe('');
+      act(() => camera.onPointerMove(event(350, target)));
+      act(() => camera.onPointerUp(event(350, target)));
+      const click = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+      camera.onClickCapture(click as never);
+      expect(click.preventDefault).toHaveBeenCalledOnce();
+    }
+    expect(camera.offset.x).toBeCloseTo(start + 100, 6);
+    const down = event(300, button);
+    act(() => camera.onPointerDown(down));
+    act(() => camera.onPointerMove(event(302, button)));
+    act(() => camera.onPointerUp(event(302, button)));
+    const click = { preventDefault: vi.fn(), stopPropagation: vi.fn() };
+    camera.onClickCapture(click as never);
+    expect(down.preventDefault).not.toHaveBeenCalled();
+    expect(click.preventDefault).not.toHaveBeenCalled();
+    expect(camera.offset.x).toBeCloseTo(start + 100, 6);
   });
 });

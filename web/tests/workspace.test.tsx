@@ -204,6 +204,7 @@ describe('map workspace', () => {
     await user.click(screen.getByRole('button', { name: 'Next interaction state' }));
     const actor = container.querySelector('[data-entity="agt-builder"]')!;
     expect(actor.getAttribute('data-phase')).toBe('engaged');
+    await user.click(screen.getByRole('button', { name: 'Quick message', exact: true }));
     await user.type(
       screen.getByRole('textbox', { name: 'Message the team on the map' }),
       'Team thought',

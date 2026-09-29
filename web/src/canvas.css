@@ -1,20 +1,6 @@
 /* A map is the workspace. Controls float above it; details appear only on demand. */
 .canvas-app {
-  --canvas-paper: #f4f1eb;
-  --canvas-panel: #fcfaf6;
-  --canvas-ink: #302923;
-  --canvas-muted: #71695f;
-  --canvas-line: #d8cfc2;
-  --canvas-copper: #9c5837;
   color: var(--canvas-ink);
-}
-.dark .canvas-app {
-  --canvas-paper: #201d19;
-  --canvas-panel: #2b2621;
-  --canvas-ink: #f0e7da;
-  --canvas-muted: #bbb0a1;
-  --canvas-line: #55493e;
-  --canvas-copper: #dba17b;
 }
 .canvas-app main {
   position: relative;
@@ -29,6 +15,8 @@
   overflow: hidden;
 }
 .universe-canvas {
+  user-select: none;
+  -webkit-user-select: none;
   position: absolute;
   inset: 0;
   touch-action: none;

@@ -6,7 +6,7 @@ import { useAgentImage } from '../../lib/agentImages';
 export function Portrait({
   agent,
   size = 40,
-  square = false,
+  square = true,
 }: {
   agent: Agent;
   size?: number;
@@ -47,6 +47,7 @@ export function Portrait({
       viewBox="0 0 48 48"
       aria-hidden="true"
       className="teammate-portrait"
+      style={{ borderRadius: square ? 4 : '50%' }}
     >
       <defs>
         <clipPath id={clip}>

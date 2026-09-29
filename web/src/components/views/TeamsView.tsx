@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Plus, ArrowUpRight, Check, ArrowLeft } from 'lucide-react';
+import { Plus, ArrowUpRight, Check, ArrowLeft, Layers3 } from 'lucide-react';
 import { Agent, Team } from '../../types';
 import { Portrait } from '../ui/Portrait';
 import { teammate } from '../../lib/teammates';
@@ -9,6 +9,7 @@ interface Props {
   agents: Agent[];
   currentTeamId: string;
   onSelectTeam: (id: string) => void;
+  onViewMap?: (id: string) => void;
   onPledgeAgent: (agentId: string, teamId: string) => void;
   onCreate: (name: string) => void;
   onCreateAgent: () => void;
@@ -19,6 +20,7 @@ export function TeamsView({
   agents,
   currentTeamId,
   onSelectTeam,
+  onViewMap,
   onPledgeAgent,
   onCreate,
   onCreateAgent,
@@ -129,9 +131,10 @@ export function TeamsView({
           const members = agents.filter((a) => team.pledgedAgentIds.includes(a.id));
           const shared = members.filter((a) => homeTeamId(a, teams) !== team.id).length;
           return (
-            <article className="simple-team" key={team.id}>
+            <article className="simple-team" key={team.id} data-current={team.id === currentTeamId}>
               <div className="team-name-row">
                 <button onClick={() => onSelectTeam(team.id)}>
+                  <Layers3 className="team-directory-symbol" size={25} aria-hidden="true" />
                   <strong>{team.name}</strong>
                   <span>
                     {team.id === currentTeamId
@@ -142,7 +145,7 @@ export function TeamsView({
                 <button
                   className="quiet-action"
                   aria-label={`Open ${team.name} map`}
-                  onClick={() => onSelectTeam(team.id)}
+                  onClick={() => (onViewMap || onSelectTeam)(team.id)}
                 >
                   <ArrowUpRight size={19} />
                 </button>

@@ -11,6 +11,7 @@ interface Props {
   nodes: GraphNode[];
   onClose: () => void;
   onJumpToHuddle: (id: string) => void;
+  onManage?: () => void;
   activityRecords?: WorkRecord[];
 }
 export function LinearTrackDrawer({
@@ -20,6 +21,7 @@ export function LinearTrackDrawer({
   nodes,
   onClose,
   onJumpToHuddle,
+  onManage,
   activityRecords,
 }: Props) {
   return (
@@ -45,6 +47,11 @@ export function LinearTrackDrawer({
             </Dialog.Close>
           </header>
           <div className="inspector-body">
+            {onManage && (
+              <button className="text-action" onClick={onManage}>
+                Manage in Tools & MCPs <ArrowUpRight size={14} />
+              </button>
+            )}
             {activityRecords && (
               <section className="work-summary" aria-label="Current playback calls">
                 <h3>Current playback</h3>

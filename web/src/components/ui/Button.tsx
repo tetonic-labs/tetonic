@@ -46,6 +46,7 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
       <button
         type="button"
         ref={ref}
+        data-variant={variant || 'secondary'}
         className={cn(buttonVariants({ variant, size }), className)}
         {...props}
       />

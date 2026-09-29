@@ -4,6 +4,7 @@ import {
   ArrowUpRight,
   ArrowUp,
   ArrowLeft,
+  MessageCircle,
   X,
   ChevronDown,
   Sun,
@@ -18,6 +19,8 @@ import { FloatingChat } from './components/graph/FloatingChat';
 import { LinearTrackDrawer } from './components/graph/LinearTrackDrawer';
 import { TeamsView } from './components/views/TeamsView';
 import { AgentsView } from './components/views/AgentsView';
+import { ToolsView } from './components/views/ToolsView';
+import { resourcesFromGraph } from './lib/toolLibrary';
 import { ActionInboxView } from './components/views/ActionInboxView';
 import { HuddleView } from './components/views/HuddleView';
 import { CastleConsoleView } from './components/views/CastleConsoleView';
@@ -45,6 +48,7 @@ import { WorkSummary } from './components/graph/WorkSummary';
 import { AttentionView, workExceptions } from './components/views/AttentionView';
 import { largeWorkspace, workspaceSizes } from './store/largeWorkspaces';
 import { Workroom } from './components/work/Workroom';
+import { TeamRoom } from './components/work/TeamRoom';
 import { workroomExamples } from './store/workroomExamples';
 import { needsJudgment, workroomReducer } from './lib/workroom';
 const requestedWorkspace = new URLSearchParams(window.location.search).get('workspace');
@@ -62,13 +66,25 @@ type Panel =
   | 'attention'
   | 'teams'
   | 'agents'
+  | 'tools'
   | 'agent'
   | 'activity'
   | 'decisions'
   | 'settings'
   | null;
 export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } = {}) {
-  const [view, setView] = useState(initialView);
+  const [view, setView] = useState<'work' | 'map' | 'room'>(initialView);
+  const [resources, setResources] = useState(() =>
+    resourcesFromGraph(mockGraphNodes, mockGraphEdges, mockTeams),
+  );
+  const [toolSelection, setToolSelection] = useState<string | null>(null);
+  const [toolTeam, setToolTeam] = useState('all');
+  const [roomId, setRoomId] = useState<string | null>(null);
+  const [roomThread, setRoomThread] = useState<string | null>(null);
+  const [quickChat, setQuickChat] = useState(false);
+  const [mapFocusedTeam, setMapFocusedTeam] = useState<string | null>(null);
+  const roomOrigin = useRef<HTMLElement | null>(null);
+  const restoreMap = useRef<(() => void) | null>(null);
   const [workItems, dispatchWork] = useReducer(workroomReducer, undefined, () =>
     workroomExamples(mockAgents, mockTeams),
   );
@@ -129,6 +145,12 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
     setSelectedId(id);
     open('agent');
   }
+  function openTools(id: string | null = null, team = 'all') {
+    setToolSelection(id);
+    setToolTeam(team);
+    setResource(null);
+    open('tools');
+  }
   function showWork(id: string) {
     close();
     setSelectedWorkId(id);
@@ -137,6 +159,28 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
   function close() {
     setPanel(null);
     setResource(null);
+  }
+  function enterTeam(id: string, threadId: string | null = null, restore?: () => void) {
+    if (!teams.some((t) => t.id === id)) return;
+    if (view !== 'room') {
+      roomOrigin.current = document.activeElement as HTMLElement;
+      restoreMap.current = restore || null;
+    }
+    setRoomId(id);
+    setRoomThread(threadId);
+    setView('room');
+    close();
+  }
+  function leaveTeam(restore = true) {
+    if (restore) restoreMap.current?.();
+    restoreMap.current = null;
+    setView('map');
+    requestAnimationFrame(() =>
+      (roomOrigin.current?.isConnected && !roomOrigin.current.closest('[hidden]')
+        ? roomOrigin.current
+        : document.getElementById('agent-map')
+      )?.focus({ preventScroll: true }),
+    );
   }
   function addAgent(agentId: string, target: string) {
     setTeams((prev) =>
@@ -261,6 +305,7 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
     attention: 'Needs attention',
     teams: 'Teams',
     agents: 'Agents',
+    tools: 'Tools & MCPs',
     agent: info?.name || 'Agent',
     activity: 'Agent activity',
     decisions: 'Your decision',
@@ -283,15 +328,21 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
               selectedId={selectedWorkId}
               onSelect={setSelectedWorkId}
               onAgent={inspect}
+              onTeam={(id, workId) => enterTeam(id, `work:${workId}`)}
               onMap={(id) => {
                 setTeamId(id);
                 setView('map');
               }}
             />
           </div>
-          <div className="workspace-layer" hidden={view !== 'map'}>
+          <div
+            className="workspace-layer map-layer"
+            hidden={view === 'work'}
+            inert={view === 'room'}
+            aria-hidden={view === 'room' ? true : undefined}
+          >
             <TeamActivityMap
-              visible={view === 'map'}
+              visible={view !== 'work'}
               teams={teams}
               agents={members}
               nodes={mockGraphNodes}
@@ -299,7 +350,11 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
               tracks={mockAgentTracks}
               approvals={approvals}
               activity={activity}
+              resources={resources}
+              onFocusedTeam={setMapFocusedTeam}
+              onExploreTeam={() => setTeamId('all')}
               onWork={(id) => inspectWork(id, 'map')}
+              onTeam={(id, restore) => enterTeam(id, null, restore)}
               scope={teamId}
               onAgent={inspect}
               onRequest={requests}
@@ -307,12 +362,21 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
                 opener.current = document.activeElement as HTMLElement;
                 setResource(id);
               }}
+              onTools={(team, id) => openTools(id, team)}
               onAddAgent={() => {
                 setCreateAgent(false);
                 open('agents');
               }}
             />
-            <div className="floating-team">
+            <div
+              className="floating-team"
+              inert={!!mapFocusedTeam}
+              aria-hidden={!!mapFocusedTeam}
+              style={{
+                opacity: mapFocusedTeam ? 0 : 1,
+                pointerEvents: mapFocusedTeam ? 'none' : undefined,
+              }}
+            >
               <button onClick={() => open('teams')}>
                 <span>{teamId === 'all' ? 'All teams' : team?.name || 'Choose a team'}</span>
                 <ChevronDown size={15} />
@@ -321,14 +385,80 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
                 {members.length} AI {members.length === 1 ? 'teammate' : 'teammates'}
               </p>
             </div>
-            <FloatingChat
-              teamId={teamId}
-              teamName={teamId === 'all' ? 'All teams' : team?.name || 'Your team'}
-              agents={members}
-              events={events}
-              onSend={sendMapMessage}
-            />
+            <div className={'map-conversation-entry' + (quickChat ? ' is-open' : '')}>
+              {!quickChat && (
+                <button
+                  onClick={() =>
+                    mapFocusedTeam || teamId !== 'all'
+                      ? enterTeam(mapFocusedTeam || teamId)
+                      : open('teams')
+                  }
+                >
+                  <MessageCircle size={17} />
+                  {mapFocusedTeam
+                    ? `${teams.find((t) => t.id === mapFocusedTeam)?.name || 'Team'} conversation`
+                    : teamId === 'all'
+                      ? 'Open a team conversation'
+                      : 'Team conversation'}
+                  <ArrowUpRight size={14} />
+                </button>
+              )}
+              <button
+                className="map-quick-chat"
+                aria-expanded={quickChat}
+                onClick={() => setQuickChat(!quickChat)}
+              >
+                {quickChat ? 'Close quick message' : 'Quick message'}
+              </button>
+            </div>
+            <div hidden={!quickChat}>
+              <FloatingChat
+                teamId={teamId}
+                teamName={teamId === 'all' ? 'All teams' : team?.name || 'Your team'}
+                agents={members}
+                events={events}
+                onSend={sendMapMessage}
+              />
+            </div>
           </div>
+          <TeamRoom
+            team={teams.find((t) => t.id === roomId)}
+            visible={view === 'room'}
+            initialThread={roomThread}
+            teams={teams}
+            agents={agents}
+            items={workItems}
+            events={events}
+            approvals={approvals}
+            activity={activity}
+            dispatch={dispatchWork}
+            onMessage={(id, text) =>
+              setEvents((old) => [
+                ...old,
+                {
+                  id: crypto.randomUUID(),
+                  agentId: 'usr-alice',
+                  agentName: 'You',
+                  teamId: id,
+                  type: 'message',
+                  timestamp: new Date().toLocaleTimeString([], {
+                    hour: 'numeric',
+                    minute: '2-digit',
+                  }),
+                  content: text,
+                },
+              ])
+            }
+            onBack={() => leaveTeam()}
+            onActivity={() => {
+              setTeamId(roomId || 'all');
+              leaveTeam(false);
+            }}
+            onTeam={(id, threadId) => enterTeam(id, threadId)}
+            onAgent={inspect}
+            onRequest={requests}
+            onTools={(id) => openTools(null, id)}
+          />
           <header className="floating-header">
             <div className="canvas-brand">
               <a href="#agent-map" aria-label="Tetonic workspace" onClick={() => setView('work')}>
@@ -365,7 +495,9 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
               </button>
               <button
                 aria-current={view === 'map' ? 'page' : undefined}
-                onClick={() => setView('map')}
+                onClick={() =>
+                  view === 'room' || restoreMap.current ? leaveTeam() : setView('map')
+                }
               >
                 Map
               </button>
@@ -377,6 +509,12 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
                 }}
               >
                 Agents
+              </button>
+              <button
+                aria-current={panel === 'tools' ? 'page' : undefined}
+                onClick={() => openTools()}
+              >
+                Tools
               </button>
             </nav>
             <div className="floating-utilities">
@@ -416,10 +554,24 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
           <Dialog.Overlay className="canvas-scrim" />
           <Dialog.Content
             className={
-              'canvas-dialog ' + (panel === 'activity' || panel === 'settings' ? 'wide' : '')
+              'canvas-dialog ' +
+              (panel === 'activity' || panel === 'settings'
+                ? 'wide'
+                : panel === 'tools'
+                  ? 'tools-dialog'
+                  : panel === 'teams' || panel === 'agents'
+                    ? 'directory-dialog'
+                    : '')
             }
+            data-panel={panel}
             onCloseAutoFocus={(e) => {
               e.preventDefault();
+              if (view === 'room' && !opener.current?.closest('.team-room')) {
+                document
+                  .querySelector<HTMLElement>('.team-room h1')
+                  ?.focus({ preventScroll: true });
+                return;
+              }
               (opener.current?.isConnected
                 ? opener.current
                 : document.getElementById('agent-map')
@@ -450,6 +602,9 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
                   agents={agents}
                   currentTeamId={teamId}
                   onSelectTeam={(id) => {
+                    enterTeam(id);
+                  }}
+                  onViewMap={(id) => {
                     setTeamId(id);
                     setView('map');
                     close();
@@ -473,6 +628,25 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
                 onCreate={newAgent}
                 onPledgeAgent={addAgent}
                 onInspect={inspect}
+              />
+            )}
+            {panel === 'tools' && (
+              <ToolsView
+                resources={resources}
+                teams={teams}
+                initialId={toolSelection}
+                initialTeam={toolTeam}
+                onAdd={(item) =>
+                  setResources((old) => [...old.filter((r) => r.id !== item.id), item])
+                }
+                onTeams={(id, teamIds) =>
+                  setResources((old) => old.map((r) => (r.id === id ? { ...r, teamIds } : r)))
+                }
+                onRemove={(id) => setResources((old) => old.filter((r) => r.id !== id))}
+                onActivity={(id) => {
+                  setPanel(null);
+                  setResource(id);
+                }}
               />
             )}
             {panel === 'attention' && (
@@ -668,6 +842,11 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
         }
         track={resource ? mockAgentTracks[resource] || null : null}
         nodes={graphNodes}
+        onManage={
+          resource && resources.some((r) => r.id === resource)
+            ? () => openTools(resource)
+            : undefined
+        }
         edges={mockGraphEdges.filter((e) => e.source === resource || e.target === resource)}
         onClose={() => {
           setResource(null);

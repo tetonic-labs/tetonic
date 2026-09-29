@@ -4,6 +4,11 @@ import { Point, WORLD } from '../../lib/mapActivity';
 interface Camera {
   zoom: number;
   pan: Point;
+  context?: string;
+}
+interface FocusSpace {
+  right?: number;
+  bottom?: number;
 }
 const initial = (): Camera => ({ zoom: 1, pan: { x: 0, y: 0 } });
 export function useMapCamera(
@@ -14,6 +19,7 @@ export function useMapCamera(
 ) {
   const views = useRef(new Map<string, Camera>());
   const previousScope = useRef(scope);
+  const retainNextScope = useRef(false);
   const history = useRef<Camera[]>([]);
   const [canGoBack, setCanGoBack] = useState(false);
   const dragged = useRef(false);
@@ -61,6 +67,7 @@ export function useMapCamera(
         from = shown.current,
         to = target.current;
       const next = {
+        context: to.context || from.context,
         zoom: from.zoom + (to.zoom - from.zoom) * a,
         pan: {
           x: from.pan.x + (to.pan.x - from.pan.x) * a,
@@ -83,6 +90,7 @@ export function useMapCamera(
       nextScale = Math.max(0.01, base * zoom);
     const anchor = { x: (point.x - g.offset.x) / g.scale, y: (point.y - g.offset.y) / g.scale };
     move({
+      ...old,
       zoom,
       pan: {
         x: point.x - anchor.x * nextScale - (size.width - world.width * nextScale) / 2,
@@ -103,8 +111,11 @@ export function useMapCamera(
     return () => observer.disconnect();
   }, []);
   useEffect(() => {
+    const retain = previousScope.current !== scope && retainNextScope.current;
+    retainNextScope.current = false;
     if (previousScope.current !== scope) views.current.set(previousScope.current, target.current);
     previousScope.current = scope;
+    if (retain) return;
     move(views.current.get(scope) || overview(), true);
     history.current = [];
     setCanGoBack(false);
@@ -146,24 +157,28 @@ export function useMapCamera(
     const r = e.currentTarget.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
   }
-  function focusScale(bounds?: { width: number; height: number }) {
+  function focusScale(bounds?: { width: number; height: number }, space: FocusSpace = {}) {
     return bounds
       ? Math.min(
           1.05,
-          Math.max(120, size.width - 100) / bounds.width,
-          Math.max(160, availableHeight) / bounds.height,
+          Math.max(120, size.width - 100 - (space.right || 0)) / bounds.width,
+          Math.max(80, availableHeight - (space.bottom || 0)) / bounds.height,
         )
       : 1.05;
   }
-  function framed(point: Point, bounds?: { width: number; height: number }): Camera {
-    const scale = focusScale(bounds);
+  function framed(
+    point: Point,
+    bounds?: { width: number; height: number },
+    space: FocusSpace = {},
+  ): Camera {
+    const scale = focusScale(bounds, space);
     const zoom = scale / Math.max(0.01, base);
     const nextScale = Math.max(0.01, base * zoom);
     return {
       zoom,
       pan: {
-        x: (world.width / 2 - point.x) * nextScale,
-        y: (world.height / 2 - point.y) * nextScale,
+        x: (world.width / 2 - point.x) * nextScale - (space.right || 0) / 2,
+        y: (world.height / 2 - point.y) * nextScale - (space.bottom || 0) / 2,
       },
     };
   }
@@ -205,6 +220,7 @@ export function useMapCamera(
     const remap = (c: Camera): Camera => {
       const oldScale = before.base * c.zoom;
       return {
+        ...c,
         zoom: oldScale / base,
         pan: {
           x: c.pan.x + ((world.width - before.world.width) * oldScale) / 2,
@@ -224,15 +240,26 @@ export function useMapCamera(
   return {
     viewport,
     scale,
+    overviewScale: geometry(overview()).scale,
+    organizationScale: base,
+    context: camera.context,
+    preserveNextScopeChange: () => {
+      retainNextScope.current = true;
+    },
     offset,
     nodeScale: 1,
     size,
     canGoBack,
     focusScale,
     back,
-    focus: (point: Point, bounds?: { width: number; height: number }) => {
+    focus: (
+      point: Point,
+      bounds?: { width: number; height: number },
+      space?: FocusSpace,
+      context?: string,
+    ) => {
       remember();
-      move(framed(point, bounds));
+      move({ ...framed(point, bounds, space), context });
     },
     zoomBy,
     fit,
@@ -252,7 +279,7 @@ export function useMapCamera(
       if (moves[e.key]) {
         e.preventDefault();
         const c = target.current;
-        move({ zoom: c.zoom, pan: { x: c.pan.x + moves[e.key].x, y: c.pan.y + moves[e.key].y } });
+        move({ ...c, pan: { x: c.pan.x + moves[e.key].x, y: c.pan.y + moves[e.key].y } });
       }
       if (['+', '=', '-', 'Home'].includes(e.key)) {
         e.preventDefault();
@@ -261,13 +288,23 @@ export function useMapCamera(
       }
     },
     onPointerDown: (e: PointerEvent) => {
-      if (e.button !== 0 || (e.pointerType !== 'touch' && (e.target as Element).closest('button')))
-        return;
+      // A fresh press must never inherit click suppression from a cancelled drag.
       if (!pointers.current.size) dragged.current = false;
+      if (
+        e.button !== 0 ||
+        (e.target as Element).closest('input, textarea, select, [contenteditable="true"]')
+      )
+        return;
+      const onControl = !!(e.target as Element).closest('button, a');
+      if (!onControl) e.preventDefault();
+      const selection = window.getSelection();
+      if (selection?.anchorNode && e.currentTarget.contains(selection.anchorNode))
+        selection.removeAllRanges();
+      if (!onControl) (e.currentTarget as HTMLElement).focus({ preventScroll: true });
       move(shown.current, true);
       pointers.current.set(e.pointerId, local(e));
       begin();
-      e.currentTarget.setPointerCapture(e.pointerId);
+      if (!onControl) e.currentTarget.setPointerCapture(e.pointerId);
     },
     onPointerMove: (e: PointerEvent) => {
       if (!pointers.current.has(e.pointerId) || !gesture.current) return;
@@ -277,6 +314,10 @@ export function useMapCamera(
         center = p.length === 1 ? p[0] : { x: (p[0].x + p[1].x) / 2, y: (p[0].y + p[1].y) / 2 };
       if (p.length > 1 || Math.hypot(center.x - g.center.x, center.y - g.center.y) > 4)
         dragged.current = true;
+      if (!dragged.current) return;
+      e.preventDefault();
+      if (!e.currentTarget.hasPointerCapture?.(e.pointerId))
+        e.currentTarget.setPointerCapture(e.pointerId);
       const zoom =
         p.length > 1 && g.distance
           ? Math.max(
@@ -295,6 +336,7 @@ export function useMapCamera(
       };
       move(
         {
+          ...g.camera,
           zoom,
           pan: {
             x: center.x - anchor.x * nextScale - (size.width - world.width * nextScale) / 2,

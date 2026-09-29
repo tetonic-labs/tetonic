@@ -147,7 +147,7 @@ export function AgentsView({
           <Plus size={21} />
         </button>
       </div>
-      <div className="directory-list">
+      <div className="directory-list agent-directory">
         {agents.map((a) => (
           <div className="directory-agent" key={a.id}>
             <button

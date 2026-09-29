@@ -36,6 +36,7 @@ interface Props {
   onSelect: (id: string | null) => void;
   onAgent: (id: string) => void;
   onMap: (teamId: string) => void;
+  onTeam?: (teamId: string, workId: string) => void;
 }
 type DecisionDraft = { optionId: string; note: string };
 const kindIcons = { assignment: Flag, responsibility: RefreshCw, response: GitBranch };
@@ -49,6 +50,7 @@ export function Workroom({
   onSelect,
   onAgent,
   onMap,
+  onTeam,
 }: Props) {
   const [context, setContext] = useState('all');
   const [lens, setLens] = useState<'all' | 'review'>('all');
@@ -93,45 +95,49 @@ export function Workroom({
   return (
     <div className="workroom" ref={scroll}>
       <div className="wr-page" hidden={!!selected}>
-        <div className="wr-topline">
-          <h1>Your work.</h1>
-          <label className="wr-context">
-            <span className="sr-only">Work context</span>
-            <select
-              aria-label="Work context"
-              value={context}
-              onChange={(e) => setContext(e.target.value)}
-            >
-              <option value="all">All contexts</option>
-              {contexts.map((name) => (
-                <option key={name}>{name}</option>
-              ))}
-            </select>
-            <ChevronDown size={14} />
-          </label>
+        <div className="wr-opening">
+          <div className="wr-topline">
+            <h1>
+              Your <em>work.</em>
+            </h1>
+            <label className="wr-context">
+              <span className="sr-only">Work context</span>
+              <select
+                aria-label="Work context"
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+              >
+                <option value="all">All contexts</option>
+                {contexts.map((name) => (
+                  <option key={name}>{name}</option>
+                ))}
+              </select>
+              <ChevronDown size={14} />
+            </label>
+          </div>
+          <form
+            className="wr-idea"
+            onSubmit={(e) => {
+              e.preventDefault();
+              start();
+            }}
+          >
+            <Sparkles size={21} aria-hidden="true" />
+            <label className="sr-only" htmlFor="work-idea">
+              What would you like help with?
+            </label>
+            <textarea
+              id="work-idea"
+              value={idea}
+              onChange={(e) => setIdea(e.target.value)}
+              placeholder="What would you like help with? Start with a thought…"
+              rows={1}
+            />
+            <button className="wr-primary" disabled={!idea.trim()}>
+              Shape this work <ArrowRight size={16} />
+            </button>
+          </form>
         </div>
-        <form
-          className="wr-idea"
-          onSubmit={(e) => {
-            e.preventDefault();
-            start();
-          }}
-        >
-          <Sparkles size={21} aria-hidden="true" />
-          <label className="sr-only" htmlFor="work-idea">
-            What would you like help with?
-          </label>
-          <textarea
-            id="work-idea"
-            value={idea}
-            onChange={(e) => setIdea(e.target.value)}
-            placeholder="What would you like help with? Start with a thought…"
-            rows={1}
-          />
-          <button className="wr-primary" disabled={!idea.trim()}>
-            Shape this work <ArrowRight size={16} />
-          </button>
-        </form>
         <div className="wr-reading-note">
           <span>Design preview · illustrative work · nothing is running</span>
           <span>Changes stay in this tab</span>
@@ -157,9 +163,7 @@ export function Workroom({
         </div>
         <section className="wr-section" aria-label="Work needing your judgment">
           <div className="wr-section-heading">
-            <h2>
-              {forYou.length ? 'A little input goes a long way.' : 'No judgment requested here.'}
-            </h2>
+            <h2>{forYou.length ? 'Your judgment' : 'No judgment requested here.'}</h2>
             <span>
               {forYou.length ? 'Prepared for your review' : 'Based on the loaded examples'}
             </span>
@@ -183,7 +187,7 @@ export function Workroom({
         {lens === 'all' && (
           <section className="wr-section" aria-label="Other work">
             <div className="wr-section-heading">
-              <h2>Room for the rest.</h2>
+              <h2>Other work</h2>
               <span>Assignments, responsibilities & responses</span>
             </div>
             {others.map((item) => (
@@ -213,6 +217,7 @@ export function Workroom({
           onBack={() => onSelect(null)}
           onAgent={onAgent}
           onMap={onMap}
+          onTeam={onTeam}
           draft={decisionDrafts[selected.id] || { optionId: '', note: '' }}
           onDraft={(draft) => setDecisionDrafts((old) => ({ ...old, [selected.id]: draft }))}
         />
@@ -237,6 +242,7 @@ function WorkRow({
   return (
     <button
       className={'wr-row' + (attention ? ' wr-row-attention' : '')}
+      data-status={item.status}
       onClick={onOpen}
       aria-label={`Open ${item.title}`}
     >
@@ -282,6 +288,7 @@ function WorkDetail({
   onBack,
   onAgent,
   onMap,
+  onTeam,
   draft,
   onDraft,
 }: {
@@ -292,6 +299,7 @@ function WorkDetail({
   onBack: () => void;
   onAgent: (id: string) => void;
   onMap: (teamId: string) => void;
+  onTeam?: (teamId: string, workId: string) => void;
   draft: DecisionDraft;
   onDraft: (draft: DecisionDraft) => void;
 }) {
@@ -651,6 +659,11 @@ function WorkDetail({
           <section>
             <span className="wr-eyebrow">People behind the work</span>
             <h2>{item.teamId ? team?.name || 'Assigned team' : 'Task force'}</h2>
+            {team && onTeam && (
+              <button className="wr-link" onClick={() => onTeam(team.id, item.id)}>
+                Continue in the team conversation <ArrowUpRight size={14} />
+              </button>
+            )}
             {item.agentIds.length ? (
               <ul className="wr-people">
                 {item.agentIds.map((id) => {

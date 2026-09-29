@@ -1,28 +1,92 @@
-/* Shared with tetonic-site's brand-experiment / brand-paper styles.
-   Source: hugo/themes/tetonic/assets/css/main.css, September 2026.
-   The app uses the site's paper treatment for long reading sessions. */
+/* Tetonic's shared visual language.
+   Geometry follows purpose: open records, raised working surfaces, solid decisions.
+   Layout and behavior remain in each feature stylesheet. */
 :root {
   --brand-field: #bb7046;
-  --brand-ink: #1c1917;
-  --brand-paper: #f6f3ee;
-  --brand-wash: #eee5d9;
-  --brand-mono: 'Courier New', monospace;
+  --brand-ink: #242721;
+  --brand-paper: #f6f4ed;
+  --brand-wash: #e9e8df;
   --brand-serif: Georgia, 'Times New Roman', serif;
-  --brand-rule: rgba(28, 25, 23, 0.3);
-  --bg-sidebar: var(--brand-wash);
-  --bg-surface: #faf7f2;
-  --bg-surface-elevated: #f0e9df;
-  --color-border: rgba(139, 94, 63, 0.28);
-  --color-mid-text: #655f59; /* 5:1+ on the site's paper wash, including small labels. */
-  --radius-sm: 0;
-  --radius-md: 0;
-  --radius-lg: 0;
+  --brand-mono: var(--font-mono);
+  --brand-rule: #d2d3c7;
+  --bg-ground: #eeeee6;
+  --bg-sidebar: #e6e7de;
+  --bg-surface: #fafaf5;
+  --bg-surface-elevated: #e3e5da;
+  --bg-surface-hover: #e9eadf;
+  --bg-sunken: #dddfd2;
+  --text-primary: #262a23;
+  --text-secondary: #62675c;
+  --text-muted: #62675c;
+  --color-mid-text: #62675c;
+  --color-accent: #984629;
+  --color-accent-hover: #77351f;
+  --color-border: #d2d4c8;
+  --color-border-subtle: #e2e4d8;
+  --control-border: #9a9f90;
+  --signal-working: #315f51;
+  --signal-input: #994627;
+  --signal-blocked: #a4373c;
+  --surface-ink: #282c25;
+  --on-ink: #f6f3e8;
+  --muted-on-ink: #c0c5b5;
+  --surface-depth: 0 2px 0 #252c2215, 0 12px 28px #252c220a;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 10px;
 }
 .dark {
-  --bg-sidebar: #211c18;
-  --bg-surface: #24201d;
-  --bg-surface-elevated: #2b241e;
-  --color-border: #665346;
+  --brand-rule: #454a3d;
+  --bg-ground: #1d211c;
+  --bg-sidebar: #181c18;
+  --bg-surface: #282d25;
+  --bg-surface-elevated: #363d30;
+  --bg-surface-hover: #33392f;
+  --bg-sunken: #161b16;
+  --text-primary: #efefe3;
+  --text-secondary: #b5bca8;
+  --text-muted: #b5bca8;
+  --color-mid-text: #b5bca8;
+  --color-accent: #e6a579;
+  --color-accent-hover: #f1b890;
+  --color-border: #464e3e;
+  --color-border-subtle: #363d30;
+  --control-border: #7b886d;
+  --signal-working: #a7cba9;
+  --signal-input: #efb488;
+  --signal-blocked: #f4a09f;
+  --surface-ink: #151b15;
+  --surface-depth: 0 2px 0 #0005, 0 12px 30px #0002;
+}
+/* Portal content shares exactly the same tokens as the canvas and rooms. */
+:root {
+  --canvas-paper: var(--bg-ground);
+  --canvas-panel: var(--bg-surface);
+  --canvas-ink: var(--text-primary);
+  --canvas-muted: var(--text-secondary);
+  --canvas-line: var(--color-border);
+  --canvas-copper: var(--color-accent);
+  --room-work: var(--signal-working);
+  --room-input: var(--signal-input);
+  --room-slab: var(--bg-surface-elevated);
+}
+body {
+  background: var(--bg-ground);
+}
+button,
+a,
+input,
+select,
+textarea,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+button:disabled {
+  cursor: default;
 }
 .tetonic-wordmark::after {
   display: none;
@@ -30,148 +94,1133 @@
 .brand-symbol {
   width: 28px;
   height: 18px;
-  background: var(--brand-ink);
+  background: currentColor;
   mask: url('/tetonic-symbol.png') center / 36px 36px no-repeat;
 }
-.ui-button {
-  border-radius: 0;
-  box-shadow: none;
-}
-.brand-primary {
-  background: var(--text-primary);
-  color: var(--bg-ground);
-  border: 1px solid var(--text-primary);
-}
-.brand-primary:hover {
-  background: var(--color-accent);
-  color: var(--bg-ground);
-  border-color: var(--color-accent);
-}
-.count,
-.segmented,
-.segmented button,
-.panel,
-.approval-layout,
-.reason-block,
-.code-block,
-.diff-block,
-.event,
-.map-node,
-.graph-canvas,
-.trace-list li,
-input,
-select,
-textarea,
-.capability-list code,
-.inline-error {
-  border-radius: 0;
-  box-shadow: none;
-}
 .eyebrow,
-.event-meta,
+.metric-label,
 .connection-location,
-.metric-label {
-  font-family: var(--brand-mono);
-  letter-spacing: 0.025em;
+.wr-eyebrow {
+  font-family: var(--font-mono);
 }
-.eyebrow {
-  text-transform: uppercase;
-}
-.screen-heading {
-  padding-bottom: 24px;
-  border-bottom: 1px solid var(--color-border);
-}
-.screen-heading h1 {
-  font-size: clamp(30px, 3.3vw, 46px);
-  letter-spacing: -0.06em;
-  line-height: 1.15;
-}
-.screen-heading p {
-  max-width: 580px;
-}
-.status-label {
-  border-radius: 0;
-  font: 12px/1.6 var(--brand-mono);
-  letter-spacing: 0;
-  text-transform: none;
-}
-.segmented {
+
+/* A constant dark frame anchors every view. */
+.floating-header,
+.view-work .floating-header {
+  height: 80px;
+  padding: 16px 28px;
+  gap: 16px;
+  color: var(--on-ink);
+  background: var(--surface-ink);
   border: 0;
-  border-bottom: 1px solid var(--color-border);
-  background: transparent;
-  padding: 0;
-  gap: 20px;
+  box-shadow: 0 3px 0 #00000012;
 }
-.segmented button {
-  border-bottom: 2px solid transparent;
-  padding-inline: 2px;
+.canvas-brand .brand-symbol {
+  background: currentColor;
 }
-.segmented button[aria-pressed='true'] {
-  background: transparent;
-  border-bottom-color: var(--color-accent);
+.canvas-brand > a {
+  font-size: 23px;
+}
+.canvas-preview summary {
+  color: var(--muted-on-ink);
+  border: 0;
+  border-left: 1px solid #69705d;
+  border-radius: 0;
+  padding: 3px 0 3px 13px;
+  font: 9px var(--font-mono);
+}
+.canvas-preview .preview-workspaces {
+  color: var(--text-primary);
+  border: 0;
+  border-radius: 3px 3px 12px 3px;
+  box-shadow:
+    0 4px 0 var(--brand-field),
+    0 16px 40px #0003;
+}
+.floating-header nav {
+  gap: 26px;
+}
+.floating-header nav button {
+  color: #c6cbbb;
+  font-size: 14px;
+}
+.floating-header nav button:hover,
+.floating-header nav button[aria-current='page'] {
+  color: var(--on-ink);
+}
+.floating-header nav button::after {
+  height: 2px;
+  background: #e4a57c;
+  bottom: 2px;
+}
+.floating-utilities {
+  gap: 8px;
+}
+.utility-button {
+  border-radius: 6px;
+  color: var(--muted-on-ink);
+}
+.utility-button:hover {
+  background: #ffffff12;
+  color: var(--on-ink);
+}
+.attention-entry,
+.attention-entry.has-requests {
+  border: 0;
+  border-radius: 5px;
+  background: #ffffff0c;
+  color: var(--on-ink);
   box-shadow: none;
 }
-.panel {
-  border-width: 1px 0 0;
-  background: transparent;
-  padding: 24px 0;
+.attention-entry.has-requests {
+  background: #bd754e;
+  color: #201e17;
 }
-.team-summary,
-.workstation-summary,
-.activity-summary {
-  background: var(--bg-surface-elevated);
-  padding: 24px;
-  border: 1px solid var(--color-border);
+.attention-entry b {
+  border-color: #5a351c55;
+  font-weight: 700;
 }
-.agent-card,
-.member-list {
-  border: 1px solid var(--color-border);
-  padding: 24px;
-  background: var(--bg-surface);
+.attention-dot {
+  background: currentColor;
 }
-.metrics-grid {
-  gap: 24px;
+.floating-header :focus-visible {
+  outline-color: #f0b38a;
 }
-.metric-value {
-  font-family: var(--font-display);
-  letter-spacing: -0.045em;
+
+/* Work begins on a copper surface; the input sits on its own dark plane. */
+.workroom {
+  padding-top: 106px;
 }
-.metric-label {
-  text-transform: uppercase;
+.wr-page {
+  width: calc(100% - 72px);
+  max-width: 1280px;
+}
+.wr-opening {
+  padding: 23px 26px 25px;
+  background: var(--brand-field);
+  color: #1c1917;
+  border-radius: 3px 3px 24px 3px;
+  position: relative;
+  box-shadow:
+    0 4px 0 #8c512f,
+    0 14px 30px #37281712;
+}
+.wr-topline {
+  margin-bottom: 19px;
+}
+.wr-topline h1 {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.06em;
+}
+.wr-topline h1 em {
+  margin-left: 0.08em;
+  font-family: var(--brand-serif);
+  font-weight: 400;
+  font-size: 1.16em;
+  letter-spacing: -0.055em;
+}
+.wr-context {
+  gap: 8px;
+}
+.wr-context select {
+  color: #1c1917;
   font-size: 12px;
 }
-.connection-card {
-  border: 1px solid var(--color-border);
+.wr-context select option {
   background: var(--bg-surface);
-  padding: 22px;
+  color: var(--text-primary);
 }
-.connection-card:hover {
+.wr-idea {
+  border: 0;
+  border-radius: 4px;
+  padding: 13px 14px 13px 18px;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  box-shadow:
+    inset 0 1px 0 #ffffff12,
+    0 4px 12px #3b231320;
+}
+.wr-idea > svg {
+  color: #dca276;
+}
+.wr-idea textarea {
+  color: var(--on-ink);
+}
+.wr-idea textarea::placeholder {
+  color: var(--muted-on-ink);
+}
+.wr-idea:focus-within {
+  outline: 2px solid #f8eee0;
+  outline-offset: 3px;
+}
+.workroom .wr-idea .wr-primary {
+  background: #e7eacb;
+  color: #252d20;
+  box-shadow: 0 2px 0 #0003;
+  border: 0;
+}
+.workroom .wr-idea .wr-primary:hover:not(:disabled) {
+  background: #f1f4dd;
+}
+.wr-reading-note {
+  margin: 15px 2px 23px;
+  font-size: 10px;
+}
+.wr-section-nav {
+  gap: 24px;
+  border-color: var(--brand-rule);
+}
+.wr-section-nav button {
+  font-size: 13px;
+}
+.wr-section-nav button span {
+  background: var(--bg-surface-elevated);
+  min-width: 22px;
+  padding: 2px 5px;
+  border-radius: 3px;
+  font: 10px/1.5 var(--font-mono);
+  text-align: center;
+}
+.wr-section-nav button[aria-pressed='true'] span {
+  background: var(--canvas-ink);
+  color: var(--canvas-panel);
+}
+.wr-section-heading {
+  margin-bottom: 12px;
+}
+.wr-section-heading h2 {
+  font-size: 17px;
+  letter-spacing: -0.035em;
+}
+.wr-section {
+  margin-top: 24px;
+}
+.wr-row {
+  position: relative;
+  padding: 20px;
+  gap: 16px;
+  border: 0;
+  background: var(--bg-surface);
+  margin: 0 0 3px;
+  transition:
+    background 160ms,
+    box-shadow 160ms,
+    transform 160ms;
+}
+.wr-row:hover {
+  background: var(--bg-surface-hover);
+  transform: translateX(3px);
+}
+.wr-row-attention {
+  border-left: 3px solid var(--signal-input);
+  box-shadow: 0 2px 0 #262d2108;
+}
+.wr-row-symbol {
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-surface-elevated);
+  color: var(--text-secondary);
+  width: 36px;
+  height: 36px;
+}
+.wr-row-attention .wr-row-symbol {
+  color: var(--on-ink);
+  background: #984a30;
+  border: 0;
+}
+.wr-row-main > strong {
+  font-size: 18px;
+  font-weight: 650;
+}
+.wr-meta {
+  font: 10px/1.5 var(--font-mono);
+}
+.wr-row-question {
+  font-weight: 550;
+}
+.wr-status {
+  font-weight: 550;
+}
+.wr-status.status-needs_input,
+.wr-status.status-review {
+  color: var(--signal-input);
+}
+.wr-status.status-active,
+.wr-status.status-running {
+  color: var(--signal-working);
+}
+.wr-status > span {
+  background: currentColor;
+  border-radius: 2px;
+}
+.wr-status.status-needs_input > span,
+.wr-status.status-review > span {
+  background: currentColor;
+  transform: rotate(45deg);
+}
+.wr-status.status-watching > span {
+  border: 1px solid currentColor;
+  background: transparent;
+}
+.wr-detail-nav {
+  margin-bottom: 20px;
+}
+.wr-detail-heading {
+  border: 0;
+  border-left: 4px solid var(--brand-field);
+  padding: 3px 0 3px 22px;
+  margin-bottom: 30px;
+  gap: 20px;
+}
+.wr-detail-heading h1 {
+  font-size: clamp(26px, 2.8vw, 37px);
+  letter-spacing: -0.055em;
+}
+.wr-detail-heading .wr-eyebrow {
+  margin-bottom: 10px;
+}
+.wr-detail-heading p {
+  margin-top: 12px;
+  font-size: 14px;
+}
+.wr-detail-grid {
+  gap: 36px;
+}
+.wr-sidebar {
+  padding: 22px;
+  align-self: start;
+  background: var(--bg-surface-elevated);
+  border: 0;
+  border-radius: 2px 2px 14px 2px;
+  box-shadow: 0 3px 0 #29302414;
+}
+.wr-known,
+.wr-loop,
+.wr-receipt {
+  border: 0;
+  border-radius: 3px;
   background: var(--bg-surface-elevated);
 }
-.composer {
-  border: 1px solid var(--control-border);
-  padding: 24px;
+.wr-known,
+.wr-receipt {
+  padding: 20px;
+}
+.wr-options label {
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  padding: 17px;
+}
+.wr-options label.is-chosen {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  box-shadow:
+    inset 3px 0 #d3976d,
+    0 3px 0 #0002;
+}
+.wr-options label.is-chosen span,
+.wr-options label.is-chosen small {
+  color: var(--muted-on-ink);
+}
+.wr-options label.is-chosen strong {
+  color: var(--on-ink);
+}
+.wr-options input {
+  accent-color: var(--color-accent);
+}
+.wr-step-icon {
+  border-radius: 4px;
+}
+.step-current .wr-step-icon {
+  background: var(--signal-working);
+  color: var(--bg-surface);
+  border: 0;
+}
+.wr-evidence {
+  background: var(--bg-surface);
+  padding: 0 12px;
+  border: 0;
+  margin-top: 7px;
+}
+.wr-evidence summary {
+  font-weight: 550;
+}
+
+/* Shared controls have a small tactile edge, without outlining every surface. */
+.canvas-primary,
+.canvas-secondary,
+.workroom .wr-primary,
+.workroom .wr-secondary,
+.ui-button {
+  border-radius: 5px;
+  border: 0;
+  transition:
+    background 150ms,
+    box-shadow 150ms,
+    transform 150ms;
+}
+.canvas-primary,
+.workroom .wr-primary,
+.ui-button[data-variant='primary'],
+.ui-button[data-variant='copper'],
+.brand-primary {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  box-shadow:
+    0 2px 0 #0002,
+    inset 0 1px 0 #ffffff15;
+}
+.canvas-primary:hover:not(:disabled),
+.workroom .wr-primary:hover:not(:disabled),
+.brand-primary:hover {
+  background: #424a37;
+  color: var(--on-ink);
+  transform: translateY(-1px);
+}
+.canvas-secondary,
+.workroom .wr-secondary,
+.ui-button[data-variant='secondary'] {
+  background: var(--bg-surface-elevated);
+  color: var(--text-primary);
+  box-shadow: 0 2px 0 #252c2215;
+}
+.canvas-secondary:hover,
+.workroom .wr-secondary:hover:not(:disabled) {
+  background: var(--bg-surface-hover);
+}
+.simple-form input,
+.simple-form textarea,
+.simple-form select,
+.wr-field input,
+.wr-field textarea,
+.wr-field select {
+  background: var(--bg-ground);
+  border: 0;
+  border-bottom: 1px solid var(--control-border);
+  border-radius: 4px 4px 0 0;
+}
+.wr-conversation-input,
+.agent-direction,
+.floating-composer {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border: 0;
+  border-radius: 5px;
+  box-shadow:
+    inset 0 1px 0 #ffffff15,
+    var(--surface-depth);
+}
+.wr-conversation-input textarea,
+.agent-direction textarea,
+.composer-input textarea {
+  color: var(--on-ink);
+}
+.wr-conversation-input textarea::placeholder,
+.agent-direction textarea::placeholder,
+.composer-input textarea::placeholder {
+  color: var(--muted-on-ink);
+}
+.wr-conversation-input:focus-within,
+.agent-direction:focus-within,
+.floating-composer:focus-within {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.agent-direction button,
+.map-chat-send {
+  background: #c5855d;
+  color: #231d16;
+  border-radius: 4px;
+}
+.composer-context select,
+.conversation-toggle {
+  color: var(--muted-on-ink);
+}
+.composer-context select option {
+  color: var(--text-primary);
   background: var(--bg-surface);
 }
-.empty-state h2 {
-  font: italic 400 38px/1.15 var(--brand-serif);
-  letter-spacing: -0.04em;
+.conversation-toggle:hover {
+  background: #ffffff16;
 }
-.graph-canvas {
-  background-color: var(--bg-surface-elevated);
-  background-image: radial-gradient(var(--color-border) 0.75px, transparent 0.75px);
-  background-size: 20px 20px;
+
+/* Directories and inspectors sit above the workspace as a distinct working layer. */
+.canvas-scrim {
+  background: #111b145e;
+  backdrop-filter: blur(4px);
 }
-@media (max-width: 760px) {
-  .screen-heading {
-    padding-bottom: 20px;
+.canvas-dialog {
+  border: 0;
+  border-radius: 5px 5px 18px 5px;
+  padding: 36px;
+  box-shadow:
+    0 5px 0 #9d6546,
+    0 24px 80px #0c140c45;
+}
+.canvas-dialog.directory-dialog {
+  width: min(880px, calc(100vw - 48px));
+}
+.canvas-dialog h2 {
+  font-size: 27px;
+  letter-spacing: -0.045em;
+}
+.canvas-dialog .dialog-title-row h2 {
+  font: italic 34px/1.1 var(--brand-serif);
+  letter-spacing: -0.045em;
+}
+.canvas-dialog .dialog-title-row {
+  padding-bottom: 17px;
+  margin-bottom: 14px;
+  border-bottom: 1px solid var(--brand-rule);
+}
+.dialog-title-row .dialog-intro {
+  margin: 9px 0 0;
+}
+.canvas-close {
+  background: var(--bg-surface-elevated);
+  border-radius: 5px;
+  top: 10px;
+  right: 10px;
+  width: 30px;
+  height: 30px;
+}
+.canvas-close:hover {
+  background: var(--canvas-ink);
+  color: var(--canvas-panel);
+}
+.circle-action {
+  border: 0;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-radius: 5px;
+  box-shadow: 0 2px 0 #0002;
+}
+.team-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+.simple-team {
+  position: relative;
+  padding: 20px 18px;
+  border: 0;
+  background: var(--bg-surface-elevated);
+  border-radius: 2px 2px 12px 2px;
+  box-shadow: 0 2px 0 #1d2d1d12;
+  transition:
+    box-shadow 160ms,
+    background 160ms;
+}
+.simple-team:hover {
+  background: var(--bg-surface-hover);
+  box-shadow:
+    inset 3px 0 var(--brand-field),
+    0 3px 0 #1d2d1d15;
+}
+.simple-team[data-current='true'] {
+  box-shadow:
+    inset 3px 0 var(--brand-field),
+    0 2px 0 #1d2d1d12;
+}
+.team-name-row > button:first-child {
+  position: relative;
+  padding-left: 39px;
+  min-width: 0;
+  text-align: left;
+}
+.team-name-row strong {
+  font-size: 18px;
+  line-height: 1.3;
+  letter-spacing: -0.03em;
+  overflow-wrap: anywhere;
+}
+.team-directory-symbol {
+  position: absolute;
+  left: 0;
+  top: 2px;
+  color: var(--color-accent);
+}
+.team-portraits {
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 17px;
+}
+.team-portraits > button {
+  border-radius: 4px;
+}
+.team-portraits .add-to-team {
+  border: 0;
+  border-radius: 4px;
+  background: var(--bg-surface);
+  min-height: 34px;
+}
+.agent-directory {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0 28px;
+}
+.directory-agent {
+  padding: 18px 0;
+}
+.directory-person {
+  gap: 13px;
+}
+.directory-person > span {
+  min-width: 0;
+}
+.directory-person strong {
+  overflow-wrap: anywhere;
+}
+.directory-person:hover strong {
+  color: var(--color-accent);
+}
+.directory-person .teammate-portrait {
+  border-radius: 4px;
+  box-shadow: 3px 3px 0 var(--bg-surface-elevated);
+  transition:
+    transform 170ms,
+    box-shadow 170ms;
+}
+.directory-person:hover .teammate-portrait {
+  transform: translateY(-2px);
+  box-shadow: 3px 5px 0 var(--bg-surface-elevated);
+}
+.directory-row > div {
+  min-width: 0;
+}
+.agent-focus-person {
+  margin: -36px -36px 24px;
+  padding: 36px;
+  background: var(--bg-surface-elevated);
+  box-shadow: inset 4px 0 var(--brand-field);
+}
+.agent-focus-person h2 {
+  font: italic 37px/1.15 var(--brand-serif);
+}
+.agent-focus-person .teammate-portrait {
+  border-radius: 5px;
+  box-shadow: 4px 4px 0 #27332118;
+}
+.assign-teams {
+  border: 0;
+  background: var(--bg-surface-elevated);
+  border-radius: 4px;
+}
+.agent-question {
+  border: 0;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-radius: 4px;
+}
+.agent-question small {
+  color: var(--muted-on-ink);
+}
+.agent-question-mark {
+  border: 0;
+  background: #c4835b;
+  color: #271f17;
+  border-radius: 4px;
+}
+.decision-scope {
+  background: var(--bg-surface-elevated);
+  border: 0;
+  border-radius: 4px;
+}
+.attention-view > h2 {
+  font: italic 34px/1.1 var(--brand-serif);
+}
+.attention-row {
+  padding: 18px;
+  margin-top: 6px;
+  background: var(--bg-surface-elevated);
+  border: 0;
+  border-left: 3px solid var(--signal-input);
+  border-radius: 0 4px 4px 0;
+}
+.attention-row:hover {
+  background: var(--bg-surface-hover);
+}
+.attention-view section[aria-label='Work to review'] .attention-row {
+  border-left-color: var(--signal-blocked);
+}
+.attention-row small {
+  font: 10px/1.6 var(--font-mono);
+}
+
+/* Settings and evidence use inset technical surfaces, not another grid of outlined cards. */
+.screen {
+  gap: 24px;
+}
+.canvas-dialog .screen {
+  padding: 0;
+}
+.canvas-dialog .panel h2:not(.metric-label) {
+  font-size: 19px;
+}
+.canvas-dialog .workstation-summary h2 {
+  font-size: 25px;
+  overflow-wrap: anywhere;
+}
+.screen-heading {
+  border: 0;
+  padding-bottom: 8px;
+}
+.screen-heading h1 {
+  font: italic 34px/1.1 var(--brand-serif);
+  letter-spacing: -0.045em;
+}
+.screen-heading p {
+  font-size: 13px;
+  max-width: 520px;
+}
+.panel {
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+  background: var(--bg-surface-elevated);
+}
+.workstation-summary,
+.activity-summary {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border: 0;
+  padding: 22px;
+  border-radius: 3px 3px 14px 3px;
+  box-shadow: var(--surface-depth);
+}
+.workstation-summary .muted,
+.activity-summary .muted,
+.activity-summary .work-provenance {
+  color: var(--muted-on-ink);
+}
+.workstation-summary .eyebrow {
+  color: #e0a276;
+}
+.metrics-grid {
+  gap: 12px;
+}
+.metrics-grid .panel {
+  padding: 18px;
+}
+.canvas-dialog .metric-label {
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.metric-value {
+  font-size: 25px;
+  letter-spacing: -0.045em;
+}
+.agent-card {
+  background: var(--bg-ground);
+}
+.policy-switch {
+  border: 0;
+  border-radius: 5px;
+}
+.policy-switch > span:first-child {
+  border-radius: 3px;
+}
+.policy-switch[aria-checked='true'] {
+  background: var(--signal-working);
+}
+.event {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  border-left: 2px solid var(--color-border);
+}
+.event-meta {
+  font-size: 11px;
+}
+.event-body {
+  line-height: 1.7;
+}
+.code-block,
+.diff-block {
+  border: 0;
+  border-radius: 4px;
+}
+.composer {
+  border: 0;
+  background: var(--bg-surface-elevated);
+  border-radius: 4px;
+}
+.inspector {
+  border: 0;
+  box-shadow:
+    -6px 0 var(--brand-field),
+    -20px 0 70px #16221430;
+}
+.inspector-header {
+  background: var(--bg-surface-elevated);
+  border: 0;
+}
+.trace-list li {
+  border: 0;
+  border-left: 2px solid var(--color-border);
+  background: transparent;
+}
+
+/* The map keeps its positions and geometry. Elevation distinguishes controls from content. */
+.living-map,
+.dark .living-map {
+  --map-working: var(--signal-working);
+  --map-input: var(--signal-input);
+  --map-blocked: var(--signal-blocked);
+}
+.living-map .team-neighborhood {
+  background: color-mix(in srgb, var(--bg-surface) 65%, transparent);
+  border-color: color-mix(in srgb, var(--canvas-muted) 30%, transparent);
+  box-shadow: 0 calc(4 * var(--map-pixel)) 0 color-mix(in srgb, var(--canvas-ink) 8%, transparent);
+}
+.living-map .team-neighborhood[data-highlighted='true'] {
+  background: color-mix(in srgb, var(--brand-field) 10%, var(--bg-surface));
+  border-color: var(--canvas-copper);
+}
+.living-map .neighborhood-label strong {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  line-height: 1.2;
+}
+.map-playback,
+.map-navigation,
+.work-focus,
+.motion-options {
+  border: 0;
+  border-radius: 5px;
+  box-shadow: var(--surface-depth);
+}
+.map-navigation button {
+  border-radius: 4px;
+}
+.map-navigation button:hover {
+  background: var(--bg-surface-elevated);
+}
+.play-control {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-radius: 5px;
+}
+.playback-line {
+  background: var(--signal-working);
+}
+.floating-team {
+  background: var(--bg-surface);
+  border-left: 3px solid var(--brand-field);
+  padding: 10px 14px;
+  box-shadow: var(--surface-depth);
+  border-radius: 0 4px 4px 0;
+}
+.living-map .place-symbol {
+  border-radius: 6px;
+  border: 0;
+  background: var(--bg-surface-elevated);
+  box-shadow: 0 3px 0 color-mix(in srgb, var(--canvas-ink) 15%, transparent);
+}
+.living-map .person-orb,
+.living-map .person-orb svg,
+.living-map .orb-selection {
+  border-radius: 5px;
+}
+.work-focus {
+  border-top: 3px solid var(--brand-field);
+}
+.team-inspection-header {
+  border-bottom: 1px solid var(--color-border-subtle);
+}
+.map-conversation-entry > button:not(.map-quick-chat) {
+  border: 0;
+  border-radius: 5px;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  box-shadow: var(--surface-depth);
+}
+.map-conversation-entry .map-quick-chat {
+  background: var(--bg-surface);
+  color: var(--canvas-muted);
+  border: 0;
+  border-radius: 4px;
+  box-shadow: none;
+}
+
+/* Rooms share the frame and the same input/decision materials. */
+.team-room {
+  inset-block-start: 80px;
+}
+.tr-header {
+  background: var(--bg-surface-elevated);
+  min-height: 54px;
+  box-shadow: 0 2px 0 #27342108;
+}
+.tr-header h1 {
+  font-size: 15px;
+}
+.tr-work-strip {
+  padding-top: 8px;
+}
+.tr-composer::before {
+  background: var(--surface-ink);
+}
+.tr-composer {
+  box-shadow: 0 5px 14px #1523150c;
+}
+.tr-checkpoint[data-signal='input']::before {
+  background: #984a30;
+}
+.tr-thread-heading {
+  background: var(--bg-surface-elevated);
+}
+.tr-state[data-state='working'] {
+  background: var(--signal-working);
+}
+.tr-state[data-state='waiting'] {
+  background: transparent;
+  border: 1px solid var(--canvas-muted);
+}
+.tr-state[data-state='blocked'] {
+  background: var(--signal-blocked);
+}
+.work-summary-failure {
+  border-left-color: var(--signal-blocked);
+  background: color-mix(in srgb, var(--signal-blocked) 8%, transparent);
+}
+.work-summary-failure strong {
+  color: var(--signal-blocked);
+}
+
+/* Surfaces arrive once. Ordinary records remain still. */
+@keyframes surface-arrive {
+  from {
+    opacity: 0;
+    transform: translateY(7px);
   }
-  .team-summary,
-  .workstation-summary,
-  .activity-summary,
-  .agent-card,
-  .member-list,
-  .composer {
-    padding: 20px;
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.wr-detail {
+  animation: surface-arrive 200ms var(--ease-out);
+}
+@media (max-width: 1000px) {
+  .floating-header {
+    padding-inline: 22px;
+  }
+  .floating-header nav {
+    gap: 20px;
+  }
+  .wr-page {
+    width: calc(100% - 48px);
+  }
+  .wr-detail-grid {
+    gap: 24px;
+  }
+}
+@media (max-width: 700px) {
+  .floating-header,
+  .view-work .floating-header {
+    height: 108px;
+    padding: 12px 16px;
+    gap: 8px;
+    row-gap: 8px;
+    align-content: center;
+  }
+  .canvas-brand > a {
+    font-size: 21px;
+  }
+  .canvas-brand {
+    gap: 8px;
+  }
+  .canvas-preview summary {
+    font-size: 8px;
+    padding-left: 8px;
+  }
+  .floating-header nav {
+    width: 100%;
+    gap: 25px;
+    order: 3;
+  }
+  .floating-header nav button {
+    padding-block: 8px;
+    font-size: 13px;
+  }
+  .floating-header nav button::after {
+    bottom: 1px;
+  }
+  .floating-utilities {
+    gap: 4px;
+  }
+  .floating-utilities > .utility-button {
+    display: grid;
+    width: 28px;
+    height: 30px;
+  }
+  .attention-entry {
+    font-size: 0;
+    gap: 5px;
+    padding: 7px;
+    min-height: 30px;
+  }
+  .attention-entry b {
+    font-size: 11px;
+    padding-left: 5px;
+  }
+  .attention-dot {
+    width: 5px;
+    height: 5px;
+  }
+  .workroom {
+    padding-top: 126px;
+  }
+  .wr-page {
+    width: calc(100% - 28px);
+  }
+  .wr-opening {
+    padding: 18px 16px;
+    border-radius: 3px 3px 16px 3px;
+  }
+  .wr-topline {
+    margin-bottom: 17px;
+    gap: 12px;
+  }
+  .wr-topline h1 {
+    font-size: 29px;
+  }
+  .wr-context select {
+    max-width: 128px;
+    font-size: 11px;
+  }
+  .wr-idea {
+    padding: 13px;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  .wr-idea > svg {
+    display: none;
+  }
+  .wr-idea textarea {
+    flex-basis: 100%;
+    min-height: 78px;
+    font-size: 16px;
+  }
+  .workroom .wr-idea .wr-primary {
+    margin-left: auto;
+    min-height: 40px;
+  }
+  .wr-reading-note {
+    line-height: 1.5;
+    margin-top: 13px;
+    font-size: 10px;
+  }
+  .wr-reading-note > span:last-child {
+    display: none;
+  }
+  .wr-row {
+    padding: 17px 13px;
+    gap: 10px;
+  }
+  .wr-row-main > strong {
+    font-size: 17px;
+  }
+  .wr-row-symbol {
+    width: 32px;
+    height: 32px;
+  }
+  .wr-row-main {
+    flex-basis: calc(100% - 42px);
+  }
+  .wr-row-summary {
+    font-size: 13px;
+  }
+  .wr-row-end {
+    padding-left: 0;
+  }
+  .wr-detail-heading {
+    padding-left: 15px;
+  }
+  .wr-sidebar {
+    padding: 18px;
+  }
+  .canvas-dialog,
+  .canvas-dialog.wide,
+  .canvas-dialog.directory-dialog {
+    width: calc(100vw - 24px);
+    max-height: calc(100dvh - 30px);
+    padding: 32px 20px 24px;
+    border-radius: 4px 4px 12px 4px;
+  }
+  .canvas-dialog .dialog-title-row h2,
+  .attention-view > h2 {
+    font-size: 30px;
+  }
+  .team-directory,
+  .agent-directory {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .simple-team {
+    padding: 18px 15px;
+  }
+  .team-name-row strong {
+    font-size: 18px;
+  }
+  .agent-focus-person {
+    margin: -32px -20px 22px;
+    padding: 35px 20px 24px;
+  }
+  .agent-focus-person h2 {
+    font-size: 32px;
+  }
+  .floating-team {
+    top: 124px;
+    left: 14px;
+    right: auto;
+    max-width: 55%;
+    text-align: left;
+    padding: 7px 10px;
+  }
+  .floating-team button {
+    justify-content: flex-start;
+    font-size: 13px;
+  }
+  .map-distance {
+    top: 132px;
+    right: 14px;
+    max-width: 40%;
+  }
+  .map-playback {
+    border-radius: 5px;
+  }
+  .screen-heading h1 {
+    font-size: 30px;
+  }
+  .tr-header {
+    padding-inline: 15px;
+  }
+  .team-room {
+    inset-block-start: 108px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .wr-detail {
+    animation: none;
+  }
+  .wr-row,
+  .directory-person .teammate-portrait,
+  .simple-team,
+  .canvas-primary,
+  .canvas-secondary,
+  .workroom .wr-primary,
+  .workroom .wr-secondary,
+  .ui-button {
+    transition: none;
+  }
+  .wr-row:hover,
+  .directory-person:hover .teammate-portrait,
+  .canvas-primary:hover:not(:disabled),
+  .workroom .wr-primary:hover:not(:disabled) {
+    transform: none;
   }
 }
