@@ -1,11 +1,80 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within, waitFor } from '@testing-library/react';
+import { render, screen, within, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { App } from '../src/App';
 import { AgentsView } from '../src/components/views/AgentsView';
 import { mockTeams } from '../src/store/mockData';
+import { saveAgentImage } from '../src/lib/agentImages';
 
 describe('map workspace', () => {
+  it('centers the docked agent, rather than its overview home, when moving closer', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App initialView="map" />);
+    await user.click(screen.getByRole('button', { name: 'Motion examples and accessibility' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Motion example' }), 'shared');
+    for (let i = 0; i < 3; i++)
+      await user.click(screen.getByRole('button', { name: 'Next interaction state' }));
+    await user.click(screen.getByRole('button', { name: 'Focus Alex', exact: true }));
+    await user.click(screen.getByRole('button', { name: 'Move closer', exact: true }));
+    await waitFor(() => {
+      const world = (
+        container.querySelector('.universe-world') as HTMLElement
+      ).style.transform.match(/translate\(([-\d.]+)px,([-\d.]+)px\) scale\(([-\d.]+)\)/)!;
+      const actor = (
+        container.querySelector('[data-entity="agt-builder"]') as HTMLElement
+      ).style.transform.match(/translate\(([-\d.]+)px,([-\d.]+)px\)/)!;
+      expect(Number(world[1]) + Number(actor[1]) * Number(world[3])).toBeCloseTo(720, 0);
+      expect(Number(world[2]) + Number(actor[2]) * Number(world[3])).toBeCloseTo(445, 0);
+    });
+  });
+  it('keeps a custom image in its square map portrait', () => {
+    const image = 'data:image/png;base64,iVBORw0KGgo=';
+    saveAgentImage('agt-builder', image);
+    render(<App initialView="map" />);
+    const portrait = screen
+      .getByRole('button', { name: 'Focus Alex', exact: true })
+      .querySelector('img')!;
+    expect(portrait.src).toBe(image);
+    expect(portrait.style.borderRadius).toBe('7px');
+    expect(portrait.style.objectFit).toBe('cover');
+  });
+  it('keeps a team inquiry scoped and the camera steady while activity continues', async () => {
+    const user = userEvent.setup();
+    const { container } = render(<App initialView="map" />);
+    await user.click(screen.getByRole('button', { name: 'Teams', exact: true }));
+    await user.click(screen.getByRole('button', { name: 'View all teams' }));
+    await user.click(screen.getByRole('button', { name: 'Motion examples and accessibility' }));
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Motion example' }), 'shared');
+    await user.click(screen.getByRole('button', { name: 'Play sample activity' }));
+    const transform = (container.querySelector('.universe-world') as HTMLElement).style.transform;
+    await user.click(
+      screen.getByRole('button', { name: 'Ask about Platform Core Guild', exact: true }),
+    );
+    const inspector = screen.getByRole('complementary', {
+      name: 'Asking about Platform Core Guild',
+    });
+    const input = within(inspector).getByRole('textbox');
+    expect(document.activeElement).toBe(input);
+    await user.type(input, 'What needs attention?');
+    for (const neighborhood of container.querySelectorAll('.team-neighborhood'))
+      fireEvent.pointerEnter(neighborhood);
+    expect(within(inspector).getByRole('textbox').getAttribute('aria-label')).toBe(
+      'Ask about Platform Core Guild',
+    );
+    expect((container.querySelector('.universe-world') as HTMLElement).style.transform).toBe(
+      transform,
+    );
+    await user.click(
+      within(inspector).getByRole('button', { name: 'Ask about recorded activity' }),
+    );
+    expect(inspector.textContent).toContain('explicit requests for human input');
+    await waitFor(() => expect(screen.getByLabelText('Sample time').textContent).not.toBe('0:00'), {
+      timeout: 2200,
+    });
+    expect(screen.getByRole('button', { name: 'Pause sample playback' })).toBeTruthy();
+    expect(inspector.textContent).toContain('Recorded sample · 0:00');
+    await user.click(screen.getByRole('button', { name: 'Pause sample playback' }));
+  });
   it('opens on the scoped map and exposes preview provenance on demand', async () => {
     const user = userEvent.setup();
     render(<App initialView="map" />);
@@ -193,15 +262,16 @@ describe('map workspace', () => {
     const world = container.querySelector('.universe-world') as HTMLElement;
     const transform = world.style.transform;
     const time = screen.getByLabelText('Sample time').textContent;
-    const position = (container.querySelector('[data-entity="agt-builder"]') as HTMLElement).style
-      .transform;
+    const actor = container.querySelector('[data-entity="agt-builder"]') as HTMLElement;
+    const home = actor.dataset.home;
+    const physicalPosition = actor.dataset.physicalPosition;
     await user.click(screen.getByRole('button', { name: 'Teams', exact: true }));
     await user.click(screen.getByRole('button', { name: 'View all teams' }));
     expect(screen.getByLabelText('Sample time').textContent).toBe(time);
     expect(screen.getByRole('complementary', { name: 'Following Alex' })).toBeTruthy();
-    expect(
-      (container.querySelector('[data-entity="agt-builder"]') as HTMLElement).style.transform,
-    ).toBe(position);
+    // Semantic zoom blends the representation, not the actual home or paused physics.
+    expect(actor.dataset.home).toBe(home);
+    expect(actor.dataset.physicalPosition).toBe(physicalPosition);
     await user.click(screen.getByRole('button', { name: 'Teams', exact: true }));
     await user.click(screen.getByRole('button', { name: 'Open Platform Core Guild map' }));
     expect(world.style.transform).toBe(transform);

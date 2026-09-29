@@ -106,7 +106,10 @@ export class GraphMotion {
   private offsets = new Map<string, Point>();
   private offsetVelocity = new Map<string, Point>();
   time = 0;
-  constructor(entities: Entity[]) {
+  constructor(
+    entities: Entity[],
+    private readonly ambient = true,
+  ) {
     this.sync(entities);
   }
 
@@ -115,8 +118,11 @@ export class GraphMotion {
     for (const id of this.bodies.keys()) if (!ids.has(id)) this.bodies.delete(id);
     for (const entity of entities) {
       const existing = this.bodies.get(entity.id);
-      if (existing) existing.home = { ...entity.home };
-      else
+      if (existing) {
+        existing.home = { ...entity.home };
+        existing.bounds = entity.bounds;
+        existing.kind = entity.kind;
+      } else
         this.bodies.set(entity.id, {
           ...entity,
           home: { ...entity.home },
@@ -271,7 +277,7 @@ export class GraphMotion {
           b.age = 0;
         }
       }
-      const amplitude = b.kind === 'agent' ? MOTION.ambientAmplitude : 3.5;
+      const amplitude = this.ambient ? (b.kind === 'agent' ? MOTION.ambientAmplitude : 3.5) : 0;
       let goal = {
         x: b.home.x + Math.sin(this.time * 0.47 + b.seed) * amplitude,
         y: b.home.y + Math.cos(this.time * 0.61 + b.seed * 1.7) * amplitude,
@@ -374,7 +380,7 @@ export class GraphMotion {
       const offset = this.offsets.get(cluster);
       if (offset && Math.hypot(offset.x, offset.y) > 1) active.add(cluster);
     }
-    const targets = clearanceTargets(nodes, this.offsets, active, immediate ? 0 : 0.97);
+    const targets = clearanceTargets(nodes, this.offsets, active, immediate ? 0 : 0.92);
     const resolved = new Map<string, Point>();
     for (const [id, target] of targets) {
       const offset = { ...(this.offsets.get(id) || { x: 0, y: 0 }) };

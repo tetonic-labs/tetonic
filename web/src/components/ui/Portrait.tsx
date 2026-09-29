@@ -3,7 +3,15 @@ import { Agent } from '../../types';
 import { teammate } from '../../lib/teammates';
 import { useAgentImage } from '../../lib/agentImages';
 
-export function Portrait({ agent, size = 40 }: { agent: Agent; size?: number }) {
+export function Portrait({
+  agent,
+  size = 40,
+  square = false,
+}: {
+  agent: Agent;
+  size?: number;
+  square?: boolean;
+}) {
   const clip = useId();
   const image = useAgentImage(agent.id);
   if (image)
@@ -14,7 +22,7 @@ export function Portrait({ agent, size = 40 }: { agent: Agent; size?: number }) 
         width={size}
         height={size}
         className="teammate-portrait"
-        style={{ borderRadius: '50%', objectFit: 'cover' }}
+        style={{ borderRadius: square ? 7 : '50%', objectFit: 'cover' }}
       />
     );
   const hash = [...agent.id].reduce((sum, char) => sum + char.charCodeAt(0), 0);
@@ -42,11 +50,11 @@ export function Portrait({ agent, size = 40 }: { agent: Agent; size?: number }) 
     >
       <defs>
         <clipPath id={clip}>
-          <circle cx="24" cy="24" r="24" />
+          {square ? <rect width="48" height="48" rx="4" /> : <circle cx="24" cy="24" r="24" />}
         </clipPath>
       </defs>
       <g clipPath={`url(#${clip})`}>
-        <circle cx="24" cy="24" r="24" fill={background} />
+        <rect width="48" height="48" fill={background} />
         {variant === 1 && <path d="M10 24C5 43 10 48 17 48H32C40 42 44 29 37 16Z" fill={hair} />}
         <path d="M5 49c1-11 7-16 19-16s18 5 19 16" fill={shirt} />
         <path d="M19 32v7q5 5 10 0v-7" fill={skin} />

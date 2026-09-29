@@ -291,6 +291,7 @@ export function App({ initialView = 'work' }: { initialView?: 'work' | 'map' } =
           </div>
           <div className="workspace-layer" hidden={view !== 'map'}>
             <TeamActivityMap
+              visible={view === 'map'}
               teams={teams}
               agents={members}
               nodes={mockGraphNodes}

@@ -1963,6 +1963,322 @@
   overflow: clip;
 }
 
+/* Distance changes the amount of detail; the graph and its activity keep their place. */
+.living-map {
+  --map-working: #326f73;
+  --map-input: #8a590a;
+  --map-blocked: #ac433c;
+}
+.dark .living-map {
+  --map-working: #8ec7c9;
+  --map-input: #edbe70;
+  --map-blocked: #ef9b92;
+}
+.living-map .team-neighborhood {
+  pointer-events: auto;
+  transition:
+    background-color 180ms,
+    border-color 180ms;
+}
+.living-map .team-neighborhood[data-highlighted='true'] {
+  border-color: var(--canvas-ink);
+  background-color: color-mix(in srgb, var(--canvas-copper) 5%, transparent);
+}
+.living-map .map-person:not(.is-selected) {
+  opacity: var(--map-portrait-detail);
+}
+.living-map .map-person.map-dimmed {
+  opacity: calc(var(--map-portrait-detail) * 0.24);
+}
+.living-map[data-map-level='overview'] .map-person:not(.is-selected) {
+  pointer-events: none;
+}
+.living-map .resource-work-count {
+  opacity: var(--map-portrait-detail);
+}
+.living-map[data-map-level='overview'] .map-place {
+  opacity: 0.25;
+}
+.living-map[data-map-level='overview'] .team-ask {
+  visibility: hidden;
+}
+.living-map[data-map-level='overview'] .team-neighborhood[data-highlighted='true'] .team-ask,
+.living-map[data-map-level='overview'] .team-neighborhood:focus-within .team-ask {
+  visibility: visible;
+}
+.neighborhood-heading {
+  position: absolute;
+  z-index: 4;
+  bottom: calc(100% + 5 * var(--map-pixel));
+  left: 42px;
+  transform-origin: bottom left;
+  background: transparent;
+  border-radius: 6px;
+  pointer-events: auto;
+}
+.living-map .neighborhood-label {
+  position: static;
+  display: block;
+  max-width: 100%;
+  background: transparent;
+}
+.living-map .team-ask {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 4px;
+  font-size: 13px;
+  color: var(--canvas-muted);
+  opacity: 0.8;
+}
+.living-map .team-ask:hover,
+.living-map .team-ask:focus-visible {
+  color: var(--canvas-ink);
+  opacity: 1;
+}
+.living-map .person-orb,
+.living-map .person-orb svg,
+.living-map .orb-selection {
+  border-radius: 12px;
+}
+.living-map .person-orb svg,
+.living-map .person-orb img {
+  transition: none;
+}
+.living-map .person-orb:hover svg {
+  transform: none;
+}
+.living-map .person-orb:hover {
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--canvas-ink) 15%, transparent);
+}
+.living-map .person-label {
+  width: calc(200px / var(--map-name-scale));
+  transform: scale(var(--map-name-scale));
+  transform-origin: top center;
+  opacity: var(--map-name-opacity);
+  transition: opacity 120ms;
+}
+.living-map .is-selected .person-label {
+  opacity: 1;
+}
+.living-map .person-label strong {
+  max-width: 200px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.living-map .person-label .agent-detail {
+  display: block;
+  max-width: 220px;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  opacity: var(--map-work-detail);
+}
+.living-map [data-signal='input'] {
+  --entity-signal: var(--map-input);
+}
+.living-map [data-signal='blocked'] {
+  --entity-signal: var(--map-blocked);
+}
+.living-map [data-signal='working'] {
+  --entity-signal: var(--map-working);
+}
+.living-map [data-signal='waiting'],
+.living-map [data-signal='idle'] {
+  --entity-signal: var(--canvas-muted);
+}
+.living-map .team-attention[data-signal] {
+  color: var(--entity-signal);
+}
+.living-map .in-action .orb-selection {
+  border-color: var(--entity-signal);
+}
+.living-map .is-selected .orb-selection {
+  border-color: var(--canvas-ink);
+  opacity: 1;
+}
+.living-map .agent-work-status {
+  background: var(--entity-signal);
+  color: var(--canvas-paper);
+}
+.living-map [data-signal='waiting'] .agent-work-status {
+  background: var(--canvas-paper);
+  color: var(--canvas-muted);
+  border-color: var(--canvas-muted);
+}
+.living-map [data-signal='waiting'] .agent-work-status > span {
+  background: transparent;
+  border: 1px solid currentColor;
+}
+.living-map .person-question {
+  background: var(--entity-signal);
+  color: var(--canvas-paper);
+  border-radius: 7px;
+}
+.living-map .engaged .place-symbol {
+  background: var(--canvas-panel);
+  border-color: var(--map-working);
+  color: var(--map-working);
+}
+.living-map .work-marker {
+  background: var(--map-working);
+  box-shadow: none;
+}
+.living-map .work-marker.waiting {
+  background: var(--canvas-panel);
+  color: var(--canvas-muted);
+  border-color: var(--canvas-muted);
+}
+.living-map .work-bundle path,
+.living-map .focused-work-route {
+  stroke: var(--map-working);
+}
+.living-map .work-bundle {
+  transition: opacity 150ms;
+}
+.living-map .work-bundle[data-highlighted='true'] path {
+  opacity: 1;
+  stroke-width: 2;
+}
+.living-map .work-bundle[data-muted='true'] {
+  opacity: 0.25;
+}
+.living-map[data-reduced-motion='true'] * {
+  animation: none !important;
+  transition: none !important;
+}
+.living-map .bundle-attention path,
+.living-map .bundle-attention text,
+.living-map .unresolved-work-route {
+  stroke: var(--map-blocked);
+}
+.living-map .bundle-attention text {
+  fill: var(--map-blocked);
+  stroke: var(--canvas-paper);
+}
+.living-map .work-bundle[data-playing='true'] path {
+  stroke-dasharray: 3 15;
+  animation: map-work-flow 2.8s linear infinite;
+}
+@keyframes map-work-flow {
+  to {
+    stroke-dashoffset: -36;
+  }
+}
+.local-orbits {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: visible;
+}
+.local-orbits circle {
+  fill: none;
+  stroke: var(--map-working);
+  stroke-width: 1;
+  stroke-dasharray: 2 8;
+  vector-effect: non-scaling-stroke;
+}
+.map-distance {
+  position: absolute;
+  top: 110px;
+  right: 34px;
+  max-width: 45%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 5px;
+  font-size: 11px;
+  color: var(--canvas-muted);
+  text-align: right;
+  pointer-events: none;
+}
+.map-distance button {
+  pointer-events: auto;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.living-map .map-navigation button:disabled {
+  opacity: 0.3;
+}
+.team-answers section {
+  margin: 14px 0;
+  padding-top: 12px;
+  border-top: 1px solid var(--canvas-line);
+}
+.team-answers h3 {
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 600;
+}
+.team-prompts {
+  display: flex;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 12px;
+  color: var(--canvas-copper);
+}
+.team-prompts button {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.team-inspection form {
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid var(--canvas-ink);
+  margin: 12px 0;
+}
+.team-inspection input {
+  width: 100%;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  padding: 10px 0;
+  font-size: 13px;
+}
+.team-inspection form button {
+  flex-shrink: 0;
+  padding: 8px;
+}
+.team-inspection-note {
+  display: block;
+  color: var(--canvas-muted);
+  line-height: 1.5;
+  font-size: 11px;
+}
+.team-inspection .text-action {
+  font-size: 12px;
+}
+.team-inspection-header {
+  position: sticky;
+  top: -18px;
+  margin: -18px -18px 0;
+  padding: 18px;
+  z-index: 3;
+  background: var(--canvas-panel);
+}
+.team-inspection-header .work-focus-heading {
+  margin: 0;
+  padding-right: 20px;
+}
+@media (max-width: 700px) {
+  .map-distance {
+    top: 150px;
+    right: 14px;
+    max-width: 62%;
+    font-size: 10px;
+  }
+  .living-map.has-work-focus .map-distance {
+    display: none;
+  }
+  .team-inspection input {
+    font-size: 16px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .living-map .work-bundle path {
+    animation: none !important;
+  }
+}
+
 /* A single evidence trail and an attention list, without extra canvas controls. */
 .neighborhood-label .team-attention {
   display: block;
@@ -2092,7 +2408,7 @@
     bottom: calc(46dvh + 24px);
   }
   .quiet-map.has-work-focus .map-navigation {
-    display: none;
+    bottom: calc(46dvh + 82px);
   }
   .canvas-app main:has(.has-work-focus) .floating-chat {
     display: none;

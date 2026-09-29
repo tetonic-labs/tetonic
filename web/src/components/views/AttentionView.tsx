@@ -4,7 +4,7 @@ import { sampleTime } from '../../lib/workEvidence';
 import { teammateName } from '../../lib/teammates';
 import { ArrowUpRight } from 'lucide-react';
 
-export function workExceptions(states: Map<string, WorkState>, approvals: ApprovalRequest[]) {
+export function workExceptions(states: Map<string, WorkState>, _approvals: ApprovalRequest[]) {
   return [...states.values()]
     .flatMap((work) => [
       ...work.failures.map((failure) => ({
@@ -18,23 +18,6 @@ export function workExceptions(states: Map<string, WorkState>, approvals: Approv
           ? 'A linked retry is running. Resolution is not yet verified.'
           : 'No recovery is recorded. Inspect the failed operation before deciding what to do.',
       })),
-      ...(work.waiting &&
-      work.interaction &&
-      !work.failures.length &&
-      !approvals.some((a) => a.agentId === work.id && a.status === 'pending')
-        ? [
-            {
-              id: work.interaction.id,
-              agentId: work.id,
-              at: work.started,
-              title: work.interaction.label,
-              target: work.interaction.targetName,
-              state: 'Waiting',
-              explanation:
-                'The sample records a wait but does not identify a required human decision.',
-            },
-          ]
-        : []),
     ])
     .sort((a, b) => a.at - b.at || a.id.localeCompare(b.id));
 }
