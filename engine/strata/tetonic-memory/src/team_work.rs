@@ -23,6 +23,9 @@ pub struct TeamWorkItem {
     pub work_id: String,
     pub goal_id: Option<String>,
     pub title: String,
+    /// Immutable original input, separate from the short display title.
+    /// Legacy work without a stored input remains None.
+    pub input: Option<String>,
     pub status: String,
     pub owner_principal_id: Option<String>,
     pub request_id: String,
@@ -86,6 +89,31 @@ fn validate_title(value: &str) -> Result<()> {
 }
 
 impl Store {
+    pub(crate) fn migrate_team_work_input_v52(&self) -> Result<()> {
+        // Store::migrate owns the transaction for all schema upgrades.
+        let applied: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=52)",
+            [],
+            |r| r.get(0),
+        )?;
+        if !applied {
+            let has_input: bool = self.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM pragma_table_info('team_work_items') WHERE name='input')",
+                [],
+                |r| r.get(0),
+            )?;
+            if !has_input {
+                self.conn
+                    .execute_batch("ALTER TABLE team_work_items ADD COLUMN input TEXT;")?;
+            }
+            self.conn.execute(
+                "INSERT INTO schema_versions(version,applied_at) VALUES(52,?1)",
+                [crate::util::now()],
+            )?;
+        }
+        Ok(())
+    }
+
     pub(crate) fn migrate_team_work_v46(&self) -> Result<()> {
         if self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=46)",
@@ -241,6 +269,7 @@ impl Store {
             run_id: r.get(9)?,
             created_by: r.get(10)?,
             version: r.get(11)?,
+            input: r.get(12)?,
         })
     }
 
@@ -257,7 +286,9 @@ impl Store {
         if !enabled {
             return Err(StoreError::ControlAccessDenied);
         }
-        let team_row = self.get_team(org, team)?.ok_or(StoreError::ControlAccessDenied)?;
+        let team_row = self
+            .get_team(org, team)?
+            .ok_or(StoreError::ControlAccessDenied)?;
         if team_row.owner_principal_id == actor {
             return Ok(());
         }
@@ -303,12 +334,7 @@ impl Store {
         Ok(row)
     }
 
-    pub fn get_team_goal(
-        &self,
-        org: &str,
-        team: &str,
-        goal_id: &str,
-    ) -> Result<Option<TeamGoal>> {
+    pub fn get_team_goal(&self, org: &str, team: &str, goal_id: &str) -> Result<Option<TeamGoal>> {
         Ok(self
             .conn
             .query_row(
@@ -341,11 +367,34 @@ impl Store {
         request_id: &str,
         goal_id: Option<&str>,
     ) -> Result<TeamWorkItem> {
+        self.create_team_work_item_with_input(
+            actor, org, team, work_id, title, request_id, goal_id, None,
+        )
+    }
+
+    /// Store accepted input in the same transaction as work creation. Retries
+    /// must match its complete contents, not just a potentially shortened title.
+    pub fn create_team_work_item_with_input(
+        &self,
+        actor: &str,
+        org: &str,
+        team: &str,
+        work_id: &str,
+        title: &str,
+        request_id: &str,
+        goal_id: Option<&str>,
+        input: Option<&str>,
+    ) -> Result<TeamWorkItem> {
         validate_id(org, "org_id")?;
         validate_id(team, "team_id")?;
         validate_id(work_id, "work_id")?;
         validate_id(request_id, "request_id")?;
         validate_title(title)?;
+        if input.is_some_and(|value| {
+            value.trim().is_empty() || value.len() > 12_000 || value.contains('\0')
+        }) {
+            return Err(StoreError::InvalidControlResource("input".into()));
+        }
         if let Some(goal) = goal_id {
             validate_id(goal, "goal_id")?;
         }
@@ -357,7 +406,11 @@ impl Store {
             }
         }
         if let Some(existing) = self.work_item_by_request(org, team, request_id)? {
-            if existing.work_id != work_id || existing.title != title {
+            if existing.work_id != work_id
+                || existing.title != title
+                || existing.goal_id.as_deref() != goal_id
+                || existing.input.as_deref() != input
+            {
                 return Err(StoreError::ControlResourceConflict);
             }
             tx.commit()?;
@@ -366,8 +419,8 @@ impl Store {
         self.conn.execute(
             "INSERT INTO team_work_items(
                 org_id,team_id,work_id,goal_id,title,status,owner_principal_id,
-                request_id,created_by,created_at,version
-             ) VALUES(?1,?2,?3,?4,?5,'open',NULL,?6,?7,?8,1)",
+                request_id,created_by,created_at,version,input
+             ) VALUES(?1,?2,?3,?4,?5,'open',NULL,?6,?7,?8,1,?9)",
             params![
                 org,
                 team,
@@ -376,7 +429,8 @@ impl Store {
                 title,
                 request_id,
                 actor,
-                crate::util::now()
+                crate::util::now(),
+                input
             ],
         )?;
         let row = self
@@ -395,7 +449,7 @@ impl Store {
         Ok(self
             .conn
             .query_row(
-                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version
+                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
                  FROM team_work_items WHERE org_id=?1 AND team_id=?2 AND request_id=?3",
                 params![org, team, request_id],
                 Self::map_work_item,
@@ -412,7 +466,7 @@ impl Store {
         Ok(self
             .conn
             .query_row(
-                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version
+                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
                  FROM team_work_items WHERE org_id=?1 AND team_id=?2 AND work_id=?3",
                 params![org, team, work_id],
                 Self::map_work_item,
@@ -452,7 +506,7 @@ impl Store {
     ) -> Result<Vec<TeamWorkItem>> {
         self.require_team_participant(actor, org, team)?;
         let mut stmt = self.conn.prepare(
-            "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version
+            "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
              FROM team_work_items WHERE org_id=?1 AND team_id=?2 ORDER BY created_at, work_id",
         )?;
         let rows = stmt
@@ -701,24 +755,22 @@ impl Store {
                 updated_at=excluded.updated_at",
             params![org, team, source, cursor_key, event_id, crate::util::now()],
         )?;
-        let cursor = self
-            .conn
-            .query_row(
-                "SELECT org_id,team_id,source,cursor_key,last_event_id,version
+        let cursor = self.conn.query_row(
+            "SELECT org_id,team_id,source,cursor_key,last_event_id,version
                  FROM work_activation_cursors
                  WHERE org_id=?1 AND team_id=?2 AND source=?3 AND cursor_key=?4",
-                params![org, team, source, cursor_key],
-                |r| {
-                    Ok(WorkActivationCursor {
-                        org_id: r.get(0)?,
-                        team_id: r.get(1)?,
-                        source: r.get(2)?,
-                        cursor_key: r.get(3)?,
-                        last_event_id: r.get(4)?,
-                        version: r.get(5)?,
-                    })
-                },
-            )?;
+            params![org, team, source, cursor_key],
+            |r| {
+                Ok(WorkActivationCursor {
+                    org_id: r.get(0)?,
+                    team_id: r.get(1)?,
+                    source: r.get(2)?,
+                    cursor_key: r.get(3)?,
+                    last_event_id: r.get(4)?,
+                    version: r.get(5)?,
+                })
+            },
+        )?;
         tx.commit()?;
         Ok((cursor, Some(work)))
     }
@@ -940,6 +992,121 @@ mod tests {
     }
 
     #[test]
+    fn input_migration_preserves_legacy_work_and_is_repeatable() {
+        let db = primed();
+        db.create_team_work_item(
+            "alice",
+            "org",
+            "team",
+            "legacy",
+            "Old work",
+            "old-request",
+            None,
+        )
+        .unwrap();
+        db.conn.execute_batch("ALTER TABLE team_work_items DROP COLUMN input; DELETE FROM schema_versions WHERE version=52;").unwrap();
+        db.migrate_team_work_input_v52().unwrap();
+        let legacy = db
+            .get_team_work_item("org", "team", "legacy")
+            .unwrap()
+            .unwrap();
+        assert_eq!(legacy.title, "Old work");
+        assert_eq!(legacy.input, None);
+        db.migrate_team_work_input_v52().unwrap();
+        assert_eq!(
+            db.get_team_work_item("org", "team", "legacy")
+                .unwrap()
+                .unwrap(),
+            legacy
+        );
+    }
+
+    #[test]
+    fn complete_input_is_atomic_immutable_and_separate_from_title() {
+        let db = primed();
+        let input = format!(
+            "{}\nPreserve this final instruction.",
+            "Long request. ".repeat(100)
+        );
+        let first = db
+            .create_team_work_item_with_input(
+                "alice",
+                "org",
+                "team",
+                "w-input",
+                "Short title",
+                "req-input",
+                None,
+                Some(&input),
+            )
+            .unwrap();
+        assert_eq!(first.input.as_deref(), Some(input.as_str()));
+        assert_eq!(
+            db.create_team_work_item_with_input(
+                "alice",
+                "org",
+                "team",
+                "w-input",
+                "Short title",
+                "req-input",
+                None,
+                Some(&input),
+            )
+            .unwrap(),
+            first
+        );
+        let different = format!("{}different suffix", input);
+        assert!(db
+            .create_team_work_item_with_input(
+                "alice",
+                "org",
+                "team",
+                "w-input",
+                "Short title",
+                "req-input",
+                None,
+                Some(&different),
+            )
+            .is_err());
+        assert!(db
+            .create_team_work_item_with_input(
+                "outsider",
+                "org",
+                "team",
+                "w-other",
+                "Short title",
+                "req-other",
+                None,
+                Some(&input),
+            )
+            .is_err());
+        assert!(db
+            .create_team_work_item_with_input(
+                "alice",
+                "org",
+                "team",
+                "w-large",
+                "Short title",
+                "req-large",
+                None,
+                Some(&"x".repeat(12_001)),
+            )
+            .is_err());
+        assert_eq!(
+            db.list_team_work_items("alice", "org", "team").unwrap(),
+            vec![first]
+        );
+        db.migrate_team_work_input_v52().unwrap();
+        assert_eq!(
+            db.get_team_work_item("org", "team", "w-input")
+                .unwrap()
+                .unwrap()
+                .input,
+            Some(input)
+        );
+    }
+
+    #[test]
     fn quick_task_does_not_require_a_huddle_and_retries_are_idempotent() {
         let db = primed();
         let first = db
@@ -967,15 +1134,7 @@ mod tests {
         assert_eq!(first, again);
         assert_eq!(first.status, "open");
         assert!(db
-            .create_team_work_item(
-                "alice",
-                "org",
-                "team",
-                "w2",
-                "Different",
-                "req-1",
-                None,
-            )
+            .create_team_work_item("alice", "org", "team", "w2", "Different", "req-1", None,)
             .is_err());
     }
 
@@ -1001,9 +1160,7 @@ mod tests {
         let listed = db.list_team_work_items("bob", "org", "team").unwrap();
         assert_eq!(listed.len(), 2);
         db.register_control_principal("eve").unwrap();
-        assert!(db
-            .accept_huddle_proposal("eve", &proposal)
-            .is_err());
+        assert!(db.accept_huddle_proposal("eve", &proposal).is_err());
         let parked = db
             .park_team_work_item("alice", "org", "team", "huddle/h1/1")
             .unwrap();
@@ -1048,7 +1205,9 @@ mod tests {
         assert!(db
             .activate_team_work_item("alice", "org", "team", "b", "other", "run-b")
             .is_err());
-        let resumed = db.resume_team_work_item("alice", "org", "team", "a").unwrap();
+        let resumed = db
+            .resume_team_work_item("alice", "org", "team", "a")
+            .unwrap();
         assert_eq!(resumed.status, "open");
         assert!(resumed.attempt_id.is_none());
         assert!(resumed.run_id.is_none());
@@ -1058,45 +1217,33 @@ mod tests {
     fn event_cursor_duplicates_do_not_backlog_work() {
         let db = primed();
         let (cursor, first) = db
-            .activate_from_cursor(
-                "alice",
-                "org",
-                "team",
-                "event",
-                "inbox",
-                "e1",
-                "Handle e1",
-            )
+            .activate_from_cursor("alice", "org", "team", "event", "inbox", "e1", "Handle e1")
             .unwrap();
         assert_eq!(cursor.last_event_id, "e1");
         assert_eq!(first.unwrap().work_id, "event/inbox/e1");
         let (again_cursor, again_work) = db
-            .activate_from_cursor(
-                "alice",
-                "org",
-                "team",
-                "event",
-                "inbox",
-                "e1",
-                "Handle e1",
-            )
+            .activate_from_cursor("alice", "org", "team", "event", "inbox", "e1", "Handle e1")
             .unwrap();
         assert_eq!(again_cursor.last_event_id, "e1");
         assert!(again_work.is_none());
-        assert_eq!(db.list_team_work_items("alice", "org", "team").unwrap().len(), 1);
+        assert_eq!(
+            db.list_team_work_items("alice", "org", "team")
+                .unwrap()
+                .len(),
+            1
+        );
         let (_, next) = db
             .activate_from_cursor(
-                "alice",
-                "org",
-                "team",
-                "schedule",
-                "nightly",
-                "tick-2",
-                "Nightly",
+                "alice", "org", "team", "schedule", "nightly", "tick-2", "Nightly",
             )
             .unwrap();
         assert!(next.is_some());
-        assert_eq!(db.list_team_work_items("alice", "org", "team").unwrap().len(), 2);
+        assert_eq!(
+            db.list_team_work_items("alice", "org", "team")
+                .unwrap()
+                .len(),
+            2
+        );
     }
 
     #[test]
@@ -1108,36 +1255,14 @@ mod tests {
             .unwrap();
         assert!(db
             .create_work_delegation(
-                "alice",
-                "org",
-                "team",
-                "d1",
-                "parent",
-                "child",
-                "Help",
-                "del-1",
-                100,
-                150,
-                "inherit",
-                None,
-                None,
+                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 150,
+                "inherit", None, None,
             )
             .is_err());
         let first = db
             .create_work_delegation(
-                "alice",
-                "org",
-                "team",
-                "d1",
-                "parent",
-                "child",
-                "Help",
-                "del-1",
-                100,
-                40,
-                "inherit",
-                None,
-                None,
+                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 40,
+                "inherit", None, None,
             )
             .unwrap();
         assert_eq!(first.child_budget_tokens, 40);
@@ -1145,19 +1270,8 @@ mod tests {
         assert_eq!(first.goal_id.as_deref(), Some("g1"));
         let again = db
             .create_work_delegation(
-                "alice",
-                "org",
-                "team",
-                "d1",
-                "parent",
-                "child",
-                "Help",
-                "del-1",
-                100,
-                40,
-                "inherit",
-                None,
-                None,
+                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 40,
+                "inherit", None, None,
             )
             .unwrap();
         assert_eq!(first, again);

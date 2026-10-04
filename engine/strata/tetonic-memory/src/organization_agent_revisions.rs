@@ -228,6 +228,8 @@ mod tests {
                 )
                 .unwrap();
             db.remove_run_capacity_schema_for_test();
+            // Remove later context schemas before deleting their markers.
+            db.conn.execute_batch("DROP TABLE context_publications; DROP TRIGGER project_memory_context_exists; DROP TRIGGER project_memory_context_immutable; DROP TRIGGER project_memory_blocks_context_delete; DROP INDEX idx_project_memory_scope; ALTER TABLE project_memory DROP COLUMN context_id;").unwrap();
             db.conn.execute_batch("DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TRIGGER organization_agent_immutable; ALTER TABLE organization_agents ADD COLUMN definition_json TEXT NOT NULL DEFAULT ''; UPDATE organization_agents SET definition_json=(SELECT definition_json FROM agent_definition_revisions d WHERE d.identity_id=organization_agents.identity_id AND d.definition_digest=organization_agents.definition_digest); CREATE TRIGGER organization_agent_immutable BEFORE UPDATE ON organization_agents BEGIN SELECT RAISE(ABORT,'immutable'); END; DROP TABLE agent_definition_revisions; DELETE FROM schema_versions WHERE version>=39;").unwrap();
         }
         let db = Store::open(&path).unwrap();

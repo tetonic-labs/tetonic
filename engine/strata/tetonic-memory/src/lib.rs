@@ -45,6 +45,7 @@ mod team_admin;
 pub use context_access::{team_participation_context_id, ContextOwner};
 pub use context_publication::ContextPublication;
 mod execution_limits;
+mod local_provider_keys;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;

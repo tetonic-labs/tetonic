@@ -776,6 +776,10 @@ mod tests {
                      DELETE FROM schema_versions WHERE version=43;",
                 )
                 .unwrap();
+            // This fixture rolls back only v43, retaining newer migrations.
+            // Exercise that migration explicitly; Store::open correctly skips
+            // a database whose highest version is already the target.
+            store.migrate_project_memory_context_v43().unwrap();
         }
         let store = Store::open(&path).unwrap();
         let loaded = store.load_project_context(&root, 500).unwrap();

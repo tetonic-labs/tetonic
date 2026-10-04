@@ -41,6 +41,23 @@ impl ResourceService {
         request_id: String,
         goal_id: Option<String>,
     ) -> Result<TeamWorkItem, ResourceError> {
+        self.create_team_work_item_with_input(
+            credential, org, team, work_id, title, request_id, goal_id, None,
+        )
+        .await
+    }
+
+    pub async fn create_team_work_item_with_input(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        work_id: String,
+        title: String,
+        request_id: String,
+        goal_id: Option<String>,
+        input: Option<String>,
+    ) -> Result<TeamWorkItem, ResourceError> {
         let actor = self
             .authority
             .authorize(
@@ -54,7 +71,7 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.create_team_work_item(
+                db.create_team_work_item_with_input(
                     &actor.principal_id,
                     &org,
                     &team,
@@ -62,6 +79,7 @@ impl ResourceService {
                     &title,
                     &request_id,
                     goal_id.as_deref(),
+                    input.as_deref(),
                 )
             })
             .await??)
@@ -108,9 +126,7 @@ impl ResourceService {
             .await?;
         Ok(self
             .store
-            .write(move |db| {
-                db.park_team_work_item(&actor.principal_id, &org, &team, &work_id)
-            })
+            .write(move |db| db.park_team_work_item(&actor.principal_id, &org, &team, &work_id))
             .await??)
     }
 
@@ -133,9 +149,7 @@ impl ResourceService {
             .await?;
         Ok(self
             .store
-            .write(move |db| {
-                db.resume_team_work_item(&actor.principal_id, &org, &team, &work_id)
-            })
+            .write(move |db| db.resume_team_work_item(&actor.principal_id, &org, &team, &work_id))
             .await??)
     }
 

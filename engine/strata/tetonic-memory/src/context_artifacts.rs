@@ -113,6 +113,8 @@ mod tests {
             db.append_context_message("alice", "private", "session", "request", "preserved")
                 .unwrap();
             db.remove_run_capacity_schema_for_test();
+            // Remove later context schemas before deleting their markers.
+            db.conn.execute_batch("DROP TABLE context_publications; DROP TRIGGER project_memory_context_exists; DROP TRIGGER project_memory_context_immutable; DROP TRIGGER project_memory_blocks_context_delete; DROP INDEX idx_project_memory_scope; ALTER TABLE project_memory DROP COLUMN context_id;").unwrap();
             db.conn
                 .execute_batch(
                     "DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_artifacts; DELETE FROM schema_versions WHERE version>=37;",

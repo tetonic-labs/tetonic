@@ -214,6 +214,8 @@ impl Store {
         self.migrate_team_work_run_binding_v48()?;
         self.migrate_human_controls_v49()?;
         self.migrate_workstation_placement_v50()?;
+        self.migrate_local_provider_keys_v51()?;
+        self.migrate_team_work_input_v52()?;
         Ok(())
     }
 
