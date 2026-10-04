@@ -1,6 +1,73 @@
-# Active MVP implementation sequence
+# October 25 MVP sprint plan
 
-This is the authoritative proposed sequence after product discovery. All tickets are planned. Existing REC-001–502 tickets remain technical source material; they are absorbed below rather than executed as an independent backlog. Eight dependency stages are not eight calendar weeks. Retirement requires evidence, not just arrival at a sprint number.
+Updated October 4, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. All OCT tickets are planned. No new implementation or runtime validation is claimed by this planning update.
+
+The release should prove that a person can give Tetonic several different kinds of work and leave them progressing without coordinating every agent. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones with their existing security and failure gates.
+
+## Active schedule
+
+| Sprint | Dates in 2026 | User outcome | Required gate |
+|---|---|---|---|
+| [1 Coherent workspace](october-1-coherent-workspace/plan.md) | October 4 to 10 | Give real work, inspect the result, and redirect it in one workspace | One complete execution path with truthful state, bounded tools, durable conversation and acknowledged controls |
+| [2 Coordinated work](october-2-coordinated-work/plan.md) | October 11 to 17 | Several responsibilities progress, with useful small-team collaboration | Real delegation under inherited limits, independent queues, bounded recurrence and evidence-driven map activity |
+| [3 Release confidence](october-3-release-confidence/plan.md) | October 18 to 24 | Install, understand, operate and recover the product without developer intervention | Clean installation, fresh-user trials, security and recovery checks, multi-day operation and published limitations |
+
+October 25 is the release decision, not another feature-development day. Freeze features on October 18. Reserve October 21 to 24 for release-candidate validation and fixes. The October 6 baseline review must confirm a feasible supported profile and revise sequencing if current failures consume capacity; calendar dates are targets, not measured effort estimates.
+
+## Work levels and tracking
+
+Each sprint has seven tickets: five P0, one P1 and one P2. There are 21 tickets total, including 15 release requirements. Priorities apply to the October profile, not the lifetime importance of a feature.
+
+| Level | Meaning | Handling |
+|---|---|---|
+| P0 Required | Necessary to deliver the stated experience or enforce a reachable boundary | Must pass before claiming the release scope; never waive privacy, authorization, cancellation truth or durability to meet the date |
+| P1 Valuable | Improves the experience or maintainability beyond the required baseline | Pull in after required work is secure; may move past October 25 |
+| P2 Stretch | Optional convenience or refinement | Start only if all required dependencies pass and release validation time remains protected |
+
+Size describes uncertainty and breadth: **S** is a localized change; **M** spans a component or service boundary; **L** spans multiple layers or a distributed-systems contract such as ownership or admission. Sizes are provisional and are not day estimates. Split L tickets into reviewable commits without splitting their safety guarantees. Track states as planned, in progress, blocked, verified or deferred, with evidence beside any verified status. No individual implementers or capacity assumptions are assigned here.
+
+## Supported release boundary
+
+- One human owner, one execution host, durable single-authority storage, loopback access by default, and one primary OS/package selected and proven by October 6. No public unauthenticated listener or shared database across machines.
+- One complete provider, built-in harness and tool combination proven against actual model execution. Hide unsupported combinations. Hosted file disclosure requires the existing egress and permission path; never loosen it simply to make a provider work.
+- Proposed validation target: three independent work items, two collaborating agents, and one bounded recurring responsibility on declared hardware. Final supported concurrency comes from measurement, not this target.
+- Simple work starts without team assembly. An optional short huddle makes larger work understandable. Conversations, assignments, approvals and results retain distinct meanings in the existing resource model.
+- Enforce the declared token, time, task and concurrency limits through delegated work. Financial spend controls appear only if backed by a working cumulative ledger; an estimate is labeled as an estimate.
+- Support configurable logging, telemetry and storage for the selected profile. An unsupported backend is rejected explicitly. Preserve scoped knowledge and access controls even with one human owner.
+
+Do not add a second run store, team registry, identity model, approval authority, scheduler authority or budget ledger. Integrate the existing ResourceService, managed runtime, broker, memory and tool enforcement. Preserve useful map, conversation and decision components. Retire obsolete paths after caller and behavior checks, rather than deleting packages by name.
+
+## Dependency and scope decisions
+
+The main dependency chain is OCT-101 baseline, OCT-102 supported execution, OCT-103 durable work lifecycle, OCT-201 governed delegation, OCT-202 useful coordination, then OCT-302 and OCT-304 release evidence. Product simplification and packaging can advance once their contracts are stable. Basic cancellation and permission checks precede real tool use; sprint 3 proves recovery and faults rather than introducing enforcement for the first time.
+
+At the October 10 gate, an incomplete single-work journey takes priority over optional team controls and visual refinement. At the October 17 gate, cut P2 then P1 work before reducing the supported provider/OS/concurrency envelope. Keep the smallest real team and recurrence proof. If a P0 requirement still fails, record the failure and make an explicit release-scope/date decision; do not quietly ship simulated collaboration or describe a single-agent build as the planned team MVP.
+
+## Product evidence
+
+Use the same engine and user journey for these scenarios, with real inputs and model calls:
+
+1. Compare supplied research documents and produce a recommendation with source evidence.
+2. Investigate a repository issue and prepare a bounded change or proposal with actual validation results.
+3. Revisit changing documents on a schedule, report material changes, and wait when there is nothing to do.
+
+Provide task-local tools and context; do not require a source repository for noncoding work. Do not bake a fixed task breakdown, predetermined outcome or fake test result into a scenario. A run completing, evidence being verified, and a user accepting the result are separate states.
+
+Measure first useful outcome, human interventions and active supervision time per accepted result, return-to-understanding time, failures and resource use. Compare comparable solo and small-team work without assuming teams always win. Recruit fresh users during sprint 1 so sprint 3 has actual sessions. Proposed usability targets are next-action comprehension within 30 seconds and return comprehension within 60 seconds; publish observations rather than treating targets as measured facts.
+
+Evidence entries record the ticket, source revision and dirty-tree state, configuration/model, commands or human scenario, actual result, artifacts and unresolved limitations. Older passing tests do not verify today's modified and untracked source. Commit only reviewed work; do not sweep another contributor's unfinished changes into a planning or implementation commit.
+
+## Relationship to the existing V5 work
+
+| October sprint | Existing V5 tickets it completes or adapts |
+|---|---|
+| 1 | MVP-101/102 resources and privacy; MVP-201/202 managed execution; MVP-401/402 controls; MVP-601 coherent product |
+| 2 | MVP-301/302 team work and activation; MVP-401/402 inherited controls; MVP-601 map and oversight |
+| 3 | MVP-602 cutover; the standalone portion of MVP-701; applicable MVP-702 release evidence |
+
+The broader MVP-701 production topology and remote-placement gates are deferred for the explicitly limited October preview, not marked complete. Architecture-stage exits below describe their recorded local-preview evidence; they are not proof that the current browser product or modified worktree is release-ready. REC-001–502 tickets remain technical source material, not an independent active backlog.
+
+## V5 foundation stages and recorded exits
 
 | Sprint | Tickets | Exit evidence | Retirements |
 |---|---|---|---|

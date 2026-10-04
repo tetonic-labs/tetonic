@@ -6,7 +6,7 @@ Date: 2026-09-25. Source baseline: `6b9b7817d178911b4ca6d030860bc471f8d73ef5`.
 
 Consolidate Tetonic into a general-purpose platform for persistent agent teams: users create teams, assign goals or ongoing responsibilities, and let them work within enforced authority, scoped knowledge and resource limits. People can collaborate or intervene without watching every agent. Local/workstation/server execution and inference location are independent choices.
 
-The current product scope is [MVP product intent](mvp-product.md), [MVP system contracts](mvp-system-contracts.md) and the [MVP sprint sequence](sprints/README.md). These supersede earlier assumptions that shared interaction is out of scope, whole-agent execution belongs only on servers, or production HA can be implicitly deferred. Earlier source findings remain evidence; old REC tickets are reference material, not a second active backlog.
+The product direction is [MVP product intent](mvp-product.md) and [MVP system contracts](mvp-system-contracts.md). The [October 25 sprint plan](sprints/README.md), dated October 4, 2026, is the active delivery schedule: three sprints for a limited single-owner, single-machine MVP preview. It explicitly defers shared human rooms, remote execution and production HA from this date while preserving their V5 contracts. Earlier source findings remain evidence; old REC tickets are reference material, not a second active backlog.
 
 The primary problem is fragmented authority, not a shortage of subsystems. Reconcile the existing managed execution path with fleet resources; do not build another run manager beside it. Remove the disconnected implementations after replacements are proven. Keep coding and world interaction as optional harness/capability implementations.
 

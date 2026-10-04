@@ -1,12 +1,20 @@
 # MVP epic: persistent, governed agent teams
 
-Status: proposed scope and implementation plan, based on the product discussion. No runtime changes implemented by this planning update. This document and the MVP sprint sequence supersede the earlier release-scope and scheduling assumptions; the source inventory, findings and retirement evidence remain valid at their stated baseline.
+Status: product direction and broader V5 scope. The [October 25 sprint plan](sprints/README.md), updated October 4, 2026, defines the current release subset and supersedes this document's earlier scheduling assumptions. No runtime changes are implemented by the planning update; source findings and retirement evidence remain valid at their stated baseline.
 
 ## Product intent
 
 Tetonic lets people create persistent agent teams, give them goals or ongoing responsibilities, and operate them within enforced authority, private knowledge boundaries and resource limits. Teams can work autonomously, collaborate with people, and ask for intervention when needed. The engine is general purpose. Coding and the Village are integration workloads, not universal product semantics.
 
-First-use objective: install a supported profile, create a small team through straightforward controls, select approved tools/resources and a budget, give it a problem, and see actual work and useful results in one interface. Model/provider credentials must be available; the product must explain missing prerequisites instead of simulating progress.
+First-use objective: install a supported profile, describe useful work, and see actual progress and evidence in one interface. Team creation is optional; available defaults let a person start immediately within configured limits. A short huddle can clarify larger work, and users can choose members, tools and budgets when needed. Model/provider credentials must be available; the product must explain missing prerequisites instead of simulating progress.
+
+The product should let a person carry more varied responsibilities without a proportional increase in human coordination. The October release proves this across bounded research, coding and recurring document work through the same general-purpose engine. A prominent map and composer form the main workspace; technical configuration belongs in operator settings.
+
+## October 25 release profile
+
+Ship an explicitly limited, installable MVP preview: one human owner, one execution machine, one validated provider/harness/tool combination, real small-team collaboration, independent work, one durable recurrence mechanism, truthful controls and inspectable evidence. Logging, telemetry and storage are configurable within that supported profile. Preserve private/team context boundaries and inherited limits; sharing an agent never implicitly shares its private history.
+
+Shared human rooms, remote workers, production HA, broad harness/provider compatibility and additional storage backends remain in the broader V5 direction below. The October scope does not claim these are implemented or cancel their contracts. The three dated sprints are the single active backlog for the release. Their P0 gates decide whether the proposed release profile can be claimed.
 
 ## Product commitments from the discussion
 

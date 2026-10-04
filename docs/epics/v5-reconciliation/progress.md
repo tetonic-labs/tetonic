@@ -1,5 +1,15 @@
 # MVP implementation progress
 
+## 2026-10-04 — Three sprints planned for the October 25 MVP
+
+Created the [active October sprint schedule](sprints/README.md) and three sprint plans: [coherent workspace](sprints/october-1-coherent-workspace/plan.md), [coordinated work](sprints/october-2-coordinated-work/plan.md), and [release confidence](sprints/october-3-release-confidence/plan.md). They contain 21 planned tickets, split into 15 required, three valuable and three stretch items, with sizes, dependencies, reuse targets and acceptance evidence. No tickets are marked implemented by this update.
+
+The release subset is an installable single-owner, single-machine MVP preview with actual small-team work and bounded recurrence. Shared human rooms, remote workers and production HA remain later V5 obligations. October 18 starts the feature freeze; October 21 to 24 is reserved for release-candidate validation; October 25 is the release decision.
+
+Planning baseline: the working tree contains extensive modified and untracked engine/UI integration. Earlier local-preview test results have not been rerun for this plan and do not certify that tree. This entry records documentation only; no implementation, runtime tests, or release claims are implied.
+
+Documentation validation: checked all seven changed/new documents, 45 local links, 21 unique ticket definitions, per-sprint priority counts and ticket dependency cycles; passed. Git whitespace checks passed. Runtime tests were not run for this documentation-only change.
+
 ## 2026-09-26 — Sprint 6 exited (local MVP preview)
 
 Sprint 6 written exits are treated as met for the local single-authority preview. Evidence:
