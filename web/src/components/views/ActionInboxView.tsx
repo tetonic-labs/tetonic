@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Check, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { Agent, ApprovalRequest } from '../../types';
 import { teammateName } from '../../lib/teammates';
@@ -7,10 +7,11 @@ interface Props {
   approvals: ApprovalRequest[];
   agents?: Agent[];
   initialSelectedId?: string;
-  onApprove: (id: string) => void;
-  onReject: (id: string) => void;
+  onApprove: (id: string) => void | Promise<void>;
+  onReject: (id: string) => void | Promise<void>;
   showHistory?: boolean;
 }
+
 export function ActionInboxView({
   approvals,
   agents = [],
@@ -19,6 +20,9 @@ export function ActionInboxView({
   onReject,
   showHistory = false,
 }: Props) {
+  const inFlight = useRef(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
   const [selected, setSelected] = useState(initialSelectedId || ''),
     [receipt, setReceipt] = useState<ApprovalRequest | null>(null),
     [history, setHistory] = useState(showHistory);
@@ -26,10 +30,31 @@ export function ActionInboxView({
     reviewed = approvals.filter((a) => a.status !== 'pending');
   const visible = history ? reviewed : pending,
     active = visible.find((a) => a.id === selected) || visible[0];
-  function decide(approved: boolean) {
-    if (!active || active.status !== 'pending') return;
-    setReceipt({ ...active, status: approved ? 'approved' : 'rejected' });
-    approved ? onApprove(active.id) : onReject(active.id);
+
+  async function decide(approved: boolean) {
+    if (
+      !active ||
+      active.status !== 'pending' ||
+      inFlight.current ||
+      (approved && active.effectUnavailable)
+    )
+      return;
+    inFlight.current = true;
+    setSaving(true);
+    setError('');
+    try {
+      await (approved ? onApprove(active.id) : onReject(active.id));
+      setReceipt({ ...active, status: approved ? 'approved' : 'rejected' });
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : 'The decision could not be confirmed. Retry to check its status.',
+      );
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
   }
   if (receipt)
     return (
@@ -39,7 +64,11 @@ export function ActionInboxView({
         </span>
         <h2>{receipt.status === 'approved' ? 'Approved.' : 'Declined.'}</h2>
         <p>{teammateName(receipt.agentId, receipt.agentName)}’s request has your decision.</p>
-        <span className="preview-footnote">Saved in this preview. No engine action was sent.</span>
+        <span className="preview-footnote">
+          {receipt.source === 'engine'
+            ? 'Decision confirmed by the engine.'
+            : 'Saved in this preview. No engine action was sent.'}
+        </span>
         {pending.length > 0 && (
           <button
             className="canvas-primary"
@@ -88,15 +117,17 @@ export function ActionInboxView({
       ? active.payload.match(/->\s*castle\.([\w-]+)\s*\[Run:\s*([^\]]+)\]/)
       : null;
   const title =
-    active.type === 'bash_command'
-      ? active.payload.startsWith('cargo test')
-        ? 'Run the project tests?'
-        : 'Run this command?'
-      : active.type === 'file_write'
-        ? 'Apply these file changes?'
-        : active.type === 'cross_castle_request'
-          ? 'Allow work on your machine?'
-          : 'Allow this network request?';
+    active.type === 'effect'
+      ? 'Review the proposed action'
+      : active.type === 'bash_command'
+        ? active.payload.startsWith('cargo test')
+          ? 'Run the project tests?'
+          : 'Run this command?'
+        : active.type === 'file_write'
+          ? 'Apply these file changes?'
+          : active.type === 'cross_castle_request'
+            ? 'Allow work on your machine?'
+            : 'Allow this network request?';
   return (
     <div className="human-decision" key={active.id}>
       <div className="decision-topline">
@@ -111,7 +142,7 @@ export function ActionInboxView({
         <div>
           <button
             aria-label="Previous request"
-            disabled={index === 0}
+            disabled={saving || index === 0}
             onClick={() => setSelected(visible[index - 1].id)}
           >
             <ChevronLeft size={16} />
@@ -121,7 +152,7 @@ export function ActionInboxView({
           </span>
           <button
             aria-label="Next request"
-            disabled={index === visible.length - 1}
+            disabled={saving || index === visible.length - 1}
             onClick={() => setSelected(visible[index + 1].id)}
           >
             <ChevronRight size={16} />
@@ -158,7 +189,10 @@ export function ActionInboxView({
           </pre>
         )}
         <p className="preview-footnote">
-          Request {active.id} · sample expiry {active.expiresInSecs}s, not a live countdown.
+          Request {active.id} ·{' '}
+          {active.source === 'engine'
+            ? `Expires ${new Date((active.expiresAt || 0) * 1000).toLocaleString()}`
+            : `sample expiry ${active.expiresInSecs}s, not a live countdown.`}
         </p>
         {active.diff && (
           <div className="diff-block" tabIndex={0} aria-label="Proposed code diff">
@@ -175,12 +209,22 @@ export function ActionInboxView({
           </div>
         )}
       </details>
+      {error && (
+        <p className="local-notice" role="alert">
+          {error}
+        </p>
+      )}
+      {saving && <p role="status">Waiting for confirmation…</p>}
       {active.status === 'pending' ? (
         <div className="decision-actions">
-          <button className="canvas-secondary" onClick={() => decide(false)}>
+          <button disabled={saving} className="canvas-secondary" onClick={() => void decide(false)}>
             Decline
           </button>
-          <button className="canvas-primary" onClick={() => decide(true)}>
+          <button
+            disabled={saving || active.effectUnavailable}
+            className="canvas-primary"
+            onClick={() => void decide(true)}
+          >
             Approve this request <Check size={17} />
           </button>
         </div>
@@ -188,9 +232,12 @@ export function ActionInboxView({
         <p className="decision-saved">Decision: {active.status}</p>
       )}
       <div className="decision-bottom">
-        <span>Preview · this request only</span>
+        <span>
+          {active.source === 'engine' ? 'This engine request only' : 'Preview · this request only'}
+        </span>
         {!history && (
           <button
+            disabled={saving}
             onClick={() => {
               setHistory(true);
               setSelected('');

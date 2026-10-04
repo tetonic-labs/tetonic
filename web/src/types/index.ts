@@ -19,6 +19,7 @@ export type ApprovalType =
   | 'bash_command'
   | 'file_write'
   | 'cross_castle_request'
+  | 'effect'
   | 'network_egress';
 
 export interface CodeDiff {
@@ -29,6 +30,10 @@ export interface CodeDiff {
 }
 
 export interface ApprovalRequest {
+  source?: 'engine';
+  proposalDigest?: string;
+  effectUnavailable?: boolean;
+  expiresAt?: number;
   id: string;
   agentId: string;
   agentName: string;
