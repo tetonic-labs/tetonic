@@ -1,5 +1,15 @@
 # MVP implementation progress
 
+## 2026-10-04 — Full UI consolidation sprint planned
+
+Created the [Sprint 1 UI consolidation plan](sprints/october-1-coherent-workspace/ui-consolidation-sprint.md), [ten implementation tickets](sprints/october-1-coherent-workspace/ui-consolidation-tickets.md) and [validation protocol](sprints/october-1-coherent-workspace/ui-consolidation-validation.md). The goal is a human, intuitive ordinary workspace that reduces coordination burden: one map-based home, one composer, consistent work detail and clear decisions. The documents specify first use, returning, truthful states, audience/scope, human copy, accessibility, reuse/removal targets and actual evidence requirements.
+
+Seven P0, two P1 and one P2 UI tickets decompose existing OCT-103 through OCT-107 work. The three-sprint calendar and 21 parent tickets remain intact. OCT-104 is sized L after detailing the consolidation; capacity is reassessed at the October 6 gate. Real collaboration, recurrence and new docking refinement remain in sprint 2; release-wide fault and user trials remain in sprint 3.
+
+This update plans work only. No UI child ticket is marked implemented, no application code is changed and no usability success is claimed. Prior scoped implementation evidence remains below. See the plan for the required cutover checks before duplicate screens or code can be retired.
+
+Documentation checks passed for seven changed/new documents, 64 local links, ten unique UI ticket definitions, priority counts, parent references and dependency cycles. The 21 October parent tickets remain intact. Runtime tests were not rerun for this documentation-only change.
+
 ## 2026-10-04 — October sprint 1 started
 
 Started OCT-101/102/103 and targeted OCT-105 work. A real installed `qwen3.5:latest` model read two permitted documents through Tetonic, chose the option matching the user's criterion, and wrote a recommendation that was independently read from disk. The supported candidate remains one Windows owner with a local general harness and explicitly granted file tools.

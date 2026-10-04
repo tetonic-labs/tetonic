@@ -14,9 +14,13 @@ The release should prove that a person can give Tetonic several different kinds 
 
 October 25 is the release decision, not another feature-development day. Freeze features on October 18. Reserve October 21 to 24 for release-candidate validation and fixes. The October 6 baseline review must confirm a feasible supported profile and revise sequencing if current failures consume capacity; calendar dates are targets, not measured effort estimates.
 
+The [Sprint 1 UI consolidation plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the detailed product-experience delivery plan: a human, intuitive workspace with one map, one composer and coherent work/decision handling. It contains ten child tickets under the existing October parents: seven P0, two P1 and one P2. These are not a fourth sprint or additional top-level release gates. OCT-104 is now sized L to reflect the complete consolidation; optional refinements defer before release validation time is consumed.
+
 ## Work levels and tracking
 
 Each sprint has seven tickets: five P0, one P1 and one P2. There are 21 tickets total, including 15 release requirements. Priorities apply to the October profile, not the lifetime importance of a feature.
+
+These counts refer to the OCT parent tickets. UI-001 through UI-010 are their implementation breakdown; their priorities and dependencies are recorded in the consolidation plan. Seven required UI children do not imply that their parent engine/product acceptance is automatically complete.
 
 | Level | Meaning | Handling |
 |---|---|---|

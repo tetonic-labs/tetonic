@@ -10,6 +10,8 @@ First-use objective: install a supported profile, describe useful work, and see 
 
 The product should let a person carry more varied responsibilities without a proportional increase in human coordination. The October release proves this across bounded research, coding and recurring document work through the same general-purpose engine. A prominent map and composer form the main workspace; technical configuration belongs in operator settings.
 
+The [UI consolidation sprint](sprints/october-1-coherent-workspace/ui-consolidation-sprint.md) defines the current experience contract: one primary workspace, a context-aware composer, one durable work view, understandable requests for human input, optional agent/team management, and ordinary language throughout. Human presentation, accessible interaction, truthful state and recoverable errors are required work. Additional customization and visual refinement are optional. The plan includes explicit replacement targets for competing existing surfaces; it does not introduce another product shell or state authority.
+
 ## October 25 release profile
 
 Ship an explicitly limited, installable MVP preview: one human owner, one execution machine, one validated provider/harness/tool combination, real small-team collaboration, independent work, one durable recurrence mechanism, truthful controls and inspectable evidence. Logging, telemetry and storage are configurable within that supported profile. Preserve private/team context boundaries and inherited limits; sharing an agent never implicitly shares its private history.
