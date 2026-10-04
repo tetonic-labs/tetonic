@@ -1,6 +1,6 @@
 # October 25 MVP sprint plan
 
-Updated October 4, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. All OCT tickets are planned. No new implementation or runtime validation is claimed by this planning update.
+Updated October 4, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [current implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md). No October P0 ticket has met its complete exit criteria yet.
 
 The release should prove that a person can give Tetonic several different kinds of work and leave them progressing without coordinating every agent. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones with their existing security and failure gates.
 

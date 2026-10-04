@@ -6,7 +6,7 @@ User outcome: open Tetonic, describe a problem without assembling a team, see ac
 
 ## Ticket overview
 
-OCT-101 and OCT-102 are in progress; targeted acknowledgement fixes for OCT-105 are also underway. Other tickets remain planned. The [baseline](baseline.md) records fresh checks and gaps. Dependencies identify exit requirements, not a ban on independent preparation.
+OCT-101, OCT-102 and OCT-103 are in progress; targeted acknowledgement fixes for OCT-105 are also underway. Other tickets remain planned. The [baseline](baseline.md) and [October 4 evidence](evidence-2026-10-04.md) record fresh checks, commits and gaps. Dependencies identify exit requirements, not a ban on independent preparation. No ticket is marked verified until all its acceptance conditions have evidence.
 
 | Ticket | Work | Priority | Size | Depends on |
 |---|---|---|---|---|

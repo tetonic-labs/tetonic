@@ -1,5 +1,13 @@
 # MVP implementation progress
 
+## 2026-10-04 — October sprint 1 started
+
+Started OCT-101/102/103 and targeted OCT-105 work. A real installed `qwen3.5:latest` model read two permitted documents through Tetonic, chose the option matching the user's criterion, and wrote a recommendation that was independently read from disk. The supported candidate remains one Windows owner with a local general harness and explicitly granted file tools.
+
+Committed immutable full request storage and exact retry validation through the existing team-work/ResourceService path (`977f777`), plus an approval component that waits for acknowledgement and cannot approve missing effect details (`98c474d`). Tool-grant, adapter and form fixes are tested in the larger uncommitted integration; unrelated work is preserved. No second runtime or work authority was introduced.
+
+Fresh checks: frontend build; 140 frontend tests; 186 application tests; 129 memory tests; CLI build; architecture gate. The subsequent separated approval/adapter checks passed four tests. Windows symlink tests internally skipped for lack of privileges and remain unverified. Main workspace consolidation, durable frontend retry ownership, complete decision/control wiring, packaging and pilot evidence remain open. No October P0 ticket or sprint is declared complete. See [full evidence and remaining gates](sprints/october-1-coherent-workspace/evidence-2026-10-04.md).
+
 ## 2026-10-04 — Three sprints planned for the October 25 MVP
 
 Created the [active October sprint schedule](sprints/README.md) and three sprint plans: [coherent workspace](sprints/october-1-coherent-workspace/plan.md), [coordinated work](sprints/october-2-coordinated-work/plan.md), and [release confidence](sprints/october-3-release-confidence/plan.md). They contain 21 planned tickets, split into 15 required, three valuable and three stretch items, with sizes, dependencies, reuse targets and acceptance evidence. No tickets are marked implemented by this update.
