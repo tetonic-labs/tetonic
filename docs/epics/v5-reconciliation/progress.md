@@ -1,5 +1,17 @@
 # MVP implementation progress
 
+## 2026-10-04 — Sprint 1 re-scoped around autonomous team work
+
+Revised the [active Sprint 1](sprints/october-1-coherent-workspace/plan.md), its [product plan](sprints/october-1-coherent-workspace/ui-consolidation-sprint.md), tickets and validation protocol after the user clarified the core product: autonomous digital teams do the work, humans shape it, and the operator understands outcomes, work structure, agent activity and interactions at a glance. Chat supports this experience; a simpler single-agent conversation cannot satisfy the product gate.
+
+Pulled COORD-A/B/C slices of existing OCT-201/202/205 forward: governed child execution, useful two-agent collaboration with bounded exchanges, and actual work/resource visibility. Full parent ownership and remaining acceptance stay in Sprint 2. UI-008's minimal real team selection/inspection becomes P0; advanced custom setup remains P1 under OCT-106. Ten UI children now comprise eight P0, one P1 and one P2. The 21 parent tickets, 15 parent P0 gates, three calendar sprints, October 18 freeze and October 25 target remain. These statements supersede the earlier planning entry's team sequencing and UI priority counts below.
+
+Added durable exchange identity/acknowledgement, scoped context, finite coordination/urgent allowances, queue/deadline bounds, cycle rejection, safe attention boundaries and one human escalation when coordination cannot progress. Human stop remains independent. Deferred optional customization, filters, shortcuts and motion refinement; moved the second real domain proof to Sprint 2. October 6 must assess capacity for the earlier engine integration; no date feasibility or team behavior is claimed by planning alone.
+
+The [source rebaseline](sprints/october-1-coherent-workspace/baseline.md#product-review-rebaseline-october-4) preserves useful uncommitted single-agent UI work and identifies the actual gaps: conversation grouping is not task hierarchy, local contributor metadata is not assignment authority, and scoped managed child admission still has an explicit guard. Extend the existing resource, storage, broker and managed-runtime owners. No application files, runtime behavior, test fixtures or user data were changed by this planning revision. No new runtime tests were run and no new gate is marked verified.
+
+Planning validation: checked nine changed documents, 85 local links/anchors, ten unique UI definitions with 8/1/1 priority counts, 21 OCT parent definitions with 15 P0, and UI dependency cycles. All passed. Reviewed the cross-sprint ordering and distinguished contract readiness from complete-ticket exits to avoid a child-control dependency cycle. Scoped documentation whitespace checks passed; pre-existing frontend EOF whitespace findings remain outside this documentation change.
+
 ## 2026-10-04 — Full UI consolidation sprint planned
 
 Created the [Sprint 1 UI consolidation plan](sprints/october-1-coherent-workspace/ui-consolidation-sprint.md), [ten implementation tickets](sprints/october-1-coherent-workspace/ui-consolidation-tickets.md) and [validation protocol](sprints/october-1-coherent-workspace/ui-consolidation-validation.md). The goal is a human, intuitive ordinary workspace that reduces coordination burden: one map-based home, one composer, consistent work detail and clear decisions. The documents specify first use, returning, truthful states, audience/scope, human copy, accessibility, reuse/removal targets and actual evidence requirements.

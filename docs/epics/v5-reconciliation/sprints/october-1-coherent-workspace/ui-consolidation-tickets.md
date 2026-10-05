@@ -1,6 +1,6 @@
 # UI consolidation implementation tickets
 
-These ten child tickets implement the [Sprint 1 UI consolidation plan](ui-consolidation-sprint.md). All are planned as of October 4, 2026. Dependencies and priorities are authoritative in its ticket overview. Earlier engine and approval fixes are reusable foundations, not evidence that these product journeys are complete.
+These ten child tickets implement the revised [Sprint 1 autonomous-team workspace plan](ui-consolidation-sprint.md). Updated October 4, 2026. UI-001–007 have partial uncommitted foundations; none is verified against this revised acceptance. UI-008's required baseline is newly planned. UI-009/010 and advanced custom setup remain deferred. Dependencies and priorities are authoritative in the plan: eight P0, one P1, one P2. COORD-A/B/C are pulled-forward slices of existing engine parents, not additional UI tickets.
 
 ## UI-001 One workspace and a clear navigation hierarchy
 
@@ -15,6 +15,8 @@ Priority P0. Size M. Parent OCT-104.
 **Acceptance:** a ready empty workspace has one prominent next action; no example work appears. Selecting the same work through the map or list opens the same identity and state. Closing an overlay returns to its originating selection and focus. A known old link opens its actual record or explains why it is unavailable; it never silently opens an unrelated demo. No stacked management dialogs, mandatory product tour or prerequisite team wizard.
 
 **Evidence:** route/action inventory with replacement destinations, empty and populated browser captures, keyboard walkthrough, and tests for record selection and empty/live separation.
+
+**Revised product gate:** the first action visibly hands over an outcome to permitted agents; an accepted assignment stays on the map instead of forcing a transcript. A returning operator can start with an overview and open child-work or interaction detail in place. Evaluate this by comprehension, not by counting labels that say “work” instead of “chat.”
 
 ## UI-002 One composer and a useful first moment
 
@@ -32,11 +34,13 @@ If setup is incomplete, keep the draft and explain the one required next action.
 
 **Evidence:** browser-to-API tests for duplicate and uncertain send, two conversations with the same agent, changed-context drafts, denied resources and unavailable engine. Run one actual model task through this composer. If a required durable command is missing, resolve it under OCT-103; a local optimistic record cannot close this ticket.
 
-## UI-003 One durable work view and contextual conversation
+**Revised product gate:** keep one input surface, but distinguish a new outcome, conversation about existing work and a change to its accepted direction. Show the permitted agent/team and actual audience. Team selection cannot silently publish personal history, increase authority or start extra workers. Changed direction names its accepted version and application boundary; a follow-up chat message alone does not count as changing in-flight work.
 
-Priority P0. Size L. Parents OCT-103 and OCT-105.
+## UI-003 Shared work child tasks and progressive inspection
 
-**User outcome:** opening work explains where things stand and makes continuing the conversation natural.
+Priority P0. Size L. Parents OCT-103/105 and the OCT-202 slice. Full team acceptance requires COORD-A/B.
+
+**User outcome:** opening work explains the outcome, actual breakdown, ownership, dependencies and progress; conversation supports shaping that work.
 
 **Implementation:** show the work's intended outcome, present state, latest material change and next step. Bring the real result forward when available. Keep conversation with its own durable identity, related to the work; do not treat work ID, agent name and conversation parent as interchangeable. Keep the original request available alongside summaries. Progressive details expose source material, contributing agents, available artifacts and actual activity. Use explicit states for pending, applied and rejected intent changes, including when an accepted change affects execution.
 
@@ -48,9 +52,11 @@ Use an optional huddle presentation for a proposed outcome, a small intelligible
 
 **Evidence:** one completed document task and one interrupted task reopened in the ordinary UI; a same-agent conversation isolation check; current versus changed intent checks; artifact access and unavailable-evidence cases. Buffered inference is not presented as live token streaming.
 
-## UI-004 Truthful map overview and return state
+**Revised product gate:** resolve the goal, parent/child work and dependency edges through engine relationships, not conversation `parent_id`, agent names or local presentation metadata. Show two real contributions and how they informed the combined result. A waiting or failed required child remains visible when a sibling completes. The parent cannot become “done” from one finished run. A changed constraint identifies retained, superseded and still-running work. Preserve full original input, actual messages and available evidence beneath the outcome-level view.
 
-Priority P0. Size M. Parent OCT-104. Multi-agent and recurrence extensions remain OCT-205.
+## UI-004 Outcome agent and resource activity on one map
+
+Priority P0. Size L. Parents OCT-104 and the OCT-205 slice. Requires COORD-C; recurrence and cross-responsibility summaries remain in Sprint 2.
 
 **User outcome:** the map gives orientation and awareness without requiring the person to follow every moving dot.
 
@@ -64,9 +70,11 @@ Project loading, empty, current, stale, disconnected, failed, canceled and inter
 
 **Evidence:** browser captures for empty, active, stale, failed and recovering states; deterministic state-mapping tests; repeated refresh selection/camera checks; actual event-to-map correspondence. No large-fleet capacity or real collaboration claim from synthetic layout fixtures.
 
-## UI-005 Clear human decisions and acknowledged controls
+**Revised product gate:** overview answers what outcome is being pursued, whether it is progressing and whether the person is needed. Selecting it reveals child work, responsible agents, collaboration/dependency edges and the current recorded resource/tool interaction. Deeper inspection shows actual operation, available input/output, timestamps and failure/evidence, subject to existing authorization and redaction. Demonstrate one real permitted file/tool destination; do not invent GitHub/Jira activity to make the scene look connected. Distinguish configured membership, assigned work and current execution. Return awareness must remain useful with motion disabled.
 
-Priority P0. Size L. Parent OCT-105.
+## UI-005 Human flags shaping and acknowledged controls
+
+Priority P0. Size L. Parents OCT-105 and the OCT-202 slice. Team controls/flags require COORD-A/B.
 
 **User outcome:** the person can understand and resolve a request without investigating a wall of logs or accidentally authorizing something broader.
 
@@ -79,6 +87,8 @@ Connect pause, cancel, continue and emergency stop to their existing engine comm
 **Acceptance:** the person can state what Agree/Approve/Accept will do before choosing it. Accepting a recommendation is distinct from authorizing a purchase or publication. Only the exact acknowledged decision gets a receipt. Changed, expired or incomplete effects cannot be approved. Lost response and duplicate-click paths cannot imply confirmed authorization. A failed stop stays visible and does not pretend everything has stopped. No bulk approval or preselected consent in the MVP.
 
 **Evidence:** one successful real acknowledgement and deterministic denial, expiry, changed-digest, offline and uncertain-response cases; supported pause/cancel scope demonstrated through the ordinary UI; an unrelated work item remains usable while another awaits input. Missing effect details keep the authorization acceptance gate open.
+
+**Revised product gate:** clarification, effect approval, result review and coordination failure retain distinct records and consequences. An agent can raise a work-scoped human flag; repeated reports of the same unresolved issue are grouped instead of creating a notification storm. Show the question, why it matters, impacted work, choices and consequence of waiting. A human reply or priority/intent change is acknowledged before being called applied. The bounded collaboration protocol belongs to COORD-B; ordinary updates do not interrupt, urgent attention waits for a declared safe boundary, and exhausted coordination produces one actionable escalation. Human stop does not share an agent-message throttle. Prove parent/child stop scope and unresolved-effect presentation before exposing delegation.
 
 ## UI-006 Human language and accessible interaction
 
@@ -96,6 +106,8 @@ Audit focus entry/return, keyboard navigation, screen-reader names, live-region 
 
 **Evidence:** annotated browser review across required states, keyboard/focus and reduced-motion walkthroughs, targeted automated accessibility checks where available, and a short copy audit. A screenshot alone does not prove keyboard or assistive behavior.
 
+**Revised product gate:** without reading the transcript or receiving a tour, a fresh observer can explain that agents carry out assigned work, identify actual participants and resources, and locate where to change direction or resolve a flag. Measure wrong assumptions as well as speed. A map full of decorative portraits or an empty chat prompt does not satisfy this comprehension test.
+
 ## UI-007 Remove duplicate journeys and prove the replacement
 
 Priority P0. Size L. Parents OCT-103, OCT-104 and OCT-105.
@@ -110,17 +122,19 @@ Retire old components only after their required behavior has a verified replacem
 
 **Evidence:** route replacement ledger, current builds and meaningful contract tests, real browser scenario record, usability observations, and narrowly scoped removal diffs. Release-wide fault and fresh-user trials remain OCT-302/303; this ticket supplies formative product evidence and cutover proof.
 
-## UI-008 Optional agent and team setup
+**Revised product gate:** UI-008's baseline and COORD-A/B/C are exit dependencies. Prove the same ordinary route handles a real solo request and two-agent outcome, including a scoped exchange without human relay, a human flag, stop and restart reconciliation. Preserve useful existing camera, identity, runtime and reader code. Remove fallback simulations and local state overrides only after the relevant authoritative replacement is verified; do not delete useful uncommitted work as a planning action.
 
-Priority P1. Size M. Parent OCT-106. Start after UI-007.
+## UI-008 Select and inspect a real permitted team
 
-**User outcome:** someone who wants more control can create or adjust a composition without turning ordinary work into an administration session.
+Priority P0. Size M. Parents OCT-103/104 and the OCT-202 slice. Starts after UI-001 and existing membership/identity authority; it must not wait for UI-007. Advanced custom composition stays P1 under OCT-106.
 
-**Implementation:** give Agents and Teams concise overlays: current identities, purpose, members, permitted resources and meaningful limits. Reuse one supported creation form and one durable membership service from either entry point. Place model/harness detail behind an advanced disclosure. Clearly explain that sharing an agent does not publish its private history. Roles do not confer privileges by their name.
+**User outcome:** the person can hand work to a real permitted small team and understand who is involved without an administration session.
 
-**Acceptance:** supported changes survive reload and agree across agent/team/work views. A permission edit cannot silently widen an active run. Unsupported mutation paths are absent or clearly unavailable. Omitting this ticket leaves a useful configured default assistant/team and read-only identity/access inspection; it does not leave decorative create buttons or browser-only data.
+**Implementation:** give Agents and Teams concise overlays: current identities, purpose, actual members, permitted resources and meaningful limits. The P0 path may use an operator-provisioned two-agent team through existing membership services; expose its selection and scope in the ordinary workspace. Retain the single-agent default for small requests. Reuse current agent setup and identity readers. Custom team creation, membership editing and advanced roles remain P1, not requirements to begin. Sharing an agent does not publish its private history; roles do not confer privileges by name.
 
-**Evidence:** permitted creation/membership change and a rejected change through existing services, refresh/restart checks, and a focused comprehension check of who can see what.
+**Acceptance:** the selected real composition agrees across team, agent and work views after reload. Its two distinct registered agents can execute COORD-B within inherited scope and limits. Configured members are not displayed as active contributors without recorded participation. An unauthorized assignment is refused; a permission edit does not silently widen a run. Personal history remains unavailable to team execution. No decorative create buttons or browser-only roster. This baseline cannot be omitted from the team proof.
+
+**Evidence:** select the permitted composition, execute the team scenario, deny an unauthorized assignment, and verify refresh/restart identity and scope. Advanced creation/membership edits, if implemented, need their own service acknowledgement and rejection checks under OCT-106.
 
 ## UI-009 Faster return and work finding
 

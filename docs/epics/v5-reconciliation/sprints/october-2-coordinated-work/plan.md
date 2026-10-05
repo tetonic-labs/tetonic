@@ -1,16 +1,16 @@
 # October sprint 2 Coordinated work
 
-Dates: October 11 to 17, 2026. Status: planned. Depends on [sprint 1](../october-1-coherent-workspace/plan.md) P0 exits. Follow the [shared scope and priority rules](../README.md). This sprint proves that adding work does not require the human to manage each handoff.
+Dates: October 11 to 17, 2026. Status: planned, sequencing revised October 4. Follows the [Sprint 1](../october-1-coherent-workspace/plan.md) P0 and COORD-A/B/C exits. The first slices of OCT-201/202/205 now start there; this sprint retains ownership of their complete acceptance and broadens the demonstrated team behavior. Follow the [shared scope and priority rules](../README.md). Adding work must not require the human to manage each handoff.
 
 User outcome: several different responsibilities progress, a small team performs useful collaboration, and one recurring responsibility continues while the user is away. Work awaiting human judgment remains visible without stopping unrelated work.
 
 ## Ticket overview
 
-All tickets below are planned. Size reflects integration breadth and uncertainty, not calendar days.
+All full-ticket exits below remain planned/unverified. COORD-A/B/C are first slices scheduled in Sprint 1, not completed implementation or extra tickets. Size reflects breadth and uncertainty, not calendar days.
 
 | Ticket | Work | Priority | Size | Depends on |
 |---|---|---|---|---|
-| OCT-201 | Enforce delegation lineage and shared limits | P0 | L | OCT-102, OCT-103, OCT-105 |
+| OCT-201 | Enforce delegation lineage and shared limits | P0 | L | OCT-102 execution; OCT-103 identity contract; OCT-105 single-run control contract |
 | OCT-202 | Connect real huddles collaboration and combined results | P0 | L | OCT-201 |
 | OCT-203 | Keep independent work moving and conflicts visible | P0 | M | OCT-103, OCT-201 |
 | OCT-204 | Run one durable bounded recurrence | P0 | M | OCT-201, OCT-203 |
@@ -20,6 +20,8 @@ All tickets below are planned. Size reflects integration breadth and uncertainty
 
 ## OCT-201 Enforce delegation lineage and shared limits
 
+**Sequencing:** COORD-A moves the smallest governed child-execution path into Sprint 1, including every safeguard reachable by that slice. This ticket retains full ownership of allocation races, proxy resistance, private context, stop and restart behavior as the team/concurrency envelope expands. Do not launch unrelated root runs to sidestep the current governed-child guard.
+
 Work: finish governed child admission through the existing managed lifecycle before exposing agent delegation. Persist parent work/run/attempt relationships and inherit scope, context grants, limits and stops. Reserve and reconcile the selected token/task/concurrency allocations atomically so concurrent children cannot each spend the same remaining allowance. Bound retries, depth and task count. Model-proposed role or membership changes cannot grant authority. An unavailable enforcement service denies new admission rather than resetting the allowance.
 
 Reuse: `Application::activate_team_work`, `ResourceService`, `ManagedRunService`, broker admission/budget logic, `tetonic-memory` team-work and human-control records. Prior work already stores delegation ceilings, but its recorded local-preview exit explicitly left managed child admission and cumulative accounting unfinished. Adapt the existing owner rather than creating another coordinator or ledger.
@@ -28,11 +30,15 @@ Acceptance: two children racing for one remaining allocation cannot both obtain 
 
 ## OCT-202 Connect real huddles collaboration and combined results
 
+**Sequencing:** COORD-B in Sprint 1 proves two real contributors, scoped durable exchange, bounded coordination and a human flag. Reuse its protocol and receipts; do not add a parallel agent-chat coordinator here. The [bounded collaboration contract](../october-1-coherent-workspace/ui-consolidation-sprint.md#bounded-collaboration-and-interruption) covers update/help/urgent/human signals, limits, cycles, deadlines and safe attention boundaries. This sprint adds wider usefulness/failure trials, huddle revision and the repository scenario moved from Sprint 1.
+
 Work: let an agent propose a concise task-specific huddle for larger requests, including intended outcome, contributors, dependencies and limits. Small requests can proceed directly. Dispatch accepted assignments through the same durable work API. Allow permitted exchanges of task context and artifacts; integrate contributions into a result with traceable sources. Support human steering without restarting an unrelated conversation or discarding completed work. Begin with an explicit small team; arbitrary recursive agent creation is unnecessary.
 
 Reuse: existing goal/huddle/delegation resources and the general harness. Salvage useful presentation from `GuideIntake` and `DirectorExperimentView`; remove fixed discovery/analysis/implementation tracks, asynchronous response assumptions, timed reviews and fallback findings. Reuse team participation contexts for scoped collaboration.
 
 Acceptance: two actual agents contribute different useful pieces to an input-specific assignment and produce a combined result linked to their work. A changed input changes the proposed breakdown where appropriate; no test requires one exact model plan. Failure of a contributor produces an honest blocked, partial or revised outcome. A human can adjust the goal and see which work is retained, superseded or still in flight. Accepting a huddle twice does not duplicate assignments. Demonstrate both research and repository work without domain-specific branches in the engine.
+
+Extended acceptance: duplicate/lost exchange replies, unavailable recipients, competing help requests and repeated urgent messages produce bounded accepted/deferred/declined/expired outcomes. Root-work limits survive retries, proxying and restart. Explicit dependency cycles are rejected; stalled exchanges escalate once instead of spinning. Other eligible work receives execution time. Human emergency controls are independent of collaboration throttles. Measure useful contributions and manual coordination avoided, not message volume alone.
 
 ## OCT-203 Keep independent work moving and conflicts visible
 
@@ -51,6 +57,8 @@ Reuse: the existing event/schedule cursor, team-work storage and managed activat
 Acceptance: with the browser closed, two scheduled occurrences perform real work against changed documents. A no-change occurrence finishes truthfully. Duplicate delivery, crash between scheduling and activation, engine restart and a long offline period do not create unbounded or duplicate accepted work. Pause suppresses new occurrences; resume shows the next activation and rechecks authority. Failure or budget exhaustion escalates instead of spinning. External effects with uncertain completion are reconciled rather than blindly replayed.
 
 ## OCT-205 Drive map activity and return summaries from evidence
+
+**Sequencing:** COORD-C and UI-004 supply one real team's work/agent/resource projection in Sprint 1. Keep that identity model and reader. This ticket completes cross-responsibility summaries, missed-event reconciliation and recurrence visibility after OCT-203/204; those later dependencies do not block the first real interaction view.
 
 Work: connect agent presence, destinations, docking, tool badges and detachment to authoritative run/tool events. At a distance show purposes and relevant work groups; selection reveals contributors, resources and evidence. On return, present a concise account of changes since the user's last view, with links to the underlying records. Include partial results and items needing judgment. Begin with deterministic event summaries; optional model wording must remain grounded in those records.
 

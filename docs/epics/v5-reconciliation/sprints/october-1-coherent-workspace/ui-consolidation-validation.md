@@ -1,6 +1,6 @@
 # UI consolidation validation
 
-This protocol verifies the [UI consolidation sprint](ui-consolidation-sprint.md). All results below are not yet run for the consolidated UI. Existing engine tests and the October 4 API demonstration are reusable foundations, not evidence that this new browser experience is implemented.
+This protocol verifies the revised [autonomous-team workspace sprint](ui-consolidation-sprint.md). Updated October 4, 2026. The single-agent build, contract tests and developer browser checks recorded in the [baseline](baseline.md#product-review-rebaseline-october-4) are partial foundations. The new team, coordination and comprehension scenarios below are not yet run. Neither earlier checks nor this revised plan establishes their success.
 
 ## What to record
 
@@ -14,18 +14,22 @@ These are proposed usability targets to test. They have not been measured and ar
 
 | Scenario | Prompt or situation | Target and required observation |
 |---|---|---|
-| First moment | Open a ready, empty workspace. Ask how the person would compare the supplied documents | Identify the next action within 30 seconds; no team or mode explanation required |
+| First moment | Open a ready, empty workspace. Ask what Tetonic lets the person do and how they would compare the supplied documents | Within 30 seconds identify delegation and the next action, without a team/mode explanation; record if it is mistaken for only a chatbot |
 | Missing prerequisite | Open without a usable engine connection or selected model | Explain what is unavailable and identify the next supported step; do not mistake the page for active work |
 | Start useful work | Supply two documents and a comparison criterion | Begin through the ordinary composer, understand the resource scope and distinguish sending from accepted work |
-| Return | Reopen after one result and one material change | Within 60 seconds explain what changed, what is still progressing and whether any decision is needed |
+| Return | Reopen the team outcome after one contribution and one material change | Within 60 seconds identify the outcome, current child work, responsible agents, actual interaction, blocker/needed decision and what changed; no transcript reconstruction |
 | Continue the same work | Ask a follow-up, then change a constraint | Use the existing work conversation without starting an unrelated assignment; recognize pending versus applied change |
 | Make a decision | Show a bounded action proposal with meaningful consequences | Before consenting, correctly describe the action, destination/scope and relevant consequence. A critical misunderstanding is a failure, regardless of speed |
 | Inspect a result | Open the recommendation and its supporting material | Distinguish the result from evidence of validation; reach the actual supporting record without changing products |
 | Take control | Ask the person to pause or stop one supported work item | Identify the scope, request the correct control and distinguish acknowledgement from uncertain effect; avoid stopping unrelated work |
 | Understand privacy | Compare a personal conversation with an available team context | Correctly identify the audience and whether prior private history is shared. Use only actually implemented scopes |
 | Carry several kinds of work | Show three assignments: supplied research, project investigation and an ongoing responsibility where supported | Locate each without a new navigation model. Measure coordination actions and return effort; do not claim the team reduces burden without observations |
+| Team contribution | Ask two authorized agents to examine supplied material toward one outcome | The engine delivers scoped context and the contribution; no human copy/paste between agents; both contributions affect an inspectable combined result |
+| Agent needs help | One contribution needs information or correction from another agent | The recipient acknowledges acceptance/defer/decline, work ownership remains clear, and bounded coordination results in progress or one understandable escalation |
+| Shape ongoing work | Change a relevant constraint after a contribution exists | Recognize pending/accepted direction, which work is retained or superseded, and the boundary for in-flight effects; a chat acknowledgement alone is insufficient |
+| Human flag | An agent encounters ambiguity or a coordination limit | Understand the question, affected work, choices and effect of waiting; answer once and observe its acknowledged resolution |
 
-Sprint 1 must demonstrate the single-work journey through the real browser path. Multi-agent collaboration and live recurrence are later acceptance scenarios under OCT-202/204/205. Before those capabilities exist, clearly labeled layout fixtures may test legibility only; they cannot satisfy execution or release gates.
+Sprint 1 must demonstrate the solo baseline and the smallest governed two-agent journey through the real browser path (COORD-A/B/C). The full multi-work and recurrence scenarios remain in Sprint 2 under OCT-203/204/205. Layout fixtures may test legibility only; they cannot satisfy execution or release gates. A two-agent fixture, fixed sequence of model calls, or two unrelated root jobs without shared authority/lineage cannot satisfy the team gate.
 
 Record individual outcomes rather than hiding problems in an average. Require zero unresolved critical misunderstandings of audience, authorization, result certainty or stop scope. For softer 30/60-second targets, record misses, repairs and retests; assess product acceptance explicitly rather than treating a small sample as proof that every user will understand.
 
@@ -48,8 +52,28 @@ Record individual outcomes rather than hiding problems in an average. Require ze
 | Private and team records | Existing authorization governs reads, sends and publication; inspection cannot broaden access |
 | Missing artifact or unavailable telemetry | Explain unavailable evidence; do not infer zero activity, zero cost or success |
 | Reduced motion and stale connection | All state remains legible without motion; unavailable updates do not animate fictitious activity |
+| Conversation versus work lineage | A reply never becomes a delegated subtask implicitly; actual goal/work/dependency/attempt references drive the view |
+| Mixed child states | A completed sibling cannot hide a required child that is running, blocked, failed or awaiting a person; no invented percent-done |
+| Shared allocation race or proxy request | One remaining allocation admits at most one child; forwarding preserves origin and allowance; denial never launches an unrelated root job |
+| Duplicate delivery or lost acknowledgement | Same exchange identity returns the original receipt; no duplicate task/effect; received, accepted and completed remain distinct |
+| Routine versus urgent agent message | Routine messages never preempt; urgent attention is authorized, bounded and acknowledged only at an available safe boundary |
+| Busy/unavailable recipient | Durable pending/deferred state, finite deadline and explicit expiry/failure; no silent loss, unlimited queue or retry spin |
+| Reciprocal interruption or dependency cycle | Reject explicit cycles; exhausted exchange/interrupt allowance parks affected work and raises one human flag; eligible execution is not starved |
+| New IDs or proxy used to evade limits | Root-work counters and scope still apply; another agent cannot renew the same coordination allowance |
+| Restart during an exchange or interruption | Preserve receipts, origin, counters, ownership and continuation boundary; reconcile uncertainty rather than replaying external effects |
+| Human emergency stop under message pressure | Not throttled by agent-message limits; no new descendant admission after confirmed stop; unresolved tool effects remain visible |
 
 Use existing test layers: frontend interaction tests for acknowledgement and context, adapter tests for state projection, application/resource tests for authority and lifecycle, and browser-to-engine tests for the full command path. Add tests for behavior that can regress, not assertions that merely reproduce component markup. Run changed-path checks and current build; broaden only when a change crosses additional contracts.
+
+## Small-team exit demonstration
+
+1. Use two actual registered agents in one authorized team and the supported local provider/tools. Record the engine revision, effective limits and work/run/attempt/exchange identities without secrets. A serial local model is acceptable; record measured concurrency honestly.
+2. Give a document-based outcome with criteria through the ordinary workspace. Let the agents choose an input-specific breakdown; accept its bounded scope where policy requires. Do not seed the expected plan or answer.
+3. Observe acknowledged child work, an actual permitted tool/resource interaction, and a contribution or help request delivered by the engine. The human does not forward context manually. Close and reopen the browser while work continues.
+4. Return to the overview, inspect child work and resource activity, and open the combined result and its contributing records. Change one constraint and exercise a human flag; record actual pending/applied boundaries rather than assuming immediate effect.
+5. Exercise stop/restart and the adversarial coordination cases through deterministic tests. Preserve available outputs and unresolved effects. Do not require the real model to trigger every fault voluntarily.
+
+Report supervision actions, manual handoffs, coordination requests, urgent requests, escalations, actual useful contributions, elapsed time and model/tool usage. Compare to the solo baseline where inputs are comparable; more agent traffic is not evidence of more useful work. Required functional gate: no human relay of agent-to-agent contributions, finite coordination, truthful return state and inspectable results. Product usefulness and the 30/60-second comprehension targets still require observations; do not infer them from test counts.
 
 ## Interaction and visual review
 
@@ -80,8 +104,12 @@ Remove fake activity from the normal journey as P0. A full historical package cl
 
 ## Exit checklist
 
-- [ ] UI-001 through UI-007 have current evidence; no ticket is closed by a design sketch alone.
+- [ ] UI-001 through UI-008 have current evidence; no ticket is closed by a design sketch alone.
+- [ ] COORD-A/B/C have linked evidence under their existing OCT-201/202/205 owners; their full parent exits remain separate.
 - [ ] The ordinary home and one composer complete a real supported task without team setup or `engine=raw`.
+- [ ] A real two-agent outcome includes scoped contribution/help exchange without human relay, inherited limits and an observed resource interaction.
+- [ ] Overview, child-work and interaction detail answer the operator's questions without requiring a transcript or adding another product mode.
+- [ ] Coordination limits, receipt replay, recipient absence, dependency cycles and human escalation pass deterministic checks; human stop remains effective.
 - [ ] The map, selector, focused work, conversation and decision brief resolve the same authoritative identities.
 - [ ] A real result and its evidence are inspectable; verification and acceptance claims match recorded facts.
 - [ ] Lost response, denied action, reload, disconnect and restart show truthful recoverable state.
@@ -90,7 +118,7 @@ Remove fake activity from the normal journey as P0. A full historical package cl
 - [ ] Usability observations are recorded; missing participants or missed targets are explicitly unresolved.
 - [ ] Duplicate journey cutover has replacement evidence; production no longer substitutes sample activity.
 - [ ] Current builds and meaningful affected tests pass; previous results are not reused as proof of changed code.
-- [ ] Optional UI-008/009/010 are verified or explicitly deferred without weakening P0.
+- [ ] Advanced OCT-106 setup and optional UI-009/010 are verified or explicitly deferred without weakening UI-008's required baseline.
 - [ ] OCT-103/104/105 statuses reflect their full parent acceptance, including engine obligations beyond this UI plan.
 
 Carry confirmed defects and evidence links into the existing sprint progress record. Do not create a separate reporting dashboard or mark the October release ready because this UI sprint passes.

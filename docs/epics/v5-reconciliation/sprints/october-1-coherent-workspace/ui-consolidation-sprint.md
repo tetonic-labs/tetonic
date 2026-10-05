@@ -1,22 +1,23 @@
-# Sprint 1 UI consolidation
+# Sprint 1 Autonomous team workspace
 
-Created October 4, 2026. Status: planned implementation detail within the active [Coherent workspace sprint](plan.md). Target window: October 4 to 10; release decision: October 25. This plan replaces scattered UI work with one product journey. It adds no fourth calendar sprint and does not reset completed engine work.
+Created and revised October 4, 2026. Status: partial implementation, re-scoped after product review within the active [Sprint 1](plan.md). Target window: October 4 to 10; release decision: October 25. Existing filenames and ticket IDs remain stable. This plan shapes one product journey around autonomous teams under human direction. It adds no fourth sprint and does not reset completed engine work.
 
-The intended experience is simple: a person describes something worth doing, Tetonic helps move it forward within their authority, and the person can return to understand progress or make a decision without supervising every agent. The interface should feel considerate, clear and personable. Its visible complexity should follow the work the person is doing, rather than the number of subsystems available.
+Product promise: digital autonomous teams do the work the person wants, while the person controls how that work is shaped. Tetonic handles orchestration and coordination. The person can understand outcomes, work structure, agent activity and interactions at a glance, then inspect the underlying detail or intervene. Chat is one means of direction; it is not the organizing unit of the product. The interface should feel considerate, clear and personable, with visible complexity following the actual work.
 
 ## Outcome and scope
 
-Deliver one map-based home with a floating composer, one focused presentation of a piece of work, and one concise place for requests that need a person. Agents and Teams are optional management overlays. Operator settings remain reachable separately. Simple useful work must not require building a team or learning a graph vocabulary.
+Deliver one map-based home with a floating composer, one focused presentation of shared work, and one concise place for requests that need a person. Agent/team management stays in overlays; its minimum required capability is selecting and inspecting a real permitted composition. Custom team building is optional. Operator settings remain separate. Simple work can use one agent without setup; the sprint exit must also prove two agents collaborating on one outcome.
 
-This is the detailed UI delivery plan for OCT-103, OCT-104 and OCT-105, with optional improvements under OCT-106 and OCT-107. The ten UI tickets are children of those existing tickets, not ten additional release gates. OCT-101 and OCT-102 still own installation prerequisites and the supported execution boundary. Their missing evidence is not solved by interface changes.
+This is the detailed product delivery plan for OCT-103/104/105 and the pulled-forward COORD-A/B/C slices of OCT-201/202/205 in the parent plan. Optional improvements remain under OCT-106/107. The ten UI tickets are implementation children, not extra parent release gates. OCT-101/102 still own prerequisites and the supported execution boundary. Interface changes cannot satisfy missing engine evidence.
 
-The full child backlog is in [UI implementation tickets](ui-consolidation-tickets.md). The [validation protocol](ui-consolidation-validation.md) defines scenario evidence, usability targets and the exit checklist. All new UI tickets start planned; the [October 4 implementation evidence](evidence-2026-10-04.md) records earlier partial foundations only.
+The [implementation tickets](ui-consolidation-tickets.md) and [validation protocol](ui-consolidation-validation.md) define the revised scope. UI-001–007 have partial uncommitted foundations; their complete acceptance is unverified. The newly required baseline of UI-008 and COORD-A/B/C remain planned. See the [source-based rebaseline](baseline.md#product-review-rebaseline-october-4); previous test results are not evidence for newly planned collaboration.
 
 ## What human and intuitive means here
 
 | Principle | Observable product behavior |
 |---|---|
-| A clear next step | A fresh workspace has one prominent invitation to describe work. No forced team wizard, product tour or unexplained activity |
+| A clear next step | A fresh workspace invites an outcome with a visible permitted agent/team; acceptance places the work on the map. No forced team wizard or product tour |
+| Autonomous work is visible | The overview shows actual ownership, activity, dependency and state; it is useful without reading a transcript |
 | Ordinary language | People ask, discuss, review, pause and continue. They do not need to understand dispatch, harnesses, grants or run topology |
 | Recognition over recollection | Stable names, portraits, work titles and map locations help people recognize what they left. Returning never requires reconstructing a log |
 | Progressive detail | Show the current outcome, state and next action first. Evidence and technical activity are one deliberate expansion away |
@@ -39,8 +40,8 @@ Tetonic                                  Teams   Agents   Needs you
            Goals, people and resources on one map
           Select work to understand or redirect it
 
-          [ Who and what this message is about ]
-          [ What would you like to move forward? ]
+          [ Who will own this work / its audience ]
+          [ What would you like accomplished?     ] [Start work]
 ```
 
 "Needs you" appears prominently only when there is a real actionable request. A compact work list opens from the workspace and selects the same records as the map. It is a navigation aid, with keyboard access and clear labels, not another board or work database. Settings contain installation, provider and operational controls; those details do not occupy the everyday workspace.
@@ -51,11 +52,11 @@ The diagram describes hierarchy, not fixed pixel positions. Narrow screens retai
 
 ### First use
 
-If the configured engine is ready, show a quiet real workspace, an available registered assistant and the composer. Suggested opening: **What would you like to move forward?** Supporting line: **Ask a question, hand over a task, or give your assistant something to look after.**
+If the configured engine is ready, show a quiet real workspace, its available registered agent or team, and one invitation to delegate. Current copy direction: **Put your agents to work.** Supporting line: **Hand over an outcome. Follow the work. Step in when you’re needed.** The assignment names its owner and scope. Do not advertise recurrence until an engine schedule exists.
 
 Do not require selecting a work type, mode, team, model or role before typing. Use permitted configured defaults. If inference, authentication or an allowed resource is missing, name the missing prerequisite and provide the supported next step. Never imply that the workspace is ready when it cannot execute. Do not create a sample agent to fill an empty state.
 
-After sending, keep the person's words visible. Show sending until the engine accepts them; show working only after the execution state supports it. A larger or unclear request can lead to a short clarification or huddle. Simple requests proceed without a mandatory ceremony. A proposed plan does not authorize its own execution.
+After sending, preserve the full original words in work detail. Show sending until acceptance, then place the acknowledged assignment on the map and leave the person there; opening its conversation is a choice. Show working only from execution evidence. A larger or unclear request can lead to a short clarification or huddle. A proposed plan does not authorize its own execution; an existing bounded policy may authorize continuation without approval at every step. This must become a real delegation-and-return experience, not just replacement copy for a chat box.
 
 ### Returning
 
@@ -69,9 +70,43 @@ Organize the map around human goals or responsibilities. Agents remain recogniza
 
 Keep layout stable across polling. New activity must not recenter the camera or displace what the user is reading. A work item with no participating agent yet remains visible. A failed or offline resource has a labeled state. Never draw a tool destination, communication edge or successful handoff from a guess based on an agent's name or a generated sentence.
 
-The initial map needs a readable overview and a deliberate focus on selected work. Full semantic zoom across large fleets is deferred. Reuse current pan, zoom, focus and reduced-motion behavior. Existing docking may remain when tied to a recorded interaction; where detailed events are unavailable, show an honest work state without inventing motion. New magnetic capture tuning stays with OCT-207 in sprint 2.
+Three levels of detail belong to the same workspace: overview of outcomes and exceptions; selected work with its child tasks, owners and dependencies; selected agent/interaction with actual resource, tool and evidence detail. Selection or expansion can implement this for the small team without a new renderer or large-fleet semantic-zoom system. Polling never forces a zoom. Reuse pan, zoom, focus and reduced motion. COORD-C requires at least one real interaction on the supported tool path; missing fields remain unavailable. Rich docking refinement stays in OCT-207.
 
 One work view presents its title, intended outcome, current state, next step, actual result and associated conversation. A task finishing, a test passing, a result being accepted and an external action being authorized remain separate facts. Detailed activity exposes available requests, responses, tools, errors and timestamps with redaction intact; it does not promise private model reasoning or token streaming from buffered providers.
+
+## Work model and implementation ownership
+
+Use the existing goal, team-work, delegation and run records. Add missing relationships or reader fields there before drawing them. A goal/project is a human grouping, work may have children, and dependencies are distinct edges; ordinary work does not require every level. Reject dependency cycles, preserve provenance and versions, and make unknown/stale state explicit. A conversation reply's `parent_id` is not a work dependency or delegation edge. Configured team membership is not evidence of participation in a run.
+
+An overview status is derived from its actual children and explicit completion policy. A running child, unresolved required dependency, failed contribution or human wait must remain visible even if another child is complete. No invented percent-done or “healthy” summary. A displayed owner comes from acknowledged assignment; optional local notes, `lead_id` or `agent_ids` presentation metadata cannot create ownership, authority or progress.
+
+| Contract | Existing authority to adapt | Product projection |
+|---|---|---|
+| Goals, ownership, child work and dependencies | ResourceService and existing team-work storage; extend missing relationships with migrations | Outcome and child-work views |
+| Execution, inherited limits and stop | Registered job activation, ManagedRunService, broker and human-control records | Actual status, accepted controls and unresolved effects |
+| Agent collaboration | ResourceService/team participation contexts; add durable work-scoped exchanges to existing storage and delivery through the managed execution path | Contribution/help edges and acknowledged state |
+| Resource/tool interactions | Existing run inspection/journal and authorized artifact readers | Actual destination, operation, timestamps, outcome and evidence |
+| Human judgment and direction | Existing approvals, work versions and scoped controls; extend clarification/blocker records where needed | One concise brief with a durable resolution |
+
+No browser scheduler or message relay, second team registry, independent approval store or replacement budget ledger. Extend contracts that are incomplete; do not bypass governed child admission by launching unrelated root jobs and drawing a collaboration edge between them.
+
+## Bounded collaboration and interruption
+
+COORD-B needs a small protocol, not an unrestricted agent group chat. Each exchange has an immutable request ID, originating work/budget, sender, authorized recipient and context, type, related dependency/issue, expiry, status and result/evidence references. Delivery can retry; accepting the same request cannot create a second task or effect. Acknowledged receipt is distinct from accepting responsibility and completing it. Recipient absence, rejection, expiry and failure become explicit outcomes.
+
+| Signal | Required behavior |
+|---|---|
+| Update or contribution | Queue without interrupting; attach to the relevant work and publish only authorized content |
+| Request for help | Accept, defer or decline durably; accepted work has an owner, inherited allocation and completion/failure response |
+| Urgent correction or dependency change | Request attention at the next supported safe execution boundary; urgency alone grants no permission and never blindly kills an in-flight effect |
+| Human flag | Concise question, reason, affected work, available choices and consequence of waiting; unrelated eligible work can continue |
+| Coordination cannot progress | Stop the repeated exchange, preserve the work and escalate once with the unresolved conflict/dependency |
+
+Before enabling agent-to-agent delivery, enforce a finite root-work exchange allowance, queue capacity, deadline, urgent-interruption allowance and same-issue cooldown in engine policy. Proposed starting defaults for this two-agent profile: 8 accepted coordination requests and 2 urgent attention requests per root work; 8 pending requests per recipient; a 120-second help-request deadline; a 60-second same-issue cooldown. These are conservative engineering defaults to validate and record at the October 6 review, not user-selected promises or universal values. Status updates/acknowledgements do not consume a new help request, but delivery volume must still be bounded/coalesced. Agent messages cannot increase limits or reset origin identity by inventing new message IDs or proxying through another agent.
+
+Only one unresolved request per work/sender/recipient/issue is active; retain its identity across retries. Reject explicit dependency cycles, including A waiting on B while B waits on A; after the coordination allowance is exhausted, park the affected work and create one actionable human flag instead of retrying indefinitely. Eligible execution must receive scheduling time between attention requests; the system must not stay busy only handling interruptions. Counters, receipts and pending requests survive restart. Separate deterministic tests prove these properties, rather than relying on models to be polite.
+
+Record the interrupted work and the safe continuation point. For the initial slice, queued attention at a tool/turn boundary is sufficient; advertise the actual boundary. Mid-inference preemption or forced tool abortion is not required. An unavailable boundary means queued/deferred attention, never a false “interrupted” receipt. Human pause/cancel/emergency stop remains distinct and cannot be throttled by an agent-message allowance.
 
 ## Requests that need a person
 
@@ -87,7 +122,7 @@ These are copy patterns, not new backend states. Use them only when the recorded
 
 | Current or mechanical expression | Preferred presentation |
 |---|---|
-| Deploy a task | What would you like help with? |
+| Deploy a task | What would you like accomplished? / Start work |
 | Dispatch queued | Waiting to start |
 | Executing autonomous turns | Working on your request; name the actual activity when known |
 | Objective delivered and verified by engine | Result ready; list the checks that actually ran separately |
@@ -125,35 +160,37 @@ Keep ResourceService, the existing local workspace composition, managed run owne
 |---|---|---|---|---|---|
 | UI-001 | One workspace and a clear navigation hierarchy | P0 | M | OCT-104 | None |
 | UI-002 | One composer and a useful first moment | P0 | L | OCT-103, OCT-104 | UI-001; OCT-102 execution path |
-| UI-003 | One durable work view and contextual conversation | P0 | L | OCT-103, OCT-105 | UI-002 |
-| UI-004 | Truthful map overview and return state | P0 | M | OCT-104 | UI-001, UI-003 |
-| UI-005 | Clear human decisions and acknowledged controls | P0 | L | OCT-105 | UI-003 |
+| UI-003 | Shared work, child tasks and progressive inspection | P0 | L | OCT-103, OCT-105, OCT-202 slice | UI-002; COORD-A/B engine contracts for team exit |
+| UI-004 | Outcome, agent and resource activity on one map | P0 | L | OCT-104, OCT-205 slice | UI-001, UI-003; COORD-C reader/event contract |
+| UI-005 | Human flags, shaping and acknowledged controls | P0 | L | OCT-105, OCT-202 slice | UI-003; COORD-A/B for team exit |
 | UI-006 | Human language and accessible interaction | P0 | M | OCT-104, OCT-105 | UI-001 through UI-005 for final review |
-| UI-007 | Remove duplicate journeys and prove the replacement | P0 | L | OCT-103, OCT-104, OCT-105 | UI-001 through UI-006 |
-| UI-008 | Optional agent and team setup | P1 | M | OCT-106 | UI-007 |
+| UI-007 | Remove duplicate journeys and prove the replacement | P0 | L | OCT-103, OCT-104, OCT-105 | UI-001 through UI-006; UI-008 baseline; COORD-A/B/C |
+| UI-008 | Select and inspect a real permitted team | P0 | M | OCT-103, OCT-104, OCT-202 slice | UI-001; existing membership/identity authority |
 | UI-009 | Faster return and work finding | P1 | S | OCT-104 | UI-007 |
 | UI-010 | Small composer conveniences | P2 | S | OCT-107 | UI-007 |
 
-Sizes describe scope and uncertainty, not days. Seven required child tickets concentrate existing parent work; they do not imply seven independently shippable features. P0 quality includes baseline human presentation, understandable controls and accessibility. P1/P2 refine an already usable experience.
+Sizes describe scope and uncertainty, not days. Eight required child tickets concentrate existing parent work; one P1 and one P2 remain. UI-008's baseline is now required; advanced custom setup stays P1 under OCT-106 and does not block it. P0 includes human presentation, understandable controls and accessibility. See the parent plan for COORD gate ownership; they are not duplicate implementation tickets.
+
+Engine contract readiness precedes UI integration; full COORD scenario verification follows it. The COORD-C reader/event contract can be implemented before UI-004, while the complete COORD-C visibility gate is evidenced by UI-004's browser scenario. Do not interpret these references as a circular requirement that each entire ticket be finished before the other can start.
 
 ## Execution sequence and capacity
 
-1. Establish the shell, route inventory, state vocabulary and one primary journey with UI-001. Make a low-fidelity check of first use, return and decision handling before visual refinement.
-2. Connect that journey through UI-002 and UI-003. Treat request identity, scope and acknowledgement as prerequisites to adding more entry points. Resolve missing engine contracts under OCT-103/105 rather than faking a UI success.
-3. Adapt map and decisions with UI-004 and UI-005. Keep baseline copy, focus and keyboard work active throughout; UI-006 is their final integrated review.
-4. Cut over using UI-007. Verify a real task through the ordinary route, failure/retry, return and controls before retiring its old entry points. Make small commits that each identify the replacement.
-5. Pull UI-008/009/010 only after required acceptance is secure. Do not spend sprint 3's validation window completing optional customization or motion.
+1. Preserve the working single-agent path; settle goal/work/dependency/assignment identities and readers under OCT-103. Review the existing child-admission blocker and safe delivery boundaries before more UI polish.
+2. Complete COORD-A enforcement, then COORD-B scoped exchange and bounded coordination. UI-008 selects an existing permitted two-agent composition; no new setup wizard or browser-only membership.
+3. Complete UI-003/004 with actual shared work and interaction evidence through COORD-C. UI-002 supports direction and durable acknowledgement rather than becoming a separate chat product.
+4. Complete UI-005 human flags and controls, then integrated UI-006 review and UI-007 cutover proof using the real team scenario. Record failed as well as successful scenarios.
+5. Keep advanced OCT-106 setup, UI-009/010 and OCT-207 polish deferred until required acceptance is secure. Do not spend release-validation time on them.
 
 By October 6, reassess the P0 chain against current API gaps and available capacity. OCT-104 is now sized L at the parent level because this is a complete journey consolidation. If it cannot fit the October 10 gate, defer optional work first and record the effect on sprint 2 and the release scope/date. Do not silently consume the feature freeze or weaken truthful state, privacy, acknowledgement or cancellation requirements.
 
 ## Boundary with later sprints
 
-Sprint 1 makes one ordinary work journey coherent. Real huddle collaboration and inherited delegation are owned by OCT-201/202; concurrent work and recurrence by OCT-203/204; their map and return projections by OCT-205. New docking polish stays under OCT-207. UI-004 provides the foundation and must not fabricate those future capabilities.
+Sprint 1 proves the smallest governed two-agent journey through COORD-A/B/C. OCT-201/202/205 retain full ownership and finish broader collaboration, accounting/fault coverage and return-state acceptance in Sprint 2. OCT-203/204 add independent queues and durable recurrence. OCT-207 remains optional motion polish. No later ticket is marked complete by moving its first slice earlier.
 
 The brief supports independent work of different kinds without assuming a coding repository. Large-fleet semantic zoom, shared human rooms, chat replacement features, voice, a workflow builder, a new graph renderer, broad tool marketplaces and a full design-system rewrite remain outside this sprint.
 
 ## Definition of done
 
-All seven P0 UI tickets have linked evidence under the [validation protocol](ui-consolidation-validation.md). A person can begin, inspect, redirect, review and return to real work through the ordinary workspace without a tutorial or a diagnostic route. They can tell who will receive a message, what an action will do, whether it was acknowledged, and what remains uncertain.
+All eight P0 UI tickets and COORD-A/B/C slices have linked evidence under the [validation protocol](ui-consolidation-validation.md). A person can begin, understand and shape real team work without manually relaying agent messages or reading every transcript. They can identify the outcome, work status, responsible agents, observed interactions and needed judgment, then inspect details deliberately. A solo result or two decorated agent portraits cannot close this sprint.
 
 Build and contract tests pass for the changed path. The supported viewport, keyboard flow, reduced motion and failure states are checked in the browser. Duplicate product routes and live-mode fixtures are removed or isolated with replacement evidence. Usability observations are recorded separately from developer checks; missing participant evidence is not called a usability pass. Parent tickets remain open until their full engine and product conditions are met.

@@ -2,25 +2,25 @@
 
 Updated October 4, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [current implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md). No October P0 ticket has met its complete exit criteria yet.
 
-The release should prove that a person can give Tetonic several different kinds of work and leave them progressing without coordinating every agent. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones with their existing security and failure gates.
+The release should prove that digital autonomous teams can carry out the person's work while the human shapes outcomes, boundaries and priorities. The operator sees work structure, status, agent participation and actual interactions at a glance, can inspect the details, and receives concise flags when judgment is needed. Tetonic carries orchestration and coordination without unbounded interruption loops. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones.
 
 ## Active schedule
 
 | Sprint | Dates in 2026 | User outcome | Required gate |
 |---|---|---|---|
-| [1 Coherent workspace](october-1-coherent-workspace/plan.md) | October 4 to 10 | Give real work, inspect the result, and redirect it in one workspace | One complete execution path with truthful state, bounded tools, durable conversation and acknowledged controls |
-| [2 Coordinated work](october-2-coordinated-work/plan.md) | October 11 to 17 | Several responsibilities progress, with useful small-team collaboration | Real delegation under inherited limits, independent queues, bounded recurrence and evidence-driven map activity |
+| [1 Direct and understand a small agent team](october-1-coherent-workspace/plan.md) | October 4 to 10 | Hand over an outcome, observe real team work and shape it in one workspace | Solo baseline plus COORD-A/B/C: governed two-agent collaboration, bounded exchanges, actual work/resource visibility and acknowledged human controls |
+| [2 Coordinated work](october-2-coordinated-work/plan.md) | October 11 to 17 | Several responsibilities progress, with useful collaboration and ongoing work | Broaden the team proof, finish shared-limit/fault coverage, independent queues, bounded recurrence and return awareness |
 | [3 Release confidence](october-3-release-confidence/plan.md) | October 18 to 24 | Install, understand, operate and recover the product without developer intervention | Clean installation, fresh-user trials, security and recovery checks, multi-day operation and published limitations |
 
 October 25 is the release decision, not another feature-development day. Freeze features on October 18. Reserve October 21 to 24 for release-candidate validation and fixes. The October 6 baseline review must confirm a feasible supported profile and revise sequencing if current failures consume capacity; calendar dates are targets, not measured effort estimates.
 
-The [Sprint 1 UI consolidation plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the detailed product-experience delivery plan: a human, intuitive workspace with one map, one composer and coherent work/decision handling. It contains ten child tickets under the existing October parents: seven P0, two P1 and one P2. These are not a fourth sprint or additional top-level release gates. OCT-104 is now sized L to reflect the complete consolidation; optional refinements defer before release validation time is consumed.
+The revised [Sprint 1 workspace plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the product-experience delivery plan: one map, one composer, progressive work inspection and clear human flags backed by bounded coordination. Ten UI children remain: eight P0, one P1 and one P2. UI-008's minimum real team selection/inspection is now required; advanced custom setup stays optional. COORD-A/B/C pull the smallest governed collaboration and activity slices of OCT-201/202/205 into Sprint 1 without duplicating their owners or closing their full acceptance. No fourth sprint is added. Optional customization, filters, shortcuts and motion refinement defer; the second real domain scenario moves from Sprint 1 to Sprint 2 to make room.
 
 ## Work levels and tracking
 
 Each sprint has seven tickets: five P0, one P1 and one P2. There are 21 tickets total, including 15 release requirements. Priorities apply to the October profile, not the lifetime importance of a feature.
 
-These counts refer to the OCT parent tickets. UI-001 through UI-010 are their implementation breakdown; their priorities and dependencies are recorded in the consolidation plan. Seven required UI children do not imply that their parent engine/product acceptance is automatically complete.
+These counts refer to the OCT parent tickets. UI-001 through UI-010 are their implementation breakdown; priorities and dependencies are recorded in the workspace plan. Eight required UI children and the three COORD slices do not automatically complete their parent acceptance. COORD-A/B/C are named partial gates within existing parents, not new parent tickets.
 
 | Level | Meaning | Handling |
 |---|---|---|
@@ -43,9 +43,9 @@ Do not add a second run store, team registry, identity model, approval authority
 
 ## Dependency and scope decisions
 
-The main dependency chain is OCT-101 baseline, OCT-102 supported execution, OCT-103 durable work lifecycle, OCT-201 governed delegation, OCT-202 useful coordination, then OCT-302 and OCT-304 release evidence. Product simplification and packaging can advance once their contracts are stable. Basic cancellation and permission checks precede real tool use; sprint 3 proves recovery and faults rather than introducing enforcement for the first time.
+The main dependency chain is OCT-101 baseline, OCT-102 supported execution, OCT-103 identity/work contracts and applicable OCT-105 controls, OCT-201 governed delegation, OCT-202 useful coordination, then OCT-302/304 release evidence. Its first governed team slice now lands in Sprint 1; full parent completion remains in Sprint 2. COORD-C brings the resulting work/activity evidence into OCT-104 without depending on full OCT-205 recurrence coverage. Basic cancellation and permission checks precede real tool use; release testing does not introduce enforcement for the first time.
 
-At the October 10 gate, an incomplete single-work journey takes priority over optional team controls and visual refinement. At the October 17 gate, cut P2 then P1 work before reducing the supported provider/OS/concurrency envelope. Keep the smallest real team and recurrence proof. If a P0 requirement still fails, record the failure and make an explicit release-scope/date decision; do not quietly ship simulated collaboration or describe a single-agent build as the planned team MVP.
+At the October 6 review, assess actual effort for governed admission, durable exchanges and activity readers against the October 10 team gate. This is a revised target, not a promise that the added integration fits. Defer P2/P1 work before sacrificing the smallest team proof or freeze. At October 10, an incomplete COORD or Sprint 1 P0 gate remains open with explicit schedule impact. At October 17, keep the smallest real team and recurrence proof. If a P0 requirement still fails, record the failure and make an explicit release-scope/date decision; never rename a single-agent build or simulated collaboration as the planned team MVP.
 
 ## Product evidence
 
