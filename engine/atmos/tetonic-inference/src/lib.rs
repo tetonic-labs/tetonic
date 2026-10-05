@@ -471,6 +471,8 @@ pub enum InferenceError {
     Decode(String),
     #[error("provider: {0}")]
     Provider(String),
+    #[error("provider: requested model residency unavailable")]
+    ModelResidencyUnavailable,
     #[error("preempted on {node_id}")]
     Preempted { node_id: String },
     #[error("worker busy: {node_id}")]
@@ -840,9 +842,7 @@ impl OllamaProvider {
                     .and_then(Value::as_str)
                     .is_some_and(|name| ollama_model_matches(name, req_model))
             })
-            .ok_or_else(|| {
-                InferenceError::Provider("requested model residency unavailable".into())
-            })?;
+            .ok_or(InferenceError::ModelResidencyUnavailable)?;
         let size = model
             .get("size")
             .and_then(Value::as_u64)
@@ -1403,6 +1403,7 @@ impl InferenceProvider for OllamaProvider {
         let mut tool_calls: Option<Vec<ToolCall>> = None;
         let mut usage = GenUsage::default();
         let mut checked_vram = false;
+        let mut awaiting_unloaded_completion = false;
         let mut received_done = false;
 
         // CMP-01: idle deadline prevents indefinite blocking on stalled servers.
@@ -1422,14 +1423,24 @@ impl InferenceProvider for OllamaProvider {
             if let Some(timer) = first_chunk_timer.take() {
                 timer.finish(true);
             }
-            if !checked_vram {
-                self.invalidate_ps_cache().await;
-                self.check_vram_spill(&req.model).await?;
-                checked_vram = true;
-            }
-
             if let Some(err) = chunk.get("error").and_then(|e| e.as_str()) {
                 return Err(InferenceError::Provider(err.to_string()));
+            }
+            if !checked_vram {
+                self.invalidate_ps_cache().await;
+                match self.check_vram_spill(&req.model).await {
+                    Ok(()) => {}
+                    Err(InferenceError::ModelResidencyUnavailable) if keep_alive == Some("0") => {
+                        // The exact allocation passed placement admission before
+                        // dispatch. Ollama may finish and unload before we consume
+                        // buffered chunks. Require a complete response before
+                        // releasing any of it; absent placement before dispatch,
+                        // observed spill, and incomplete streams still fail closed.
+                        awaiting_unloaded_completion = true;
+                    }
+                    Err(error) => return Err(error),
+                }
+                checked_vram = true;
             }
             if let Some(msg) = chunk.get("message") {
                 if let Some(r) = msg.get("role").and_then(|r| r.as_str()) {
@@ -1437,11 +1448,13 @@ impl InferenceProvider for OllamaProvider {
                 }
                 if let Some(c) = msg.get("content").and_then(|c| c.as_str()) {
                     if !c.is_empty() {
-                        if let Some(timer) = first_content_timer.take() {
-                            timer.finish(true);
-                        }
                         content.push_str(c);
-                        on_token(c);
+                        if !awaiting_unloaded_completion {
+                            if let Some(timer) = first_content_timer.take() {
+                                timer.finish(true);
+                            }
+                            on_token(c);
+                        }
                     }
                 }
                 if let Some(tc) = msg.get("tool_calls") {
@@ -1498,6 +1511,12 @@ impl InferenceProvider for OllamaProvider {
             return Err(InferenceError::IncompleteStream {
                 tokens_received: !content.is_empty(),
             });
+        }
+        if awaiting_unloaded_completion && !content.is_empty() {
+            if let Some(timer) = first_content_timer.take() {
+                timer.finish(true);
+            }
+            on_token(&content);
         }
         stream_timer.finish(true);
 

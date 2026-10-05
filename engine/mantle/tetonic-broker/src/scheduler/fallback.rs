@@ -22,9 +22,9 @@ pub fn classify_inference_error(err: &InferenceError) -> FallbackFailureClass {
         InferenceError::WorkerBusy { .. } => FallbackFailureClass::RemoteRejectBeforeStart,
         InferenceError::Preempted { .. } => FallbackFailureClass::WorkerLoss,
         InferenceError::Egress(_) => FallbackFailureClass::TransientTransport,
-        InferenceError::IncompleteStream { .. } | InferenceError::StreamTimeout { .. } => {
-            FallbackFailureClass::TransientTransport
-        }
+        InferenceError::IncompleteStream { .. }
+        | InferenceError::StreamTimeout { .. }
+        | InferenceError::ModelResidencyUnavailable => FallbackFailureClass::TransientTransport,
         InferenceError::GpuSpillDetected { .. } => FallbackFailureClass::LocalExhaustion,
         InferenceError::SecretScanFailed { .. } | InferenceError::RemoteSecretDenied { .. } => {
             FallbackFailureClass::PermanentPolicy

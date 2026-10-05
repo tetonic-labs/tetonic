@@ -1,8 +1,23 @@
 use super::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[path = "completion_residency_tests.rs"]
+mod completion_residency;
+
 async fn scripted(
     responses: Vec<(&'static str, Value)>,
+) -> (OllamaProvider, tokio::task::JoinHandle<Vec<Value>>) {
+    scripted_chunks(
+        responses
+            .into_iter()
+            .map(|(path, value)| (path, vec![value]))
+            .collect(),
+    )
+    .await
+}
+
+async fn scripted_chunks(
+    responses: Vec<(&'static str, Vec<Value>)>,
 ) -> (OllamaProvider, tokio::task::JoinHandle<Vec<Value>>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let address = listener.local_addr().unwrap();
@@ -40,8 +55,11 @@ async fn scripted(
                     }
                 }
             }
-            let body = response.to_string();
-            let reply = format!("HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+            let body = response
+                .into_iter()
+                .map(|value| format!("{value}\n"))
+                .collect::<String>();
+            let reply = format!("HTTP/1.1 200 OK\r\nContent-Type: application/x-ndjson\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
             socket.write_all(reply.as_bytes()).await.unwrap();
         }
         bodies
