@@ -33,10 +33,8 @@ impl Application {
         run_id: &str,
         after_sequence: u64,
         limit: Option<u32>,
-    ) -> Result<
-        Result<Vec<tetonic_domain::RunEventEnvelope>, tetonic_domain::ReplayGap>,
-        AppError,
-    > {
+    ) -> Result<Result<Vec<tetonic_domain::RunEventEnvelope>, tetonic_domain::ReplayGap>, AppError>
+    {
         self.unscoped_daemon_inspect(run_id).await?;
         let replay = self
             .runs
@@ -308,20 +306,18 @@ mod tests {
         drop(app);
         let app = Application::bootstrap_mock_with_store(
             dir.path(),
-            Some(
-                tetonic_memory::SharedStore::open(dir.path().join("audit.db"), 1).unwrap(),
-            ),
+            Some(tetonic_memory::SharedStore::open(dir.path().join("audit.db"), 1).unwrap()),
             Arc::new(NoopEventSink),
             vec![],
         );
         let report = app.recovery_report().await.unwrap();
-        assert!(
-            !report.contains("PRIVATECANARY"),
-            "{report}"
-        );
+        assert!(!report.contains("PRIVATECANARY"), "{report}");
         assert!(!report.contains(&scoped.0), "{report}");
         assert!(!report.contains("private-context"), "{report}");
-        let abandoned = app.abandon_recovery_run(&scoped.0, revision).await.unwrap_err();
+        let abandoned = app
+            .abandon_recovery_run(&scoped.0, revision)
+            .await
+            .unwrap_err();
         let text = abandoned.to_string();
         assert!(text.contains("run not found"), "{text}");
         assert!(!text.contains("PRIVATECANARY"), "{text}");

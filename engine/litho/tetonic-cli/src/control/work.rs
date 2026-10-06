@@ -255,22 +255,12 @@ pub async fn dispatch(control: &LocalControl, command: WorkCommand) -> anyhow::R
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             let row = resources
-                .resolve_effect_approval(
-                    &credential,
-                    org,
-                    team,
-                    approval,
-                    digest,
-                    allow,
-                    now,
-                )
+                .resolve_effect_approval(&credential, org, team, approval, digest, allow, now)
                 .await?;
             println!("{}", serde_json::to_string(&row)?);
         }
         WorkCommand::InspectTeam { org, team } => {
-            let row = resources
-                .inspect_team_work(&credential, org, team)
-                .await?;
+            let row = resources.inspect_team_work(&credential, org, team).await?;
             println!("{}", serde_json::to_string(&row)?);
         }
     }

@@ -1,8 +1,6 @@
 //! Org workstations, placement pins and assignment fencing (MVP-501/502).
 use super::*;
-use tetonic_memory::{
-    WorkPlacementPin, WorkerAssignmentClaim, Workstation, WorkstationGrant,
-};
+use tetonic_memory::{WorkPlacementPin, WorkerAssignmentClaim, Workstation, WorkstationGrant};
 
 impl ResourceService {
     pub async fn enroll_workstation(
@@ -145,9 +143,7 @@ impl ResourceService {
             .await?;
         Ok(self
             .store
-            .write(move |db| {
-                db.reconnect_workstation(&actor.principal_id, &org, &workstation_id)
-            })
+            .write(move |db| db.reconnect_workstation(&actor.principal_id, &org, &workstation_id))
             .await??)
     }
 
@@ -168,9 +164,7 @@ impl ResourceService {
             .await?;
         Ok(self
             .store
-            .write(move |db| {
-                db.revoke_workstation(&actor.principal_id, &org, &workstation_id)
-            })
+            .write(move |db| db.revoke_workstation(&actor.principal_id, &org, &workstation_id))
             .await??)
     }
 
@@ -191,9 +185,7 @@ impl ResourceService {
             .await?;
         Ok(self
             .store
-            .write(move |db| {
-                db.drain_workstation(&actor.principal_id, &org, &workstation_id)
-            })
+            .write(move |db| db.drain_workstation(&actor.principal_id, &org, &workstation_id))
             .await??)
     }
 

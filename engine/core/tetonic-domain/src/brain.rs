@@ -111,9 +111,15 @@ pub enum BrainPathway {
     /// A slow deliberative model was engaged (possibly after a reflexive pass).
     Deliberative { model: String },
     /// Multiple models contributed; the orchestrator synthesized the final output.
-    Hierarchical { orchestrator: String, specialists: Vec<String> },
+    Hierarchical {
+        orchestrator: String,
+        specialists: Vec<String>,
+    },
     /// Multiple models voted; the result was chosen by the configured strategy.
-    Ensemble { members: Vec<String>, strategy: String },
+    Ensemble {
+        members: Vec<String>,
+        strategy: String,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]

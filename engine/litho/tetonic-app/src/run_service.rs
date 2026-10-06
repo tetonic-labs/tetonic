@@ -379,9 +379,8 @@ impl RunService for DefaultRunService {
                 let session_id = cmd.session_id.clone();
                 let user_input = cmd.user_input.clone();
                 move |db| -> Result<(), AppError> {
-                    db.require_legacy_session(&session_id).map_err(|_| {
-                        AppError::InvalidRequest("unknown session_id".into())
-                    })?;
+                    db.require_legacy_session(&session_id)
+                        .map_err(|_| AppError::InvalidRequest("unknown session_id".into()))?;
                     db.append_message(&session_id, "user", "", &user_input, None)
                         .map_err(|e| AppError::PersistenceFailed(e.to_string()))?;
                     Ok(())

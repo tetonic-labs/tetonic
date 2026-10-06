@@ -159,7 +159,11 @@ pub async fn dispatch(estate: EstateCli) -> Result<()> {
 }
 
 #[derive(Parser, Debug)]
-#[command(name = "tetonic estate", bin_name = "tetonic estate", about = "Owned fleet enrollment and status")]
+#[command(
+    name = "tetonic estate",
+    bin_name = "tetonic estate",
+    about = "Owned fleet enrollment and status"
+)]
 pub struct EstateCli {
     #[command(subcommand)]
     pub command: EstateSub,

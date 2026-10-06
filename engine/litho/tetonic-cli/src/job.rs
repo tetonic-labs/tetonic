@@ -158,7 +158,10 @@ async fn credential_from_stdin() -> anyhow::Result<String> {
         std::io::stdin().take(1025).read_to_string(&mut input)?;
         anyhow::ensure!(input.len() <= 1024, "credential input exceeds limit");
         let value = input.trim_end_matches(['\r', '\n']).to_string();
-        anyhow::ensure!(!value.is_empty(), "a bearer credential is required on stdin");
+        anyhow::ensure!(
+            !value.is_empty(),
+            "a bearer credential is required on stdin"
+        );
         Ok(value)
     })
     .await?

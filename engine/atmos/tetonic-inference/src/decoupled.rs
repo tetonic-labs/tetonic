@@ -405,12 +405,18 @@ mod tests {
         let req = sample_chat_request("deliberative-model");
 
         // Request 1 fails on primary endpoint -> falls back to local fallback
-        let resp1 = router.chat(req.clone(), &mut sink).await.expect("fallback success");
+        let resp1 = router
+            .chat(req.clone(), &mut sink)
+            .await
+            .expect("fallback success");
         assert_eq!(resp1.message.content, "local fallback reply");
         assert_eq!(ep.circuit_state().await, CircuitState::Closed);
 
         // Request 2 fails -> trips circuit to Open!
-        let resp2 = router.chat(req.clone(), &mut sink).await.expect("fallback success");
+        let resp2 = router
+            .chat(req.clone(), &mut sink)
+            .await
+            .expect("fallback success");
         assert_eq!(resp2.message.content, "local fallback reply");
         assert_eq!(ep.circuit_state().await, CircuitState::Open);
 
@@ -424,7 +430,10 @@ mod tests {
 
         // Recover endpoint
         *fail_flag.lock().await = false;
-        let resp3 = router.chat(req, &mut sink).await.expect("recovered success");
+        let resp3 = router
+            .chat(req, &mut sink)
+            .await
+            .expect("recovered success");
         assert_eq!(resp3.message.content, "gpu reply");
         assert_eq!(ep.circuit_state().await, CircuitState::Closed);
     }

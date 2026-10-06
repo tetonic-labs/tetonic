@@ -220,7 +220,14 @@ pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
                 loop {
                     match control
                         .contexts()
-                        .poll_run(&credential, org.clone(), context.clone(), run.clone(), cursor, limit)
+                        .poll_run(
+                            &credential,
+                            org.clone(),
+                            context.clone(),
+                            run.clone(),
+                            cursor,
+                            limit,
+                        )
                         .await?
                     {
                         tetonic_app::resources::RunPoll::CaughtUp => break,
@@ -261,7 +268,13 @@ pub async fn dispatch(args: ControlCli) -> anyhow::Result<()> {
             let credential = credential_from_stdin().await?;
             control
                 .resources()
-                .set_team_member(&credential, org.clone(), team.clone(), principal.clone(), true)
+                .set_team_member(
+                    &credential,
+                    org.clone(),
+                    team.clone(),
+                    principal.clone(),
+                    true,
+                )
                 .await?;
             let working_context_id =
                 tetonic_app::resources::team_participation_context_id(&org, &team, &principal)?;

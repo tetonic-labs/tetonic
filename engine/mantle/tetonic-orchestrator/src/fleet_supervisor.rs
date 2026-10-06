@@ -127,7 +127,12 @@ impl FleetSupervisor {
         adapter: Option<Arc<dyn WorldAdapter>>,
         perception_tx: Option<mpsc::Sender<Perception>>,
     ) -> Arc<ManagedAgent> {
-        let agent = Arc::new(ManagedAgent::new(agent_id.clone(), squad_id, adapter, perception_tx));
+        let agent = Arc::new(ManagedAgent::new(
+            agent_id.clone(),
+            squad_id,
+            adapter,
+            perception_tx,
+        ));
         self.agents.write().unwrap().insert(agent_id, agent.clone());
         agent
     }
@@ -135,7 +140,9 @@ impl FleetSupervisor {
     /// Record a health heartbeat from a running agent loop.
     pub fn record_heartbeat(&self, agent_id: &AgentId) -> Result<(), FleetError> {
         let guard = self.agents.read().unwrap();
-        let agent = guard.get(agent_id).ok_or_else(|| FleetError::AgentNotFound(agent_id.clone()))?;
+        let agent = guard
+            .get(agent_id)
+            .ok_or_else(|| FleetError::AgentNotFound(agent_id.clone()))?;
         agent.record_heartbeat();
         Ok(())
     }
@@ -350,8 +357,11 @@ impl FleetSupervisor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tetonic_domain::{ActionResult, Affordance, BrainPathway, IntentCharter, OperationalBoundary, Urgency, WorldAction, WorldError, WorldManifest};
     use crate::fleet::{BudgetQuota, Squad};
+    use tetonic_domain::{
+        ActionResult, Affordance, BrainPathway, IntentCharter, OperationalBoundary, Urgency,
+        WorldAction, WorldError, WorldManifest,
+    };
 
     struct TestSupervisorAdapter {
         estop: EstopSwitch,
@@ -369,7 +379,12 @@ mod tests {
 
     #[async_trait::async_trait]
     impl WorldAdapter for TestSupervisorAdapter {
-        fn open(&self) -> (tetonic_domain::PerceptionSender, tetonic_domain::PerceptionReceiver) {
+        fn open(
+            &self,
+        ) -> (
+            tetonic_domain::PerceptionSender,
+            tetonic_domain::PerceptionReceiver,
+        ) {
             let (tx, rx) = mpsc::channel(1);
             (tx, rx)
         }
@@ -414,7 +429,11 @@ mod tests {
 
         // 1. Setup Org and Squad
         let org_id = OrgId::new("org_ops");
-        let org = Arc::new(Organization::new(org_id.clone(), "Ops Org", BudgetQuota::default()));
+        let org = Arc::new(Organization::new(
+            org_id.clone(),
+            "Ops Org",
+            BudgetQuota::default(),
+        ));
         let squad_id = SquadId::new("squad_sec");
         let squad = Arc::new(Squad::new(
             squad_id.clone(),
@@ -431,7 +450,12 @@ mod tests {
         // 2. Register agent with supervisor and perception channel
         let (tx, mut rx) = mpsc::channel(10);
         let adapter = TestSupervisorAdapter::new();
-        supervisor.register_agent(agent_id.clone(), Some(squad_id.clone()), Some(adapter.clone()), Some(tx));
+        supervisor.register_agent(
+            agent_id.clone(),
+            Some(squad_id.clone()),
+            Some(adapter.clone()),
+            Some(tx),
+        );
 
         // 3. Heartbeat check
         assert!(supervisor.is_agent_healthy(&agent_id, Duration::from_secs(5)));

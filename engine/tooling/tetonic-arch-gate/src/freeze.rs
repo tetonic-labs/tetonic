@@ -660,7 +660,8 @@ mod tests {
     fn app_door_catches_execute_turn_in_tetonicd() {
         let dir = tempfile::tempdir().unwrap();
         write(
-            &dir.path().join("litho/tetonicd/src/daemon/handlers/chat.rs"),
+            &dir.path()
+                .join("litho/tetonicd/src/daemon/handlers/chat.rs"),
             "app.turn_execution::execute_turn(req).await\n",
         );
         let v = app_door_new(dir.path());

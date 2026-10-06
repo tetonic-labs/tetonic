@@ -124,7 +124,8 @@ mod tests {
         assert!(sink.record(&private_event).is_err());
         let mut audit_event = sample(Some("audit-notes".into()));
         audit_event.model = "local-model".into();
-        sink.record(&audit_event).expect("audit history can record redaction");
+        sink.record(&audit_event)
+            .expect("audit history can record redaction");
         let raw = rusqlite::Connection::open(dir.path().join("redact.db")).unwrap();
         let private_hits: i64 = raw
             .query_row(

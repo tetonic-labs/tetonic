@@ -4,10 +4,12 @@ pub mod artifact;
 pub mod brain;
 pub mod canonical;
 pub mod charter;
+pub mod checkpoint;
 pub mod classify;
 pub mod code_index;
 pub mod context_compiler;
 pub mod dispatch;
+pub mod engine_config;
 pub mod execution;
 pub mod failure;
 pub mod idempotency;
@@ -25,15 +27,19 @@ pub mod secrets;
 pub mod sinks;
 pub mod tool_host;
 pub mod trust;
-pub mod world_adapter;
-pub mod workspace;
-pub mod checkpoint;
-pub mod engine_config;
 pub mod work_scope;
+pub mod workspace;
+pub mod world_adapter;
+pub use brain::{
+    Brain, BrainCost, BrainError, BrainFinishReason, BrainMessage, BrainPathway, BrainRequest,
+    BrainResponse, BrainRole, BrainTokenSink,
+};
 pub use canonical::{
     compute_canonical_digest, finalize_parameters, prepare_proposed_action,
     validate_authorized_action, CANONICAL_SCHEMA_VERSION,
 };
+pub use charter::{IntentCharter, OperationalBoundary, SteeringVector};
+pub use checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
 pub use classify::{
     combine_data_classes, data_class_sensitivity_rank, Classification, ClassificationSource,
     ClassificationSummary, DataClass, DisclosureTier, PolicyVersion, CLASSIFICATION_POLICY_VERSION,
@@ -49,6 +55,10 @@ pub use context_compiler::{
 pub use dispatch::{
     DispatchDecision, DispatchDenied, DispatchDestination, DispatchGuard, DispatchRequest,
 };
+pub use engine_config::{
+    EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig, NodeMode,
+    StorageConfig, StorageMode, TelemetryConfig, TelemetrySinkKind,
+};
 pub use execution::{
     ActionKind, ActionPolicyOutcome, ApprovalRequirement, AuthorizedAction, CapabilityScope,
     ExecutionOutcome, ExecutionTargetId, IssuedCapability, ProposedAction,
@@ -63,15 +73,18 @@ pub use idempotency::{AttemptDeliveryKey, TaskIdempotencyKey};
 pub use identity::{AgentAttemptExecutor, AgentIdentity, AgentJobSpec, AttemptExecutionContext};
 pub use ids::{
     ActionId, AgentId, ApprovalId, ArtifactId, AttemptId, CapabilityId, CoordinatorId, EvidenceId,
-    ExecutionId, ExpansionHandleId, IdentityId, JobId, KeyId, LeaseId, OrgId, ReservationId, ResultId,
-    RunId, SessionId, SquadId, TaskId, TransactionId, TurnId, WorkerId, WorkspaceVersion,
+    ExecutionId, ExpansionHandleId, IdentityId, JobId, KeyId, LeaseId, OrgId, ReservationId,
+    ResultId, RunId, SessionId, SquadId, TaskId, TransactionId, TurnId, WorkerId, WorkspaceVersion,
 };
-pub use charter::{IntentCharter, OperationalBoundary, SteeringVector};
 pub use invocation::{
     AgentInvocation, CandidateOutcome, CompletionKind, LimitKind, LoopDiscipline,
     LoopDisciplineLimits, LoopNotes,
 };
 pub use lsp_session::{LspSession, LspSessionOpen};
+pub use perception::{
+    ActionResult, Perception, Signal, SignalValue, Trend, Urgency, WorldAction, WorldError,
+    WorldEvent, WorldState,
+};
 pub use placement::{
     EligibleTarget, PlacementDecision as TrustPlacementDecision, PlacementExplanation,
     PlacementJobKind, PlacementReason, PlacementRequest, ProjectPlacementPolicy,
@@ -84,15 +97,15 @@ pub use result_integrity::{
     WorkerOperationalState,
 };
 pub use run::{
-    ActivationBinding, DelegatedTaskBinding,
-    AcceptArtifact, AddDependency, AddTask, ArtifactRef, AttemptRecord, AttemptState, CancelRun,
-    CancelTask, ClaimFinalization, CommandEnvelope, CompleteAttempt, CreateAttempt, CreateRun,
-    DependencyPolicy, EventActor, EventType, ExpireLease, FailAttempt, FinishRun, LeaseAttempt,
-    MarkTaskReady, RecordHeartbeat, RecordSideEffectCommit, RejectArtifact, ReplayGap,
-    ReplayGapReason, ResourceRequirements, RunCommand, RunCommandResult, RunEventEnvelope,
-    RunFinishOutcome, RunSnapshot, RunState, RunSupervisorError, StartAttempt, StartRun,
-    ExecutionScope, StorageLimits, TaskDependency, TaskInputBinding, TaskRecord, TaskState, TraceContext,
-    VerificationPolicy, VersionedEventPayload,
+    AcceptArtifact, ActivationBinding, AddDependency, AddTask, ArtifactRef, AttemptRecord,
+    AttemptState, CancelRun, CancelTask, ClaimFinalization, CommandEnvelope, CompleteAttempt,
+    CreateAttempt, CreateRun, DelegatedTaskBinding, DependencyPolicy, EventActor, EventType,
+    ExecutionScope, ExpireLease, FailAttempt, FinishRun, LeaseAttempt, MarkTaskReady,
+    RecordHeartbeat, RecordSideEffectCommit, RejectArtifact, ReplayGap, ReplayGapReason,
+    ResourceRequirements, RunCommand, RunCommandResult, RunEventEnvelope, RunFinishOutcome,
+    RunSnapshot, RunState, RunSupervisorError, StartAttempt, StartRun, StorageLimits,
+    TaskDependency, TaskInputBinding, TaskRecord, TaskState, TraceContext, VerificationPolicy,
+    VersionedEventPayload,
 };
 pub use secrets::{
     OutboundRedaction, OutboundRedactionSink, RedactionRecordReference, ScanOutcome, SecretScanner,
@@ -108,19 +121,6 @@ pub use workspace::{
     TransactionPreview, TransactionState, VerificationRecord, WorkspaceBinding, WorkspaceConflict,
     WorkspacePath, WorkspaceVersionScheme,
 };
-pub use brain::{
-    Brain, BrainCost, BrainError, BrainFinishReason, BrainMessage, BrainPathway,
-    BrainRequest, BrainResponse, BrainRole, BrainTokenSink,
-};
-pub use perception::{
-    ActionResult, Perception, Signal, SignalValue, Trend, Urgency, WorldAction,
-    WorldError, WorldEvent, WorldState,
-};
 pub use world_adapter::{
     Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender, WorldAdapter, WorldManifest,
-};
-pub use checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
-pub use engine_config::{
-    EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig,
-    NodeMode, StorageConfig, StorageMode, TelemetryConfig, TelemetrySinkKind,
 };

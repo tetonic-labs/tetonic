@@ -147,7 +147,10 @@ async fn inspector_doctor(ctx: &CliTurnContext, tx: &crate::event_queue::Sender)
         .await
     {
         Ok((text, _)) => inspector_text(tx, text),
-        Err(e) => inspector_text(tx, format!("capacity doctor failed: {}\n", inspector_error(&e))),
+        Err(e) => inspector_text(
+            tx,
+            format!("capacity doctor failed: {}\n", inspector_error(&e)),
+        ),
     }
 }
 
@@ -165,7 +168,10 @@ async fn inspector_capacity_status(ctx: &CliTurnContext, tx: &crate::event_queue
         .await
     {
         Ok(text) => inspector_text(tx, text),
-        Err(e) => inspector_text(tx, format!("capacity status failed: {}\n", inspector_error(&e))),
+        Err(e) => inspector_text(
+            tx,
+            format!("capacity status failed: {}\n", inspector_error(&e)),
+        ),
     }
 }
 
@@ -173,7 +179,10 @@ async fn inspector_ps(ctx: &CliTurnContext, tx: &crate::event_queue::Sender) {
     inspector_text(tx, "> Fetching Ollama loaded models...\n\n");
     match ctx.app.ollama_ps().await {
         Ok(v) => inspector_text(tx, v),
-        Err(e) => inspector_text(tx, format!("Failed to query Ollama: {}\n", inspector_error(&e))),
+        Err(e) => inspector_text(
+            tx,
+            format!("Failed to query Ollama: {}\n", inspector_error(&e)),
+        ),
     }
 }
 

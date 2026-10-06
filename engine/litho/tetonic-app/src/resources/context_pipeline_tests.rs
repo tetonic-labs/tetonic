@@ -168,7 +168,8 @@ fn compiler_file_hook_refuses_the_control_database() {
     let db = dir.path().join("lokai.db");
     std::fs::write(&db, "PRIVATECANARY in the control database").unwrap();
     std::fs::write(dir.path().join("note.txt"), "ordinary note").unwrap();
-    let hooks = crate::turn_execution::composition_fs_hooks(tetonic_tools::store_sidecar_paths(&db));
+    let hooks =
+        crate::turn_execution::composition_fs_hooks(tetonic_tools::store_sidecar_paths(&db));
     let denied = (hooks.jailed_read)(dir.path(), "lokai.db");
     let message = denied.expect_err("control database must be refused");
     assert!(

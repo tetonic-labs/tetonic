@@ -444,7 +444,6 @@ fn concurrent_commit_threads() {
     assert_eq!(ok_count, 1, "exactly one concurrent commit should succeed");
 }
 
-
 #[test]
 fn non_git_workspace() {
     let (_d, root) = tmp_ws("nongit");

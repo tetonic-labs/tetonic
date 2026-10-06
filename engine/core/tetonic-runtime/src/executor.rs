@@ -229,9 +229,13 @@ mod tests {
 
     #[async_trait::async_trait]
     impl tetonic_domain::WorldAdapter for ClosedWorld {
-        fn open(&self) -> (tetonic_domain::PerceptionSender, tetonic_domain::PerceptionReceiver) {
-            self.opens
-                .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        fn open(
+            &self,
+        ) -> (
+            tetonic_domain::PerceptionSender,
+            tetonic_domain::PerceptionReceiver,
+        ) {
+            self.opens.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
             tokio::sync::mpsc::channel(1)
         }
         async fn execute(

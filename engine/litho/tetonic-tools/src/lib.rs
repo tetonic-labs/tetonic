@@ -11,9 +11,9 @@ use serde_json::Value;
 
 mod catalog;
 mod host;
+mod memory;
 mod orchestration;
 mod retrieval;
-mod memory;
 pub use memory::MemoryCredentialCheck;
 mod sink;
 mod types;
@@ -111,9 +111,7 @@ pub fn store_sidecar_paths(path: &Path) -> Vec<PathBuf> {
 
 pub fn path_is_reserved(reserved: &[PathBuf], path: &Path) -> bool {
     let candidate = std::fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    reserved
-        .iter()
-        .any(|item| paths_match(item, &candidate))
+    reserved.iter().any(|item| paths_match(item, &candidate))
 }
 
 fn paths_match(left: &Path, right: &Path) -> bool {
@@ -245,7 +243,9 @@ fn command_reads_credential_store(command: &str) -> bool {
     }) {
         return true;
     }
-    let git = tokens.iter().any(|token| token == "git" || token == "git.exe");
+    let git = tokens
+        .iter()
+        .any(|token| token == "git" || token == "git.exe");
     git && tokens.iter().any(|token| token == "credential")
 }
 
@@ -329,7 +329,9 @@ impl Tools {
 
     fn reserved_store_inside_workspace(&self) -> bool {
         let root = self.ws.root();
-        self.reserved_files.iter().any(|path| path.starts_with(root))
+        self.reserved_files
+            .iter()
+            .any(|path| path.starts_with(root))
     }
 
     fn command_targets_reserved_store(&self, command: &str) -> bool {
@@ -343,7 +345,10 @@ impl Tools {
             return true;
         }
         self.reserved_files.iter().any(|path| {
-            let text = path.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+            let text = path
+                .to_string_lossy()
+                .replace('\\', "/")
+                .to_ascii_lowercase();
             let text = text.strip_prefix("//?/").unwrap_or(&text);
             if !text.is_empty() && command.contains(text) {
                 return true;
@@ -1108,10 +1113,7 @@ impl Tools {
             return (false, "command canceled".into());
         }
         if self.command_targets_reserved_store(command) {
-            return (
-                false,
-                "command cannot read a protected store file".into(),
-            );
+            return (false, "command cannot read a protected store file".into());
         }
         if command_escapes_workspace(self.ws.root(), command) {
             return (

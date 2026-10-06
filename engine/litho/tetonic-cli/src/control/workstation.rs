@@ -107,14 +107,7 @@ pub async fn dispatch(control: &LocalControl, command: WorkstationCommand) -> an
             resource,
         } => {
             let row = resources
-                .approve_workstation_grant(
-                    &credential,
-                    org,
-                    workstation,
-                    grant,
-                    kind,
-                    resource,
-                )
+                .approve_workstation_grant(&credential, org, workstation, grant, kind, resource)
                 .await?;
             println!("{}", serde_json::to_string(&row)?);
         }
@@ -133,7 +126,10 @@ pub async fn dispatch(control: &LocalControl, command: WorkstationCommand) -> an
             let (row, parked) = resources
                 .mark_workstation_offline(&credential, org, workstation)
                 .await?;
-            println!("{}", serde_json::json!({"workstation": row, "parked_work": parked}));
+            println!(
+                "{}",
+                serde_json::json!({"workstation": row, "parked_work": parked})
+            );
         }
         WorkstationCommand::Reconnect { org, workstation } => {
             let row = resources

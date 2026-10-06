@@ -44,10 +44,7 @@ pub(crate) fn is_profile_home(key: &str) -> bool {
 }
 
 pub(crate) fn is_temp_dir_key(key: &str) -> bool {
-    matches!(
-        key.to_ascii_uppercase().as_str(),
-        "TMP" | "TEMP" | "TMPDIR"
-    )
+    matches!(key.to_ascii_uppercase().as_str(), "TMP" | "TEMP" | "TMPDIR")
 }
 
 /// Replace inherited environment with a minimal allowlist (SEC-011).

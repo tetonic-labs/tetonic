@@ -307,7 +307,8 @@ mod tests {
             },
         )
         .unwrap();
-        db.insert_open_discussion("alice", "private", "taken").unwrap();
+        db.insert_open_discussion("alice", "private", "taken")
+            .unwrap();
         assert!(db.open_context_history("alice", "shared", "taken").is_err());
         assert!(db
             .open_context_history("alice", "shared", "brand-new")

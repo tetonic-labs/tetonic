@@ -79,12 +79,14 @@ mod tests {
         ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
-        std::fs::write(dir.join("lokai.db"), "PRIVATECANARY in the control database\n").unwrap();
+        std::fs::write(
+            dir.join("lokai.db"),
+            "PRIVATECANARY in the control database\n",
+        )
+        .unwrap();
         std::fs::write(dir.join("note.rs"), "pub fn visible_note() {}\n").unwrap();
-        let db_path = std::env::temp_dir().join(format!(
-            "lokai-index-store-{}.db",
-            std::process::id()
-        ));
+        let db_path =
+            std::env::temp_dir().join(format!("lokai-index-store-{}.db", std::process::id()));
         let _ = std::fs::remove_file(&db_path);
         let idx = Index::open(&db_path).unwrap();
         let ws = dir.to_string_lossy().to_string();

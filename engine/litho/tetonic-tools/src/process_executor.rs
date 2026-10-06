@@ -104,8 +104,7 @@ impl crate::Tools {
         if !self.allow_shell {
             return Err(ToolError::ShellNotApproved);
         }
-        if self.reserved_store_inside_workspace()
-            || self.command_targets_reserved_store(&a.command)
+        if self.reserved_store_inside_workspace() || self.command_targets_reserved_store(&a.command)
         {
             return Err(ToolError::Other(
                 "shell cannot be used while a protected store file is reachable".into(),

@@ -168,11 +168,14 @@ mod tests {
         let hub = ThoughtStreamHub::new(100, 10);
         let mut rx = hub.subscribe();
 
-        hub.emit_thought("agent-101", "analyzing memory context").await;
+        hub.emit_thought("agent-101", "analyzing memory context")
+            .await;
 
         let received = rx.recv().await.expect("receive event");
         match received {
-            TelemetryEvent::ThoughtDelta { agent_id, delta, .. } => {
+            TelemetryEvent::ThoughtDelta {
+                agent_id, delta, ..
+            } => {
                 assert_eq!(agent_id, "agent-101");
                 assert_eq!(delta, "analyzing memory context");
             }

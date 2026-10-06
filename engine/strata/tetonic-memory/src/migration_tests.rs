@@ -333,7 +333,9 @@ fn backup_restore_keeps_team_resources_and_private_history() {
     };
     let restored = Store::open(&backup).unwrap();
     let private = restored
-        .scoped_transcript("alice", "private", 
+        .scoped_transcript(
+            "alice",
+            "private",
             &restored
                 .conn
                 .query_row(

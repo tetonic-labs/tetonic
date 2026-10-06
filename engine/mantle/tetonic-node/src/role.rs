@@ -282,7 +282,9 @@ impl KeeperRegistry {
         let mut events = Vec::new();
 
         for (runner_id, reg) in self.runners.iter_mut() {
-            if reg.status == RunnerStatus::Active && now.duration_since(reg.last_heartbeat) > timeout {
+            if reg.status == RunnerStatus::Active
+                && now.duration_since(reg.last_heartbeat) > timeout
+            {
                 reg.status = RunnerStatus::Evicted;
                 let orphaned: Vec<AgentId> = reg.assigned_agents.drain().collect();
 
@@ -404,7 +406,11 @@ impl NodeLifecycle {
             NodeRole::Coordinator => (Some(KeeperRegistry::new()), None),
             NodeRole::Runner => (
                 None,
-                Some(RunnerClient::new(node_id.clone(), bind_addr.clone(), capabilities)),
+                Some(RunnerClient::new(
+                    node_id.clone(),
+                    bind_addr.clone(),
+                    capabilities,
+                )),
             ),
         };
 
@@ -459,11 +465,7 @@ mod tests {
 
         // 1. Handshake
         let proof = keeper
-            .register_runner(
-                "runner-1".into(),
-                "10.0.0.2:4430".into(),
-                runner_caps,
-            )
+            .register_runner("runner-1".into(), "10.0.0.2:4430".into(), runner_caps)
             .expect("registration failed");
 
         assert_eq!(proof.lease_epoch, 1);
@@ -486,11 +488,7 @@ mod tests {
         let runner_caps = NodeRole::Runner.capabilities();
 
         keeper
-            .register_runner(
-                "runner-flakey".into(),
-                "10.0.0.5:4430".into(),
-                runner_caps,
-            )
+            .register_runner("runner-flakey".into(), "10.0.0.5:4430".into(), runner_caps)
             .expect("registration");
 
         let agent_a = AgentId("agent-alpha".into());
@@ -522,9 +520,13 @@ mod tests {
             .expect("registration");
 
         let agent = AgentId("agent-beta".into());
-        keeper.assign_agent("runner-clean", agent.clone()).expect("assign");
+        keeper
+            .assign_agent("runner-clean", agent.clone())
+            .expect("assign");
 
-        let released = keeper.deregister_runner("runner-clean").expect("deregister");
+        let released = keeper
+            .deregister_runner("runner-clean")
+            .expect("deregister");
         assert_eq!(released, vec![agent.clone()]);
         assert_eq!(keeper.runner_for_agent(&agent), None);
     }

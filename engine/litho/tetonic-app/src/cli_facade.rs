@@ -110,9 +110,7 @@ impl Application {
         let ws = ws_root.to_string();
         store
             .read_sync(move |db| {
-                let current_head = db
-                    .current_head(&ws)
-                    .map_err(AppError::hide_store_failure)?;
+                let current_head = db.current_head(&ws).map_err(AppError::hide_store_failure)?;
                 let redo_target = db
                     .head_state(&ws)
                     .map_err(AppError::hide_store_failure)?
@@ -168,9 +166,7 @@ impl Application {
         let ws = ws_root.to_string();
         let (cur, target) = store
             .read_sync(move |db| {
-                let cur = db
-                    .current_head(&ws)
-                    .map_err(AppError::hide_store_failure)?;
+                let cur = db.current_head(&ws).map_err(AppError::hide_store_failure)?;
                 if cur == 0 {
                     return Err(AppError::InvalidRequest(
                         "nothing to undo (no recorded changes)".into(),
@@ -197,9 +193,7 @@ impl Application {
         let ws = ws_root.to_string();
         let (cur, redo) = store
             .read_sync(move |db| {
-                let cur = db
-                    .current_head(&ws)
-                    .map_err(AppError::hide_store_failure)?;
+                let cur = db.current_head(&ws).map_err(AppError::hide_store_failure)?;
                 let redo = db
                     .head_state(&ws)
                     .map_err(AppError::hide_store_failure)?
@@ -233,10 +227,7 @@ impl Application {
         let cur = store
             .read_sync({
                 let ws = ws.clone();
-                move |db| {
-                    db.current_head(&ws)
-                        .map_err(AppError::hide_store_failure)
-                }
+                move |db| db.current_head(&ws).map_err(AppError::hide_store_failure)
             })
             .map_err(AppError::hide_store_failure)??;
 
@@ -413,12 +404,10 @@ impl Application {
             .ok_or_else(|| AppError::PersistenceFailed("no store available".into()))?;
         let sid = session_id.to_string();
         store
-            .read_sync(move |db| {
-                match db.transcript(&sid) {
-                    Ok(rows) => Ok(rows),
-                    Err(tetonic_memory::StoreError::ControlAccessDenied) => Ok(Vec::new()),
-                    Err(_) => Err(AppError::PersistenceFailed("request failed".into())),
-                }
+            .read_sync(move |db| match db.transcript(&sid) {
+                Ok(rows) => Ok(rows),
+                Err(tetonic_memory::StoreError::ControlAccessDenied) => Ok(Vec::new()),
+                Err(_) => Err(AppError::PersistenceFailed("request failed".into())),
             })
             .map_err(|_| AppError::PersistenceFailed("request failed".into()))?
     }
@@ -681,6 +670,9 @@ mod transcript_tests {
         let rendered = format!("{rows:?}");
         assert!(rows.is_empty(), "{rendered}");
         assert!(!rendered.contains("PRIVATECANARY"));
-        assert!(app.session_transcript("missing-session").unwrap().is_empty());
+        assert!(app
+            .session_transcript("missing-session")
+            .unwrap()
+            .is_empty());
     }
 }

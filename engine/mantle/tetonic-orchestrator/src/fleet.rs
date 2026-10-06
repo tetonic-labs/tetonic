@@ -71,7 +71,10 @@ impl Organization {
     pub fn register_squad(&self, squad: Arc<Squad>) -> Result<(), FleetError> {
         let mut guard = self.squads.write().unwrap();
         if guard.contains_key(&squad.id) {
-            return Err(FleetError::SquadAlreadyExists(squad.id.clone(), self.id.clone()));
+            return Err(FleetError::SquadAlreadyExists(
+                squad.id.clone(),
+                self.id.clone(),
+            ));
         }
         guard.insert(squad.id.clone(), squad);
         Ok(())
@@ -88,7 +91,10 @@ impl Organization {
         if current > self.quota.max_tokens_per_hour {
             return Err(FleetError::BudgetExceeded(
                 self.id.clone(),
-                format!("consumed {current} tokens, exceeding ceiling {}", self.quota.max_tokens_per_hour),
+                format!(
+                    "consumed {current} tokens, exceeding ceiling {}",
+                    self.quota.max_tokens_per_hour
+                ),
             ));
         }
         Ok(current)
@@ -264,17 +270,22 @@ mod tests {
         assert_eq!(squad.member_count(), 2);
 
         // Peer communication on workpad
-        squad.workpad.post(agent1.clone(), "CPU Spike Alert", "Node 4 reporting 98% load");
+        squad.workpad.post(
+            agent1.clone(),
+            "CPU Spike Alert",
+            "Node 4 reporting 98% load",
+        );
         let bulletins = squad.workpad.read_all();
         assert_eq!(bulletins.len(), 1);
         assert_eq!(bulletins[0].author, agent1);
         assert_eq!(bulletins[0].subject, "CPU Spike Alert");
 
         // Apply steering vector to dynamically tighten boundaries
-        let steer = SteeringVector::new("Restrict restarts")
-            .with_boundary_adjustment(OperationalBoundary::ForbiddenAction {
+        let steer = SteeringVector::new("Restrict restarts").with_boundary_adjustment(
+            OperationalBoundary::ForbiddenAction {
                 action_kind: "hard_reboot".into(),
-            });
+            },
+        );
 
         squad.apply_steering(&steer);
         let updated_charter = squad.charter();

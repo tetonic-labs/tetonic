@@ -267,7 +267,12 @@ mod tests {
             .unwrap();
         assert!(live.get("secret").is_none());
         let opened = service
-            .open_live(alice.expose_secret(), &live, "private".into(), "secret".into())
+            .open_live(
+                alice.expose_secret(),
+                &live,
+                "private".into(),
+                "secret".into(),
+            )
             .await
             .unwrap();
         assert_eq!(opened.session_id(), "secret");
@@ -281,13 +286,23 @@ mod tests {
             .unwrap();
         assert!(matches!(
             service
-                .open_live(admin.expose_secret(), &live, "private".into(), "secret".into())
+                .open_live(
+                    admin.expose_secret(),
+                    &live,
+                    "private".into(),
+                    "secret".into()
+                )
                 .await,
             Err(ResourceError::Denied)
         ));
         assert!(matches!(
             service
-                .open_live(alice.expose_secret(), &live, "shared".into(), "secret".into())
+                .open_live(
+                    alice.expose_secret(),
+                    &live,
+                    "shared".into(),
+                    "secret".into()
+                )
                 .await,
             Err(ResourceError::Denied)
         ));
@@ -298,7 +313,12 @@ mod tests {
             .unwrap();
         assert!(matches!(
             service
-                .open_live(alice.expose_secret(), &live, "private".into(), "secret".into())
+                .open_live(
+                    alice.expose_secret(),
+                    &live,
+                    "private".into(),
+                    "secret".into()
+                )
                 .await,
             Err(ResourceError::Denied)
         ));
@@ -420,12 +440,7 @@ mod tests {
         assert_ne!(owner, working);
         assert!(matches!(
             service
-                .recall(
-                    admin.expose_secret(),
-                    working,
-                    "PRIVATECANARY".into(),
-                    5,
-                )
+                .recall(admin.expose_secret(), working, "PRIVATECANARY".into(), 5,)
                 .await,
             Err(ResourceError::Denied)
         ));
@@ -630,9 +645,7 @@ impl ContextService {
     ) -> Result<(), ResourceError> {
         let actor = self.verifier.verify(credential).await?;
         self.store
-            .write(move |db| {
-                db.insert_open_discussion(&actor.principal_id, &context, &session)
-            })
+            .write(move |db| db.insert_open_discussion(&actor.principal_id, &context, &session))
             .await??;
         Ok(())
     }

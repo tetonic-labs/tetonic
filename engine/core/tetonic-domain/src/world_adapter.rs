@@ -119,7 +119,9 @@ impl WorldManifest {
     }
 
     pub fn find_affordance(&self, action_kind: &str) -> Option<&Affordance> {
-        self.affordances.iter().find(|a| a.action_kind == action_kind)
+        self.affordances
+            .iter()
+            .find(|a| a.action_kind == action_kind)
     }
 
     /// Validates an action proposed by an agent against the world's manifest.
@@ -129,15 +131,15 @@ impl WorldManifest {
             return Ok(());
         }
 
-        let affordance = self.find_affordance(&action.kind).ok_or_else(|| {
-            WorldError::ActionRejected {
-                kind: action.kind.clone(),
-                reason: format!(
-                    "action kind '{}' is not advertised by world manifest '{}'",
-                    action.kind, self.world_name
-                ),
-            }
-        })?;
+        let affordance =
+            self.find_affordance(&action.kind)
+                .ok_or_else(|| WorldError::ActionRejected {
+                    kind: action.kind.clone(),
+                    reason: format!(
+                        "action kind '{}' is not advertised by world manifest '{}'",
+                        action.kind, self.world_name
+                    ),
+                })?;
 
         if let Some(req_array) = affordance
             .parameters_schema

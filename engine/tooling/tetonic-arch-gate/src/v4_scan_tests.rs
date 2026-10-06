@@ -26,7 +26,10 @@ fn temp_engine() -> (tempfile::TempDir, PathBuf) {
         &root.join("core/lokai-domain/src/tool_host.rs"),
         "pub trait ToolHost {}\n",
     );
-    write(&root.join("litho/tetonic-cli/src/main.rs"), "fn main() {}\n");
+    write(
+        &root.join("litho/tetonic-cli/src/main.rs"),
+        "fn main() {}\n",
+    );
     write(&root.join("litho/tetonicd/src/main.rs"), "fn main() {}\n");
     write(
         &root.join("tooling/lokai-eval/src/main.rs"),

@@ -96,7 +96,8 @@ mod tests {
         )
         .unwrap();
         for context in ["private", "shared"] {
-            db.insert_open_discussion("alice", context, context).unwrap();
+            db.insert_open_discussion("alice", context, context)
+                .unwrap();
             db.create_execution_audit_history("alice", context, &format!("{context}-audit"))
                 .unwrap();
         }
@@ -177,9 +178,15 @@ mod tests {
         let hits = db
             .recall_context_messages("bob", "shared", "searchword", 30)
             .unwrap();
-        assert!(hits.iter().any(|hit| hit.snippet.contains("public message")));
-        assert!(hits.iter().any(|hit| hit.kind == "tool" && hit.snippet.contains("toolpublic")));
-        assert!(hits.iter().all(|hit| !hit.snippet.contains("PRIVATECANARY")));
+        assert!(hits
+            .iter()
+            .any(|hit| hit.snippet.contains("public message")));
+        assert!(hits
+            .iter()
+            .any(|hit| hit.kind == "tool" && hit.snippet.contains("toolpublic")));
+        assert!(hits
+            .iter()
+            .all(|hit| !hit.snippet.contains("PRIVATECANARY")));
         assert!(db
             .recall_context_messages("bob", "private", "searchword", 30)
             .is_err());

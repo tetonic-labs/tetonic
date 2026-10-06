@@ -1,7 +1,7 @@
-mod perceptive_brain;
 mod context_budget;
 mod experience;
 mod observability;
+mod perceptive_brain;
 use anyhow::{ensure, Context};
 use clap::Parser;
 use serde::Deserialize;
@@ -73,9 +73,15 @@ struct World {
     allowed_actions: Vec<String>,
 }
 
-fn default_idle_interval() -> u64 { 30000 }
-fn default_completion_tokens() -> u32 { 384 }
-fn default_context_margin() -> usize { 512 }
+fn default_idle_interval() -> u64 {
+    30000
+}
+fn default_completion_tokens() -> u32 {
+    384
+}
+fn default_context_margin() -> usize {
+    512
+}
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
@@ -108,7 +114,15 @@ async fn main() -> anyhow::Result<()> {
         cfg.inference.timeout_secs > 0 && cfg.inference.context_tokens >= 1024,
         "invalid inference limits"
     );
-    ensure!(cfg.inference.completion_tokens > 0 && cfg.inference.context_tokens.saturating_sub(cfg.inference.context_margin) > cfg.inference.completion_tokens as usize, "context must leave space for input, completion and safety margin");
+    ensure!(
+        cfg.inference.completion_tokens > 0
+            && cfg
+                .inference
+                .context_tokens
+                .saturating_sub(cfg.inference.context_margin)
+                > cfg.inference.completion_tokens as usize,
+        "context must leave space for input, completion and safety margin"
+    );
     let inference_url = url::Url::parse(&cfg.inference.endpoint)?;
     ensure!(
         inference_url.scheme() == "http"
@@ -156,23 +170,36 @@ async fn main() -> anyhow::Result<()> {
     );
     let trace = Arc::new(observability::TraceStore::new(cfg.node.observability));
     let observer_trace = trace.clone();
-    let observer = Arc::new(move |id: &str, stage: &str, data: serde_json::Value| observer_trace.record(id,stage,data));
+    let observer = Arc::new(move |id: &str, stage: &str, data: serde_json::Value| {
+        observer_trace.record(id, stage, data)
+    });
     adapter.set_observer(observer.clone());
-    let ack_adapter=adapter.clone();
-    let event_ack=Arc::new(move |session:&str, ids:&[String], decision:&str|ack_adapter.acknowledge_events(session,ids,decision));
-    let brain = Arc::new(perceptive_brain::PerceptiveBrain::new(
-        SingleModelBrain::new(
-            provider.clone(),
-            &cfg.inference.model,
-            cfg.inference.context_tokens,
-        ).with_observer(observer),
-        format!("{}\n\n{}", cfg.agent.charter, cfg.world.instructions),
-        cfg.world.allowed_actions,
-        cadence,
-        Duration::from_secs(cfg.inference.timeout_secs),
-        trace.clone(),
-        context_budget::ContextBudget {context:cfg.inference.context_tokens,completion:cfg.inference.completion_tokens,margin:cfg.inference.context_margin},
-    ).with_event_acknowledger(event_ack).with_idle_interval(Duration::from_millis(cfg.agent.idle_interval_ms)));
+    let ack_adapter = adapter.clone();
+    let event_ack = Arc::new(move |session: &str, ids: &[String], decision: &str| {
+        ack_adapter.acknowledge_events(session, ids, decision)
+    });
+    let brain = Arc::new(
+        perceptive_brain::PerceptiveBrain::new(
+            SingleModelBrain::new(
+                provider.clone(),
+                &cfg.inference.model,
+                cfg.inference.context_tokens,
+            )
+            .with_observer(observer),
+            format!("{}\n\n{}", cfg.agent.charter, cfg.world.instructions),
+            cfg.world.allowed_actions,
+            cadence,
+            Duration::from_secs(cfg.inference.timeout_secs),
+            trace.clone(),
+            context_budget::ContextBudget {
+                context: cfg.inference.context_tokens,
+                completion: cfg.inference.completion_tokens,
+                margin: cfg.inference.context_margin,
+            },
+        )
+        .with_event_acknowledger(event_ack)
+        .with_idle_interval(Duration::from_millis(cfg.agent.idle_interval_ms)),
+    );
     let scope = WorkScope::default();
     let mut agent = Agent::new(
         provider,
@@ -203,13 +230,30 @@ async fn main() -> anyhow::Result<()> {
                 {
                     return;
                 }
-                let line=String::from_utf8_lossy(&request);
-                let target=line.split_whitespace().nth(1).unwrap_or("/");
+                let line = String::from_utf8_lossy(&request);
+                let target = line.split_whitespace().nth(1).unwrap_or("/");
                 let (status, body) = if target.starts_with("/debug/trace") {
-                    let after=target.split("after=").nth(1).and_then(|s|s.split('&').next()).and_then(|s|s.parse::<u64>().ok()).unwrap_or(0);
-                    if trace.enabled { ("200 OK", serde_json::json!({"agent_id":id,"trace":trace.since(after)}).to_string()) }
-                    else { ("404 Not Found", "{\"error\":\"observability disabled\"}".into()) }
-                } else { ("200 OK",serde_json::json!({"service":"tetonic-server","agent_id":id,"world_connected":connected,"mode":"standalone","decision":trace.health()}).to_string()) };
+                    let after = target
+                        .split("after=")
+                        .nth(1)
+                        .and_then(|s| s.split('&').next())
+                        .and_then(|s| s.parse::<u64>().ok())
+                        .unwrap_or(0);
+                    if trace.enabled {
+                        (
+                            "200 OK",
+                            serde_json::json!({"agent_id":id,"trace":trace.since(after)})
+                                .to_string(),
+                        )
+                    } else {
+                        (
+                            "404 Not Found",
+                            "{\"error\":\"observability disabled\"}".into(),
+                        )
+                    }
+                } else {
+                    ("200 OK",serde_json::json!({"service":"tetonic-server","agent_id":id,"world_connected":connected,"mode":"standalone","decision":trace.health()}).to_string())
+                };
                 let response = format!("HTTP/1.1 {}\r\nContent-Type: application/json\r\nCache-Control: no-store\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{}",status,body.len(),body);
                 let _ = socket.write_all(response.as_bytes()).await;
             });

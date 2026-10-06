@@ -27,7 +27,11 @@ fn run(db: &std::path::Path, args: &[&str], credential: Option<&str>) -> Output 
     }
     let res = child.wait_with_output().unwrap();
     if !res.status.success() {
-        eprintln!("CMD FAILED: args={:?}, stderr={}", args, String::from_utf8_lossy(&res.stderr));
+        eprintln!(
+            "CMD FAILED: args={:?}, stderr={}",
+            args,
+            String::from_utf8_lossy(&res.stderr)
+        );
     }
     res
 }
@@ -97,20 +101,12 @@ fn private_discussion_cli_preserves_history_and_denies_other_principals() {
     .success());
     let open = run(
         &db,
-        &[
-            "context",
-            "open",
-            "--context",
-            "private-a",
-        ],
+        &["context", "open", "--context", "private-a"],
         Some(&alice),
     );
     assert!(open.status.success());
     let open_json: serde_json::Value = serde_json::from_slice(&open.stdout).unwrap();
-    assert_eq!(
-        open_json["agent_activated"],
-        false
-    );
+    assert_eq!(open_json["agent_activated"], false);
     let session = open_json["session"].as_str().unwrap().to_owned();
     let reopen = run(
         &db,
@@ -909,15 +905,17 @@ fn team_work_and_human_controls_cli_lifecycle() {
     );
     assert!(inspect_out.status.success());
     let inspect_json: serde_json::Value = serde_json::from_slice(&inspect_out.stdout).unwrap();
-    assert_eq!(inspect_json["pending_approvals"].as_array().unwrap().len(), 1);
     assert_eq!(
-        inspect_json["pending_approvals"][0]["approval_id"],
-        "app-1"
+        inspect_json["pending_approvals"].as_array().unwrap().len(),
+        1
     );
+    assert_eq!(inspect_json["pending_approvals"][0]["approval_id"], "app-1");
     // Sibling work items remain open
     let items = inspect_json["work_items"].as_array().unwrap();
     assert_eq!(items.len(), 3);
-    assert!(items.iter().any(|i| i["title"] == "Task 1: Cutover Config" && i["status"] == "open"));
+    assert!(items
+        .iter()
+        .any(|i| i["title"] == "Task 1: Cutover Config" && i["status"] == "open"));
 
     // 8. Hierarchical stop & clear stop
     let stop_out = run(
@@ -955,7 +953,13 @@ fn team_work_and_human_controls_cli_lifecycle() {
     assert!(inspect_stopped.status.success());
     let inspect_stopped_json: serde_json::Value =
         serde_json::from_slice(&inspect_stopped.stdout).unwrap();
-    assert_eq!(inspect_stopped_json["active_stops"].as_array().unwrap().len(), 1);
+    assert_eq!(
+        inspect_stopped_json["active_stops"]
+            .as_array()
+            .unwrap()
+            .len(),
+        1
+    );
 
     let clear_out = run(
         &db,
@@ -1009,7 +1013,10 @@ fn team_work_and_human_controls_cli_lifecycle() {
     assert!(inspect_final.status.success());
     let inspect_final_json: serde_json::Value =
         serde_json::from_slice(&inspect_final.stdout).unwrap();
-    assert!(inspect_final_json["pending_approvals"].as_array().unwrap().is_empty());
+    assert!(inspect_final_json["pending_approvals"]
+        .as_array()
+        .unwrap()
+        .is_empty());
 }
 
 #[test]

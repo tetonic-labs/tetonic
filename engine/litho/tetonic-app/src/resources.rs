@@ -11,12 +11,12 @@ mod local_control;
 mod local_credentials;
 pub use local_control::LocalControl;
 mod administration;
+mod huddle_plans;
 mod membership;
 mod team_work;
+mod work_briefs;
 mod work_budgets;
 mod work_usage;
-mod work_briefs;
-mod huddle_plans;
 pub(crate) use huddle_plans::PlanMutation;
 mod team_work_activation;
 pub use team_work_activation::TeamWorkLaunch;
@@ -259,8 +259,8 @@ pub use run_inspection::RunPoll;
 mod activation;
 pub use activation::RegisteredAgentJob;
 
-mod registered_executor;
 pub(crate) mod plan_dispatch;
+mod registered_executor;
 pub use plan_dispatch::PlanDispatch;
 pub use registered_executor::{
     RegisteredAgentExecution, RegisteredAgentSubmission, RegisteredExecutionSettings,

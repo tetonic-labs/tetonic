@@ -397,7 +397,10 @@ mod tests {
     #[test]
     fn prefixes_are_stable() {
         assert_eq!(TranscriptLine::new(LineKind::You, "hi").prefix(), "you");
-        assert_eq!(TranscriptLine::new(LineKind::Lokai, "ok").prefix(), "tetonic");
+        assert_eq!(
+            TranscriptLine::new(LineKind::Lokai, "ok").prefix(),
+            "tetonic"
+        );
         assert_eq!(TranscriptLine::new(LineKind::Tool, "ps").prefix(), "tool");
         assert_eq!(TranscriptLine::new(LineKind::Error, "x").prefix(), "error");
         assert_eq!(

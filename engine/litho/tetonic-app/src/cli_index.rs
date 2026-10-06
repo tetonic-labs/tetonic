@@ -80,8 +80,7 @@ impl Application {
 
     pub fn index_workspace(&self, ws_root: &str) -> Result<IndexStatsInfo, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let stats = index
             .index_workspace(Path::new(ws_root))
             .map_err(index_store_error)?;
@@ -97,11 +96,8 @@ impl Application {
 
     pub fn index_status(&self, ws_root: &str, model: &str) -> Result<IndexStatusInfo, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
-        let s = index
-            .status(ws_root)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
+        let s = index.status(ws_root).map_err(index_store_error)?;
         let (embedded_chunks, total_chunks) =
             index.embedding_status(ws_root, model).unwrap_or((0, 0));
         Ok(IndexStatusInfo {
@@ -121,8 +117,7 @@ impl Application {
         name: &str,
     ) -> Result<Vec<DefinitionRowInfo>, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let rows = index
             .find_definition(ws_root, name)
             .map_err(index_store_error)?;
@@ -144,8 +139,7 @@ impl Application {
         limit: usize,
     ) -> Result<Vec<MentionHitInfo>, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let hits = index
             .find_mentions(ws_root, name, limit as u32)
             .map_err(index_store_error)?;
@@ -165,8 +159,7 @@ impl Application {
         path: &str,
     ) -> Result<Vec<OutlineRowInfo>, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let rows = index
             .outline(ws_root, &path.replace('\\', "/"))
             .map_err(index_store_error)?;
@@ -183,11 +176,8 @@ impl Application {
 
     pub fn prune_index_workspaces(&self) -> Result<usize, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
-        index
-            .prune_missing_workspaces()
-            .map_err(index_store_error)
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
+        index.prune_missing_workspaces().map_err(index_store_error)
     }
 
     pub fn index_search(
@@ -197,8 +187,7 @@ impl Application {
         limit: usize,
     ) -> Result<Vec<SearchHitInfo>, AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let hits = index
             .search(ws_root, query, limit as u32)
             .map_err(index_store_error)?;
@@ -223,8 +212,7 @@ impl Application {
         limit: usize,
     ) -> Result<(Vec<SearchHitInfo>, usize), AppError> {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let guard = self.turn.guard();
         let base = self.turn.ollama_base();
         let provider = tetonic_inference::OllamaProvider::new(&base, guard.clone());
@@ -264,8 +252,7 @@ impl Application {
         F: Fn(usize, usize),
     {
         let idx_path = self.index_db_path()?;
-        let index = tetonic_index::Index::open(&idx_path)
-            .map_err(index_store_error)?;
+        let index = tetonic_index::Index::open(&idx_path).map_err(index_store_error)?;
         let guard = self.turn.guard();
         let base = self.turn.ollama_base();
         let provider = tetonic_inference::OllamaProvider::new(&base, guard.clone());

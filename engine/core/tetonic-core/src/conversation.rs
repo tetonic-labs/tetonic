@@ -146,9 +146,10 @@ mod tests {
 
     #[test]
     fn discard_carried_turns_drops_messages_and_keeps_cancel() {
-        let mut conversation = Conversation::from_audit_messages(vec![tetonic_inference::Message::user(
-            "PRIVATECANARY prior turn",
-        )]);
+        let mut conversation =
+            Conversation::from_audit_messages(vec![tetonic_inference::Message::user(
+                "PRIVATECANARY prior turn",
+            )]);
         conversation.begin_turn();
         let cancel = conversation.cancel_handle();
         cancel.store(true, Ordering::SeqCst);

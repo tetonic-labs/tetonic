@@ -493,10 +493,7 @@ fn read_file_typo_returns_fuzzy_path_suggestion() {
 
 #[test]
 fn shell_refuses_a_protected_store_inside_the_workspace() {
-    let dir = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-store-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("lokai-tools-shell-store-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     let db = dir.join("lokai.db");
@@ -521,10 +518,8 @@ fn shell_refuses_a_protected_store_inside_the_workspace() {
 
 #[test]
 fn shell_refuses_a_protected_store_outside_the_workspace() {
-    let parent = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-outside-{}",
-        std::process::id()
-    ));
+    let parent =
+        std::env::temp_dir().join(format!("lokai-tools-shell-outside-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&parent);
     let dir = parent.join("workspace");
     std::fs::create_dir_all(&dir).unwrap();
@@ -557,10 +552,7 @@ fn shell_refuses_a_protected_store_outside_the_workspace() {
 
 #[test]
 fn shell_refuses_an_absolute_path_outside_the_workspace() {
-    let parent = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-abs-{}",
-        std::process::id()
-    ));
+    let parent = std::env::temp_dir().join(format!("lokai-tools-shell-abs-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&parent);
     let dir = parent.join("workspace");
     std::fs::create_dir_all(&dir).unwrap();
@@ -590,14 +582,16 @@ fn shell_refuses_an_absolute_path_outside_the_workspace() {
 
 #[test]
 fn shell_refuses_parent_traversal_without_a_protected_store() {
-    let parent = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-dotdot-{}",
-        std::process::id()
-    ));
+    let parent =
+        std::env::temp_dir().join(format!("lokai-tools-shell-dotdot-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&parent);
     let dir = parent.join("workspace");
     std::fs::create_dir_all(&dir).unwrap();
-    std::fs::write(parent.join("secret.txt"), "PRIVATECANARY above the workspace").unwrap();
+    std::fs::write(
+        parent.join("secret.txt"),
+        "PRIVATECANARY above the workspace",
+    )
+    .unwrap();
     let tools = Tools::new(Workspace::new(&dir).unwrap(), true);
     let command = if cfg!(windows) {
         "type ..\\secret.txt"
@@ -622,10 +616,8 @@ fn shell_refuses_parent_traversal_without_a_protected_store() {
 
 #[test]
 fn verify_refuses_an_absolute_path_outside_the_workspace() {
-    let parent = std::env::temp_dir().join(format!(
-        "lokai-tools-verify-abs-{}",
-        std::process::id()
-    ));
+    let parent =
+        std::env::temp_dir().join(format!("lokai-tools-verify-abs-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&parent);
     let dir = parent.join("workspace");
     std::fs::create_dir_all(&dir).unwrap();
@@ -648,10 +640,7 @@ fn verify_refuses_an_absolute_path_outside_the_workspace() {
 
 #[test]
 fn shell_refuses_inline_interpreter_code() {
-    let dir = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-inline-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("lokai-tools-shell-inline-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("secret.txt"), "PRIVATECANARY inline shell").unwrap();
@@ -682,10 +671,7 @@ fn shell_refuses_inline_interpreter_code() {
 
 #[test]
 fn shell_refuses_powershell_and_credential_helpers() {
-    let dir = std::env::temp_dir().join(format!(
-        "lokai-tools-shell-cred-{}",
-        std::process::id()
-    ));
+    let dir = std::env::temp_dir().join(format!("lokai-tools-shell-cred-{}", std::process::id()));
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&dir).unwrap();
     std::fs::write(dir.join("secret.txt"), "PRIVATECANARY credential shell").unwrap();
@@ -729,10 +715,7 @@ fn read_and_search_refuse_the_control_database() {
         "control database bytes leaked: {}",
         read.content
     );
-    let found = tools.execute(
-        "grep",
-        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
-    );
+    let found = tools.execute("grep", &json!({ "pattern": "PRIVATECANARY", "path": "." }));
     assert!(
         !found.content.contains("PRIVATECANARY"),
         "search leaked the control database: {}",
@@ -771,10 +754,7 @@ fn read_and_search_refuse_a_sqlite_database_by_header() {
         "sqlite database bytes leaked: {}",
         read.content
     );
-    let found = tools.execute(
-        "grep",
-        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
-    );
+    let found = tools.execute("grep", &json!({ "pattern": "PRIVATECANARY", "path": "." }));
     assert!(
         !found.content.contains("PRIVATECANARY"),
         "search leaked the sqlite database: {}",
@@ -800,10 +780,7 @@ fn read_and_search_refuse_a_sqlite_write_ahead_log() {
         "write-ahead log leaked: {}",
         read.content
     );
-    let found = tools.execute(
-        "grep",
-        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
-    );
+    let found = tools.execute("grep", &json!({ "pattern": "PRIVATECANARY", "path": "." }));
     assert!(
         !found.content.contains("PRIVATECANARY"),
         "search leaked the write-ahead log: {}",
@@ -831,10 +808,7 @@ fn read_and_search_refuse_a_sqlite_shared_memory_file() {
         "shared-memory file leaked: {}",
         read.content
     );
-    let found = tools.execute(
-        "grep",
-        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
-    );
+    let found = tools.execute("grep", &json!({ "pattern": "PRIVATECANARY", "path": "." }));
     assert!(
         !found.content.contains("PRIVATECANARY"),
         "search leaked the shared-memory file: {}",
@@ -891,10 +865,7 @@ fn lsp_does_not_read_a_sqlite_database() {
                 "PRIVATECANARY from lsp",
             ))
         }
-        fn diagnostics(
-            &self,
-            _: &str,
-        ) -> Result<tetonic_domain::tool_host::ToolOutcome, String> {
+        fn diagnostics(&self, _: &str) -> Result<tetonic_domain::tool_host::ToolOutcome, String> {
             Ok(tetonic_domain::tool_host::ToolOutcome::ok(
                 "lsp",
                 "PRIVATECANARY from lsp",
@@ -903,10 +874,7 @@ fn lsp_does_not_read_a_sqlite_database() {
     }
     struct LeakOpen;
     impl tetonic_domain::LspSessionOpen for LeakOpen {
-        fn open(
-            &self,
-            _: &std::path::Path,
-        ) -> Result<Box<dyn tetonic_domain::LspSession>, String> {
+        fn open(&self, _: &std::path::Path) -> Result<Box<dyn tetonic_domain::LspSession>, String> {
             Ok(Box::new(LeakSession))
         }
         fn available(&self, _: &std::path::Path) -> bool {
@@ -940,8 +908,16 @@ fn lsp_does_not_read_a_sqlite_database() {
 fn credential_store_files_are_not_read_or_searched() {
     let (tools, dir) = tmp_ws("cred-store");
     std::fs::create_dir_all(dir.join(".ssh")).unwrap();
-    std::fs::write(dir.join(".ssh").join("id_ed25519"), "PRIVATECANARY private key\n").unwrap();
-    std::fs::write(dir.join(".git-credentials"), "PRIVATECANARY git credential\n").unwrap();
+    std::fs::write(
+        dir.join(".ssh").join("id_ed25519"),
+        "PRIVATECANARY private key\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join(".git-credentials"),
+        "PRIVATECANARY git credential\n",
+    )
+    .unwrap();
     std::fs::write(dir.join("notes.txt"), "visible_marker\n").unwrap();
 
     let read = tools.execute("read_file", &json!({ "path": ".ssh/id_ed25519" }));
@@ -949,10 +925,7 @@ fn credential_store_files_are_not_read_or_searched() {
     assert!(!read.content.contains("PRIVATECANARY"), "{}", read.content);
     assert!(!read.summary.contains("PRIVATECANARY"), "{}", read.summary);
 
-    let grep = tools.execute(
-        "grep",
-        &json!({ "pattern": "PRIVATECANARY", "path": "." }),
-    );
+    let grep = tools.execute("grep", &json!({ "pattern": "PRIVATECANARY", "path": "." }));
     assert!(grep.ok, "{}", grep.content);
     assert!(!grep.content.contains("PRIVATECANARY"), "{}", grep.content);
 
@@ -961,7 +934,11 @@ fn credential_store_files_are_not_read_or_searched() {
         &json!({ "path": ".aws/credentials", "content": "PRIVATECANARY" }),
     );
     assert!(!written.ok);
-    assert!(!written.content.contains("PRIVATECANARY"), "{}", written.content);
+    assert!(
+        !written.content.contains("PRIVATECANARY"),
+        "{}",
+        written.content
+    );
     assert!(!dir.join(".aws").join("credentials").exists());
 
     let notes = tools.execute("read_file", &json!({ "path": "notes.txt" }));

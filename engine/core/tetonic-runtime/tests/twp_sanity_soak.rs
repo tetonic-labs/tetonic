@@ -97,9 +97,7 @@ async fn test_twp_continuous_agent_standing_loop_with_sensory_filter() {
     let adapter_clone = adapter.clone();
 
     // Spawn agent in world loop
-    let agent_handle = tokio::spawn(async move {
-        agent.run_in_world(adapter_clone).await
-    });
+    let agent_handle = tokio::spawn(async move { agent.run_in_world(adapter_clone).await });
 
     let total_ticks = 50;
 
@@ -184,15 +182,25 @@ async fn test_twp_continuous_agent_standing_loop_with_sensory_filter() {
 
     let mut line = String::new();
     // Read with timeout
-    if let Ok(Ok(n)) = tokio::time::timeout(Duration::from_millis(200), server_reader.read_line(&mut line)).await {
+    if let Ok(Ok(n)) = tokio::time::timeout(
+        Duration::from_millis(200),
+        server_reader.read_line(&mut line),
+    )
+    .await
+    {
         if n > 0 {
-            if let Ok(StreamMessage::Action(action)) = serde_json::from_str::<StreamMessage>(line.trim()) {
+            if let Ok(StreamMessage::Action(action)) =
+                serde_json::from_str::<StreamMessage>(line.trim())
+            {
                 assert_eq!(action.kind, "respond_to_event");
                 action_received = true;
             }
         }
     }
-    assert!(action_received, "Agent failed to emit action over TWP stream");
+    assert!(
+        action_received,
+        "Agent failed to emit action over TWP stream"
+    );
 
     // Verify SensoryFilter efficiency:
     // Out of 50 ticks, at least 38 of the 40 identical idle ticks were suppressed (>75% overall suppression)
@@ -203,7 +211,9 @@ async fn test_twp_continuous_agent_standing_loop_with_sensory_filter() {
     );
 
     // Verify Authoritative E-Stop halts execution
-    adapter.trigger_estop("Operator containment trigger".into()).unwrap();
+    adapter
+        .trigger_estop("Operator containment trigger".into())
+        .unwrap();
     assert!(adapter.is_estopped());
 
     drop(server_reader);

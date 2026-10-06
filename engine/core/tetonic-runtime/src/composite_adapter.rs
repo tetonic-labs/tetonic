@@ -14,8 +14,8 @@ use tokio::sync::{mpsc, Mutex};
 use tracing::warn;
 
 use tetonic_domain::{
-    ActionResult, Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender,
-    WorldAction, WorldAdapter, WorldError, WorldManifest,
+    ActionResult, Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender, WorldAction,
+    WorldAdapter, WorldError, WorldManifest,
 };
 
 /// An adapter composing multiple named child [`WorldAdapter`]s into a unified interface.
@@ -67,8 +67,13 @@ impl CompositeWorldAdapter {
 #[async_trait]
 impl WorldAdapter for CompositeWorldAdapter {
     fn open(&self) -> (PerceptionSender, PerceptionReceiver) {
-        let mut guard = self.perception_receiver.try_lock().expect("open called once");
-        let rx = guard.take().expect("open called only once per composite adapter");
+        let mut guard = self
+            .perception_receiver
+            .try_lock()
+            .expect("open called once");
+        let rx = guard
+            .take()
+            .expect("open called only once per composite adapter");
 
         // Spawn multiplexing forwarder for each child adapter
         for (name, child) in &self.adapters {
@@ -408,14 +413,16 @@ mod tests {
 
         let (code_adapter, _) = TestMockAdapter::new(code_manifest);
 
-        let composite = CompositeWorldAdapter::new("composite_test")
-            .with_adapter("code", code_adapter.clone());
+        let composite =
+            CompositeWorldAdapter::new("composite_test").with_adapter("code", code_adapter.clone());
 
         assert!(!composite.is_estopped());
         assert!(!code_adapter.is_estopped());
 
         // Trip composite E-Stop
-        composite.trigger_estop("Global security alert".into()).unwrap();
+        composite
+            .trigger_estop("Global security alert".into())
+            .unwrap();
 
         assert!(composite.is_estopped());
         assert!(code_adapter.is_estopped());

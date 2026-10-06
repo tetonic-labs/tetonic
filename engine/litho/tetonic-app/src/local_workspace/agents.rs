@@ -352,7 +352,10 @@ impl LocalWorkspace {
             .map_err(resource)?
             .into_iter()
             .filter(|(key, _)| {
-                key == AGENT || key == shaping::GUIDE || key == plan_execution::COORDINATOR || key.starts_with("local-agent-")
+                key == AGENT
+                    || key == shaping::GUIDE
+                    || key == plan_execution::COORDINATOR
+                    || key.starts_with("local-agent-")
             })
             .map(|(key, stored)| self.agent_profile(key, &stored))
             .collect()

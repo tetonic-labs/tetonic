@@ -153,10 +153,16 @@ impl WebSocketWorldAdapter {
         });
         adapter
     }
-    pub fn set_observer(&self, observer: crate::brain::InferenceObserver) { *self.observer.lock().unwrap() = Some(observer); }
+    pub fn set_observer(&self, observer: crate::brain::InferenceObserver) {
+        *self.observer.lock().unwrap() = Some(observer);
+    }
     /// Acknowledges decision inclusion only. A full queue leaves events pending at the world.
-    pub fn acknowledge_events(&self, session:&str, ids:&[String], decision_id:&str) {
-        if !ids.is_empty() { let _=self.acknowledgements.try_send(json!({"world_session":session,"event_ids":ids,"decision_id":decision_id})); }
+    pub fn acknowledge_events(&self, session: &str, ids: &[String], decision_id: &str) {
+        if !ids.is_empty() {
+            let _ = self.acknowledgements.try_send(
+                json!({"world_session":session,"event_ids":ids,"decision_id":decision_id}),
+            );
+        }
     }
     pub fn is_connected(&self) -> bool {
         self.connected.load(Ordering::SeqCst)
@@ -177,34 +183,44 @@ impl WorldAdapter for WebSocketWorldAdapter {
     }
     async fn execute(&self, action: WorldAction) -> Result<ActionResult, WorldError> {
         let observer = self.observer.lock().unwrap().clone();
-        let trace_id = action.payload["_decision_trace"].as_str().unwrap_or("unattributed").to_owned();
-        if let Some(o)=&observer { o(&trace_id,"action_submit",json!({"action":action})); }
-        let outcome = async {
-        if !self.is_connected() {
-            return Err(WorldError::NotConnected);
+        let trace_id = action.payload["_decision_trace"]
+            .as_str()
+            .unwrap_or("unattributed")
+            .to_owned();
+        if let Some(o) = &observer {
+            o(&trace_id, "action_submit", json!({"action":action}));
         }
-        self.estop.check(&action.kind)?;
-        self.local_estop.check(&action.kind)?;
-        self.manifest.validate_action(&action)?;
-        let (reply, result) = oneshot::channel();
-        self.tx
-            .send(Request {
-                id: uuid::Uuid::new_v4().to_string(),
-                action,
-                deadline: Instant::now() + Duration::from_secs(5),
-                reply,
-            })
-            .await
-            .map_err(|_| WorldError::NotConnected)?;
-        tokio::time::timeout(Duration::from_secs(5), result)
-            .await
-            .map_err(|_| WorldError::Timeout { elapsed_ms: 5000 })?
-            .map_err(|_| WorldError::NotConnected)?
-        }.await;
-        if let Some(o)=&observer {
+        let outcome = async {
+            if !self.is_connected() {
+                return Err(WorldError::NotConnected);
+            }
+            self.estop.check(&action.kind)?;
+            self.local_estop.check(&action.kind)?;
+            self.manifest.validate_action(&action)?;
+            let (reply, result) = oneshot::channel();
+            self.tx
+                .send(Request {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    action,
+                    deadline: Instant::now() + Duration::from_secs(5),
+                    reply,
+                })
+                .await
+                .map_err(|_| WorldError::NotConnected)?;
+            tokio::time::timeout(Duration::from_secs(5), result)
+                .await
+                .map_err(|_| WorldError::Timeout { elapsed_ms: 5000 })?
+                .map_err(|_| WorldError::NotConnected)?
+        }
+        .await;
+        if let Some(o) = &observer {
             match &outcome {
-                Ok(result)=>o(&trace_id,"action_result",json!(result)),
-                Err(error)=>o(&trace_id,"action_error",json!({"error":error.to_string()})),
+                Ok(result) => o(&trace_id, "action_result", json!(result)),
+                Err(error) => o(
+                    &trace_id,
+                    "action_error",
+                    json!({"error":error.to_string()}),
+                ),
             }
         }
         outcome
@@ -236,20 +252,44 @@ mod tests {
     use tetonic_domain::BrainPathway;
 
     #[tokio::test]
-    async fn event_acknowledgements_use_the_shared_wire_fixture_without_a_world_action(){
-        let fixture:Value=serde_json::from_str(include_str!("../tests/fixtures/event-delivery-v1.json")).unwrap();
-        let listener=tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();let addr=listener.local_addr().unwrap();
-        let wire=fixture.clone();
-        let server=tokio::spawn(async move {
-            let (socket,_)=listener.accept().await.unwrap();let mut ws=tokio_tungstenite::accept_async(socket).await.unwrap();
-            ws.send(Message::Text(json!({"type":"perception","data":wire["perception"]}).to_string().into())).await.unwrap();
-            let frame=ws.next().await.unwrap().unwrap();let packet:Value=serde_json::from_str(frame.to_text().unwrap()).unwrap();assert_eq!(packet,wire["ack"]);
+    async fn event_acknowledgements_use_the_shared_wire_fixture_without_a_world_action() {
+        let fixture: Value =
+            serde_json::from_str(include_str!("../tests/fixtures/event-delivery-v1.json")).unwrap();
+        let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+        let addr = listener.local_addr().unwrap();
+        let wire = fixture.clone();
+        let server = tokio::spawn(async move {
+            let (socket, _) = listener.accept().await.unwrap();
+            let mut ws = tokio_tungstenite::accept_async(socket).await.unwrap();
+            ws.send(Message::Text(
+                json!({"type":"perception","data":wire["perception"]})
+                    .to_string()
+                    .into(),
+            ))
+            .await
+            .unwrap();
+            let frame = ws.next().await.unwrap().unwrap();
+            let packet: Value = serde_json::from_str(frame.to_text().unwrap()).unwrap();
+            assert_eq!(packet, wire["ack"]);
         });
-        let adapter=WebSocketWorldAdapter::connect(format!("ws://{addr}"),"a".into(),WorldManifest::new("test","1"),Duration::from_secs(6));
-        let (_,mut rx)=adapter.open();let p=tokio::time::timeout(Duration::from_secs(3),rx.recv()).await.unwrap().unwrap();
-        assert_eq!(p.events.len(),1);assert_eq!(p.state.data["delivery"]["protocol"],1);
-        adapter.acknowledge_events("session-1",&["session-1:1".into()],"perception-7");
-        tokio::time::timeout(Duration::from_secs(3),server).await.unwrap().unwrap();
+        let adapter = WebSocketWorldAdapter::connect(
+            format!("ws://{addr}"),
+            "a".into(),
+            WorldManifest::new("test", "1"),
+            Duration::from_secs(6),
+        );
+        let (_, mut rx) = adapter.open();
+        let p = tokio::time::timeout(Duration::from_secs(3), rx.recv())
+            .await
+            .unwrap()
+            .unwrap();
+        assert_eq!(p.events.len(), 1);
+        assert_eq!(p.state.data["delivery"]["protocol"], 1);
+        adapter.acknowledge_events("session-1", &["session-1:1".into()], "perception-7");
+        tokio::time::timeout(Duration::from_secs(3), server)
+            .await
+            .unwrap()
+            .unwrap();
     }
 
     #[tokio::test]

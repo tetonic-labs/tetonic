@@ -116,7 +116,9 @@ impl Store {
         let notes_json = serde_json::to_string(&final_notes).map_err(|e| {
             crate::StoreError::InvalidControlResource(format!("Invalid notes JSON: {e}"))
         })?;
-        let agents_json = final_agents.as_ref().and_then(|a| serde_json::to_string(a).ok());
+        let agents_json = final_agents
+            .as_ref()
+            .and_then(|a| serde_json::to_string(a).ok());
 
         self.conn.execute(
             "INSERT INTO local_work_notes(work_id, notes_json, status, lead_id, agent_ids_json)

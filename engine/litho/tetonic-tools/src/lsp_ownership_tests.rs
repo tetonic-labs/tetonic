@@ -233,7 +233,10 @@ fn cancel_stops_an_in_flight_language_server_call() {
         Some(&signal),
     );
     watcher.join().unwrap();
-    assert!(stopped.load(Ordering::SeqCst), "cancel did not stop the language server");
+    assert!(
+        stopped.load(Ordering::SeqCst),
+        "cancel did not stop the language server"
+    );
     assert!(!outcome.ok);
     assert!(!outcome.content.contains("PRIVATECANARY"));
 }

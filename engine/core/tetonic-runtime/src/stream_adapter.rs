@@ -15,8 +15,8 @@ use tokio::sync::{mpsc, Mutex};
 use tracing::{debug, error, info, warn};
 
 use tetonic_domain::{
-    ActionResult, EstopSwitch, Perception, PerceptionReceiver, PerceptionSender,
-    WorldAction, WorldAdapter, WorldError, WorldManifest,
+    ActionResult, EstopSwitch, Perception, PerceptionReceiver, PerceptionSender, WorldAction,
+    WorldAdapter, WorldError, WorldManifest,
 };
 
 /// Framing protocol message envelope for bidirectional stream communication.
@@ -114,7 +114,10 @@ impl StreamWorldAdapter {
 #[async_trait]
 impl WorldAdapter for StreamWorldAdapter {
     fn open(&self) -> (PerceptionSender, PerceptionReceiver) {
-        let mut guard = self.perception_receiver.try_lock().expect("open called once");
+        let mut guard = self
+            .perception_receiver
+            .try_lock()
+            .expect("open called once");
         let rx = guard.take().expect("open called only once per adapter");
         (self.perception_sender.clone(), rx)
     }
@@ -149,7 +152,9 @@ impl WorldAdapter for StreamWorldAdapter {
 
     fn trigger_estop(&self, reason: String) -> Result<(), WorldError> {
         self.estop.trigger(reason.clone());
-        let _ = self.outbound_msg_tx.try_send(StreamMessage::Estop { reason });
+        let _ = self
+            .outbound_msg_tx
+            .try_send(StreamMessage::Estop { reason });
         Ok(())
     }
 
@@ -462,7 +467,9 @@ mod tests {
         let action = WorldAction::with_payload(
             "ignite",
             serde_json::json!({ "target": "dry_grass" }),
-            BrainPathway::Reflexive { model: "fast".into() },
+            BrainPathway::Reflexive {
+                model: "fast".into(),
+            },
         );
         let action_msg = StreamMessage::Action(action);
         let serialized_act = serde_json::to_string(&action_msg).unwrap();
@@ -470,7 +477,9 @@ mod tests {
         assert!(serialized_act.contains("\"kind\":\"ignite\""));
 
         // 3. Estop frame
-        let estop_msg = StreamMessage::Estop { reason: "thermal runaway".into() };
+        let estop_msg = StreamMessage::Estop {
+            reason: "thermal runaway".into(),
+        };
         let serialized_estop = serde_json::to_string(&estop_msg).unwrap();
         assert!(serialized_estop.contains("\"type\":\"estop\""));
         assert!(serialized_estop.contains("\"reason\":\"thermal runaway\""));

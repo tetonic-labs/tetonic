@@ -393,7 +393,8 @@ mod tests {
             .recall_history(&root, "PRIVATECANARY", 5, Some(&legacy))
             .unwrap();
         assert!(
-            hits.iter().all(|hit| !hit.snippet.contains("PRIVATECANARY")),
+            hits.iter()
+                .all(|hit| !hit.snippet.contains("PRIVATECANARY")),
             "legacy recall returned private history: {hits:?}"
         );
     }

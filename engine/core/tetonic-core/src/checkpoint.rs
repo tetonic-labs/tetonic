@@ -10,7 +10,9 @@ use std::path::{Path, PathBuf};
 
 use tracing::{debug, warn};
 
-use tetonic_domain::checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
+use tetonic_domain::checkpoint::{
+    AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError,
+};
 use tetonic_domain::ids::AgentId;
 
 /// Manages atomic checkpoint persistence and verification on a moveable execution volume.
@@ -123,7 +125,10 @@ impl CheckpointManager {
     }
 
     /// Reads a checkpoint file from disk and validates its data integrity checksum.
-    fn read_and_verify_checkpoint(&self, path: &Path) -> Result<AgentStateCheckpoint, CheckpointError> {
+    fn read_and_verify_checkpoint(
+        &self,
+        path: &Path,
+    ) -> Result<AgentStateCheckpoint, CheckpointError> {
         let content = fs::read_to_string(path)?;
         let checkpoint: AgentStateCheckpoint = serde_json::from_str(&content)?;
         checkpoint.verify_integrity()?;
@@ -208,7 +213,13 @@ impl CheckpointManager {
 
 fn sanitize_id(id: &str) -> String {
     id.chars()
-        .map(|c| if c.is_alphanumeric() || c == '-' || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '-' || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect()
 }
 

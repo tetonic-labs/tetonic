@@ -134,8 +134,10 @@ mod tests {
             assert!(!shown.contains("PRIVATECANARY"), "{shown}");
             assert!(shown.contains("request failed"), "{shown}");
         }
-        assert!(inspector_failure_text("Invalid request: unknown session_id")
-            .contains("unknown session_id"));
+        assert!(
+            inspector_failure_text("Invalid request: unknown session_id")
+                .contains("unknown session_id")
+        );
     }
 
     #[test]

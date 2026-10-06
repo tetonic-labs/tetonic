@@ -233,14 +233,8 @@ mod tests {
         .unwrap();
         db.insert_open_discussion("member", "member-private", "notes")
             .unwrap();
-        db.append_context_message(
-            "member",
-            "member-private",
-            "notes",
-            "m1",
-            "PRIVATECANARY",
-        )
-        .unwrap();
+        db.append_context_message("member", "member-private", "notes", "m1", "PRIVATECANARY")
+            .unwrap();
         db.administer_team_member("admin", "org", "team", "member", true)
             .unwrap();
         db.administer_team_member("admin", "org", "team", "member", true)

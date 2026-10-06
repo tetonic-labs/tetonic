@@ -4,9 +4,9 @@
 //! allowing the identical engine binary to run zero-config standalone on a laptop or
 //! distributed across a 1,000-node cluster.
 
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Operating role/mode of an engine node.
@@ -364,12 +364,11 @@ impl EngineConfig {
                 config.storage.volume_mount_path = PathBuf::from(val);
             }
             if let Some(val) = storage_sec.get("checkpoint_interval_secs") {
-                config.storage.checkpoint_interval_secs = val.parse().map_err(|_| {
-                    EngineConfigError::InvalidValue {
+                config.storage.checkpoint_interval_secs =
+                    val.parse().map_err(|_| EngineConfigError::InvalidValue {
                         field: "storage.checkpoint_interval_secs".to_string(),
                         value: val.clone(),
-                    }
-                })?;
+                    })?;
             }
         }
 
@@ -395,12 +394,11 @@ impl EngineConfig {
                 }
             });
             if let Some(val) = inf_sec.get("timeout_ms") {
-                config.inference.timeout_ms = val.parse().map_err(|_| {
-                    EngineConfigError::InvalidValue {
+                config.inference.timeout_ms =
+                    val.parse().map_err(|_| EngineConfigError::InvalidValue {
                         field: "inference.timeout_ms".to_string(),
                         value: val.clone(),
-                    }
-                })?;
+                    })?;
             }
         }
 
@@ -416,12 +414,11 @@ impl EngineConfig {
                 }
             });
             if let Some(val) = telem_sec.get("ring_buffer_capacity") {
-                config.telemetry.ring_buffer_capacity = val.parse().map_err(|_| {
-                    EngineConfigError::InvalidValue {
+                config.telemetry.ring_buffer_capacity =
+                    val.parse().map_err(|_| EngineConfigError::InvalidValue {
                         field: "telemetry.ring_buffer_capacity".to_string(),
                         value: val.clone(),
-                    }
-                })?;
+                    })?;
             }
         }
 
@@ -480,7 +477,9 @@ impl EngineConfig {
                 self.storage.storage_mode = mode;
             }
         }
-        if let Ok(val) = std::env::var("TETONIC_VOLUME_PATH").or_else(|_| std::env::var("TETONIC_STORAGE_PATH")) {
+        if let Ok(val) =
+            std::env::var("TETONIC_VOLUME_PATH").or_else(|_| std::env::var("TETONIC_STORAGE_PATH"))
+        {
             if !val.trim().is_empty() {
                 self.storage.volume_mount_path = PathBuf::from(val);
             }
@@ -547,10 +546,16 @@ impl EngineConfig {
         }
 
         out.push_str("\n[storage]\n");
-        out.push_str(&format!("storage_mode = \"{}\"\n", self.storage.storage_mode));
+        out.push_str(&format!(
+            "storage_mode = \"{}\"\n",
+            self.storage.storage_mode
+        ));
         out.push_str(&format!(
             "volume_mount_path = \"{}\"\n",
-            self.storage.volume_mount_path.to_string_lossy().replace('\\', "/")
+            self.storage
+                .volume_mount_path
+                .to_string_lossy()
+                .replace('\\', "/")
         ));
         out.push_str(&format!(
             "checkpoint_interval_secs = {}\n",
@@ -562,7 +567,10 @@ impl EngineConfig {
         if let Some(endpoint) = &self.inference.endpoint_url {
             out.push_str(&format!("endpoint_url = \"{}\"\n", endpoint));
         }
-        out.push_str(&format!("default_model = \"{}\"\n", self.inference.default_model));
+        out.push_str(&format!(
+            "default_model = \"{}\"\n",
+            self.inference.default_model
+        ));
         if let Some(reflex) = &self.inference.reflex_model {
             out.push_str(&format!("reflex_model = \"{}\"\n", reflex));
         }
@@ -590,7 +598,8 @@ impl EngineConfig {
                 if self.storage.volume_mount_path.as_os_str().is_empty() {
                     return Err(EngineConfigError::InvalidValue {
                         field: "storage.volume_mount_path".to_string(),
-                        value: "empty path (required when storage_mode is moveable_volume)".to_string(),
+                        value: "empty path (required when storage_mode is moveable_volume)"
+                            .to_string(),
                     });
                 }
             }
@@ -618,7 +627,10 @@ impl EngineConfig {
                 if self.inference.endpoint_url.is_none() {
                     return Err(EngineConfigError::InvalidValue {
                         field: "inference.endpoint_url".to_string(),
-                        value: format!("missing (required for {} provider)", self.inference.provider),
+                        value: format!(
+                            "missing (required for {} provider)",
+                            self.inference.provider
+                        ),
                     });
                 }
             }
@@ -743,7 +755,10 @@ timeout_ms = 15000
         );
 
         assert_eq!(cfg.storage.storage_mode, StorageMode::MoveableVolume);
-        assert_eq!(cfg.storage.volume_mount_path, PathBuf::from("/mnt/agent-pvc"));
+        assert_eq!(
+            cfg.storage.volume_mount_path,
+            PathBuf::from("/mnt/agent-pvc")
+        );
         assert_eq!(cfg.storage.checkpoint_interval_secs, 30);
 
         assert_eq!(cfg.inference.provider, InferenceProviderKind::RemoteFabric);
@@ -752,7 +767,10 @@ timeout_ms = 15000
             Some("http://inference-fabric.internal:8000")
         );
         assert_eq!(cfg.inference.default_model, "deliberative-base");
-        assert_eq!(cfg.inference.reflex_model.as_deref(), Some("reflexive-fast"));
+        assert_eq!(
+            cfg.inference.reflex_model.as_deref(),
+            Some("reflexive-fast")
+        );
         assert_eq!(cfg.inference.timeout_ms, 15000);
     }
 
@@ -818,32 +836,46 @@ timeout_ms = 15000
         // DistributedDb unsupported
         let mut dist_db = EngineConfig::default();
         dist_db.storage.storage_mode = StorageMode::DistributedDb;
-        assert!(matches!(dist_db.validate(), Err(EngineConfigError::Unsupported(_))));
+        assert!(matches!(
+            dist_db.validate(),
+            Err(EngineConfigError::Unsupported(_))
+        ));
 
         // MoveableVolume requires volume_mount_path
         let mut volume_empty = EngineConfig::default();
         volume_empty.storage.storage_mode = StorageMode::MoveableVolume;
         volume_empty.storage.volume_mount_path = PathBuf::new();
-        assert!(matches!(volume_empty.validate(), Err(EngineConfigError::InvalidValue { .. })));
+        assert!(matches!(
+            volume_empty.validate(),
+            Err(EngineConfigError::InvalidValue { .. })
+        ));
 
         // Runner requires coordinator_url
         let mut runner_missing_coord = EngineConfig::default();
         runner_missing_coord.node.mode = NodeMode::Runner;
         runner_missing_coord.node.coordinator_url = None;
-        assert!(matches!(runner_missing_coord.validate(), Err(EngineConfigError::InvalidValue { .. })));
+        assert!(matches!(
+            runner_missing_coord.validate(),
+            Err(EngineConfigError::InvalidValue { .. })
+        ));
 
         // Cloud provider requires endpoint_url
         let mut cloud_missing_endpoint = EngineConfig::default();
         cloud_missing_endpoint.inference.provider = InferenceProviderKind::Cloud;
         cloud_missing_endpoint.inference.endpoint_url = None;
-        assert!(matches!(cloud_missing_endpoint.validate(), Err(EngineConfigError::InvalidValue { .. })));
+        assert!(matches!(
+            cloud_missing_endpoint.validate(),
+            Err(EngineConfigError::InvalidValue { .. })
+        ));
     }
 
     #[test]
     fn test_redacted_config_and_urls() {
         let mut cfg = EngineConfig::default();
-        cfg.inference.endpoint_url = Some("https://user:supersecret@api.provider.com/v1?token=tok123&model=llama3".into());
-        cfg.node.coordinator_url = Some("https://admin:pass456@coord.internal:4430/status?api_key=key789".into());
+        cfg.inference.endpoint_url =
+            Some("https://user:supersecret@api.provider.com/v1?token=tok123&model=llama3".into());
+        cfg.node.coordinator_url =
+            Some("https://admin:pass456@coord.internal:4430/status?api_key=key789".into());
         cfg.telemetry.endpoint_url = Some("http://otel.internal:4317/ingest?secret=s99".into());
 
         let red = cfg.redacted();

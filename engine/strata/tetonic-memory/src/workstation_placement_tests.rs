@@ -34,24 +34,10 @@ fn team_membership_does_not_grant_workstation_and_shared_is_opt_in() {
         .unwrap();
     assert!(!ws.shared_assignment);
     assert!(db
-        .approve_workstation_grant(
-            "bob",
-            "org",
-            "laptop",
-            "g1",
-            "path",
-            "/home/alice/proj",
-        )
+        .approve_workstation_grant("bob", "org", "laptop", "g1", "path", "/home/alice/proj",)
         .is_err());
-    db.approve_workstation_grant(
-        "alice",
-        "org",
-        "laptop",
-        "g1",
-        "path",
-        "/home/alice/proj",
-    )
-    .unwrap();
+    db.approve_workstation_grant("alice", "org", "laptop", "g1", "path", "/home/alice/proj")
+        .unwrap();
     db.create_team_work_item("alice", "org", "team", "w1", "Ship", "r1", None)
         .unwrap();
     assert!(db
@@ -107,7 +93,12 @@ fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
     let again = db.reconnect_workstation("alice", "org", "laptop").unwrap();
     assert_eq!(again.status, "enrolled");
     assert_eq!(again.assignment_generation, before.assignment_generation);
-    assert_eq!(db.list_team_work_items("alice", "org", "team").unwrap().len(), 2);
+    assert_eq!(
+        db.list_team_work_items("alice", "org", "team")
+            .unwrap()
+            .len(),
+        2
+    );
 
     let claim = db
         .claim_worker_assignment(
@@ -160,28 +151,31 @@ fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
             again.assignment_generation,
         )
         .is_err());
-    assert!(db.workstation_grants_for("org", "laptop").unwrap().is_empty());
+    assert!(db
+        .workstation_grants_for("org", "laptop")
+        .unwrap()
+        .is_empty());
 }
 
 #[test]
 fn drain_blocks_new_claims_and_generation_survives_reopen() {
     let db = primed();
-    db.enroll_workstation(
-        "alice",
-        "org",
-        "box",
-        "Box",
-        "windows",
-        "secret",
-        true,
-    )
-    .unwrap();
-    let gen = db.get_workstation("org", "box").unwrap().unwrap().assignment_generation;
+    db.enroll_workstation("alice", "org", "box", "Box", "windows", "secret", true)
+        .unwrap();
+    let gen = db
+        .get_workstation("org", "box")
+        .unwrap()
+        .unwrap()
+        .assignment_generation;
     db.drain_workstation("alice", "org", "box").unwrap();
     assert!(db
         .claim_worker_assignment("org", "box", "secret", "x", "xr", None, gen)
         .is_err());
     // Re-open the same database file semantics: generation is durable in-row.
-    let gen_again = db.get_workstation("org", "box").unwrap().unwrap().assignment_generation;
+    let gen_again = db
+        .get_workstation("org", "box")
+        .unwrap()
+        .unwrap()
+        .assignment_generation;
     assert_eq!(gen, gen_again);
 }

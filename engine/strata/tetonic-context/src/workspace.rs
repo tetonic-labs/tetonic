@@ -532,22 +532,24 @@ fn is_control_store_name(name: &str) -> bool {
 }
 
 fn relative_path_is_credential_store(rel: &str) -> bool {
-    rel.split(['/', '\\']).filter(|part| !part.is_empty()).any(|part| {
-        matches!(
-            part.to_ascii_lowercase().as_str(),
-            ".ssh"
-                | ".aws"
-                | ".gnupg"
-                | ".kube"
-                | ".git-credentials"
-                | ".netrc"
-                | "_netrc"
-                | "id_rsa"
-                | "id_dsa"
-                | "id_ecdsa"
-                | "id_ed25519"
-        )
-    })
+    rel.split(['/', '\\'])
+        .filter(|part| !part.is_empty())
+        .any(|part| {
+            matches!(
+                part.to_ascii_lowercase().as_str(),
+                ".ssh"
+                    | ".aws"
+                    | ".gnupg"
+                    | ".kube"
+                    | ".git-credentials"
+                    | ".netrc"
+                    | "_netrc"
+                    | "id_rsa"
+                    | "id_dsa"
+                    | "id_ecdsa"
+                    | "id_ed25519"
+            )
+        })
 }
 
 /// Build the production compiler used by CLI and daemon assembly (R4-1 / R4-3, CAP-01).
@@ -645,7 +647,9 @@ mod tests {
         let read = provider.get_file_content(&sidecar).await.unwrap_err();
         assert!(!read.contains("PRIVATECANARY"));
         let visible = provider.search_text("visible_marker").await.unwrap();
-        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        assert!(visible
+            .iter()
+            .any(|hit| hit.text.contains("visible_marker")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -677,7 +681,9 @@ mod tests {
         let read = provider.get_file_content(&key).await.unwrap_err();
         assert!(!read.contains("PRIVATECANARY"), "{read}");
         let visible = provider.search_text("visible_marker").await.unwrap();
-        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        assert!(visible
+            .iter()
+            .any(|hit| hit.text.contains("visible_marker")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -710,7 +716,9 @@ mod tests {
             "direct read returned the sqlite database: {read}"
         );
         let visible = provider.search_text("visible_marker").await.unwrap();
-        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        assert!(visible
+            .iter()
+            .any(|hit| hit.text.contains("visible_marker")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -743,7 +751,9 @@ mod tests {
             "direct read returned the write-ahead log: {read}"
         );
         let visible = provider.search_text("visible_marker").await.unwrap();
-        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        assert!(visible
+            .iter()
+            .any(|hit| hit.text.contains("visible_marker")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 
@@ -779,7 +789,9 @@ mod tests {
             "direct read returned the shared-memory file: {read}"
         );
         let visible = provider.search_text("visible_marker").await.unwrap();
-        assert!(visible.iter().any(|hit| hit.text.contains("visible_marker")));
+        assert!(visible
+            .iter()
+            .any(|hit| hit.text.contains("visible_marker")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

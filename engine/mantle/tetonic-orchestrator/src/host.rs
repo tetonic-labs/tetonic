@@ -279,16 +279,8 @@ mod tests {
         let legacy = store
             .start_session(dir.path().to_str().unwrap(), "single-agent", "mock")
             .unwrap();
-        let legacy_plan = host.on_session_start(
-            &legacy,
-            None,
-            None,
-            None,
-            true,
-            None,
-            Some(&store),
-            None,
-        );
+        let legacy_plan =
+            host.on_session_start(&legacy, None, None, None, true, None, Some(&store), None);
         let legacy_text = legacy_plan.project_context.unwrap_or_default();
         assert!(
             legacy_text.contains("LEGACYNOTE"),

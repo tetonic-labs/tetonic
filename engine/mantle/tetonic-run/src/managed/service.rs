@@ -206,10 +206,7 @@ impl ManagedRunService {
                     reason: "run canceled".into(),
                 },
                 Err(error) => tetonic_domain::CandidateOutcome::Failed {
-                    message: format!(
-                        "cannot persist cancellation: {}",
-                        published_managed(&error)
-                    ),
+                    message: format!("cannot persist cancellation: {}", published_managed(&error)),
                 },
             };
             let terminal = StartIdentityJobResult {

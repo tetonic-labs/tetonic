@@ -535,12 +535,7 @@ impl PooledProvider {
             .ok()
             .and_then(|guard| guard.clone())
             == turn;
-        let same_run = self
-            .last_run_id
-            .read()
-            .ok()
-            .and_then(|guard| guard.clone())
-            == run;
+        let same_run = self.last_run_id.read().ok().and_then(|guard| guard.clone()) == run;
         let same_context = self
             .last_context_id
             .read()

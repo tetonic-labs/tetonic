@@ -101,17 +101,8 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
     assert!(!db
         .effect_approval_allows_dispatch("org", "team", "ap2", "digest-c", 1_000)
         .unwrap());
-    db.propose_effect_approval(
-        "alice",
-        "org",
-        "team",
-        "ap3",
-        "digest-d",
-        "req-d",
-        50,
-        None,
-    )
-    .unwrap();
+    db.propose_effect_approval("alice", "org", "team", "ap3", "digest-d", "req-d", 50, None)
+        .unwrap();
     assert!(db
         .resolve_effect_approval("alice", "org", "team", "ap3", "digest-d", true, 100)
         .is_err());
@@ -124,30 +115,12 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
 fn effort_unknown_is_not_zero_and_team_inspection_has_no_private_bodies() {
     let db = primed();
     let unknown = db
-        .record_team_effort(
-            "alice",
-            "org",
-            "team",
-            "e1",
-            "er1",
-            None,
-            None,
-            None,
-        )
+        .record_team_effort("alice", "org", "team", "e1", "er1", None, None, None)
         .unwrap();
     assert_eq!(unknown.status, "unknown");
     assert!(unknown.measured_tokens.is_none());
     let measured = db
-        .record_team_effort(
-            "alice",
-            "org",
-            "team",
-            "e2",
-            "er2",
-            Some(40),
-            None,
-            None,
-        )
+        .record_team_effort("alice", "org", "team", "e2", "er2", Some(40), None, None)
         .unwrap();
     assert_eq!(measured.measured_tokens, Some(40));
     let view = db.inspect_team_work("bob", "org", "team").unwrap();

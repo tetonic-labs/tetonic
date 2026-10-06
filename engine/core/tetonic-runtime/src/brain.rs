@@ -17,19 +17,23 @@ use tetonic_inference::{ChatRequest, InferenceProvider, Message, ToolSchema};
 // redaction step themselves before calling a real inference provider.
 fn scan_request(req: &mut ChatRequest) -> Result<(), BrainError> {
     let input = serde_json::json!({"messages": req.messages, "tools": req.tools});
-    let (clean, found) = tetonic_secrets::redact_json_value(tetonic_secrets::shared_scanner(), &input)
-        .map_err(|detail| BrainError::Inference {
+    let (clean, found) =
+        tetonic_secrets::redact_json_value(tetonic_secrets::shared_scanner(), &input).map_err(
+            |detail| BrainError::Inference {
+                pathway: "outbound_scan".into(),
+                detail,
+            },
+        )?;
+    req.messages =
+        serde_json::from_value(clean["messages"].clone()).map_err(|e| BrainError::Inference {
             pathway: "outbound_scan".into(),
-            detail,
+            detail: e.to_string(),
         })?;
-    req.messages = serde_json::from_value(clean["messages"].clone()).map_err(|e| BrainError::Inference {
-        pathway: "outbound_scan".into(),
-        detail: e.to_string(),
-    })?;
-    req.tools = serde_json::from_value(clean["tools"].clone()).map_err(|e| BrainError::Inference {
-        pathway: "outbound_scan".into(),
-        detail: e.to_string(),
-    })?;
+    req.tools =
+        serde_json::from_value(clean["tools"].clone()).map_err(|e| BrainError::Inference {
+            pathway: "outbound_scan".into(),
+            detail: e.to_string(),
+        })?;
     req.outbound_scan = tetonic_inference::OutboundScan::from_scan(found);
     Ok(())
 }
@@ -99,9 +103,14 @@ impl Brain for SingleModelBrain {
 
         scan_request(&mut chat_req)?;
         let emit = |stage: &str, data: serde_json::Value| {
-            if let Some(observer) = &self.observer { observer(&trace_id, stage, data); }
+            if let Some(observer) = &self.observer {
+                observer(&trace_id, stage, data);
+            }
         };
-        emit("inference_request", serde_json::json!({"model":chat_req.model,"messages":chat_req.messages,"tools":chat_req.tools,"num_ctx":chat_req.num_ctx,"max_tokens":chat_req.max_tokens,"temperature":chat_req.temperature,"boundary":"post-redaction request passed to inference provider"}));
+        emit(
+            "inference_request",
+            serde_json::json!({"model":chat_req.model,"messages":chat_req.messages,"tools":chat_req.tools,"num_ctx":chat_req.num_ctx,"max_tokens":chat_req.max_tokens,"temperature":chat_req.temperature,"boundary":"post-redaction request passed to inference provider"}),
+        );
         let started = std::time::Instant::now();
         let mut stream = |chunk: &str| {
             emit("output_delta", serde_json::json!({"text":chunk}));
@@ -110,11 +119,20 @@ impl Brain for SingleModelBrain {
         let resp = match self.provider.chat(chat_req, &mut stream).await {
             Ok(response) => response,
             Err(error) => {
-                emit("inference_error", serde_json::json!({"error":error.to_string(),"elapsed_ms":started.elapsed().as_millis()}));
-                return Err(BrainError::Inference {pathway:self.model.clone(),detail:error.to_string()});
+                emit(
+                    "inference_error",
+                    serde_json::json!({"error":error.to_string(),"elapsed_ms":started.elapsed().as_millis()}),
+                );
+                return Err(BrainError::Inference {
+                    pathway: self.model.clone(),
+                    detail: error.to_string(),
+                });
             }
         };
-        emit("inference_response", serde_json::json!({"message":resp.message,"finish_reason":resp.usage.finish_reason,"elapsed_ms":started.elapsed().as_millis(),"input_tokens":resp.usage.prompt_tokens,"output_tokens":resp.usage.eval_tokens,"prompt_eval_ms":resp.usage.prompt_eval_ms,"eval_ms":resp.usage.eval_ms}));
+        emit(
+            "inference_response",
+            serde_json::json!({"message":resp.message,"finish_reason":resp.usage.finish_reason,"elapsed_ms":started.elapsed().as_millis(),"input_tokens":resp.usage.prompt_tokens,"output_tokens":resp.usage.eval_tokens,"prompt_eval_ms":resp.usage.prompt_eval_ms,"eval_ms":resp.usage.eval_ms}),
+        );
 
         let cost = BrainCost {
             input_tokens: resp.usage.prompt_tokens.unwrap_or(0),
@@ -158,15 +176,15 @@ impl Brain for SingleModelBrain {
         perception: tetonic_domain::Perception,
     ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
         // If background urgency and no events occurred, avoid expensive model forward pass
-        if perception.urgency == tetonic_domain::Urgency::Background && perception.events.is_empty() {
+        if perception.urgency == tetonic_domain::Urgency::Background && perception.events.is_empty()
+        {
             return Ok(None);
         }
 
         let system_msg = Message::system(
             "You are an autonomous agent perceiving a live environment. If an action is required, output a JSON object with 'kind' and 'payload'. If no action is needed, return empty content.",
         );
-        let perception_summary =
-            serde_json::to_string(&perception).unwrap_or_else(|_| "{}".into());
+        let perception_summary = serde_json::to_string(&perception).unwrap_or_else(|_| "{}".into());
         let user_msg = Message::user(format!("Current Perception:\n{perception_summary}"));
 
         let mut chat_req = ChatRequest {
@@ -179,14 +197,14 @@ impl Brain for SingleModelBrain {
 
         scan_request(&mut chat_req)?;
         let mut noop = |_: &str| {};
-        let resp = self
-            .provider
-            .chat(chat_req, &mut noop)
-            .await
-            .map_err(|e| BrainError::Inference {
-                pathway: self.model.clone(),
-                detail: e.to_string(),
-            })?;
+        let resp =
+            self.provider
+                .chat(chat_req, &mut noop)
+                .await
+                .map_err(|e| BrainError::Inference {
+                    pathway: self.model.clone(),
+                    detail: e.to_string(),
+                })?;
 
         let cost = BrainCost {
             input_tokens: resp.usage.prompt_tokens.unwrap_or(0),
@@ -203,7 +221,10 @@ impl Brain for SingleModelBrain {
         // Attempt to parse JSON action from model output
         if let Ok(val) = serde_json::from_str::<serde_json::Value>(content) {
             if let Some(kind) = val.get("kind").and_then(|k| k.as_str()) {
-                let payload = val.get("payload").cloned().unwrap_or(serde_json::Value::Null);
+                let payload = val
+                    .get("payload")
+                    .cloned()
+                    .unwrap_or(serde_json::Value::Null);
                 return Ok(Some(tetonic_domain::WorldAction::with_payload(
                     kind,
                     payload,
@@ -266,39 +287,85 @@ mod tests {
     struct TraceProvider;
     #[async_trait]
     impl InferenceProvider for TraceProvider {
-        async fn chat(&self, req: ChatRequest, sink: &mut tetonic_inference::TokenSink<'_>) -> Result<tetonic_inference::ChatResponse,tetonic_inference::InferenceError> {
-            assert_eq!(req.messages[0].content,"local observation");
+        async fn chat(
+            &self,
+            req: ChatRequest,
+            sink: &mut tetonic_inference::TokenSink<'_>,
+        ) -> Result<tetonic_inference::ChatResponse, tetonic_inference::InferenceError> {
+            assert_eq!(req.messages[0].content, "local observation");
             assert_eq!(req.max_tokens, Some(256));
-            sink("not "); sink("valid JSON");
-            Ok(tetonic_inference::ChatResponse {message:Message::assistant("not valid JSON"),usage:tetonic_inference::GenUsage {finish_reason:Some("length".into()),..Default::default()},provenance:Default::default()})
+            sink("not ");
+            sink("valid JSON");
+            Ok(tetonic_inference::ChatResponse {
+                message: Message::assistant("not valid JSON"),
+                usage: tetonic_inference::GenUsage {
+                    finish_reason: Some("length".into()),
+                    ..Default::default()
+                },
+                provenance: Default::default(),
+            })
         }
     }
     #[tokio::test]
     async fn observer_keeps_unparsed_response_and_real_chunks_in_order() {
-        let events=Arc::new(std::sync::Mutex::new(Vec::new()));
-        let recorded=events.clone();
-        let brain=SingleModelBrain::new(Arc::new(TraceProvider),"test",4096).with_observer(Arc::new(move |id,stage,data|recorded.lock().unwrap().push((id.to_string(),stage.to_string(),data))));
-        let req=BrainRequest {messages:vec![BrainMessage {role:BrainRole::User,content:"local observation".into(),tool_calls:None,tool_call_id:None}],tools:vec![],max_tokens:Some(256),trace_label:"decision-1".into()};
-        let mut chunks=String::new();let mut sink=|s:&str|chunks.push_str(s);
-        let response=brain.complete(req,&mut sink).await.unwrap();
+        let events = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = events.clone();
+        let brain = SingleModelBrain::new(Arc::new(TraceProvider), "test", 4096).with_observer(
+            Arc::new(move |id, stage, data| {
+                recorded
+                    .lock()
+                    .unwrap()
+                    .push((id.to_string(), stage.to_string(), data))
+            }),
+        );
+        let req = BrainRequest {
+            messages: vec![BrainMessage {
+                role: BrainRole::User,
+                content: "local observation".into(),
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            tools: vec![],
+            max_tokens: Some(256),
+            trace_label: "decision-1".into(),
+        };
+        let mut chunks = String::new();
+        let mut sink = |s: &str| chunks.push_str(s);
+        let response = brain.complete(req, &mut sink).await.unwrap();
         assert_eq!(response.finish_reason, BrainFinishReason::Length);
-        assert_eq!(response.content,"not valid JSON");assert_eq!(chunks,response.content);
-        let events=events.lock().unwrap();
-        assert_eq!(events.iter().map(|e|e.1.as_str()).collect::<Vec<_>>(),vec!["inference_request","output_delta","output_delta","inference_response"]);
-        assert!(events.iter().all(|e|e.0=="decision-1"));
-        assert_eq!(events[0].2["messages"][0]["content"],"local observation");
-        assert_eq!(events[3].2["message"]["content"],"not valid JSON");
+        assert_eq!(response.content, "not valid JSON");
+        assert_eq!(chunks, response.content);
+        let events = events.lock().unwrap();
+        assert_eq!(
+            events.iter().map(|e| e.1.as_str()).collect::<Vec<_>>(),
+            vec![
+                "inference_request",
+                "output_delta",
+                "output_delta",
+                "inference_response"
+            ]
+        );
+        assert!(events.iter().all(|e| e.0 == "decision-1"));
+        assert_eq!(events[0].2["messages"][0]["content"], "local observation");
+        assert_eq!(events[3].2["message"]["content"], "not valid JSON");
     }
 
     struct ScriptedBrain {
-        handler: Arc<dyn Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync>,
+        handler: Arc<
+            dyn Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction>
+                + Send
+                + Sync,
+        >,
         description: String,
     }
 
     impl ScriptedBrain {
         fn new<F>(name: impl Into<String>, handler: F) -> Self
         where
-            F: Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction> + Send + Sync + 'static,
+            F: Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction>
+                + Send
+                + Sync
+                + 'static,
         {
             Self {
                 description: format!("scripted:{}", name.into()),
@@ -345,7 +412,12 @@ mod tests {
     async fn test_scripted_brain_perceives_and_acts() {
         let brain = ScriptedBrain::new("patrol", |p| {
             if p.urgency >= Urgency::Medium {
-                Some(WorldAction::bare("alert", BrainPathway::Single { model: "scripted".into() }))
+                Some(WorldAction::bare(
+                    "alert",
+                    BrainPathway::Single {
+                        model: "scripted".into(),
+                    },
+                ))
             } else {
                 None
             }
@@ -377,7 +449,11 @@ mod tests {
                 data: serde_json::Value::Null,
             },
         };
-        let action = brain.perceive(p_med).await.unwrap().expect("action emitted");
+        let action = brain
+            .perceive(p_med)
+            .await
+            .unwrap()
+            .expect("action emitted");
         assert_eq!(action.kind, "alert");
     }
 }

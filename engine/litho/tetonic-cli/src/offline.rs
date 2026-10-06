@@ -241,7 +241,9 @@ pub async fn code_index(args: &Args) -> Result<()> {
     if let Some(name) = &args.def {
         let rows = app.find_definition(&ws, name)?;
         if rows.is_empty() {
-            println!("no definition of '{name}' found (is the workspace indexed? `tetonic --index`)");
+            println!(
+                "no definition of '{name}' found (is the workspace indexed? `tetonic --index`)"
+            );
         }
         for r in rows {
             println!(

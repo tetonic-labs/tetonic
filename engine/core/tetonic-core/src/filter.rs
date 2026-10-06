@@ -77,7 +77,12 @@ mod tests {
     use chrono::Utc;
     use tetonic_domain::{Signal, SignalValue, WorldEvent, WorldState};
 
-    fn make_perception(seq: u64, urgency: Urgency, signals: Vec<Signal>, events: Vec<WorldEvent>) -> Perception {
+    fn make_perception(
+        seq: u64,
+        urgency: Urgency,
+        signals: Vec<Signal>,
+        events: Vec<WorldEvent>,
+    ) -> Perception {
         Perception {
             when: Utc::now(),
             sequence: seq,

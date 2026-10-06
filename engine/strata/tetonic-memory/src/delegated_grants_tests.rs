@@ -619,7 +619,10 @@ fn upgrading_version_55_preserves_roots_without_inventing_child_permission() {
         fixture
     };
     let db = Store::open(&path).unwrap();
-    assert_eq!(crate::backup::schema_version(&db.conn).unwrap(), crate::SCHEMA_TARGET_VERSION);
+    assert_eq!(
+        crate::backup::schema_version(&db.conn).unwrap(),
+        crate::SCHEMA_TARGET_VERSION
+    );
     assert_eq!(
         db.conn
             .query_row("SELECT COUNT(*) FROM execution_grant_lineage", [], |row| {

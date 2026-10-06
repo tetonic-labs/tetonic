@@ -154,12 +154,7 @@ impl Store {
             _ => return Err(StoreError::InvalidControlResource("platform".into())),
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
-        if !self.control_access(
-            actor,
-            crate::ControlPermission::ManageOrganization,
-            org,
-            "",
-        )? {
+        if !self.control_access(actor, crate::ControlPermission::ManageOrganization, org, "")? {
             return Err(StoreError::ControlAccessDenied);
         }
         if let Some(existing) = self.get_workstation(org, workstation_id)? {
@@ -195,11 +190,7 @@ impl Store {
         Ok(row)
     }
 
-    pub fn get_workstation(
-        &self,
-        org: &str,
-        workstation_id: &str,
-    ) -> Result<Option<Workstation>> {
+    pub fn get_workstation(&self, org: &str, workstation_id: &str) -> Result<Option<Workstation>> {
         Ok(self
             .conn
             .query_row(
@@ -261,12 +252,9 @@ impl Store {
         let ws = self
             .get_workstation(org, workstation_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
-        if ws.owner_principal_id != actor && !self.control_access(
-            actor,
-            crate::ControlPermission::ManageOrganization,
-            org,
-            "",
-        )? {
+        if ws.owner_principal_id != actor
+            && !self.control_access(actor, crate::ControlPermission::ManageOrganization, org, "")?
+        {
             return Err(StoreError::ControlAccessDenied);
         }
         if ws.status == "revoked" {
@@ -468,12 +456,7 @@ impl Store {
             .get_workstation(org, workstation_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
         if ws.owner_principal_id == actor
-            || self.control_access(
-                actor,
-                crate::ControlPermission::ManageOrganization,
-                org,
-                "",
-            )?
+            || self.control_access(actor, crate::ControlPermission::ManageOrganization, org, "")?
         {
             Ok(ws)
         } else {
@@ -589,8 +572,7 @@ impl Store {
             return Err(StoreError::ControlAccessDenied);
         }
         if let Some(existing) = self.assignment_by_request(org, workstation_id, request_id)? {
-            if existing.assignment_id != assignment_id
-                || existing.generation != claimed_generation
+            if existing.assignment_id != assignment_id || existing.generation != claimed_generation
             {
                 return Err(StoreError::ControlResourceConflict);
             }

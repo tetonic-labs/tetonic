@@ -61,15 +61,10 @@ async fn classifier_stops_when_the_attempt_is_canceled() {
     let entered_flag = entered.clone();
     let cancel_flag = cancel.clone();
     let task = tokio::spawn(async move {
-        stop_or(
-            &cancel_flag,
-            || false,
-            || async { false },
-            async {
-                entered_flag.store(true, std::sync::atomic::Ordering::SeqCst);
-                std::future::pending::<u8>().await
-            },
-        )
+        stop_or(&cancel_flag, || false, || async { false }, async {
+            entered_flag.store(true, std::sync::atomic::Ordering::SeqCst);
+            std::future::pending::<u8>().await
+        })
         .await
     });
     tokio::time::timeout(std::time::Duration::from_secs(2), async {
@@ -301,9 +296,7 @@ fn specialist_node_is_not_reported_before_the_agent_is_built() {
     let start = src
         .find("|build, user_input|")
         .expect("specialist build closure");
-    let end = src[start..]
-        .find("|aid, step|")
-        .expect("step callback");
+    let end = src[start..].find("|aid, step|").expect("step callback");
     let body = &src[start..start + end];
     let build = body.find("build_agent(").expect("build");
     let started = body.find("NodeStarted").expect("node started");

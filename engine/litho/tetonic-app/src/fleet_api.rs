@@ -33,7 +33,9 @@ pub enum FleetApiError {
     AgentAlreadyExists(String),
     #[error("Agent '{0}' not found")]
     AgentNotFound(String),
-    #[error("Budget exceeded for organization '{org_id}': attempted {attempted}, available {available}")]
+    #[error(
+        "Budget exceeded for organization '{org_id}': attempted {attempted}, available {available}"
+    )]
     BudgetExceeded {
         org_id: String,
         attempted: u64,
@@ -292,12 +294,7 @@ impl FleetManager {
             .map(|c| c.operational_boundaries.len())
             .unwrap_or(0);
 
-        supervisor.register_agent(
-            agent_id.clone(),
-            Some(SquadId::new(squad_id)),
-            None,
-            None,
-        );
+        supervisor.register_agent(agent_id.clone(), Some(SquadId::new(squad_id)), None, None);
 
         let resp = AgentResponse {
             agent_id: req.agent_id.clone(),
@@ -347,7 +344,8 @@ impl FleetManager {
 
         match (method, segments.as_slice()) {
             ("POST", ["api", "v1", "orgs"]) => {
-                let body_str = body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
+                let body_str =
+                    body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
                 let req: CreateOrgRequest = serde_json::from_str(body_str)
                     .map_err(|e| FleetApiError::BadRequest(e.to_string()))?;
                 let res = self.create_org(req).await?;
@@ -358,7 +356,8 @@ impl FleetManager {
                 Ok(serde_json::to_value(res).unwrap())
             }
             ("POST", ["api", "v1", "orgs", org_id, "squads"]) => {
-                let body_str = body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
+                let body_str =
+                    body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
                 let req: CreateSquadRequest = serde_json::from_str(body_str)
                     .map_err(|e| FleetApiError::BadRequest(e.to_string()))?;
                 let res = self.create_squad(org_id, req).await?;
@@ -370,7 +369,8 @@ impl FleetManager {
             }
             ("POST", ["api", "v1", "orgs", _, "squads", squad_id, "agents"])
             | ("POST", ["api", "v1", "squads", squad_id, "agents"]) => {
-                let body_str = body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
+                let body_str =
+                    body.ok_or_else(|| FleetApiError::BadRequest("Missing JSON body".into()))?;
                 let req: CreateAgentRequest = serde_json::from_str(body_str)
                     .map_err(|e| FleetApiError::BadRequest(e.to_string()))?;
                 let res = self.create_agent(squad_id, req).await?;

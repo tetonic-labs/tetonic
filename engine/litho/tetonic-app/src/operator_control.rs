@@ -246,7 +246,10 @@ impl OperatorController {
     }
 
     /// Resumes an estopped agent once cleared by an operator.
-    pub async fn resume_agent(&self, agent_id: &str) -> Result<ResumeResponse, OperatorControlError> {
+    pub async fn resume_agent(
+        &self,
+        agent_id: &str,
+    ) -> Result<ResumeResponse, OperatorControlError> {
         let id = AgentId::new(agent_id);
         let supervisor = self.supervisor.lock().await;
 
@@ -269,7 +272,9 @@ impl OperatorController {
     }
 
     /// Gathers a real-time operational dashboard snapshot.
-    pub async fn get_dashboard_snapshot(&self) -> Result<OperatorDashboardView, OperatorControlError> {
+    pub async fn get_dashboard_snapshot(
+        &self,
+    ) -> Result<OperatorDashboardView, OperatorControlError> {
         let supervisor = self.supervisor.lock().await;
         let snap = supervisor.fleet_snapshot();
         drop(supervisor);
@@ -324,7 +329,8 @@ impl OperatorController {
 
         match (method, segments.as_slice()) {
             ("POST", ["api", "v1", "agents", agent_id, "steer"]) => {
-                let body_str = body.ok_or_else(|| OperatorControlError::BadRequest("Missing body".into()))?;
+                let body_str =
+                    body.ok_or_else(|| OperatorControlError::BadRequest("Missing body".into()))?;
                 let req: SteerAgentRequest = serde_json::from_str(body_str)
                     .map_err(|e| OperatorControlError::BadRequest(e.to_string()))?;
                 let res = self.steer_agent(agent_id, req).await?;
@@ -427,7 +433,10 @@ mod tests {
             boundaries: None,
         };
 
-        let resp = controller.steer_agent("agent-target", req).await.expect("steer");
+        let resp = controller
+            .steer_agent("agent-target", req)
+            .await
+            .expect("steer");
         assert_eq!(resp.agent_id, "agent-target");
         assert_eq!(resp.directive, "Focus on reducing tail latency");
     }
@@ -452,7 +461,10 @@ mod tests {
         assert_eq!(ag2.status, AgentLifecycleState::Estopped);
 
         // 4. Resume agent
-        let resume_resp = controller.resume_agent("agent-target").await.expect("resume");
+        let resume_resp = controller
+            .resume_agent("agent-target")
+            .await
+            .expect("resume");
         assert_eq!(resume_resp.status, AgentLifecycleState::Idle);
 
         let ag3 = manager.get_agent("agent-target").await.expect("get agent");
@@ -463,7 +475,10 @@ mod tests {
     async fn test_operator_dashboard_view_aggregates_state() {
         let (controller, _) = setup_test_fleet().await;
 
-        let dashboard = controller.get_dashboard_snapshot().await.expect("dashboard");
+        let dashboard = controller
+            .get_dashboard_snapshot()
+            .await
+            .expect("dashboard");
         assert_eq!(dashboard.total_agents, 1);
         assert_eq!(dashboard.running_agents, 0);
         assert_eq!(dashboard.estopped_agents, 0);
