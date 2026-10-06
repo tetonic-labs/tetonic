@@ -16,6 +16,7 @@ pub const INPUT_LIMIT: usize = 12_000;
 mod agents;
 mod bootstrap;
 mod conversations;
+mod director;
 mod mcp;
 mod plan_execution;
 mod plan_human;
@@ -335,7 +336,7 @@ impl LocalWorkspace {
                 return self.project_task(existing).await;
             }
         }
-        let conversation_input = self
+        let mut conversation_input = self
             .conversation_input(&id, &agent_key, parent_id.as_deref(), &input)
             .await?;
         let work = resources
@@ -359,7 +360,8 @@ impl LocalWorkspace {
         }
         self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
         let mut settings = self.agent_execution_settings(&agent).await?;
-        if self.planning_ids().await?.contains_key(&id) {
+        let planning = self.planning_ids().await?.contains_key(&id);
+        if planning {
             if purpose != WorkPurpose::Explore || agent_key != shaping::GUIDE || parent_id.is_some()
             {
                 return Err(AppError::InvalidRequest("A planning request must use the configured Guide without conversation history.".into()));
@@ -370,6 +372,9 @@ impl LocalWorkspace {
             settings.mcp = None;
             settings.allowed_tools.clear();
             settings.workspace_root = None;
+            if !planning {
+                conversation_input = self.director_input(&id, conversation_input).await?;
+            }
         }
         // New work inherits an explicit allowance from existing agent limits,
         // optionally narrowed by the owner's workspace default. Retries retain
@@ -405,6 +410,9 @@ impl LocalWorkspace {
         }
         if parent_id.is_some() {
             settings.limits.max_input_bytes = conversations::CONVERSATION_LIMIT;
+        }
+        if purpose == WorkPurpose::Explore && !planning {
+            settings.limits.max_input_bytes = conversations::CONVERSATION_LIMIT + 18_000;
         }
         let prepared = resources
             .prepare_general_revision(

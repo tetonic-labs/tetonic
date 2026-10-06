@@ -23,6 +23,14 @@ pub(super) fn response_schema() -> serde_json::Value {
 #[derive(Deserialize)]
 #[serde(tag = "action", rename_all = "snake_case", deny_unknown_fields)]
 pub enum PlanCommand {
+    /// One conversational action, composed from the existing versioned brief
+    /// and generation receipts. A retry reuses both operations after a lost reply.
+    Prepare {
+        request_id: String,
+        expected_revision: i64,
+        expected_brief_revision: i64,
+        body: String,
+    },
     Generate {
         request_id: String,
         expected_revision: i64,
@@ -185,7 +193,40 @@ impl LocalWorkspace {
         command: PlanCommand,
     ) -> Result<HuddlePlan, AppError> {
         validate_request_id(id)?;
+        let command = if let PlanCommand::Prepare {
+            request_id,
+            expected_revision,
+            expected_brief_revision,
+            body,
+        } = command
+        {
+            validate_request_id(&request_id)?;
+            if expected_revision < 0 || expected_revision == i64::MAX {
+                return Err(AppError::InvalidRequest("Invalid plan revision.".into()));
+            }
+            if self.execution_receipt(id).await?.is_some() {
+                return Err(AppError::InvalidRequest("This plan has already started. Change upcoming assignments through its work controls.".into()));
+            }
+            let brief = self
+                .save_work_brief(
+                    id,
+                    SaveWorkBrief {
+                        request_id: request_id.clone(),
+                        expected_revision: expected_brief_revision,
+                        body,
+                    },
+                )
+                .await?;
+            PlanCommand::Generate {
+                request_id,
+                expected_revision,
+                brief_revision: brief.revision,
+            }
+        } else {
+            command
+        };
         match command {
+            PlanCommand::Prepare { .. } => unreachable!("normalized above"),
             PlanCommand::Generate {
                 request_id,
                 expected_revision,
@@ -407,6 +448,96 @@ mod tests {
         invalid.assignments[0].depends_on.push("check".into());
         assert!(parse_plan(&serde_json::to_string(&invalid).unwrap()).is_err());
     }
+    #[tokio::test]
+    async fn prepare_from_conversation_reuses_brief_and_plan_receipts_without_dispatch() {
+        let dir = tempfile::tempdir().unwrap();
+        let database = dir.path().join("prepare.db");
+        let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+            true,
+            "structured",
+            serde_json::json!({"summary":serde_json::to_string(&content()).unwrap()}),
+            false,
+        )
+        .await;
+        tokio::task::LocalSet::new()
+            .run_until(async {
+                let workspace =
+                    LocalWorkspace::open(database.clone(), "qwen3.5:latest".into(), url.clone())
+                        .await
+                        .unwrap();
+                let source = uuid::Uuid::new_v4().to_string();
+                workspace
+                    .local
+                    .resources()
+                    .create_team_work_item_for_purpose(
+                        &workspace.host.credential,
+                        crate::resources::CreateTeamWorkItem {
+                            org: ORG.into(),
+                            team: TEAM.into(),
+                            work_id: source.clone(),
+                            title: "An idea".into(),
+                            request_id: source.clone(),
+                            goal_id: None,
+                        },
+                        Some("PRIVATE_THOUGHT_DO_NOT_SHARE".into()),
+                        WorkPurpose::Explore,
+                    )
+                    .await
+                    .unwrap();
+                let request_id = uuid::Uuid::new_v4().to_string();
+                let command = || PlanCommand::Prepare {
+                    request_id: request_id.clone(),
+                    expected_revision: 0,
+                    expected_brief_revision: 0,
+                    body: "Compare workshop formats, then assess their tradeoffs.".into(),
+                };
+                let first = workspace.update_plan(&source, command()).await.unwrap();
+                tokio::time::timeout(std::time::Duration::from_secs(20), async {
+                    loop {
+                        let task = workspace.task(&first.generation_id).await.unwrap();
+                        if task.state == "completed" {
+                            break;
+                        }
+                        assert_ne!(task.state, "failed", "{:?}", task.error);
+                        tokio::time::sleep(std::time::Duration::from_millis(30)).await;
+                    }
+                })
+                .await
+                .unwrap();
+                let captured = workspace
+                    .update_plan(&source, PlanCommand::Capture { revision: 1 })
+                    .await
+                    .unwrap();
+                assert_eq!(captured.status, "draft");
+                assert!(!calls.lock().unwrap()[0]["messages"]
+                    .to_string()
+                    .contains("PRIVATE_THOUGHT_DO_NOT_SHARE"));
+                assert!(workspace.execution_view(&source).await.unwrap().is_none());
+                drop(workspace);
+                let reopened = LocalWorkspace::open(database, "qwen3.5:latest".into(), url)
+                    .await
+                    .unwrap();
+                let retry = reopened.update_plan(&source, command()).await.unwrap();
+                assert_eq!(retry.generation_id, first.generation_id);
+                assert_eq!(reopened.work_briefs(&source).await.unwrap().len(), 1);
+                assert_eq!(calls.lock().unwrap().len(), 1);
+                assert!(reopened
+                    .update_plan(
+                        &source,
+                        PlanCommand::Prepare {
+                            request_id,
+                            expected_revision: 0,
+                            expected_brief_revision: 0,
+                            body: "Different direction".into()
+                        }
+                    )
+                    .await
+                    .is_err());
+            })
+            .await;
+        server.abort();
+    }
+
     #[tokio::test]
     async fn planning_uses_only_pinned_brief_and_survives_restart_without_dispatch() {
         let dir = tempfile::tempdir().unwrap();

@@ -158,6 +158,37 @@ impl LocalWorkspace {
                     .await;
             }
         }
+        // The Guide is engine-managed. Update its selected revision deliberately;
+        // merely publishing leaves existing installations on old instructions.
+        if let Some(guide) = resources
+            .get_agent(secret, ORG.into(), shaping::GUIDE.into())
+            .await
+            .map_err(resource)?
+        {
+            let envelope: serde_json::Value = serde_json::from_str(&guide.definition_json)
+                .map_err(|_| AppError::InferenceUnavailable)?;
+            let mut configuration = envelope["configuration"].clone();
+            if configuration["instructions"].as_str() != Some(shaping::GUIDE_INSTRUCTIONS) {
+                configuration["instructions"] = shaping::GUIDE_INSTRUCTIONS.into();
+                resources
+                    .edit_agent(
+                        secret,
+                        crate::resources::EditAgent {
+                            org: ORG.into(),
+                            key: shaping::GUIDE.into(),
+                            request: format!(
+                                "guide-conversation-{}",
+                                guide.identity.bound_definition_digest
+                            ),
+                            expected: guide.identity.bound_definition_digest,
+                            harness: "general".into(),
+                            configuration,
+                        },
+                    )
+                    .await
+                    .map_err(resource)?;
+            }
+        }
         let context = local
             .contexts()
             .team_participation_context(secret, ORG.into(), TEAM.into())

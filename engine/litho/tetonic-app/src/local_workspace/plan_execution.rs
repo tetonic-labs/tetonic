@@ -52,7 +52,10 @@ impl LocalWorkspace {
             .min(86400)
     }
 
-    async fn execution_receipt(&self, source: &str) -> Result<Option<HuddleExecution>, AppError> {
+    pub(super) async fn execution_receipt(
+        &self,
+        source: &str,
+    ) -> Result<Option<HuddleExecution>, AppError> {
         // Authorize through the same resource door as the plan, including retries.
         self.local
             .resources()
