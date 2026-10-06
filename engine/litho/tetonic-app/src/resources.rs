@@ -7,6 +7,12 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tetonic_memory::{OrganizationRow, SharedStore, StoreError, TeamRow};
 
+mod requests;
+pub use requests::{
+    ActivateWorkCursor, ApplyControlStop, BindDelegatedExecutionGrant, ClaimWorkerAssignment,
+    CreateTeamWorkItem, CreateWorkDelegation, EnrollWorkstation, ProposeEffectApproval,
+    PublishContextMessage, RecordTeamEffort, ResolveEffectApproval, SaveWorkBrief,
+};
 mod local_control;
 mod local_credentials;
 pub use local_control::LocalControl;

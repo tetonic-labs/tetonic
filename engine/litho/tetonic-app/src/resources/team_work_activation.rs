@@ -203,44 +203,43 @@ impl crate::Application {
             Err(error) => {
                 // A stop or permission change can win after managed admission.
                 // Do not strand the fresh execution when its work binding loses.
-                if submission.execution.is_some() {
-                    if self
+                if submission.execution.is_some()
+                    && self
                         .run_manager
                         .managed()
                         .cancel_run(&submission.run_id)
                         .await
                         .is_err()
-                    {
-                        let run = submission.run_id.0.clone();
-                        let org = launch.organization_id;
-                        let team = launch.team_id;
-                        let goal = work.goal_id.clone();
-                        let work = launch.work_id;
-                        let _ = store
-                            .write(move |db| {
-                                if let Some(stop) = db.activation_blocked_by_stop(
+                {
+                    let run = submission.run_id.0.clone();
+                    let org = launch.organization_id;
+                    let team = launch.team_id;
+                    let goal = work.goal_id.clone();
+                    let work = launch.work_id;
+                    let _ = store
+                        .write(move |db| {
+                            if let Some(stop) = db.activation_blocked_by_stop(
+                                &org,
+                                &team,
+                                &work,
+                                goal.as_deref(),
+                                None,
+                            )? {
+                                db.record_unresolved_stop_effect(
                                     &org,
-                                    &team,
-                                    &work,
-                                    goal.as_deref(),
-                                    None,
-                                )? {
-                                    db.record_unresolved_stop_effect(
-                                        &org,
-                                        &stop.scope_kind,
-                                        &stop.scope_id,
-                                        stop.generation,
-                                        &run,
-                                        "work binding lost; managed cancellation unconfirmed",
-                                    )?;
-                                }
-                                Ok::<_, tetonic_memory::StoreError>(())
-                            })
-                            .await;
-                        return Err(AppError::InvalidRequest(
+                                    &stop.scope_kind,
+                                    &stop.scope_id,
+                                    stop.generation,
+                                    &run,
+                                    "work binding lost; managed cancellation unconfirmed",
+                                )?;
+                            }
+                            Ok::<_, tetonic_memory::StoreError>(())
+                        })
+                        .await;
+                    return Err(AppError::InvalidRequest(
                             "Work could not be activated; cancellation is unconfirmed. Inspect the managed run before retrying.".into(),
                         ));
-                    }
                 }
                 return Err(resource_error(error));
             }
@@ -254,12 +253,15 @@ impl crate::Application {
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
-        org: String,
-        scope_kind: String,
-        scope_id: String,
-        mode: String,
-        reason: String,
+        command: crate::resources::ApplyControlStop,
     ) -> Result<tetonic_memory::ControlStop, AppError> {
+        let crate::resources::ApplyControlStop {
+            org,
+            scope_kind,
+            scope_id,
+            mode,
+            reason,
+        } = command;
         let store = self
             .run_manager
             .managed()
@@ -417,12 +419,14 @@ mod tests {
         resources
             .create_team_work_item(
                 secret,
-                "org".into(),
-                "team".into(),
-                "w1".into(),
-                "Ship preview".into(),
-                "work-req-1".into(),
-                None,
+                crate::resources::CreateTeamWorkItem {
+                    org: "org".into(),
+                    team: "team".into(),
+                    work_id: "w1".into(),
+                    title: "Ship preview".into(),
+                    request_id: "work-req-1".into(),
+                    goal_id: None,
+                },
             )
             .await
             .unwrap();
@@ -440,18 +444,20 @@ mod tests {
         resources
             .create_work_delegation(
                 secret,
-                "org".into(),
-                "team".into(),
-                "d1".into(),
-                "w1".into(),
-                "child".into(),
-                "Help".into(),
-                "del-1".into(),
-                100,
-                25,
-                "inherit".into(),
-                None,
-                None,
+                crate::resources::CreateWorkDelegation {
+                    org: "org".into(),
+                    team: "team".into(),
+                    delegation_id: "d1".into(),
+                    parent_work_id: "w1".into(),
+                    child_work_id: "child".into(),
+                    child_title: "Help".into(),
+                    request_id: "del-1".into(),
+                    parent_budget_tokens: 100,
+                    child_budget_tokens: 25,
+                    stop_scope: "inherit".into(),
+                    peer_org: None,
+                    peer_team: None,
+                },
             )
             .await
             .unwrap();
@@ -532,8 +538,7 @@ mod tests {
                 // Force a stop after durable admission but before the work bind.
                 // The fresh attempt must be canceled, releasing this agent's slot
                 // so the unrelated root submission below can still proceed.
-                resources.create_team_work_item(secret, "org".into(), "team".into(),
-                    "racing".into(), "Ship preview".into(), "racing-request".into(), None).await.unwrap();
+                resources.create_team_work_item(secret, crate::resources::CreateTeamWorkItem { org: "org".into(), team: "team".into(), work_id: "racing".into(), title: "Ship preview".into(), request_id: "racing-request".into(), goal_id: None }).await.unwrap();
                 let paused = Arc::new(tokio::sync::Notify::new());
                 let resume = Arc::new(tokio::sync::Notify::new());
                 app.run_manager.managed().set_post_admission_hook(paused.clone(), resume.clone());

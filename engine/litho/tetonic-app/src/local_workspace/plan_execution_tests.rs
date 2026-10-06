@@ -213,12 +213,14 @@ async fn seed_variant(workspace: &LocalWorkspace, handoff: bool) -> String {
     resources
         .create_team_work_item_for_purpose(
             secret,
-            ORG.into(),
-            TEAM.into(),
-            source.clone(),
-            "Explore workshops".into(),
-            format!("{source}@{}", shaping::GUIDE),
-            None,
+            crate::resources::CreateTeamWorkItem {
+                org: ORG.into(),
+                team: TEAM.into(),
+                work_id: source.clone(),
+                title: "Explore workshops".into(),
+                request_id: format!("{source}@{}", shaping::GUIDE),
+                goal_id: None,
+            },
             Some("PRIVATE_CANARY_MUST_NOT_LEAK".into()),
             WorkPurpose::Explore,
         )

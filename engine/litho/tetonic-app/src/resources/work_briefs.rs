@@ -24,13 +24,16 @@ impl ResourceService {
     pub async fn save_work_brief(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        work: String,
-        request: String,
-        expected: i64,
-        body: String,
+        command: crate::resources::SaveWorkBrief,
     ) -> Result<tetonic_memory::WorkBrief, ResourceError> {
+        let crate::resources::SaveWorkBrief {
+            org,
+            team,
+            work,
+            request,
+            expected,
+            body,
+        } = command;
         let actor = self
             .authority
             .authorize(

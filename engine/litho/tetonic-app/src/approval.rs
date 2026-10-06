@@ -429,7 +429,7 @@ mod tests {
                 attempt_id: None,
             })
             .unwrap();
-        assert_eq!(rx.blocking_recv().unwrap(), false);
+        assert!(!rx.blocking_recv().unwrap());
     }
 
     #[test]
@@ -451,7 +451,7 @@ mod tests {
                 attempt_id: None,
             })
             .unwrap();
-        assert_eq!(rx.blocking_recv().unwrap(), true);
+        assert!(rx.blocking_recv().unwrap());
     }
 
     #[test]

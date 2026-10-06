@@ -340,12 +340,14 @@ impl LocalWorkspace {
         let work = resources
             .create_team_work_item_for_purpose(
                 &self.host.credential,
-                ORG.into(),
-                TEAM.into(),
-                id.clone(),
-                title,
-                request_id,
-                None,
+                crate::resources::CreateTeamWorkItem {
+                    org: ORG.into(),
+                    team: TEAM.into(),
+                    work_id: id.clone(),
+                    title,
+                    request_id,
+                    goal_id: None,
+                },
                 Some(input.clone()),
                 purpose,
             )

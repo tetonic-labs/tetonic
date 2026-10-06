@@ -6,13 +6,16 @@ impl ResourceService {
     pub async fn enroll_workstation(
         &self,
         credential: &str,
-        org: String,
-        workstation_id: String,
-        label: String,
-        platform: String,
         device_secret: String,
-        shared_assignment: bool,
+        command: crate::resources::EnrollWorkstation,
     ) -> Result<Workstation, ResourceError> {
+        let crate::resources::EnrollWorkstation {
+            org,
+            workstation_id,
+            label,
+            platform,
+            shared_assignment,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -191,14 +194,17 @@ impl ResourceService {
 
     pub async fn claim_worker_assignment(
         &self,
-        org: String,
-        workstation_id: String,
         device_secret: String,
-        assignment_id: String,
-        request_id: String,
-        work_id: Option<String>,
-        claimed_generation: i64,
+        command: crate::resources::ClaimWorkerAssignment,
     ) -> Result<WorkerAssignmentClaim, ResourceError> {
+        let crate::resources::ClaimWorkerAssignment {
+            org,
+            workstation_id,
+            assignment_id,
+            request_id,
+            work_id,
+            claimed_generation,
+        } = command;
         // Device secret is the authority — not an employee ManageTeam credential.
         Ok(self
             .store
@@ -267,12 +273,14 @@ mod tests {
         let ws = resources
             .enroll_workstation(
                 secret,
-                "org".into(),
-                "laptop".into(),
-                "Admin laptop".into(),
-                "linux".into(),
                 "device-secret".into(),
-                true,
+                crate::resources::EnrollWorkstation {
+                    org: "org".into(),
+                    workstation_id: "laptop".into(),
+                    label: "Admin laptop".into(),
+                    platform: "linux".into(),
+                    shared_assignment: true,
+                },
             )
             .await
             .unwrap();
@@ -291,12 +299,14 @@ mod tests {
         resources
             .create_team_work_item(
                 secret,
-                "org".into(),
-                "team".into(),
-                "w1".into(),
-                "Ship".into(),
-                "req".into(),
-                None,
+                crate::resources::CreateTeamWorkItem {
+                    org: "org".into(),
+                    team: "team".into(),
+                    work_id: "w1".into(),
+                    title: "Ship".into(),
+                    request_id: "req".into(),
+                    goal_id: None,
+                },
             )
             .await
             .unwrap();
@@ -322,13 +332,15 @@ mod tests {
             .unwrap();
         let claim = resources
             .claim_worker_assignment(
-                "org".into(),
-                "laptop".into(),
                 "device-secret".into(),
-                "a1".into(),
-                "areq".into(),
-                Some("w1".into()),
-                1,
+                crate::resources::ClaimWorkerAssignment {
+                    org: "org".into(),
+                    workstation_id: "laptop".into(),
+                    assignment_id: "a1".into(),
+                    request_id: "areq".into(),
+                    work_id: Some("w1".into()),
+                    claimed_generation: 1,
+                },
             )
             .await
             .unwrap();
@@ -339,13 +351,15 @@ mod tests {
             .unwrap();
         assert!(resources
             .claim_worker_assignment(
-                "org".into(),
-                "laptop".into(),
                 "device-secret".into(),
-                "a2".into(),
-                "areq2".into(),
-                None,
-                1,
+                crate::resources::ClaimWorkerAssignment {
+                    org: "org".into(),
+                    workstation_id: "laptop".into(),
+                    assignment_id: "a2".into(),
+                    request_id: "areq2".into(),
+                    work_id: None,
+                    claimed_generation: 1
+                }
             )
             .await
             .is_err());

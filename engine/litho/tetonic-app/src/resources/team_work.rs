@@ -34,38 +34,21 @@ impl ResourceService {
     pub async fn create_team_work_item(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        work_id: String,
-        title: String,
-        request_id: String,
-        goal_id: Option<String>,
+        command: crate::resources::CreateTeamWorkItem,
     ) -> Result<TeamWorkItem, ResourceError> {
-        self.create_team_work_item_with_input(
-            credential, org, team, work_id, title, request_id, goal_id, None,
-        )
-        .await
+        self.create_team_work_item_with_input(credential, command, None)
+            .await
     }
 
     pub async fn create_team_work_item_with_input(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        work_id: String,
-        title: String,
-        request_id: String,
-        goal_id: Option<String>,
+        command: crate::resources::CreateTeamWorkItem,
         input: Option<String>,
     ) -> Result<TeamWorkItem, ResourceError> {
         self.create_team_work_item_for_purpose(
             credential,
-            org,
-            team,
-            work_id,
-            title,
-            request_id,
-            goal_id,
+            command,
             input,
             tetonic_memory::WorkPurpose::Work,
         )
@@ -75,15 +58,18 @@ impl ResourceService {
     pub async fn create_team_work_item_for_purpose(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        work_id: String,
-        title: String,
-        request_id: String,
-        goal_id: Option<String>,
+        command: crate::resources::CreateTeamWorkItem,
         input: Option<String>,
         purpose: tetonic_memory::WorkPurpose,
     ) -> Result<TeamWorkItem, ResourceError> {
+        let crate::resources::CreateTeamWorkItem {
+            org,
+            team,
+            work_id,
+            title,
+            request_id,
+            goal_id,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -266,13 +252,16 @@ impl ResourceService {
     pub async fn activate_from_cursor(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        source: String,
-        cursor_key: String,
-        event_id: String,
-        work_title: String,
+        command: crate::resources::ActivateWorkCursor,
     ) -> Result<(WorkActivationCursor, Option<TeamWorkItem>), ResourceError> {
+        let crate::resources::ActivateWorkCursor {
+            org,
+            team,
+            source,
+            cursor_key,
+            event_id,
+            work_title,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -302,19 +291,22 @@ impl ResourceService {
     pub async fn create_work_delegation(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        delegation_id: String,
-        parent_work_id: String,
-        child_work_id: String,
-        child_title: String,
-        request_id: String,
-        parent_budget_tokens: i64,
-        child_budget_tokens: i64,
-        stop_scope: String,
-        peer_org: Option<String>,
-        peer_team: Option<String>,
+        command: crate::resources::CreateWorkDelegation,
     ) -> Result<WorkDelegation, ResourceError> {
+        let crate::resources::CreateWorkDelegation {
+            org,
+            team,
+            delegation_id,
+            parent_work_id,
+            child_work_id,
+            child_title,
+            request_id,
+            parent_budget_tokens,
+            child_budget_tokens,
+            stop_scope,
+            peer_org,
+            peer_team,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -390,12 +382,14 @@ mod tests {
         let work = resources
             .create_team_work_item(
                 issued.expose_secret(),
-                "org".into(),
-                "team".into(),
-                "w1".into(),
-                "Ship".into(),
-                "req-1".into(),
-                Some("g1".into()),
+                crate::resources::CreateTeamWorkItem {
+                    org: "org".into(),
+                    team: "team".into(),
+                    work_id: "w1".into(),
+                    title: "Ship".into(),
+                    request_id: "req-1".into(),
+                    goal_id: Some("g1".into()),
+                },
             )
             .await
             .unwrap();
@@ -470,12 +464,14 @@ mod tests {
         let (cursor, event_work) = resources
             .activate_from_cursor(
                 issued.expose_secret(),
-                "org".into(),
-                "team".into(),
-                "event".into(),
-                "inbox".into(),
-                "e1".into(),
-                "Handle".into(),
+                crate::resources::ActivateWorkCursor {
+                    org: "org".into(),
+                    team: "team".into(),
+                    source: "event".into(),
+                    cursor_key: "inbox".into(),
+                    event_id: "e1".into(),
+                    work_title: "Handle".into(),
+                },
             )
             .await
             .unwrap();
@@ -484,12 +480,14 @@ mod tests {
         assert!(resources
             .activate_from_cursor(
                 issued.expose_secret(),
-                "org".into(),
-                "team".into(),
-                "event".into(),
-                "inbox".into(),
-                "e1".into(),
-                "Handle".into(),
+                crate::resources::ActivateWorkCursor {
+                    org: "org".into(),
+                    team: "team".into(),
+                    source: "event".into(),
+                    cursor_key: "inbox".into(),
+                    event_id: "e1".into(),
+                    work_title: "Handle".into()
+                }
             )
             .await
             .unwrap()
@@ -498,18 +496,20 @@ mod tests {
         let delegation = resources
             .create_work_delegation(
                 issued.expose_secret(),
-                "org".into(),
-                "team".into(),
-                "d1".into(),
-                "w1".into(),
-                "child".into(),
-                "Help".into(),
-                "del-1".into(),
-                50,
-                20,
-                "inherit".into(),
-                None,
-                None,
+                crate::resources::CreateWorkDelegation {
+                    org: "org".into(),
+                    team: "team".into(),
+                    delegation_id: "d1".into(),
+                    parent_work_id: "w1".into(),
+                    child_work_id: "child".into(),
+                    child_title: "Help".into(),
+                    request_id: "del-1".into(),
+                    parent_budget_tokens: 50,
+                    child_budget_tokens: 20,
+                    stop_scope: "inherit".into(),
+                    peer_org: None,
+                    peer_team: None,
+                },
             )
             .await
             .unwrap();
@@ -546,18 +546,20 @@ mod tests {
         assert!(resources
             .create_work_delegation(
                 issued.expose_secret(),
-                "org".into(),
-                "team".into(),
-                "d2".into(),
-                "w1".into(),
-                "x".into(),
-                "Nope".into(),
-                "del-x".into(),
-                50,
-                10,
-                "inherit".into(),
-                Some("other".into()),
-                Some("team".into()),
+                crate::resources::CreateWorkDelegation {
+                    org: "org".into(),
+                    team: "team".into(),
+                    delegation_id: "d2".into(),
+                    parent_work_id: "w1".into(),
+                    child_work_id: "x".into(),
+                    child_title: "Nope".into(),
+                    request_id: "del-x".into(),
+                    parent_budget_tokens: 50,
+                    child_budget_tokens: 10,
+                    stop_scope: "inherit".into(),
+                    peer_org: Some("other".into()),
+                    peer_team: Some("team".into())
+                }
             )
             .await
             .is_err());

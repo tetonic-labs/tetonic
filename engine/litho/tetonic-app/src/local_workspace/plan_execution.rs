@@ -367,12 +367,14 @@ impl LocalWorkspace {
         resources
             .create_team_work_item_for_purpose(
                 secret,
-                ORG.into(),
-                TEAM.into(),
-                receipt.root_work_id.clone(),
-                receipt.content.title.clone(),
-                format!("{}@{COORDINATOR}", receipt.root_work_id),
-                None,
+                crate::resources::CreateTeamWorkItem {
+                    org: ORG.into(),
+                    team: TEAM.into(),
+                    work_id: receipt.root_work_id.clone(),
+                    title: receipt.content.title.clone(),
+                    request_id: format!("{}@{COORDINATOR}", receipt.root_work_id),
+                    goal_id: None,
+                },
                 Some(input.clone()),
                 WorkPurpose::Work,
             )
@@ -393,18 +395,20 @@ impl LocalWorkspace {
             resources
                 .create_work_delegation(
                     secret,
-                    ORG.into(),
-                    TEAM.into(),
-                    pin.work_id.clone(),
-                    receipt.root_work_id.clone(),
-                    pin.work_id.clone(),
-                    assignment.title.clone(),
-                    format!("{}@{}", pin.work_id, pin.agent_key),
-                    receipt.content.token_budget as i64,
-                    assignment.token_budget as i64,
-                    "inherit".into(),
-                    None,
-                    None,
+                    crate::resources::CreateWorkDelegation {
+                        org: ORG.into(),
+                        team: TEAM.into(),
+                        delegation_id: pin.work_id.clone(),
+                        parent_work_id: receipt.root_work_id.clone(),
+                        child_work_id: pin.work_id.clone(),
+                        child_title: assignment.title.clone(),
+                        request_id: format!("{}@{}", pin.work_id, pin.agent_key),
+                        parent_budget_tokens: receipt.content.token_budget as i64,
+                        child_budget_tokens: assignment.token_budget as i64,
+                        stop_scope: "inherit".into(),
+                        peer_org: None,
+                        peer_team: None,
+                    },
                 )
                 .await
                 .map_err(resource)?;

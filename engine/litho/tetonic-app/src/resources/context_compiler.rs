@@ -9,6 +9,72 @@ struct MembershipGate {
     session: String,
 }
 
+#[async_trait]
+impl ContextAccessGate for MembershipGate {
+    async fn authorize(&self, session: &tetonic_domain::SessionId) -> Result<(), ()> {
+        self.credential.verify(&self.actor).await.map_err(|_| ())?;
+        if session.0 != self.session {
+            return Err(());
+        }
+        let (actor, context, session) = (
+            self.actor.clone(),
+            self.context.clone(),
+            self.session.clone(),
+        );
+        let allowed = self
+            .store
+            .read(move |db| db.context_session_access(&actor, &context, &session))
+            .await
+            .map_err(|_| ())?
+            .map_err(|_| ())?;
+        if allowed {
+            Ok(())
+        } else {
+            Err(())
+        }
+    }
+}
+
+impl ContextService {
+    /// Trusted composition: provider and artifact grants must be configured
+    /// independently. This adds current membership/session checks, not source grants.
+    pub async fn bind_compiler(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+        mut compiler: ContextCompiler,
+    ) -> Result<ContextCompiler, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        if let Some(inner) = compiler.artifact_store.take() {
+            compiler.artifact_store = Some(Arc::new(super::context_artifacts::ScopedArtifacts {
+                store: self.store.clone(),
+                actor: actor.principal_id.clone(),
+                credential: super::credential_binding::BoundCredential::new(
+                    self.verifier.clone(),
+                    credential,
+                ),
+                context: context.clone(),
+                inner,
+            }));
+        }
+        let gate = Arc::new(MembershipGate {
+            store: self.store.clone(),
+            actor: actor.principal_id,
+            credential: super::credential_binding::BoundCredential::new(
+                self.verifier.clone(),
+                credential,
+            ),
+            context,
+            session: session.clone(),
+        });
+        gate.authorize(&tetonic_domain::SessionId::new(session))
+            .await
+            .map_err(|_| ResourceError::Denied)?;
+        Ok(compiler.with_access_gate(gate))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -111,71 +177,5 @@ mod tests {
             .await
             .unwrap();
         assert!(gate.authorize(&session).await.is_err());
-    }
-}
-
-#[async_trait]
-impl ContextAccessGate for MembershipGate {
-    async fn authorize(&self, session: &tetonic_domain::SessionId) -> Result<(), ()> {
-        self.credential.verify(&self.actor).await.map_err(|_| ())?;
-        if session.0 != self.session {
-            return Err(());
-        }
-        let (actor, context, session) = (
-            self.actor.clone(),
-            self.context.clone(),
-            self.session.clone(),
-        );
-        let allowed = self
-            .store
-            .read(move |db| db.context_session_access(&actor, &context, &session))
-            .await
-            .map_err(|_| ())?
-            .map_err(|_| ())?;
-        if allowed {
-            Ok(())
-        } else {
-            Err(())
-        }
-    }
-}
-
-impl ContextService {
-    /// Trusted composition: provider and artifact grants must be configured
-    /// independently. This adds current membership/session checks, not source grants.
-    pub async fn bind_compiler(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-        mut compiler: ContextCompiler,
-    ) -> Result<ContextCompiler, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        if let Some(inner) = compiler.artifact_store.take() {
-            compiler.artifact_store = Some(Arc::new(super::context_artifacts::ScopedArtifacts {
-                store: self.store.clone(),
-                actor: actor.principal_id.clone(),
-                credential: super::credential_binding::BoundCredential::new(
-                    self.verifier.clone(),
-                    credential,
-                ),
-                context: context.clone(),
-                inner,
-            }));
-        }
-        let gate = Arc::new(MembershipGate {
-            store: self.store.clone(),
-            actor: actor.principal_id,
-            credential: super::credential_binding::BoundCredential::new(
-                self.verifier.clone(),
-                credential,
-            ),
-            context,
-            session: session.clone(),
-        });
-        gate.authorize(&tetonic_domain::SessionId::new(session))
-            .await
-            .map_err(|_| ResourceError::Denied)?;
-        Ok(compiler.with_access_gate(gate))
     }
 }

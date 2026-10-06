@@ -82,14 +82,17 @@ impl ResourceService {
     pub async fn propose_effect_approval(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        approval_id: String,
-        proposal_digest: String,
-        request_id: String,
-        expires_at: i64,
-        work_id: Option<String>,
+        command: crate::resources::ProposeEffectApproval,
     ) -> Result<EffectApproval, ResourceError> {
+        let crate::resources::ProposeEffectApproval {
+            org,
+            team,
+            approval_id,
+            proposal_digest,
+            request_id,
+            expires_at,
+            work_id,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -120,13 +123,16 @@ impl ResourceService {
     pub async fn resolve_effect_approval(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        approval_id: String,
-        proposal_digest: String,
-        allow: bool,
-        now_unix: i64,
+        command: crate::resources::ResolveEffectApproval,
     ) -> Result<EffectApproval, ResourceError> {
+        let crate::resources::ResolveEffectApproval {
+            org,
+            team,
+            approval_id,
+            proposal_digest,
+            allow,
+            now_unix,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -189,14 +195,17 @@ impl ResourceService {
     pub async fn record_team_effort(
         &self,
         credential: &str,
-        org: String,
-        team: String,
-        entry_id: String,
-        request_id: String,
-        measured_tokens: Option<i64>,
-        goal_id: Option<String>,
-        work_id: Option<String>,
+        command: crate::resources::RecordTeamEffort,
     ) -> Result<TeamEffortEntry, ResourceError> {
+        let crate::resources::RecordTeamEffort {
+            org,
+            team,
+            entry_id,
+            request_id,
+            measured_tokens,
+            goal_id,
+            work_id,
+        } = command;
         let actor = self
             .authority
             .authorize(
@@ -285,12 +294,14 @@ mod tests {
         resources
             .create_team_work_item(
                 secret,
-                "org".into(),
-                "team".into(),
-                "w1".into(),
-                "Ship".into(),
-                "req-1".into(),
-                Some("g1".into()),
+                crate::resources::CreateTeamWorkItem {
+                    org: "org".into(),
+                    team: "team".into(),
+                    work_id: "w1".into(),
+                    title: "Ship".into(),
+                    request_id: "req-1".into(),
+                    goal_id: Some("g1".into()),
+                },
             )
             .await
             .unwrap();
@@ -318,13 +329,15 @@ mod tests {
         let approval = resources
             .propose_effect_approval(
                 secret,
-                "org".into(),
-                "team".into(),
-                "ap1".into(),
-                "digest-a".into(),
-                "areq".into(),
-                2_000_000_000,
-                Some("w1".into()),
+                crate::resources::ProposeEffectApproval {
+                    org: "org".into(),
+                    team: "team".into(),
+                    approval_id: "ap1".into(),
+                    proposal_digest: "digest-a".into(),
+                    request_id: "areq".into(),
+                    expires_at: 2_000_000_000,
+                    work_id: Some("w1".into()),
+                },
             )
             .await
             .unwrap();
@@ -343,12 +356,14 @@ mod tests {
         resources
             .resolve_effect_approval(
                 secret,
-                "org".into(),
-                "team".into(),
-                "ap1".into(),
-                "digest-a".into(),
-                true,
-                1_000,
+                crate::resources::ResolveEffectApproval {
+                    org: "org".into(),
+                    team: "team".into(),
+                    approval_id: "ap1".into(),
+                    proposal_digest: "digest-a".into(),
+                    allow: true,
+                    now_unix: 1_000,
+                },
             )
             .await
             .unwrap();
@@ -366,13 +381,15 @@ mod tests {
         let effort = resources
             .record_team_effort(
                 secret,
-                "org".into(),
-                "team".into(),
-                "e1".into(),
-                "ereq".into(),
-                None,
-                Some("g1".into()),
-                Some("w1".into()),
+                crate::resources::RecordTeamEffort {
+                    org: "org".into(),
+                    team: "team".into(),
+                    entry_id: "e1".into(),
+                    request_id: "ereq".into(),
+                    measured_tokens: None,
+                    goal_id: Some("g1".into()),
+                    work_id: Some("w1".into()),
+                },
             )
             .await
             .unwrap();

@@ -119,12 +119,14 @@ async fn delegation_scenario(scenario: Scenario) {
     resources
         .create_team_work_item(
             secret,
-            "org".into(),
-            "team".into(),
-            "root".into(),
-            "Explain the work".into(),
-            "root-request".into(),
-            None,
+            crate::resources::CreateTeamWorkItem {
+                org: "org".into(),
+                team: "team".into(),
+                work_id: "root".into(),
+                title: "Explain the work".into(),
+                request_id: "root-request".into(),
+                goal_id: None,
+            },
         )
         .await
         .unwrap();
@@ -142,18 +144,20 @@ async fn delegation_scenario(scenario: Scenario) {
     resources
         .create_work_delegation(
             secret,
-            "org".into(),
-            "team".into(),
-            "delegation".into(),
-            "root".into(),
-            "child".into(),
-            "Explain the work".into(),
-            "delegation-request".into(),
-            100,
-            40,
-            "inherit".into(),
-            None,
-            None,
+            crate::resources::CreateWorkDelegation {
+                org: "org".into(),
+                team: "team".into(),
+                delegation_id: "delegation".into(),
+                parent_work_id: "root".into(),
+                child_work_id: "child".into(),
+                child_title: "Explain the work".into(),
+                request_id: "delegation-request".into(),
+                parent_budget_tokens: 100,
+                child_budget_tokens: 40,
+                stop_scope: "inherit".into(),
+                peer_org: None,
+                peer_team: None,
+            },
         )
         .await
         .unwrap();
@@ -270,12 +274,14 @@ async fn delegation_scenario(scenario: Scenario) {
         let inherited = contexts
             .bind_delegated_execution_grant(
                 child_secret,
-                "org".into(),
-                "shared".into(),
-                "worker".into(),
-                child.job_spec.definition_digest.clone(),
-                "child-grant".into(),
                 parent_handle.clone(),
+                crate::resources::BindDelegatedExecutionGrant {
+                    org: "org".into(),
+                    context: "shared".into(),
+                    agent_key: "worker".into(),
+                    definition_digest: child.job_spec.definition_digest.clone(),
+                    grant_id: "child-grant".into(),
+                },
             )
             .await
             .unwrap();
@@ -380,12 +386,14 @@ async fn delegation_scenario(scenario: Scenario) {
             resources
                 .create_team_work_item(
                     secret,
-                    "org".into(),
-                    "other-team".into(),
-                    "other-root".into(),
-                    "Other".into(),
-                    "other-root-request".into(),
-                    None,
+                    crate::resources::CreateTeamWorkItem {
+                        org: "org".into(),
+                        team: "other-team".into(),
+                        work_id: "other-root".into(),
+                        title: "Other".into(),
+                        request_id: "other-root-request".into(),
+                        goal_id: None,
+                    },
                 )
                 .await
                 .unwrap();
@@ -403,18 +411,20 @@ async fn delegation_scenario(scenario: Scenario) {
             resources
                 .create_work_delegation(
                     secret,
-                    "org".into(),
-                    "other-team".into(),
-                    "other-delegation".into(),
-                    "other-root".into(),
-                    "other-child".into(),
-                    "Explain the work".into(),
-                    "delegation-request".into(),
-                    100,
-                    40,
-                    "inherit".into(),
-                    None,
-                    None,
+                    crate::resources::CreateWorkDelegation {
+                        org: "org".into(),
+                        team: "other-team".into(),
+                        delegation_id: "other-delegation".into(),
+                        parent_work_id: "other-root".into(),
+                        child_work_id: "other-child".into(),
+                        child_title: "Explain the work".into(),
+                        request_id: "delegation-request".into(),
+                        parent_budget_tokens: 100,
+                        child_budget_tokens: 40,
+                        stop_scope: "inherit".into(),
+                        peer_org: None,
+                        peer_team: None,
+                    },
                 )
                 .await
                 .unwrap();

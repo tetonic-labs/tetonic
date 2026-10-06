@@ -72,6 +72,15 @@ reaches 19 application-layer findings, inventoried for the next resource API
 slice. Formatting, architecture and static quality continue to pass; the overall
 release baseline remains open.
 
+October 5 application follow-up: [resource API and package gate evidence](october-1-coherent-workspace/resource-api-evidence-2026-10-05.md)
+replaces the 14 flagged application signatures with named inputs and updates all
+37 affected calls, retaining the existing authorization and storage operations.
+The full package engineering gate now passes, including workspace-wide Clippy
+with warnings denied. Application and CLI regressions pass: 723 tests, zero
+failures, four existing manual/live-proof tests ignored. This clears the recorded
+package-gate backlog; full-workspace tests, product usefulness, recovery and
+release-profile evidence are not implied, and the sprint remains in progress.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)

@@ -118,12 +118,14 @@ impl crate::services::DefaultRunService {
             contexts
                 .bind_delegated_execution_grant(
                     credential,
-                    request.organization_id,
-                    request.information_context_id,
-                    request.agent_key,
-                    request.definition_digest,
-                    request.execution_grant_id,
                     parent,
+                    crate::resources::BindDelegatedExecutionGrant {
+                        org: request.organization_id,
+                        context: request.information_context_id,
+                        agent_key: request.agent_key,
+                        definition_digest: request.definition_digest,
+                        grant_id: request.execution_grant_id,
+                    },
                 )
                 .await
                 .map_err(resource_error)?

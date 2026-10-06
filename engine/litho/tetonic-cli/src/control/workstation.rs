@@ -89,12 +89,14 @@ pub async fn dispatch(control: &LocalControl, command: WorkstationCommand) -> an
             let row = resources
                 .enroll_workstation(
                     &credential,
-                    org,
-                    workstation,
-                    label,
-                    platform,
                     device_secret,
-                    shared_assignment,
+                    tetonic_app::resources::EnrollWorkstation {
+                        org,
+                        workstation_id: workstation,
+                        label,
+                        platform,
+                        shared_assignment,
+                    },
                 )
                 .await?;
             println!("{}", serde_json::to_string(&row)?);

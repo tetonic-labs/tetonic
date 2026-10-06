@@ -430,12 +430,14 @@ mod tests {
                     .resources()
                     .create_team_work_item_for_purpose(
                         &workspace.host.credential,
-                        ORG.into(),
-                        TEAM.into(),
-                        shape.clone(),
-                        "Private exploration".into(),
-                        format!("{shape}@{}", shaping::GUIDE),
-                        None,
+                        crate::resources::CreateTeamWorkItem {
+                            org: ORG.into(),
+                            team: TEAM.into(),
+                            work_id: shape.clone(),
+                            title: "Private exploration".into(),
+                            request_id: format!("{shape}@{}", shaping::GUIDE),
+                            goal_id: None,
+                        },
                         Some("PRIVATE_CONVERSATION_CANARY do not share".into()),
                         WorkPurpose::Explore,
                     )

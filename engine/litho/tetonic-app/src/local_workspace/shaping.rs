@@ -12,6 +12,44 @@ pub struct SaveWorkBrief {
     pub body: String,
 }
 
+impl LocalWorkspace {
+    pub async fn work_briefs(&self, id: &str) -> Result<Vec<tetonic_memory::WorkBrief>, AppError> {
+        validate_request_id(id)?;
+        self.local
+            .resources()
+            .work_briefs(&self.host.credential, ORG.into(), TEAM.into(), id.into())
+            .await
+            .map_err(resource)
+    }
+
+    pub async fn save_work_brief(
+        &self,
+        id: &str,
+        input: SaveWorkBrief,
+    ) -> Result<tetonic_memory::WorkBrief, AppError> {
+        validate_request_id(id)?;
+        validate_request_id(&input.request_id)?;
+        self.local
+            .resources()
+            .save_work_brief(
+                &self.host.credential,
+                crate::resources::SaveWorkBrief {
+                    org: ORG.into(),
+                    team: TEAM.into(),
+                    work: id.into(),
+                    request: input.request_id,
+                    expected: input.expected_revision,
+                    body: input.body,
+                },
+            )
+            .await
+            .map_err(|e| match e {
+            crate::resources::ResourceError::Conflict => AppError::InvalidRequest("This brief changed, or this save belongs to another edit. Reload the saved brief before applying your changes.".into()),
+            other=>resource(other),
+        })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -57,29 +95,5 @@ mod tests {
             assert_eq!(calls.lock().unwrap().len(),1);
         }).await;
         server.abort();
-    }
-}
-
-impl LocalWorkspace {
-    pub async fn work_briefs(&self, id: &str) -> Result<Vec<tetonic_memory::WorkBrief>, AppError> {
-        validate_request_id(id)?;
-        self.local
-            .resources()
-            .work_briefs(&self.host.credential, ORG.into(), TEAM.into(), id.into())
-            .await
-            .map_err(resource)
-    }
-
-    pub async fn save_work_brief(
-        &self,
-        id: &str,
-        input: SaveWorkBrief,
-    ) -> Result<tetonic_memory::WorkBrief, AppError> {
-        validate_request_id(id)?;
-        validate_request_id(&input.request_id)?;
-        self.local.resources().save_work_brief(&self.host.credential,ORG.into(),TEAM.into(),id.into(),input.request_id,input.expected_revision,input.body).await.map_err(|e| match e {
-            crate::resources::ResourceError::Conflict => AppError::InvalidRequest("This brief changed, or this save belongs to another edit. Reload the saved brief before applying your changes.".into()),
-            other=>resource(other),
-        })
     }
 }

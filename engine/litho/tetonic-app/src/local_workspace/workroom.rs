@@ -172,12 +172,14 @@ impl LocalWorkspace {
             .resources()
             .create_team_work_item(
                 &self.host.credential,
-                ORG.into(),
-                TEAM.into(),
-                req.id.clone(),
-                title.clone(),
-                request_id.clone(),
-                req.goal_id.clone(),
+                crate::resources::CreateTeamWorkItem {
+                    org: ORG.into(),
+                    team: TEAM.into(),
+                    work_id: req.id.clone(),
+                    title: title.clone(),
+                    request_id: request_id.clone(),
+                    goal_id: req.goal_id.clone(),
+                },
             )
             .await
             .map_err(resource)?;
@@ -225,12 +227,14 @@ impl LocalWorkspace {
             .resources()
             .resolve_effect_approval(
                 &self.host.credential,
-                ORG.into(),
-                TEAM.into(),
-                approval_id.into(),
-                req.proposal_digest,
-                req.allow,
-                now_unix,
+                crate::resources::ResolveEffectApproval {
+                    org: ORG.into(),
+                    team: TEAM.into(),
+                    approval_id: approval_id.into(),
+                    proposal_digest: req.proposal_digest,
+                    allow: req.allow,
+                    now_unix,
+                },
             )
             .await
             .map_err(resource)

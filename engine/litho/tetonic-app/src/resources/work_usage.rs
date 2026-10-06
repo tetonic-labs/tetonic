@@ -89,7 +89,7 @@ impl InferenceProvider for WorkUsageProvider {
             .map_err(|_| unavailable())?
             .map_err(|_| unavailable())?;
         if let Some(limit) = remaining {
-            if let Ok(_) = &response {
+            if response.is_ok() {
                 match input.zip(output).and_then(|(i,o)|i.checked_add(o)) {
                     None=>return Err(InferenceError::Provider("The model did not report complete token usage. Work stopped; its remaining allowance is held for review.".into())),
                     Some(used) if used>limit=>return Err(InferenceError::Provider("The current model request exceeded the work token allowance. Further work stopped; review Usage.".into())),

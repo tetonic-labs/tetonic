@@ -192,13 +192,16 @@ impl ContextService {
     pub async fn bind_delegated_execution_grant(
         &self,
         credential: &str,
-        org: String,
-        context: String,
-        agent_key: String,
-        definition_digest: String,
-        grant_id: String,
         parent: DelegationParent,
+        command: crate::resources::BindDelegatedExecutionGrant,
     ) -> Result<AuthorizedExecution, ResourceError> {
+        let crate::resources::BindDelegatedExecutionGrant {
+            org,
+            context,
+            agent_key,
+            definition_digest,
+            grant_id,
+        } = command;
         let mut authorization = self
             .bind_execution_authority(
                 credential,

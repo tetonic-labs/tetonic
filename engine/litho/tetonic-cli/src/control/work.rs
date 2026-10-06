@@ -155,7 +155,17 @@ pub async fn dispatch(control: &LocalControl, command: WorkCommand) -> anyhow::R
             goal,
         } => {
             let row = resources
-                .create_team_work_item(&credential, org, team, work, title, request_id, goal)
+                .create_team_work_item(
+                    &credential,
+                    tetonic_app::resources::CreateTeamWorkItem {
+                        org,
+                        team,
+                        work_id: work,
+                        title,
+                        request_id,
+                        goal_id: goal,
+                    },
+                )
                 .await?;
             println!("{}", serde_json::to_string(&row)?);
         }
@@ -232,13 +242,15 @@ pub async fn dispatch(control: &LocalControl, command: WorkCommand) -> anyhow::R
             let row = resources
                 .propose_effect_approval(
                     &credential,
-                    org,
-                    team,
-                    approval,
-                    digest,
-                    request_id,
-                    expires_at,
-                    work,
+                    tetonic_app::resources::ProposeEffectApproval {
+                        org,
+                        team,
+                        approval_id: approval,
+                        proposal_digest: digest,
+                        request_id,
+                        expires_at,
+                        work_id: work,
+                    },
                 )
                 .await?;
             println!("{}", serde_json::to_string(&row)?);
@@ -255,7 +267,17 @@ pub async fn dispatch(control: &LocalControl, command: WorkCommand) -> anyhow::R
                 .map(|d| d.as_secs() as i64)
                 .unwrap_or(0);
             let row = resources
-                .resolve_effect_approval(&credential, org, team, approval, digest, allow, now)
+                .resolve_effect_approval(
+                    &credential,
+                    tetonic_app::resources::ResolveEffectApproval {
+                        org,
+                        team,
+                        approval_id: approval,
+                        proposal_digest: digest,
+                        allow,
+                        now_unix: now,
+                    },
+                )
                 .await?;
             println!("{}", serde_json::to_string(&row)?);
         }

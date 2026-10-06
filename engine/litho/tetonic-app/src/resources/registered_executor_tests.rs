@@ -325,91 +325,92 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             events.lock().unwrap().is_empty(),
             "scoped execution leaked into legacy product events"
         );
-        let requests = requests.lock().unwrap();
-        match scenario {
-            "success" => {
-                assert_eq!(snapshot.state, RunState::Succeeded);
-                assert!(
-                    matches!(result.outcome, CandidateOutcome::Completed { .. }),
-                    "{:?}",
-                    result.outcome
-                );
-                assert_eq!(requests.len(), 2);
-                assert!(requests[1]["messages"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .any(|m| m["role"] == "tool"
-                        && m["content"]
-                            .as_str()
-                            .unwrap_or_default()
-                            .contains("cobalt orchard")));
-                assert!(transcript
-                    .iter()
-                    .any(|(_, role, text)| role == "tool" && text.contains("cobalt orchard")));
-                let raw = rusqlite::Connection::open(&database).unwrap();
-                let reservations: i64 = raw
-                    .query_row("SELECT COUNT(*) FROM compute_reservations", [], |r| {
-                        r.get(0)
-                    })
-                    .unwrap();
-                assert_eq!(
-                    reservations, 2,
-                    "each inference must use the installed broker"
-                );
-                let linkage: i64 = raw.query_row("SELECT COUNT(*) FROM messages m JOIN tool_calls t ON m.tool_call_id=t.id AND m.session_id=t.session_id WHERE m.session_id=?1 AND m.role='tool'", [&submission.1], |r| r.get(0)).unwrap();
-                assert_eq!(linkage, 1);
+        {
+            let requests = requests.lock().unwrap();
+            match scenario {
+                "success" => {
+                    assert_eq!(snapshot.state, RunState::Succeeded);
+                    assert!(
+                        matches!(result.outcome, CandidateOutcome::Completed { .. }),
+                        "{:?}",
+                        result.outcome
+                    );
+                    assert_eq!(requests.len(), 2);
+                    assert!(requests[1]["messages"]
+                        .as_array()
+                        .unwrap()
+                        .iter()
+                        .any(|m| m["role"] == "tool"
+                            && m["content"]
+                                .as_str()
+                                .unwrap_or_default()
+                                .contains("cobalt orchard")));
+                    assert!(transcript
+                        .iter()
+                        .any(|(_, role, text)| role == "tool" && text.contains("cobalt orchard")));
+                    let raw = rusqlite::Connection::open(&database).unwrap();
+                    let reservations: i64 = raw
+                        .query_row("SELECT COUNT(*) FROM compute_reservations", [], |r| {
+                            r.get(0)
+                        })
+                        .unwrap();
+                    assert_eq!(
+                        reservations, 2,
+                        "each inference must use the installed broker"
+                    );
+                    let linkage: i64 = raw.query_row("SELECT COUNT(*) FROM messages m JOIN tool_calls t ON m.tool_call_id=t.id AND m.session_id=t.session_id WHERE m.session_id=?1 AND m.role='tool'", [&submission.1], |r| r.get(0)).unwrap();
+                    assert_eq!(linkage, 1);
+                }
+                "write" => {
+                    assert_eq!(snapshot.state, RunState::Succeeded, "{:?}", result.outcome);
+                    assert_eq!(requests.len(), 2);
+                    assert_eq!(
+                        std::fs::read_to_string(workspace.join("result.txt")).unwrap(),
+                        "registered workspace write"
+                    );
+                    assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_some());
+                }
+                "audit-failure" => {
+                    assert_eq!(snapshot.state, RunState::Failed);
+                    assert_eq!(
+                        requests.len(),
+                        1,
+                        "audit failure must block the next inference"
+                    );
+                    assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_none());
+                }
+                "egress-denied" => {
+                    assert_eq!(snapshot.state, RunState::Failed);
+                    assert!(requests.is_empty(), "denied endpoint received agent input");
+                }
+                "deadline" => {
+                    assert_eq!(
+                        requests.len(),
+                        1,
+                        "hung inference must not be retried after expiry"
+                    );
+                    assert_eq!(snapshot.state, RunState::Failed);
+                    assert_eq!(
+                        snapshot.attempts[&result.attempt_id].state,
+                        tetonic_domain::AttemptState::TimedOut
+                    );
+                    assert_eq!(
+                        snapshot.attempts[&result.attempt_id].failure_class,
+                        Some(tetonic_domain::FailureClass::TimedOut)
+                    );
+                    assert!(
+                        matches!(result.outcome, CandidateOutcome::Failed { ref message } if message == "execution deadline exceeded")
+                    );
+                    assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_none());
+                    assert!(app
+                        .run_manager
+                        .managed()
+                        .binding(&result.attempt_id)
+                        .is_none());
+                }
+                _ => unreachable!(),
             }
-            "write" => {
-                assert_eq!(snapshot.state, RunState::Succeeded, "{:?}", result.outcome);
-                assert_eq!(requests.len(), 2);
-                assert_eq!(
-                    std::fs::read_to_string(workspace.join("result.txt")).unwrap(),
-                    "registered workspace write"
-                );
-                assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_some());
-            }
-            "audit-failure" => {
-                assert_eq!(snapshot.state, RunState::Failed);
-                assert_eq!(
-                    requests.len(),
-                    1,
-                    "audit failure must block the next inference"
-                );
-                assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_none());
-            }
-            "egress-denied" => {
-                assert_eq!(snapshot.state, RunState::Failed);
-                assert!(requests.is_empty(), "denied endpoint received agent input");
-            }
-            "deadline" => {
-                assert_eq!(
-                    requests.len(),
-                    1,
-                    "hung inference must not be retried after expiry"
-                );
-                assert_eq!(snapshot.state, RunState::Failed);
-                assert_eq!(
-                    snapshot.attempts[&result.attempt_id].state,
-                    tetonic_domain::AttemptState::TimedOut
-                );
-                assert_eq!(
-                    snapshot.attempts[&result.attempt_id].failure_class,
-                    Some(tetonic_domain::FailureClass::TimedOut)
-                );
-                assert!(
-                    matches!(result.outcome, CandidateOutcome::Failed { ref message } if message == "execution deadline exceeded")
-                );
-                assert!(snapshot.tasks[&result.task_id].accepted_artifact.is_none());
-                assert!(app
-                    .run_manager
-                    .managed()
-                    .binding(&result.attempt_id)
-                    .is_none());
-            }
-            _ => unreachable!(),
         }
-        drop(requests);
         resources
             .revoke_execution_grant(credential.expose_secret(), "org".into(), "grant".into())
             .await
@@ -598,13 +599,14 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
             (submission.run_id, submission.audit_session_id, result)
         })
         .await;
-    let captured = requests.lock().unwrap();
-    let before = serde_json::to_string(&captured[..]).unwrap();
+    let before = {
+        let captured = requests.lock().unwrap();
+        serde_json::to_string(&captured[..]).unwrap()
+    };
     assert!(
         !before.contains("PRIVATECANARY"),
         "unpublished private history entered team inference: {before}"
     );
-    drop(captured);
     assert!(!events
         .lock()
         .unwrap()
@@ -624,12 +626,14 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
     contexts
         .publish_message(
             secret,
-            "private".into(),
-            "private-notes".into(),
-            seq,
-            "shared".into(),
-            "shared-notes".into(),
-            "share-1".into(),
+            crate::resources::PublishContextMessage {
+                source_context: "private".into(),
+                source_session: "private-notes".into(),
+                source_seq: seq,
+                destination_context: "shared".into(),
+                destination_session: "shared-notes".into(),
+                request_id: "share-1".into(),
+            },
         )
         .await
         .unwrap();
@@ -670,8 +674,10 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
         })
         .await;
     server.abort();
-    let captured = requests.lock().unwrap();
-    let after = serde_json::to_string(&captured[..]).unwrap();
+    let after = {
+        let captured = requests.lock().unwrap();
+        serde_json::to_string(&captured[..]).unwrap()
+    };
     assert!(
         after.contains("PRIVATECANARY"),
         "authorized publication did not become visible to team recall: {after}"

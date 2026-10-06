@@ -8,6 +8,374 @@ pub struct ContextService {
     pub(super) verifier: Arc<dyn CredentialVerifier>,
 }
 
+/// A live conversation looked up under a current membership check.
+/// Reading or replacing it checks membership again.
+pub struct AuthorizedLive {
+    live: std::sync::Arc<crate::session_live::LiveSession>,
+    store: SharedStore,
+    verifier: Arc<dyn CredentialVerifier>,
+    actor: String,
+    context: String,
+    session: String,
+}
+
+impl AuthorizedLive {
+    pub fn session_id(&self) -> &str {
+        &self.session
+    }
+
+    pub async fn take_conversation(
+        &self,
+        credential: &str,
+    ) -> Result<tetonic_core::Conversation, ResourceError> {
+        self.recheck(credential).await?;
+        self.live
+            .take_conversation()
+            .map_err(|_| ResourceError::Conflict)
+    }
+
+    pub async fn restore_conversation(
+        &self,
+        credential: &str,
+        conversation: tetonic_core::Conversation,
+    ) -> Result<(), ResourceError> {
+        self.recheck(credential).await?;
+        self.live.restore_conversation(conversation);
+        Ok(())
+    }
+
+    async fn recheck(&self, credential: &str) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        if actor.principal_id != self.actor {
+            return Err(ResourceError::Denied);
+        }
+        let principal = self.actor.clone();
+        let context = self.context.clone();
+        let allowed = self
+            .store
+            .read(move |db| db.context_access(&principal, &context))
+            .await??;
+        if allowed {
+            Ok(())
+        } else {
+            Err(ResourceError::Denied)
+        }
+    }
+}
+
+impl ContextService {
+    /// Membership-checked lookup of a process-local live conversation.
+    /// Missing and unauthorized sessions are both denied. The handle rechecks
+    /// membership before it reads or replaces the conversation.
+    pub async fn open_live(
+        &self,
+        credential: &str,
+        live: &crate::session_live::SessionLiveStore,
+        context: String,
+        session: String,
+    ) -> Result<AuthorizedLive, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        let principal = actor.principal_id.clone();
+        let scope = context.clone();
+        let allowed = self
+            .store
+            .read(move |db| db.context_access(&principal, &scope))
+            .await??;
+        if !allowed {
+            return Err(ResourceError::Denied);
+        }
+        let found = live.get_in_context(&session, &context);
+        let actor = self.verifier.verify(credential).await?;
+        let principal = actor.principal_id;
+        let scope = context.clone();
+        let still_allowed = self
+            .store
+            .read({
+                let principal = principal.clone();
+                let scope = scope.clone();
+                move |db| db.context_access(&principal, &scope)
+            })
+            .await??;
+        if !still_allowed {
+            return Err(ResourceError::Denied);
+        }
+        let live = found.ok_or(ResourceError::Denied)?;
+        Ok(AuthorizedLive {
+            live,
+            store: self.store.clone(),
+            verifier: self.verifier.clone(),
+            actor: principal,
+            context,
+            session,
+        })
+    }
+
+    pub async fn close_history(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.close_context_history(&actor.principal_id, &context, &session))
+            .await??;
+        Ok(())
+    }
+
+    /// Bind recall to one authorized context. Does not activate an agent or
+    /// authorize other tools. Credential validity is rechecked by the bound synchronous adapter.
+    pub async fn bind_recall(
+        &self,
+        credential: &str,
+        context: String,
+        tools: tetonic_tools::Tools,
+    ) -> Result<tetonic_tools::Tools, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        let principal = actor.principal_id.clone();
+        let scope = context.clone();
+        let allowed = self
+            .store
+            .read(move |db| db.context_access(&principal, &scope))
+            .await??;
+        if !allowed {
+            return Err(ResourceError::Denied);
+        }
+        let credential_check = self
+            .verifier
+            .memory_credential_check(credential)
+            .ok_or(ResourceError::Denied)?;
+        Ok(tools.with_context_memory(
+            self.store.path().to_path_buf(),
+            actor.principal_id,
+            context,
+            credential_check,
+        ))
+    }
+
+    pub async fn recall(
+        &self,
+        credential: &str,
+        context: String,
+        query: String,
+        limit: u32,
+    ) -> Result<Vec<tetonic_memory::RecallHit>, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .read(move |db| {
+                db.recall_context_messages(&actor.principal_id, &context, &query, limit)
+            })
+            .await??)
+    }
+
+    /// Reopen a discussion. A missing id and a foreign id are both denied.
+    pub async fn open_history(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.open_context_history(&actor.principal_id, &context, &session))
+            .await??;
+        Ok(())
+    }
+
+    /// Create a discussion and return its server-chosen id.
+    pub async fn create_history(
+        &self,
+        credential: &str,
+        context: String,
+    ) -> Result<String, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .write(move |db| db.create_context_history(&actor.principal_id, &context))
+            .await??)
+    }
+
+    /// Test fixture. A caller-chosen id is not the employee create door.
+    #[cfg(test)]
+    pub(crate) async fn provision_discussion(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.insert_open_discussion(&actor.principal_id, &context, &session))
+            .await??;
+        Ok(())
+    }
+
+    pub async fn append_message(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+        request: String,
+        content: String,
+    ) -> Result<i64, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.append_context_message(
+                    &actor.principal_id,
+                    &context,
+                    &session,
+                    &request,
+                    &content,
+                )
+            })
+            .await??)
+    }
+
+    /// The caller's private working context for a team they own or belong to.
+    /// It is not their other private history. A missing team and a
+    /// non-participant are both denied.
+    pub async fn team_participation_context(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+    ) -> Result<String, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .write(move |db| db.ensure_actor_team_participation(&actor.principal_id, &org, &team))
+            .await??)
+    }
+
+    pub async fn create(
+        &self,
+        credential: &str,
+        id: String,
+        owner: ContextOwner,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| db.create_information_context(&actor.principal_id, &id, &owner))
+            .await??;
+        Ok(())
+    }
+
+    pub async fn transcript(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+        limit: u32,
+    ) -> Result<Vec<(i64, String, String)>, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .read(move |db| db.scoped_transcript(&actor.principal_id, &context, &session, limit))
+            .await??)
+    }
+
+    /// Project notes and digests for one authorized context. This does not
+    /// publish them into another context.
+    pub async fn project_memory(
+        &self,
+        credential: &str,
+        context: String,
+        root: std::path::PathBuf,
+        token_budget: usize,
+    ) -> Result<String, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .read(move |db| {
+                db.load_context_project_memory(&actor.principal_id, &context, &root, token_budget)
+            })
+            .await??)
+    }
+
+    pub async fn add_project_note(
+        &self,
+        credential: &str,
+        context: String,
+        root: std::path::PathBuf,
+        content: String,
+        source: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| {
+                db.add_context_project_note(&actor.principal_id, &context, &root, &content, &source)
+            })
+            .await??;
+        Ok(())
+    }
+
+    /// Copy one stored source message into a destination discussion. The
+    /// request cannot supply replacement text. The receipt carries provenance,
+    /// not the message body.
+    pub async fn publish_message(
+        &self,
+        credential: &str,
+        command: crate::resources::PublishContextMessage,
+    ) -> Result<tetonic_memory::ContextPublication, ResourceError> {
+        let crate::resources::PublishContextMessage {
+            source_context,
+            source_session,
+            source_seq,
+            destination_context,
+            destination_session,
+            request_id,
+        } = command;
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.publish_context_message(tetonic_memory::PublishContextMessage {
+                    actor: &actor.principal_id,
+                    source_context: &source_context,
+                    source_session: &source_session,
+                    source_seq,
+                    destination_context: &destination_context,
+                    destination_session: &destination_session,
+                    request_id: &request_id,
+                })
+            })
+            .await??)
+    }
+
+    pub async fn consolidate_project_memory(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+    ) -> Result<(), ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        self.store
+            .write(move |db| {
+                db.consolidate_context_session(&actor.principal_id, &context, &session)
+            })
+            .await??;
+        Ok(())
+    }
+}
+
+impl crate::Application {
+    pub fn context_service(
+        &self,
+        verifier: Arc<dyn CredentialVerifier>,
+    ) -> Result<ContextService, ResourceError> {
+        let store = self
+            .run_manager
+            .managed()
+            .store()
+            .cloned()
+            .ok_or(ResourceError::StorageRequired)?;
+        Ok(ContextService { store, verifier })
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -444,370 +812,5 @@ mod tests {
                 .await,
             Err(ResourceError::Denied)
         ));
-    }
-}
-
-/// A live conversation looked up under a current membership check.
-/// Reading or replacing it checks membership again.
-pub struct AuthorizedLive {
-    live: std::sync::Arc<crate::session_live::LiveSession>,
-    store: SharedStore,
-    verifier: Arc<dyn CredentialVerifier>,
-    actor: String,
-    context: String,
-    session: String,
-}
-
-impl AuthorizedLive {
-    pub fn session_id(&self) -> &str {
-        &self.session
-    }
-
-    pub async fn take_conversation(
-        &self,
-        credential: &str,
-    ) -> Result<tetonic_core::Conversation, ResourceError> {
-        self.recheck(credential).await?;
-        self.live
-            .take_conversation()
-            .map_err(|_| ResourceError::Conflict)
-    }
-
-    pub async fn restore_conversation(
-        &self,
-        credential: &str,
-        conversation: tetonic_core::Conversation,
-    ) -> Result<(), ResourceError> {
-        self.recheck(credential).await?;
-        self.live.restore_conversation(conversation);
-        Ok(())
-    }
-
-    async fn recheck(&self, credential: &str) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        if actor.principal_id != self.actor {
-            return Err(ResourceError::Denied);
-        }
-        let principal = self.actor.clone();
-        let context = self.context.clone();
-        let allowed = self
-            .store
-            .read(move |db| db.context_access(&principal, &context))
-            .await??;
-        if allowed {
-            Ok(())
-        } else {
-            Err(ResourceError::Denied)
-        }
-    }
-}
-
-impl ContextService {
-    /// Membership-checked lookup of a process-local live conversation.
-    /// Missing and unauthorized sessions are both denied. The handle rechecks
-    /// membership before it reads or replaces the conversation.
-    pub async fn open_live(
-        &self,
-        credential: &str,
-        live: &crate::session_live::SessionLiveStore,
-        context: String,
-        session: String,
-    ) -> Result<AuthorizedLive, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        let principal = actor.principal_id.clone();
-        let scope = context.clone();
-        let allowed = self
-            .store
-            .read(move |db| db.context_access(&principal, &scope))
-            .await??;
-        if !allowed {
-            return Err(ResourceError::Denied);
-        }
-        let found = live.get_in_context(&session, &context);
-        let actor = self.verifier.verify(credential).await?;
-        let principal = actor.principal_id;
-        let scope = context.clone();
-        let still_allowed = self
-            .store
-            .read({
-                let principal = principal.clone();
-                let scope = scope.clone();
-                move |db| db.context_access(&principal, &scope)
-            })
-            .await??;
-        if !still_allowed {
-            return Err(ResourceError::Denied);
-        }
-        let live = found.ok_or(ResourceError::Denied)?;
-        Ok(AuthorizedLive {
-            live,
-            store: self.store.clone(),
-            verifier: self.verifier.clone(),
-            actor: principal,
-            context,
-            session,
-        })
-    }
-
-    pub async fn close_history(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| db.close_context_history(&actor.principal_id, &context, &session))
-            .await??;
-        Ok(())
-    }
-
-    /// Bind recall to one authorized context. Does not activate an agent or
-    /// authorize other tools. Credential validity is rechecked by the bound synchronous adapter.
-    pub async fn bind_recall(
-        &self,
-        credential: &str,
-        context: String,
-        tools: tetonic_tools::Tools,
-    ) -> Result<tetonic_tools::Tools, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        let principal = actor.principal_id.clone();
-        let scope = context.clone();
-        let allowed = self
-            .store
-            .read(move |db| db.context_access(&principal, &scope))
-            .await??;
-        if !allowed {
-            return Err(ResourceError::Denied);
-        }
-        let credential_check = self
-            .verifier
-            .memory_credential_check(credential)
-            .ok_or(ResourceError::Denied)?;
-        Ok(tools.with_context_memory(
-            self.store.path().to_path_buf(),
-            actor.principal_id,
-            context,
-            credential_check,
-        ))
-    }
-
-    pub async fn recall(
-        &self,
-        credential: &str,
-        context: String,
-        query: String,
-        limit: u32,
-    ) -> Result<Vec<tetonic_memory::RecallHit>, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .read(move |db| {
-                db.recall_context_messages(&actor.principal_id, &context, &query, limit)
-            })
-            .await??)
-    }
-
-    /// Reopen a discussion. A missing id and a foreign id are both denied.
-    pub async fn open_history(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| db.open_context_history(&actor.principal_id, &context, &session))
-            .await??;
-        Ok(())
-    }
-
-    /// Create a discussion and return its server-chosen id.
-    pub async fn create_history(
-        &self,
-        credential: &str,
-        context: String,
-    ) -> Result<String, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .write(move |db| db.create_context_history(&actor.principal_id, &context))
-            .await??)
-    }
-
-    /// Test fixture. A caller-chosen id is not the employee create door.
-    #[cfg(test)]
-    pub(crate) async fn provision_discussion(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| db.insert_open_discussion(&actor.principal_id, &context, &session))
-            .await??;
-        Ok(())
-    }
-
-    pub async fn append_message(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-        request: String,
-        content: String,
-    ) -> Result<i64, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .write(move |db| {
-                db.append_context_message(
-                    &actor.principal_id,
-                    &context,
-                    &session,
-                    &request,
-                    &content,
-                )
-            })
-            .await??)
-    }
-
-    /// The caller's private working context for a team they own or belong to.
-    /// It is not their other private history. A missing team and a
-    /// non-participant are both denied.
-    pub async fn team_participation_context(
-        &self,
-        credential: &str,
-        org: String,
-        team: String,
-    ) -> Result<String, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .write(move |db| db.ensure_actor_team_participation(&actor.principal_id, &org, &team))
-            .await??)
-    }
-
-    pub async fn create(
-        &self,
-        credential: &str,
-        id: String,
-        owner: ContextOwner,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| db.create_information_context(&actor.principal_id, &id, &owner))
-            .await??;
-        Ok(())
-    }
-
-    pub async fn transcript(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-        limit: u32,
-    ) -> Result<Vec<(i64, String, String)>, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .read(move |db| db.scoped_transcript(&actor.principal_id, &context, &session, limit))
-            .await??)
-    }
-
-    /// Project notes and digests for one authorized context. This does not
-    /// publish them into another context.
-    pub async fn project_memory(
-        &self,
-        credential: &str,
-        context: String,
-        root: std::path::PathBuf,
-        token_budget: usize,
-    ) -> Result<String, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .read(move |db| {
-                db.load_context_project_memory(&actor.principal_id, &context, &root, token_budget)
-            })
-            .await??)
-    }
-
-    pub async fn add_project_note(
-        &self,
-        credential: &str,
-        context: String,
-        root: std::path::PathBuf,
-        content: String,
-        source: String,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| {
-                db.add_context_project_note(&actor.principal_id, &context, &root, &content, &source)
-            })
-            .await??;
-        Ok(())
-    }
-
-    /// Copy one stored source message into a destination discussion. The
-    /// request cannot supply replacement text. The receipt carries provenance,
-    /// not the message body.
-    pub async fn publish_message(
-        &self,
-        credential: &str,
-        source_context: String,
-        source_session: String,
-        source_seq: i64,
-        destination_context: String,
-        destination_session: String,
-        request_id: String,
-    ) -> Result<tetonic_memory::ContextPublication, ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        Ok(self
-            .store
-            .write(move |db| {
-                db.publish_context_message(tetonic_memory::PublishContextMessage {
-                    actor: &actor.principal_id,
-                    source_context: &source_context,
-                    source_session: &source_session,
-                    source_seq,
-                    destination_context: &destination_context,
-                    destination_session: &destination_session,
-                    request_id: &request_id,
-                })
-            })
-            .await??)
-    }
-
-    pub async fn consolidate_project_memory(
-        &self,
-        credential: &str,
-        context: String,
-        session: String,
-    ) -> Result<(), ResourceError> {
-        let actor = self.verifier.verify(credential).await?;
-        self.store
-            .write(move |db| {
-                db.consolidate_context_session(&actor.principal_id, &context, &session)
-            })
-            .await??;
-        Ok(())
-    }
-}
-
-impl crate::Application {
-    pub fn context_service(
-        &self,
-        verifier: Arc<dyn CredentialVerifier>,
-    ) -> Result<ContextService, ResourceError> {
-        let store = self
-            .run_manager
-            .managed()
-            .store()
-            .cloned()
-            .ok_or(ResourceError::StorageRequired)?;
-        Ok(ContextService { store, verifier })
     }
 }

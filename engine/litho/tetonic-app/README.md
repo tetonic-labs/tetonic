@@ -1,4 +1,4 @@
-# lokai-app
+# tetonic-app
 
 Application kernel: workflow decisions for sessions, runs, estate, capacity, policy, and approvals. Transport adapters (`tetonicd`, `tetonic-cli`) hold `Arc<Application>` and must not reimplement owned workflows.
 
@@ -25,6 +25,21 @@ accepted between turns; portals select registered profiles and never construct p
 | `CapacityService` | Optimize, doctor, status, profiles |
 | `resume` | Message rehydrate + `RESUME_MESSAGE_CAP` |
 
+## Resource operation inputs
+
+Work creation and delegation, brief updates, scoped message publication, approvals,
+effort recording, workstation enrollment/claims, delegated execution grants and
+hierarchical stops use named Rust inputs exported from `resources`. These inputs
+adapt the existing service methods; they do not introduce another resource store
+or execution path.
+
+Credentials remain separate method arguments. Services derive the principal from
+verified authority and retain their scope, retry, version and generation checks.
+Device secrets authorize worker claims; a live `DelegationParent` remains required
+for delegated execution. Neither is supplied as ordinary request data. These are
+Rust API inputs, not serialized HTTP contracts. Existing CLI flags, local UI
+payloads and database formats are unchanged.
+
 ## Named exceptions (R26 / M1-2)
 
 Every residual production decision that stays in `tetonicd` / `tetonic-cli` must appear here. **No silent dual paths.** New exceptions require a README row before merge.
@@ -46,16 +61,16 @@ Every residual production decision that stays in `tetonicd` / `tetonic-cli` must
 
 | Helper | Owner | Gate |
 |--------|-------|------|
-| `reload_enrollment_egress` | `lokai_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
-| `load_or_create_coordinator` | `lokai_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
-| `RESUME_MESSAGE_CAP` | `lokai_app::resume` | `no_duplicate_resume_cap` |
+| `reload_enrollment_egress` | `tetonic_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
+| `load_or_create_coordinator` | `tetonic_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
+| `RESUME_MESSAGE_CAP` | `tetonic_app::resume` | `no_duplicate_resume_cap` |
 
 ## Tests
 
 ```bash
-cargo test -p lokai-app
-cargo test -p lokai-arch-gate
-cargo run -p lokai-arch-gate -- verify package
+cargo test -p tetonic-app
+cargo test -p tetonic-arch-gate
+cargo run -p tetonic-arch-gate -- verify package
 ```
 
 ## Product plan

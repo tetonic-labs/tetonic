@@ -419,7 +419,7 @@ fn session_turn_lifecycle_event_order() {
         })
         .collect();
     assert!(
-        !kinds.iter().any(|kind| *kind == "turn.start"),
+        !kinds.contains(&"turn.start"),
         "planning without execution must not report started, got {kinds:?}"
     );
     assert!(

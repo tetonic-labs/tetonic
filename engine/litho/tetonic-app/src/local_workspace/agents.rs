@@ -87,7 +87,7 @@ impl LocalWorkspace {
 
     async fn installed_models(&self) -> Result<Vec<String>, AppError> {
         let provider = tetonic_inference::OllamaProvider::new(
-            &self.host.app.turn.ollama_base(),
+            self.host.app.turn.ollama_base(),
             self.host.app.turn.guard(),
         );
         let mut models =
@@ -270,9 +270,9 @@ impl LocalWorkspace {
         if key != AGENT
             && key != shaping::GUIDE
             && key != plan_execution::COORDINATOR
-            && !key
+            && key
                 .strip_prefix("local-agent-")
-                .is_some_and(|id| uuid::Uuid::parse_str(id).is_ok())
+                .is_none_or(|id| uuid::Uuid::parse_str(id).is_err())
         {
             return Err(AppError::InvalidRequest("Unknown local agent.".into()));
         }

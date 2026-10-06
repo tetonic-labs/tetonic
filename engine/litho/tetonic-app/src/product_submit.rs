@@ -28,6 +28,11 @@ enum InstalledInference {
     Compute(Arc<tetonic_broker::BrokerInferenceProvider>),
 }
 
+type InferenceSnapshot = (
+    Arc<dyn InferenceProvider>,
+    Option<Arc<tetonic_broker::DefaultComputeBroker>>,
+);
+
 pub struct TurnBind {
     pub(crate) inference_profiles: crate::inference_selection::InferenceProfiles,
     pub runtime: Arc<tetonic_runtime::EngineRuntime>,
@@ -100,12 +105,7 @@ impl TurnBind {
         self.ollama_base.lock_recover().clone()
     }
 
-    fn inference_snapshot(
-        &self,
-    ) -> Option<(
-        Arc<dyn InferenceProvider>,
-        Option<Arc<tetonic_broker::DefaultComputeBroker>>,
-    )> {
+    fn inference_snapshot(&self) -> Option<InferenceSnapshot> {
         match self.inference.lock_recover().as_ref()? {
             InstalledInference::Host { provider, broker } => {
                 Some((provider.clone(), broker.clone()))
