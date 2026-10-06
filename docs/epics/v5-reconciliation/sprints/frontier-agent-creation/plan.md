@@ -41,7 +41,7 @@ This is a dedicated implementation sprint, not an extra calendar week or an inde
 | [FAR-004](FAR-004-governed-tools.md) | In progress | L | Selected tools across frontier models |
 | [FAR-005](FAR-005-vendor-harnesses.md) | In progress | L | Frontier harness adapters inside managed execution |
 | [FAR-006](FAR-006-mcp-and-skills.md) | In progress | L | Local MCP read-tool profile delivered; remote/auth/writes, harness attachment and skills open |
-| [FAR-007](FAR-007-team-dispatch-and-edits.md) | In progress | L | Versioned agent editing delivered; mixed-runtime team dispatch open |
+| [FAR-007](FAR-007-team-dispatch-and-edits.md) | In progress | L | Versioned agent editing and parallel mixed-provider general-harness teams delivered; vendor harnesses/live proof open |
 | [FAR-008](FAR-008-conformance-and-product-proof.md) | In progress | L | Conformance, installation and end-to-end product evidence |
 
 Sizes indicate breadth and uncertainty, not days. First close creation correctness, then prove a modern direct model/tool round trip, then the same assignment through a vendor harness. MCP and mixed-team execution use those same contracts. Run the vendor restriction/egress feasibility spike before committing to its full adapter. API auth and ChatGPT-plan auth are distinct supported profiles and require distinct evidence.

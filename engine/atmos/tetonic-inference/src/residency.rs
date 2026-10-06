@@ -4,8 +4,21 @@ use std::collections::HashMap;
 use std::sync::{Mutex, OnceLock, Weak};
 
 #[derive(Default)]
+pub(super) struct RuntimeGate {
+    decision: tokio::sync::Mutex<()>,
+    pub(super) allocation: tokio::sync::RwLock<RuntimeAdmission>,
+}
+
+#[derive(Default)]
 pub(super) struct RuntimeAdmission {
     recovered: Option<AllocationKey>,
+    admitted: Option<AllocationKey>,
+}
+
+impl RuntimeAdmission {
+    pub(super) fn invalidate(&mut self) {
+        self.admitted = None;
+    }
 }
 
 #[derive(Clone, PartialEq, Eq)]
@@ -17,10 +30,10 @@ struct AllocationKey {
 }
 
 // Bootstrap and compute-plane providers for the same runtime share admission.
-// Hold this lease through generation: another local caller must not resize or
-// unload the allocation between its placement check and its last token.
-pub(super) fn runtime_admission(base: &str) -> Arc<tokio::sync::Mutex<RuntimeAdmission>> {
-    type Admissions = HashMap<String, Weak<tokio::sync::Mutex<RuntimeAdmission>>>;
+// Compatible generations share a read lease. Resizing, loading and unloading
+// require a write lease, so none can evict an allocation under active callers.
+pub(super) fn runtime_admission(base: &str) -> Arc<RuntimeGate> {
+    type Admissions = HashMap<String, Weak<RuntimeGate>>;
     static REGISTRY: OnceLock<Mutex<Admissions>> = OnceLock::new();
     let mut registry = REGISTRY.get_or_init(Default::default).lock().unwrap();
     registry.retain(|_, value| value.strong_count() > 0);
@@ -28,12 +41,52 @@ pub(super) fn runtime_admission(base: &str) -> Arc<tokio::sync::Mutex<RuntimeAdm
     if let Some(existing) = registry.get(key).and_then(Weak::upgrade) {
         return existing;
     }
-    let admission = Arc::new(tokio::sync::Mutex::new(RuntimeAdmission::default()));
+    let admission = Arc::new(RuntimeGate::default());
     registry.insert(key.to_owned(), Arc::downgrade(&admission));
     admission
 }
 
 impl OllamaProvider {
+    pub(super) async fn admit_generation(
+        &self,
+        model: &str,
+        options: &mut OllamaChatOptions,
+    ) -> Result<tokio::sync::RwLockReadGuard<'_, RuntimeAdmission>, InferenceError> {
+        let key = AllocationKey {
+            model: model.into(),
+            num_ctx: options.num_ctx,
+            draft_model: options.draft_model.clone(),
+            draft_count: options.draft_count,
+        };
+        let _decision = self.admission.decision.lock().await;
+        // When idle, revalidate the exact load options as before. Only an active
+        // compatible generation proves the allocation is still leased.
+        if let Ok(mut admission) = self.admission.allocation.try_write() {
+            admission.invalidate();
+            self.admit_allocation(&mut admission, model, options)
+                .await?;
+            admission.admitted = Some(key);
+            return Ok(tokio::sync::RwLockWriteGuard::downgrade(admission));
+        }
+        let admission = self.admission.allocation.read().await;
+        if admission.admitted.as_ref() == Some(&key) {
+            if admission.recovered.as_ref() == Some(&key) {
+                options.num_gpu = Some(-1);
+                options.num_batch = Some(128);
+            }
+            self.invalidate_ps_cache().await;
+            self.check_vram_spill(model).await?;
+            return Ok(admission);
+        }
+        drop(admission);
+        let mut admission = self.admission.allocation.write().await;
+        admission.invalidate();
+        self.admit_allocation(&mut admission, model, options)
+            .await?;
+        admission.admitted = Some(key);
+        Ok(tokio::sync::RwLockWriteGuard::downgrade(admission))
+    }
+
     pub(super) async fn admit_allocation(
         &self,
         admission: &mut RuntimeAdmission,

@@ -11,6 +11,7 @@ use tetonic_inference::hosted::HostedTransport;
 mod local_shell;
 mod parity;
 mod shell;
+mod team;
 mod tools;
 
 #[derive(Default)]

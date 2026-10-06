@@ -7,6 +7,39 @@ struct Fixture {
     request: DelegatedGrantRequest,
 }
 
+#[test]
+fn approved_child_environment_does_not_expand_coordinator_and_remains_revocable() {
+    let db = Store::open(":memory:").unwrap();
+    let mut f = seed(&db, true);
+    f.request.job.capability_bindings.push("read_file".into());
+    assert!(db
+        .derive_execution_grant("alice", "org", "team", &f.request, 101)
+        .is_err());
+    f.request.approved_environment = Some("a".repeat(64));
+    let child = db
+        .derive_execution_grant("alice", "org", "team", &f.request, 101)
+        .unwrap();
+    assert!(allows(&db, &child, 102));
+    assert_eq!(
+        child.lineage.approved_environment,
+        f.request.approved_environment
+    );
+    assert!(!db
+        .get_execution_grant("alice", "org", "parent-grant")
+        .unwrap()
+        .unwrap()
+        .job
+        .capability_bindings
+        .contains(&"read_file".into()));
+    f.request.approved_environment = Some("b".repeat(64));
+    assert!(db
+        .derive_execution_grant("alice", "org", "team", &f.request, 102)
+        .is_err());
+    db.revoke_execution_grant("alice", "org", "parent-grant", 103)
+        .unwrap();
+    assert!(!allows(&db, &child, 104));
+}
+
 fn seed(db: &Store, shared: bool) -> Fixture {
     db.bootstrap_control("alice", "org", "Org").unwrap();
     db.register_control_principal("bob").unwrap();
@@ -125,6 +158,7 @@ fn seed(db: &Store, shared: bool) -> Fixture {
     Fixture {
         parent,
         request: DelegatedGrantRequest {
+            approved_environment: None,
             request_id: "derive-request".into(),
             grant_id: "child-grant".into(),
             parent_grant_id: "parent-grant".into(),

@@ -358,7 +358,7 @@ impl LocalWorkspace {
             return self.project_task(work).await;
         }
         self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
-        let mut settings = self.host.settings.clone();
+        let mut settings = self.agent_execution_settings(&agent).await?;
         if self.planning_ids().await?.contains_key(&id) {
             if purpose != WorkPurpose::Explore || agent_key != shaping::GUIDE || parent_id.is_some()
             {
@@ -371,23 +371,6 @@ impl LocalWorkspace {
             settings.allowed_tools.clear();
             settings.workspace_root = None;
         }
-        if agent.provider == "ollama" {
-            self.require_installed_model(&agent.model).await?;
-        } else {
-            settings.hosted = Some(self.hosted_binding(&agent).await?);
-            // A host's folder is not an agent grant. Only an explicitly pinned
-            // disclosure root permits the selected file tools on this route.
-            settings
-                .allowed_tools
-                .retain(|tool| agent.tools.contains(tool));
-            if agent.hosted_workspace.is_none() {
-                settings.workspace_root = None;
-            }
-            settings.data_class = DataClass::SensitiveSource;
-        }
-        settings.model = agent.model;
-        settings.max_elapsed_seconds = agent.max_seconds;
-        settings.reported_token_ceiling = Some(agent.max_tokens);
         // New work inherits an explicit allowance from existing agent limits,
         // optionally narrowed by the owner's workspace default. Retries retain
         // the original funded amount even if defaults have since changed.

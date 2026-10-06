@@ -1,5 +1,6 @@
-//! A child job's permission is a reduction of an existing, live parent grant.
-//! Allocation, grant derivation and execution remain distinct decisions.
+//! A child stays attached to a live parent grant, allocation and stop scope.
+//! Ordinary delegation is a capability subset; explicit administrator approval
+//! may authorize the child's own exact environment without expanding its parent.
 use crate::{ControlPermission, ExecutionGrant, Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use tetonic_domain::{AgentJobSpec, AttemptId, AttemptState, ExecutionScope, RunState, TaskId};
@@ -7,6 +8,10 @@ use tetonic_domain::{AgentJobSpec, AttemptId, AttemptState, ExecutionScope, RunS
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DelegatedGrantRequest {
+    /// Exact trusted host environment approved by an organization administrator.
+    /// Absent preserves ordinary subset-only delegation. Never model supplied.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approved_environment: Option<String>,
     pub request_id: String,
     pub grant_id: String,
     pub parent_grant_id: String,
@@ -18,6 +23,8 @@ pub struct DelegatedGrantRequest {
 /// Derived from current durable work and run truth, never supplied by an employee.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DelegatedGrantLineage {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub approved_environment: Option<String>,
     pub org_id: String,
     pub team_id: String,
     pub delegation_id: String,
@@ -225,11 +232,22 @@ impl Store {
             self.require_shared_grant_context(&child.scope, &lineage.org_id, &lineage.team_id)?;
             if child.scope != parent.scope
                 || child.expires_at > parent.expires_at
-                || !subset(
-                    &child.job.capability_bindings,
-                    &parent.job.capability_bindings,
-                )
+                || (lineage.approved_environment.is_none()
+                    && !subset(
+                        &child.job.capability_bindings,
+                        &parent.job.capability_bindings,
+                    ))
                 || !subset(&child.job.artifact_bindings, &parent.job.artifact_bindings)
+            {
+                return deny();
+            }
+            if lineage.approved_environment.is_some()
+                && !self.control_access(
+                    &parent.scope.principal_id,
+                    ControlPermission::ManageOrganization,
+                    &lineage.org_id,
+                    "",
+                )?
             {
                 return deny();
             }
@@ -299,16 +317,25 @@ impl Store {
         if !self.control_access(actor, ControlPermission::ManageTeam, org, team)? {
             return deny();
         }
+        if let Some(binding) = &request.approved_environment {
+            if binding.len() != 64
+                || !binding.bytes().all(|b| b.is_ascii_hexdigit())
+                || !self.control_access(actor, ControlPermission::ManageOrganization, org, "")?
+            {
+                return deny();
+            }
+        }
         let parent = self.live_grant(&request.parent_grant_id, now)?;
         self.require_shared_grant_context(&parent.scope, org, team)?;
         // The initiating principal remains accountable. Another manager cannot
         // quietly turn that person's existing root grant into delegation authority.
         if parent.scope.principal_id != actor
             || request.expires_at > parent.expires_at
-            || !subset(
-                &request.job.capability_bindings,
-                &parent.job.capability_bindings,
-            )
+            || (request.approved_environment.is_none()
+                && !subset(
+                    &request.job.capability_bindings,
+                    &parent.job.capability_bindings,
+                ))
             || !subset(
                 &request.job.artifact_bindings,
                 &parent.job.artifact_bindings,
@@ -374,6 +401,7 @@ impl Store {
             .as_ref()
             .ok_or(StoreError::ControlAccessDenied)?;
         let lineage = DelegatedGrantLineage {
+            approved_environment: request.approved_environment.clone(),
             org_id: org.into(),
             team_id: team.into(),
             delegation_id: request.delegation_id.clone(),

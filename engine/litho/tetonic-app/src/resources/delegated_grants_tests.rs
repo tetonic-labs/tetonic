@@ -235,6 +235,28 @@ async fn delegation_scenario(scenario: Scenario) {
             .delegation_parent(&execution.attempt_id)
             .unwrap();
         let request = tetonic_memory::DelegatedGrantRequest {
+            approved_environment: if scenario == Scenario::Complete {
+                Some(
+                    RegisteredExecutionSettings {
+                        mcp: None,
+                        plan_dispatch: None,
+                        response_schema: None,
+                        hosted: None,
+                        max_elapsed_seconds: 120,
+                        reported_token_ceiling: Some(40),
+                        workspace_root: None,
+                        model: "qwen3.5:latest".into(),
+                        num_ctx: 8192,
+                        data_class: tetonic_domain::DataClass::Secret,
+                        allowed_tools: Default::default(),
+                        limits: limits(),
+                    }
+                    .environment_binding(&child.job_spec.capability_bindings)
+                    .unwrap(),
+                )
+            } else {
+                None
+            },
             request_id: "derive".into(),
             grant_id: "child-grant".into(),
             parent_grant_id: "parent-grant".into(),
@@ -362,7 +384,11 @@ async fn delegation_scenario(scenario: Scenario) {
                 reported_token_ceiling: Some(40),
                 workspace_root: None,
                 model: "qwen3.5:latest".into(),
-                num_ctx: 8192,
+                num_ctx: if scenario == Scenario::QueuedRevoke {
+                    16384
+                } else {
+                    8192
+                },
                 data_class: tetonic_domain::DataClass::Secret,
                 allowed_tools: Default::default(),
                 limits: limits(),
@@ -379,6 +405,26 @@ async fn delegation_scenario(scenario: Scenario) {
                 )
                 .await
                 .is_err());
+            if scenario == Scenario::Complete {
+                for change in 0..3 {
+                    let mut changed = settings();
+                    match change {
+                        0 => changed.model = "substituted-model".into(),
+                        1 => changed.reported_token_ceiling = Some(41),
+                        _ => changed.num_ctx = 4096,
+                    }
+                    assert!(app
+                        .activate_delegated_team_work(
+                            child_secret,
+                            local.credentials().clone(),
+                            launch(),
+                            changed,
+                            parent_handle.clone()
+                        )
+                        .await
+                        .is_err());
+                }
+            }
             // Matching retry keys in two team namespaces cannot redirect the
             // inherited grant to the other team's work or budget.
             resources

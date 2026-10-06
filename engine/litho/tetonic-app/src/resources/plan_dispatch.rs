@@ -84,7 +84,8 @@ impl HumanHandoff {
     }
 }
 pub(crate) struct DispatchCall {
-    pub key: String,
+    pub keys: Vec<String>,
+    pub grouped: bool,
     pub attempt: String,
     pub reply: tokio::sync::oneshot::Sender<ToolOutcome>,
 }
@@ -163,7 +164,7 @@ impl ToolHost for RegisteredToolHost {
             }
             ads.push(ToolAdvertisement {
             name:DISPATCH.into(),
-            description:"Dispatch assignment_keys sequentially in dependency order, including dependents. Later workers receive earlier results. Stops on a block or human wait. Completed-key retries reuse results.".into(),
+            description:"Dispatch agreed assignment_keys together. Independent agents run concurrently; dependencies and each agent's capacity are respected. Dependents receive completed results. Completed-key retries reuse results.".into(),
             parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_keys"],"properties":{"assignment_keys":{"type":"array","minItems":1,"maxItems":12,"uniqueItems":true,"items":{"type":"string","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}}),
         });
         }

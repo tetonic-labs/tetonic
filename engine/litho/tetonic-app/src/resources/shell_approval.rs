@@ -10,6 +10,7 @@ pub(super) fn for_work(
     work: Option<(String, String)>,
     root: Option<PathBuf>,
     deadline: u64,
+    approved_shared_environment: bool,
 ) -> ApprovalHook {
     Arc::new(move |request| {
         let (store, scope, work, root) = (store.clone(), scope.clone(), work.clone(), root.clone());
@@ -18,14 +19,15 @@ pub(super) fn for_work(
                 return false;
             };
             // Do not publish private-context command content into a team's inbox.
-            if tetonic_memory::team_participation_context_id(
-                &scope.organization_id,
-                &team,
-                &scope.principal_id,
-            )
-            .ok()
-            .as_deref()
-                != Some(scope.information_context_id.as_str())
+            if !approved_shared_environment
+                && tetonic_memory::team_participation_context_id(
+                    &scope.organization_id,
+                    &team,
+                    &scope.principal_id,
+                )
+                .ok()
+                .as_deref()
+                    != Some(scope.information_context_id.as_str())
             {
                 return false;
             }

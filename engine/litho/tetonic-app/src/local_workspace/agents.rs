@@ -5,6 +5,7 @@ use serde::Deserialize;
 
 mod configuration;
 mod editing;
+mod execution;
 mod profiles;
 pub use editing::UpdateLocalAgent;
 pub use profiles::LocalAgentRuntimeProfile;

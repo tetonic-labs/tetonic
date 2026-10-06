@@ -26,7 +26,8 @@ struct GeneralConfiguration {
     explain_turn: Option<bool>,
 }
 
-/// Stored configuration, never execution authority. Other hosts may ignore it.
+/// Durable agent configuration, resolved within host ceilings. These preferences
+/// do not themselves grant execution authority or access to a host's resources.
 #[derive(Clone, serde::Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeneralAgentPreferences {

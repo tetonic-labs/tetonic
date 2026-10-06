@@ -74,6 +74,16 @@ impl ResourceService {
         team: String,
         request: tetonic_memory::DelegatedGrantRequest,
     ) -> Result<tetonic_memory::DelegatedExecutionGrant, ResourceError> {
+        if request.approved_environment.is_some() {
+            self.authority
+                .authorize(
+                    credential,
+                    &ResourceAction::ManageOrganization {
+                        org_id: org.clone(),
+                    },
+                )
+                .await?;
+        }
         let actor = self
             .authority
             .authorize(

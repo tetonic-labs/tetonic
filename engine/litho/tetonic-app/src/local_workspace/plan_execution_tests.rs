@@ -37,7 +37,7 @@ async fn server(hang_child: bool) -> (String, Arc<Mutex<Vec<Value>>>, tokio::tas
     scripted_server(if hang_child { 1 } else { 0 }).await
 }
 
-async fn scripted_server(
+pub(in crate::local_workspace) async fn scripted_server(
     scenario: u8,
 ) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
@@ -170,7 +170,7 @@ async fn scripted_server(
                                 .iter()
                                 .filter(|r| r["tools"].to_string().contains(DISPATCH))
                                 .count();
-                            if matches!(scenario, 5..=7) {
+                            if matches!(scenario, 5..=9) {
                                 groups::reply(scenario, count)
                             } else {
                                 match count {
@@ -189,7 +189,27 @@ async fn scripted_server(
                             }
                         }
                     };
-                    if child && matches!(scenario, 1 | 7) {
+                    if child && matches!(scenario, 8 | 9) {
+                        // Neither worker returns until both HTTP requests have arrived.
+                        // This fails if either dispatch or model admission serializes them.
+                        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                            loop {
+                                let count = captured
+                                    .lock()
+                                    .unwrap()
+                                    .iter()
+                                    .filter(|r| !r["tools"].to_string().contains(DISPATCH))
+                                    .count();
+                                if count >= 2 {
+                                    break;
+                                }
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        })
+                        .await
+                        .expect("independent agents must overlap at inference");
+                    }
+                    if child && matches!(scenario, 1 | 7 | 9) {
                         let _ = stream.read(&mut [0; 1]).await;
                         return;
                     }
@@ -217,6 +237,14 @@ async fn seed(workspace: &LocalWorkspace) -> String {
 }
 
 async fn seed_variant(workspace: &LocalWorkspace, handoff: bool) -> String {
+    seed_options(workspace, handoff, false).await
+}
+
+pub(in crate::local_workspace) async fn seed_options(
+    workspace: &LocalWorkspace,
+    handoff: bool,
+    parallel: bool,
+) -> String {
     let source = uuid::Uuid::new_v4().to_string();
     let resources = workspace.local.resources();
     let secret = &workspace.host.credential;
@@ -270,6 +298,9 @@ async fn seed_variant(workspace: &LocalWorkspace, handoff: bool) -> String {
         {"key":"compare","title":"Compare formats","instructions":"COMPARE_CANARY Compare formats","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"Comparison","token_budget":1000},
         {"key":"check","title":"Check assumptions","instructions":"CHECK_CANARY Review the comparison","agent_key":worker.key,"depends_on":["compare"],"tools":[],"deliverable":"Risks","token_budget":1000}
     ]})).unwrap();
+    if parallel {
+        content.assignments[1].depends_on.clear();
+    }
     if handoff {
         content.token_budget = 8000;
         content.assignments[0].token_budget = 2000;

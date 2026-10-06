@@ -7,8 +7,10 @@ use std::{
 };
 use tetonic_memory::{HuddleExecution, PlanAgentPin, PlanContent};
 
+mod parallel;
+
 pub(super) const COORDINATOR: &str = "Team coordinator";
-const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing outstanding keys in dependency order, including dependents. The host runs the group sequentially and supplies earlier results to later workers. Use a one-key array only when intermediate judgment is needed. A block or human wait stops the group; select other ready keys as needed. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
+const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing all outstanding keys, including dependents. The host runs independent agents concurrently and starts dependent work after its inputs are ready. Use a one-key array only when intermediate judgment is needed. A blocked assignment does not stop unrelated work. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -40,8 +42,8 @@ pub struct PlanExecutionView {
 }
 
 impl LocalWorkspace {
-    // This local profile runs one model call at a time. Each assignment retains
-    // its host time ceiling; the parent additionally owns their waiting time.
+    // Include dependency chains and one-agent capacity queues in the parent
+    // deadline; independent agents do not have to use this time sequentially.
     pub(super) fn plan_deadline(&self, content: &PlanContent) -> u64 {
         self.host
             .settings
@@ -204,14 +206,12 @@ impl LocalWorkspace {
             match self.registered_agent(&assignment.agent_key).await {
                 Ok(stored) => {
                     let agent = self.agent_profile(assignment.agent_key.clone(), &stored)?;
-                    if agent.provider != "ollama"
-                        || agent
-                            .tools
-                            .iter()
-                            .chain(&assignment.tools)
-                            .any(|t| t != "finish")
+                    if assignment
+                        .tools
+                        .iter()
+                        .any(|tool| tool != "finish" && !agent.tools.contains(tool))
                     {
-                        reasons.push(format!("{} needs a local agent with no external or file tools for this first team execution release.",assignment.title));
+                        reasons.push(format!("{} requests tools not granted to its agent. Edit the agent or the plan.", assignment.title));
                     }
                     if assignment.token_budget > agent.max_tokens {
                         reasons.push(format!(
@@ -272,14 +272,36 @@ impl LocalWorkspace {
         self.require_installed_model(&self.host.settings.model)
             .await?;
         let resources = self.local.resources();
-        let coordinator=resources.register_agent(&self.host.credential,ORG.into(),COORDINATOR.into(),"general".into(),
-            serde_json::json!({"instructions":INSTRUCTIONS,"requested_tools":["finish",DISPATCH],"explain_turn":false,"max_steps":16})).await.map_err(resource)?;
+        let coordinator_config = serde_json::json!({"instructions":INSTRUCTIONS,"requested_tools":["finish",DISPATCH],"explain_turn":false,"max_steps":16});
+        let coordinator = match resources
+            .register_agent(
+                &self.host.credential,
+                ORG.into(),
+                COORDINATOR.into(),
+                "general".into(),
+                coordinator_config.clone(),
+            )
+            .await
+        {
+            Ok(agent) => agent,
+            Err(crate::resources::ResourceError::Conflict) => resources
+                .publish_agent_revision(
+                    &self.host.credential,
+                    ORG.into(),
+                    COORDINATOR.into(),
+                    "general".into(),
+                    coordinator_config,
+                )
+                .await
+                .map_err(resource)?,
+            Err(error) => return Err(resource(error)),
+        };
         let mut pins = vec![];
         for assignment in &content.assignments {
             let registered = self.registered_agent(&assignment.agent_key).await?;
             let profile = self.agent_profile(assignment.agent_key.clone(), &registered)?;
             self.check_limits(profile.max_steps, profile.max_seconds, profile.max_tokens)?;
-            self.require_installed_model(&profile.model).await?;
+            self.agent_execution_settings(&profile).await?;
             pins.push(PlanAgentPin {
                 assignment_key: assignment.key.clone(),
                 work_id: uuid::Uuid::new_v4().to_string(),
@@ -528,14 +550,7 @@ impl LocalWorkspace {
                         // The parent's watchdog/cancellation remains live while a child waits.
                         let outcome=tokio::select! {
                             _ = &mut completion => {break;},
-                            result = workspace.dispatch_plan_assignment(&receipt,&parent,&call.key) => result,
-                        };
-                        let outcome=match outcome {
-                            Ok(value)=>match workspace.collect_plan_contributions(&receipt,&call.key,value,&remaining).await {
-                                Ok(value)=>value,
-                                Err(error)=>tetonic_domain::ToolOutcome::fail(error.employee_message(),"unavailable"),
-                            },
-                            Err(error)=>tetonic_domain::ToolOutcome::fail(error.employee_message(),"blocked"),
+                            result = workspace.dispatch_plan_group(&receipt,&parent,call.keys,call.grouped,&remaining) => result,
                         };
                         let _=call.reply.send(outcome);
                     }
@@ -683,8 +698,7 @@ impl LocalWorkspace {
             .map_err(resource)?
             .ok_or(AppError::InferenceUnavailable)?;
         let agent = self.agent_profile(pin.agent_key.clone(), &stored)?;
-        let mut settings = self.host.settings.clone();
-        settings.mcp = None;
+        let mut settings = self.agent_execution_settings(&agent).await?;
         let (sender, _unused) = tokio::sync::mpsc::channel(1);
         settings.plan_dispatch = Some(PlanDispatch {
             human: Some(self.human_handoff(&pin.work_id)),
@@ -693,9 +707,6 @@ impl LocalWorkspace {
             assignment_keys: vec![],
             remaining: Arc::new(Mutex::new(HashSet::new())),
         });
-        settings.workspace_root = None;
-        settings.hosted = None;
-        settings.allowed_tools.clear();
         settings.allowed_tools.insert(ASK_HUMAN.into());
         settings.limits.human_handoff = true;
         settings.response_schema = None;
@@ -721,6 +732,9 @@ impl LocalWorkspace {
                 ORG.into(),
                 TEAM.into(),
                 tetonic_memory::DelegatedGrantRequest {
+                    approved_environment: Some(
+                        settings.environment_binding(prepared.requested_tools())?,
+                    ),
                     request_id: format!("grant/{}", pin.work_id),
                     grant_id: grant.clone(),
                     parent_grant_id: format!("plan-root-{}", receipt.root_work_id),
@@ -874,4 +888,4 @@ fn contribution(task: &LocalTask) -> Result<tetonic_domain::ToolOutcome, AppErro
 
 #[cfg(test)]
 #[path = "plan_execution_tests.rs"]
-mod tests;
+pub(in crate::local_workspace) mod tests;

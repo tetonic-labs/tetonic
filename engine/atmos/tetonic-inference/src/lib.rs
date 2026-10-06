@@ -679,7 +679,7 @@ pub struct OllamaProvider {
     guard: Arc<EgressGuard>,
     ps_cache: Arc<tokio::sync::RwLock<Option<(Value, std::time::Instant)>>>,
     last_prewarm: Arc<tokio::sync::Mutex<Option<WarmupSuccess>>>,
-    admission: Arc<tokio::sync::Mutex<residency::RuntimeAdmission>>,
+    admission: Arc<residency::RuntimeGate>,
 }
 
 struct WarmupSuccess {
@@ -733,7 +733,8 @@ impl OllamaProvider {
         keep_alive: Option<&str>,
         num_ctx: Option<u32>,
     ) -> Result<(), InferenceError> {
-        let _admission = self.admission.lock().await;
+        let mut admission = self.admission.allocation.write().await;
+        admission.invalidate();
         let ka = keep_alive;
         let mut guard = self.last_prewarm.lock().await;
         self.invalidate_ps_cache().await;
@@ -919,7 +920,8 @@ impl OllamaProvider {
         if inputs.is_empty() {
             return Ok(Vec::new());
         }
-        let _admission = self.admission.lock().await;
+        let mut admission = self.admission.allocation.write().await;
+        admission.invalidate();
         let url = format!("{}/api/embed", self.base_url);
         let body = json!({ "model": model, "input": inputs });
         let v = self
@@ -1094,7 +1096,8 @@ impl OllamaProvider {
     /// Release a named runner without deleting its installed weights. Wait for
     /// observed removal so a following benchmark cannot reuse its allocation.
     pub async fn unload_model(&self, model: &str) -> Result<(), InferenceError> {
-        let _admission = self.admission.lock().await;
+        let mut admission = self.admission.allocation.write().await;
+        admission.invalidate();
         self.unload_model_inner(model).await
     }
 
@@ -1157,7 +1160,8 @@ impl OllamaProvider {
     ) -> Result<OllamaChatOnce, InferenceError> {
         use std::time::Instant;
 
-        let _admission = self.admission.lock().await;
+        let mut admission = self.admission.allocation.write().await;
+        admission.invalidate();
         let t0 = Instant::now();
         let url = format!("{}/api/chat", self.base_url);
         let mut options = json!({ "temperature": 0.0, "num_predict": num_predict });
@@ -1429,9 +1433,7 @@ impl InferenceProvider for OllamaProvider {
             Some(StageTimer::start_visible(PerfStage::InferenceFirstContent));
         let request_started = std::time::Instant::now();
         let mut saw_reasoning = false;
-        let mut admission = self.admission.lock().await;
-        self.admit_allocation(&mut admission, &req.model, &mut body.options)
-            .await?;
+        let _admission = self.admit_generation(&req.model, &mut body.options).await?;
 
         let header_timer = StageTimer::start_visible(PerfStage::InferenceHeaders);
         let stream_result = self

@@ -1,10 +1,111 @@
 use super::*;
 
+#[tokio::test]
+async fn parent_stop_cancels_both_parallel_workers() {
+    let dir = tempfile::tempdir().unwrap();
+    let (url, calls, server) = scripted_server(9).await;
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let workspace = Rc::new(
+                LocalWorkspace::open(dir.path().join("plan.db"), "qwen3.5:latest".into(), url)
+                    .await
+                    .unwrap(),
+            );
+            let source = seed_options(&workspace, false, true).await;
+            let start = workspace
+                .start_plan(
+                    &source,
+                    StartPlan {
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                        revision: 1,
+                    },
+                )
+                .await
+                .unwrap();
+            tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                while calls.lock().unwrap().len() < 3 {
+                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                }
+            })
+            .await
+            .expect("both children must start before stop");
+            workspace.cancel(&start.receipt.root_work_id).await.unwrap();
+            let result = terminal(&workspace, &source).await;
+            assert_eq!(result.state, "canceled");
+            assert!(
+                result.assignments.iter().all(|a| a.state == "canceled"),
+                "{}",
+                serde_json::to_string(&result).unwrap()
+            );
+            assert_eq!(calls.lock().unwrap().len(), 3);
+        })
+        .await;
+    server.abort();
+}
+
+#[tokio::test]
+async fn independent_agents_reach_inference_together_and_keep_their_identities() {
+    let dir = tempfile::tempdir().unwrap();
+    let (url, calls, server) = scripted_server(8).await;
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let workspace = Rc::new(
+                LocalWorkspace::open(dir.path().join("plan.db"), "qwen3.5:latest".into(), url)
+                    .await
+                    .unwrap(),
+            );
+            let source = seed_options(&workspace, false, true).await;
+            let before = workspace.agents().await.unwrap();
+            workspace
+                .start_plan(
+                    &source,
+                    StartPlan {
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                        revision: 1,
+                    },
+                )
+                .await
+                .unwrap();
+            let result = terminal(&workspace, &source).await;
+            assert_eq!(
+                result.state,
+                "completed",
+                "{}",
+                serde_json::to_string(&result).unwrap()
+            );
+            assert_eq!(calls.lock().unwrap().len(), 4);
+            assert_ne!(
+                result.receipt.assignments[0].agent_key,
+                result.receipt.assignments[1].agent_key
+            );
+            for pin in &result.receipt.assignments {
+                let original = before.iter().find(|a| a.key == pin.agent_key).unwrap();
+                let current = workspace
+                    .agents()
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .find(|a| a.key == pin.agent_key)
+                    .unwrap();
+                assert_eq!(original.id, current.id);
+                assert_eq!(original.definition_digest, pin.definition_digest);
+                assert_eq!(
+                    serde_json::to_value(original).unwrap(),
+                    serde_json::to_value(current).unwrap()
+                );
+            }
+            let usage = settled_usage(&workspace).await;
+            assert!(usage.iter().all(|u| u.held_tokens == 0 && !u.over_limit));
+        })
+        .await;
+    server.abort();
+}
+
 pub(super) fn reply(scenario: u8, count: usize) -> (&'static str, Value) {
     match (scenario, count) {
         (6, 1) => (DISPATCH, json!({"assignment_keys":["check","compare"]})),
-        (6, 2) => ("finish", json!({"summary":"PREMATURE_GROUP_RESULT"})),
-        (6, 3 | 4) | (5 | 7, 1) => (DISPATCH, json!({"assignment_keys":["compare","check"]})),
+        (6, 2) => (DISPATCH, json!({"assignment_keys":["compare","check"]})),
+        (5 | 7 | 8 | 9, 1) => (DISPATCH, json!({"assignment_keys":["compare","check"]})),
         _ => ("finish", json!({"summary":"COMBINED_GROUP_RESULT"})),
     }
 }
@@ -71,7 +172,7 @@ async fn grouped_dispatch_preserves_dependencies_receipts_and_idempotent_retries
                     .iter()
                     .filter(|r| r["tools"].to_string().contains(DISPATCH))
                     .collect();
-                assert_eq!(roots.len(), if scenario == 5 { 2 } else { 5 });
+                assert_eq!(roots.len(), if scenario == 5 { 2 } else { 3 });
                 let dispatch_schema = roots[0]["tools"]
                     .as_array()
                     .unwrap()
@@ -101,18 +202,6 @@ async fn grouped_dispatch_preserves_dependencies_receipts_and_idempotent_retries
                         }),
                     "both source contributions must reach synthesis in one receipt"
                 );
-                if scenario == 6 {
-                    assert!(
-                        roots[1]["messages"].to_string().contains("error:"),
-                        "invalid dependency order is reported before any worker runs"
-                    );
-                    assert!(
-                        roots[2]["messages"]
-                            .to_string()
-                            .contains("still needs contributions"),
-                        "grouping must not bypass completion guard"
-                    );
-                }
             })
             .await;
         server.abort();

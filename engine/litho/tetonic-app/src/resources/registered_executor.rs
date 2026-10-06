@@ -4,6 +4,7 @@ use super::activation::resource_error;
 use super::*;
 use crate::errors::AppError;
 use std::sync::atomic::{AtomicBool, Ordering};
+mod environment;
 
 /// Operator-selected settings, not fields accepted from an employee request.
 /// The workspace and tool ceiling must be authorized by the host. Stored job
@@ -192,6 +193,8 @@ impl crate::Application {
             settings.limits.max_input_bytes,
             settings.limits.human_handoff,
         );
+        let environment_settings = settings.clone();
+        let mut approved_environment = false;
         let mut prepared = self
             .run_manager
             .prepare_registered_job_with_parent(
@@ -242,11 +245,24 @@ impl crate::Application {
             if lineage.team_id != team || lineage.child_work_id != work {
                 return Err(resource_error(ResourceError::Denied));
             }
+            if let Some(binding) = lineage.approved_environment {
+                if binding
+                    != environment_settings
+                        .environment_binding(&prepared.command.job_spec.capability_bindings)?
+                {
+                    return Err(AppError::PolicyDenied(
+                        "The delegated agent environment differs from its approved configuration."
+                            .into(),
+                    ));
+                }
+                approved_environment = true;
+            }
         }
         // Initial governed children consume explicit shared-context input. File
         // roots and hosted egress need a durable inherited environment contract
         // before they can be delegated; a tool-name grant alone is insufficient.
         if parent.is_some()
+            && !approved_environment
             && (work.is_none()
                 || settings.hosted.is_some()
                 || settings.workspace_root.is_some()
@@ -317,6 +333,7 @@ impl crate::Application {
             .capability_bindings
             .iter()
             .any(|tool| tool == "run_shell")
+            && !approved_environment
             && !work.as_ref().is_some_and(|(team, _)| {
                 tetonic_memory::team_participation_context_id(
                     &prepared.authorization.scope.organization_id,
@@ -389,18 +406,26 @@ impl crate::Application {
                 Some(disclosure) => {
                     disclosure.version == 1
                         && root_key == disclosure.workspace
-                        && settings
-                            .allowed_tools
-                            .iter()
-                            .all(|tool| disclosure.tools.contains(tool))
-                        && capabilities
-                            .iter()
-                            .all(|tool| tool == "finish" || disclosure.tools.contains(tool))
+                        && settings.allowed_tools.iter().all(|tool| {
+                            (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                                || disclosure.tools.contains(tool)
+                        })
+                        && capabilities.iter().all(|tool| {
+                            tool == "finish"
+                                || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                                || disclosure.tools.contains(tool)
+                        })
                 }
                 None => {
                     root_key.is_none()
-                        && settings.allowed_tools.is_empty()
-                        && capabilities.iter().all(|tool| tool == "finish")
+                        && settings
+                            .allowed_tools
+                            .iter()
+                            .all(|tool| bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                        && capabilities.iter().all(|tool| {
+                            tool == "finish"
+                                || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                        })
                 }
             };
             if !valid || !prepared.command.job_spec.artifact_bindings.is_empty() {
@@ -571,6 +596,7 @@ impl crate::Application {
             work.clone(),
             root.clone(),
             deadline,
+            approved_environment,
         );
         let provider: Arc<dyn tetonic_inference::InferenceProvider> = match work {
             Some((team, work)) => Arc::new(super::work_usage::WorkUsageProvider {
