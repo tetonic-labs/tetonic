@@ -166,16 +166,11 @@ impl FleetSupervisor {
         vector: SteeringVector,
     ) -> Result<usize, FleetError> {
         // Find squad across all registered orgs
-        let orgs = self.orgs.read().unwrap();
-        let mut target_squad = None;
-        for org in orgs.values() {
-            if let Some(squad) = org.get_squad(squad_id) {
-                target_squad = Some(squad);
-                break;
-            }
+        let squad = {
+            let orgs = self.orgs.read().unwrap();
+            orgs.values().find_map(|org| org.get_squad(squad_id))
         }
-
-        let squad = target_squad.ok_or_else(|| FleetError::SquadNotFound(squad_id.clone()))?;
+        .ok_or_else(|| FleetError::SquadNotFound(squad_id.clone()))?;
 
         // 1. Update charter in-flight
         squad.apply_steering(&vector);
@@ -185,25 +180,29 @@ impl FleetSupervisor {
         let mut delivered = 0;
         let member_ids = squad.members();
 
-        let agents_guard = self.agents.read().unwrap();
-        for id in member_ids {
-            if let Some(agent) = agents_guard.get(&id) {
-                if let Some(ref tx) = agent.perception_tx {
-                    let perception = Perception {
-                        when: Utc::now(),
-                        sequence: 0,
-                        urgency: event.urgency,
-                        signals: vec![],
-                        events: vec![event.clone()],
-                        state: WorldState {
-                            schema_id: "steering".into(),
-                            data: serde_json::Value::Null,
-                        },
-                    };
-                    if tx.send(perception).await.is_ok() {
-                        delivered += 1;
-                    }
-                }
+        // Snapshot delivery handles before awaiting channel capacity. A slow
+        // receiver must not prevent organization or agent registry writes.
+        let recipients: Vec<_> = {
+            let agents = self.agents.read().unwrap();
+            member_ids
+                .iter()
+                .filter_map(|id| agents.get(id)?.perception_tx.clone())
+                .collect()
+        };
+        for tx in recipients {
+            let perception = Perception {
+                when: Utc::now(),
+                sequence: 0,
+                urgency: event.urgency,
+                signals: vec![],
+                events: vec![event.clone()],
+                state: WorldState {
+                    schema_id: "steering".into(),
+                    data: serde_json::Value::Null,
+                },
+            };
+            if tx.send(perception).await.is_ok() {
+                delivered += 1;
             }
         }
 
@@ -421,6 +420,96 @@ mod tests {
         fn is_estopped(&self) -> bool {
             self.estop.is_estopped()
         }
+    }
+
+    #[tokio::test]
+    async fn steering_backpressure_does_not_lock_fleet_registries() {
+        use std::future::{poll_fn, Future};
+        use std::task::Poll;
+
+        let supervisor = FleetSupervisor::new();
+        let org_id = OrgId::new("org");
+        let org = Arc::new(Organization::new(
+            org_id.clone(),
+            "Org",
+            BudgetQuota::default(),
+        ));
+        let squad_id = SquadId::new("squad");
+        let squad = Arc::new(Squad::new(
+            squad_id.clone(),
+            org_id,
+            "Squad",
+            IntentCharter::new("charter", "Do bounded work"),
+        ));
+        let agent_id = AgentId::new("agent");
+        squad.add_member(agent_id.clone());
+        org.register_squad(squad).unwrap();
+        supervisor.register_org(org);
+        let (tx, mut rx) = mpsc::channel(1);
+        supervisor.register_agent(agent_id, Some(squad_id.clone()), None, Some(tx));
+
+        // Fill the inbox, then poll another delivery until it is actually waiting.
+        assert_eq!(
+            supervisor
+                .inject_steering(&squad_id, SteeringVector::critical("First"))
+                .await
+                .unwrap(),
+            1
+        );
+        let mut pending =
+            Box::pin(supervisor.inject_steering(&squad_id, SteeringVector::critical("Second")));
+        poll_fn(|cx| {
+            assert!(pending.as_mut().poll(cx).is_pending());
+            Poll::Ready(())
+        })
+        .await;
+
+        // try_write makes a regression fail immediately rather than deadlocking.
+        assert!(
+            supervisor.orgs.try_write().is_ok(),
+            "organization registry locked"
+        );
+        assert!(
+            supervisor.agents.try_write().is_ok(),
+            "agent registry locked"
+        );
+        supervisor.register_org(Arc::new(Organization::new(
+            OrgId::new("other"),
+            "Other",
+            BudgetQuota::default(),
+        )));
+        supervisor.register_agent(AgentId::new("other"), None, None, None);
+        supervisor.emergency_stop_fleet("Stop while steering waits");
+        assert!(supervisor.is_fleet_estopped());
+        let snapshot = supervisor.fleet_snapshot();
+        assert_eq!(snapshot.total_organizations, 2);
+        assert_eq!(snapshot.estopped_agents, 2);
+
+        rx.recv().await.unwrap();
+        assert_eq!(
+            tokio::time::timeout(Duration::from_secs(1), pending)
+                .await
+                .expect("delivery resumes after backpressure clears")
+                .unwrap(),
+            1
+        );
+        assert_eq!(
+            rx.recv().await.unwrap().events[0].kind,
+            "steering.course_correction"
+        );
+        assert!(
+            supervisor.is_fleet_estopped(),
+            "steering must not clear the stop"
+        );
+
+        drop(rx);
+        assert_eq!(
+            supervisor
+                .inject_steering(&squad_id, SteeringVector::critical("Closed inbox"))
+                .await
+                .unwrap(),
+            0
+        );
     }
 
     #[tokio::test]
