@@ -1,9 +1,11 @@
 //! Tests for ManagedRunService (C2 resolution & deterministic admission cancellation).
 
-#[path = "support/managed_deadlines.rs"]
-mod deadlines;
 #[path = "support/managed_activations.rs"]
 mod activations;
+#[path = "support/managed_cancellation.rs"]
+mod cancellation;
+#[path = "support/managed_deadlines.rs"]
+mod deadlines;
 
 use std::sync::Arc;
 use tokio::sync::Notify;
@@ -544,7 +546,10 @@ async fn cancellation_keeps_owner_alive_until_blocking_effect_returns() {
                 .await
                 .unwrap()
                 .expect("effect owner must finish");
-            assert!(outcome.is_err());
+            assert!(matches!(
+                outcome.unwrap(),
+                CandidateOutcome::Canceled { .. }
+            ));
         })
         .await;
 }
@@ -643,7 +648,10 @@ async fn finalization_passes_live_cancellation_to_verifier() {
             .await
             .unwrap()
             .unwrap();
-            assert!(finalizer.await.unwrap().is_err());
+            assert!(matches!(
+                finalizer.await.unwrap().unwrap(),
+                CandidateOutcome::Canceled { .. }
+            ));
             assert!(service.binding(&binding.attempt_id).is_none());
         })
         .await;
@@ -749,9 +757,7 @@ impl tetonic_run::managed::ExecutionAuthority for CountingAuthority {
         _: &AgentIdentity,
         _: &AgentJobSpec,
     ) -> Result<(), ()> {
-        let call = self
-            .calls
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+        let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         (call < self.allow).then_some(()).ok_or(())
     }
 }
@@ -802,7 +808,8 @@ impl tetonic_domain::Brain for ActionBrain {
 struct RecordingWorld {
     manifest: tetonic_domain::WorldManifest,
     executed: std::sync::Mutex<Vec<String>>,
-    perception_rx: std::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tetonic_domain::Perception>>>,
+    perception_rx:
+        std::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tetonic_domain::Perception>>>,
 }
 
 impl RecordingWorld {
@@ -890,10 +897,7 @@ fn world_perception() -> tetonic_domain::Perception {
     }
 }
 
-fn world_agent(
-    brain: Arc<ActionBrain>,
-    world: Arc<RecordingWorld>,
-) -> tetonic_core::Agent {
+fn world_agent(brain: Arc<ActionBrain>, world: Arc<RecordingWorld>) -> tetonic_core::Agent {
     tetonic_core::Agent::default()
         .with_brain(brain)
         .with_world_adapter(world)
@@ -940,9 +944,7 @@ async fn managed_world_attempt_reaches_the_adapter_and_records_completion() {
                 tetonic_run::managed::AdmissionContext::default(),
             )
             .await;
-            let tetonic_run::managed::ManagedSubmission::Started {
-                completion, ..
-            } = started
+            let tetonic_run::managed::ManagedSubmission::Started { completion, .. } = started
             else {
                 panic!("world work must be admitted, not replayed");
             };

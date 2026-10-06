@@ -630,14 +630,22 @@ async fn delegation_scenario(scenario: Scenario) {
                 })
                 .await
                 .unwrap();
-            assert!(matches!(
-                parent_done.unwrap().outcome,
-                tetonic_domain::CandidateOutcome::Canceled { .. }
-            ));
-            assert!(matches!(
-                child_done.unwrap().outcome,
-                tetonic_domain::CandidateOutcome::Canceled { .. }
-            ));
+            let parent_outcome = parent_done.unwrap().outcome;
+            let child_outcome = child_done.unwrap().outcome;
+            assert!(
+                matches!(
+                    parent_outcome,
+                    tetonic_domain::CandidateOutcome::Canceled { .. }
+                ),
+                "parent outcome: {parent_outcome:?}"
+            );
+            assert!(
+                matches!(
+                    child_outcome,
+                    tetonic_domain::CandidateOutcome::Canceled { .. }
+                ),
+                "child outcome: {child_outcome:?}"
+            );
             let snapshot = app
                 .run_manager
                 .managed()

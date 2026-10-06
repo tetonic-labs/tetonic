@@ -431,6 +431,13 @@ impl super::service::ManagedRunService {
                 })
                 .await;
             if let Err(error) = finalized {
+                if this.binding(&binding.attempt_id).is_none() {
+                    // Another terminal owner (such as cancel_run) has already
+                    // removed the binding and delivered completion. Do not emit
+                    // a second, contradictory failure for this late finalizer.
+                    let _ = this.release_dispatch(&t_id).await;
+                    return;
+                }
                 // Deliver an explicit failure, retaining durable recovery state.
                 let result = StartIdentityJobResult {
                     run_id: binding.run_id,

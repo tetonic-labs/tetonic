@@ -104,6 +104,24 @@ impl super::service::ManagedRunService {
                 result = self.finish_deadline_exceeded(&active, finish_run).await;
             }
         }
+        if result.is_err() {
+            // Run cancellation can commit while this finalizer is awaiting a
+            // command. The journal then correctly refuses its late FailAttempt
+            // or completion command. Preserve the committed cancellation rather
+            // than publishing that rejected transition as a worker failure.
+            // A local stop flag alone is not proof that cancellation persisted.
+            let snapshot = self.inspect_run(&active.binding.run_id).await?;
+            if snapshot.cancellation.run_canceled
+                && snapshot
+                    .attempts
+                    .get(&active.binding.attempt_id)
+                    .is_some_and(|attempt| attempt.state == tetonic_domain::AttemptState::Canceled)
+            {
+                result = Ok(CandidateOutcome::Canceled {
+                    reason: "run canceled during finalization".into(),
+                });
+            }
+        }
         if let Ok(outcome) = &result {
             // finalize_owned has returned and dropped its finalization lease.
             // Record completion of actual workers before returning admission

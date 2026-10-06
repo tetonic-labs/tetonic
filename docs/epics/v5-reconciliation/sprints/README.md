@@ -37,6 +37,12 @@ October 25 is the release decision, not another feature-development day. Freeze 
 
 The revised [Sprint 1 workspace plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the product-experience delivery plan: one map, one composer, progressive work inspection and clear human flags backed by bounded coordination. Ten UI children remain: eight P0, one P1 and one P2. UI-008's minimum real team selection/inspection is now required; advanced custom setup stays optional. COORD-A/B/C pull the smallest governed collaboration and activity slices of OCT-201/202/205 into Sprint 1 without duplicating their owners or closing their full acceptance. No fourth sprint is added. Optional customization, filters, shortcuts and motion refinement defer; the second real domain scenario moves from Sprint 1 to Sprint 2 to make room.
 
+October 5 cancellation follow-up: [cancellation reliability evidence](october-1-coherent-workspace/cancellation-reliability-evidence-2026-10-05.md)
+records a deterministic late-finalizer cancellation race, its managed-runtime fix,
+and passing application/managed-service regressions. Repository formatting now
+passes; the broader engineering gate still has Clippy and static-check findings.
+This is reliability progress, not closure of the full sprint gate.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)
