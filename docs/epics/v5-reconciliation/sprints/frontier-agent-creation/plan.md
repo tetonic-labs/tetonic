@@ -16,7 +16,7 @@ This is a dedicated implementation sprint, not an extra calendar week or an inde
 |---|---|---|---|
 | [FAR-001](FAR-001-creation-and-readiness.md) | Verified for current profiles | M | Creation contracts and honest readiness |
 | [FAR-002](FAR-002-model-discovery-and-connections.md) | In progress | L | Account-aware model discovery and connections |
-| [FAR-003](FAR-003-modern-inference-and-streaming.md) | Planned | L | Modern inference protocols, streaming and tool continuity |
+| [FAR-003](FAR-003-modern-inference-and-streaming.md) | In progress | L | Modern inference protocols, streaming and tool continuity |
 | [FAR-004](FAR-004-governed-tools.md) | Planned | L | Selected tools across frontier models |
 | [FAR-005](FAR-005-vendor-harnesses.md) | Planned | L | Frontier harness adapters inside managed execution |
 | [FAR-006](FAR-006-mcp-and-skills.md) | Planned | L | Real MCP connections, tool attachments and skills |

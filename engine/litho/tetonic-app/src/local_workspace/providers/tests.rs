@@ -67,7 +67,7 @@ impl HostedTransport for Transport {
             )
         } else {
             Ok(
-                json!({"choices":[{"message":{"role":"assistant","content":null,"tool_calls":[{"id":"finish-1","type":"function","function":{"name":"finish","arguments":"{\"summary\":\"Hosted answer\"}"}}]},"finish_reason":"tool_calls"}],"usage":{"prompt_tokens":10,"completion_tokens":20}}),
+                json!({"status":"completed","output":[{"type":"function_call","call_id":"finish-1","name":"finish","arguments":"{\"summary\":\"Hosted answer\"}"}],"usage":{"input_tokens":10,"output_tokens":20}}),
             )
         }
     }
@@ -227,7 +227,9 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     "ambient tools must never reach hosted inference"
                 );
                 if provider == "openai" {
-                    assert_eq!(body["max_completion_tokens"], 1024);
+                    assert_eq!(body["max_output_tokens"], 1024);
+                    assert_eq!(body["stream"], true);
+                    assert_eq!(body["store"], false);
                     assert!(body.get("max_tokens").is_none());
                 }
                 let snapshot = serde_json::to_string(&workspace.snapshot().await.unwrap()).unwrap();

@@ -304,3 +304,21 @@ fn completion_limit_respects_request_and_provider_ceiling() {
     req.max_tokens = Some(1024);
     assert_eq!(openai::request(&req, &config()).unwrap()["max_tokens"], 512);
 }
+
+#[test]
+fn missing_external_effect_is_not_repaired_as_completed() {
+    let mut req = request();
+    req.messages = vec![
+        Message::assistant("").with_tool_calls(vec![ToolCall {
+            function: FunctionCall {
+                name: "write_file".into(),
+                arguments: json!({"path":"result.txt","content":"x"}),
+            },
+        }]),
+        Message::user("continue"),
+    ];
+    assert!(openai::request(&req, &config()).is_err());
+    assert!(
+        anthropic::request(&req, &HostedModelConfig::anthropic("configured-model", 512)).is_err()
+    );
+}

@@ -34,11 +34,19 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
     let mut messages = Vec::new();
     let mut pending = VecDeque::new();
     for (index, msg) in req.messages.iter().enumerate() {
+        if msg.provider_state.is_some() {
+            return Err(error(
+                "provider continuation cannot be converted to Chat Completions",
+            ));
+        }
         if !matches!(msg.role.as_str(), "system" | "user" | "assistant" | "tool") {
             return Err(error("unsupported hosted message role"));
         }
         if msg.role != "tool" && !pending.is_empty() {
-            while let Some((id, _name)) = pending.pop_front() {
+            while let Some((id, name)) = pending.pop_front() {
+                if name != "finish" {
+                    return Err(error("missing tool results in hosted conversation"));
+                }
                 messages.push(json!({
                     "role": "tool",
                     "tool_call_id": id,

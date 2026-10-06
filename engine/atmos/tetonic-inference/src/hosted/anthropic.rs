@@ -33,6 +33,11 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
     let mut pending_tool_ids = std::collections::VecDeque::new();
 
     for (index, msg) in req.messages.iter().enumerate() {
+        if msg.provider_state.is_some() {
+            return Err(error(
+                "provider continuation cannot be converted to Messages",
+            ));
+        }
         match msg.role.as_str() {
             "system" => {
                 if !msg.content.trim().is_empty() {
@@ -40,7 +45,10 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
                 }
             }
             "user" => {
-                while let Some((expected_id, _)) = pending_tool_ids.pop_front() {
+                while let Some((expected_id, name)) = pending_tool_ids.pop_front() {
+                    if name != "finish" {
+                        return Err(error("missing tool results in hosted conversation"));
+                    }
                     let tool_result_block = json!({
                         "type": "tool_result",
                         "tool_use_id": expected_id,

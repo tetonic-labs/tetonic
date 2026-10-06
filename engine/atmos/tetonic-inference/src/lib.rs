@@ -82,6 +82,11 @@ pub struct Message {
     /// Links a tool-result message to the assistant `tool_calls` id (H3-1).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_call_id: Option<String>,
+    /// Private protocol continuation for this in-process conversation. Never
+    /// serialize it into Ollama, shared transcripts or portable message history.
+    /// Durable vendor-session resumption requires a separately scoped store.
+    #[serde(skip)]
+    pub(crate) provider_state: Option<ProviderMessageState>,
     /// Memoized token count of this (immutable) message. Not serialized; filled
     /// lazily the first time a tokenizer counts it, so a long session doesn't
     /// re-tokenize its whole history every turn. Atomic so `Message` is `Send + Sync`.
@@ -97,6 +102,7 @@ impl Clone for Message {
             tool_calls: self.tool_calls.clone(),
             tool_name: self.tool_name.clone(),
             tool_call_id: self.tool_call_id.clone(),
+            provider_state: self.provider_state.clone(),
             token_cache: AtomicI64::new(self.token_cache.load(Ordering::Relaxed)),
         }
     }
@@ -123,6 +129,7 @@ impl Message {
             tool_calls: None,
             tool_name: Some(name.into()),
             tool_call_id: None,
+            provider_state: None,
             token_cache: AtomicI64::new(-1),
         }
     }
@@ -140,6 +147,7 @@ impl Message {
             tool_calls: None,
             tool_name: None,
             tool_call_id: None,
+            provider_state: None,
             token_cache: AtomicI64::new(-1),
         }
     }
@@ -149,6 +157,13 @@ impl Message {
     pub fn with_tool_calls(mut self, tool_calls: Vec<ToolCall>) -> Self {
         self.tool_calls = Some(tool_calls);
         self
+    }
+
+    pub fn provider_tool_call_ids(&self) -> Vec<String> {
+        self.provider_state
+            .as_ref()
+            .map(|state| state.call_ids.clone())
+            .unwrap_or_default()
     }
 
     /// Return this message's memoized token count, computing it with `f` on a miss.
@@ -163,6 +178,20 @@ impl Message {
             self.token_cache.store(n as i64, Ordering::Relaxed);
             n
         }
+    }
+}
+
+#[derive(Clone)]
+pub(crate) struct ProviderMessageState {
+    pub protocol: &'static str,
+    pub model: String,
+    pub items: Vec<Value>,
+    pub call_ids: Vec<String>,
+}
+
+impl std::fmt::Debug for ProviderMessageState {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str("ProviderMessageState([PRIVATE])")
     }
 }
 
@@ -1352,6 +1381,15 @@ impl InferenceProvider for OllamaProvider {
         on_token: &mut TokenSink<'_>,
     ) -> Result<ChatResponse, InferenceError> {
         require_outbound_scan(&req)?;
+        if req
+            .messages
+            .iter()
+            .any(|message| message.provider_state.is_some())
+        {
+            return Err(InferenceError::Provider(
+                "provider continuation cannot be sent to Ollama".into(),
+            ));
+        }
         let url = format!("{}/api/chat", self.base_url);
         let keep_alive = keep_alive_for_request(&req);
         let tools_slice = if req.tools.is_empty() {
@@ -1549,6 +1587,7 @@ impl InferenceProvider for OllamaProvider {
         Ok(ChatResponse {
             message: {
                 let mut message = Message {
+                    provider_state: None,
                     role,
                     content,
                     tool_calls,

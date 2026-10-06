@@ -5,7 +5,6 @@ use std::sync::Arc;
 use tetonic_domain::key_storage::{KeyStorage, SecretKeyRef};
 use tetonic_inference::hosted::{
     EgressHostedTransport, HostedChatProvider, HostedCredentialSource, HostedModelConfig,
-    OutputLimitField,
 };
 use tetonic_inference::InferenceError;
 
@@ -35,7 +34,7 @@ pub struct RemoveProviderKey {
 
 fn provider_info(id: &str) -> Result<(&'static str, &'static str), AppError> {
     match id {
-        "openai" => Ok(("OpenAI", "https://api.openai.com/v1/chat/completions")),
+        "openai" => Ok(("OpenAI", "https://api.openai.com/v1/responses")),
         "anthropic" => Ok(("Anthropic", "https://api.anthropic.com/v1/messages")),
         _ => Err(AppError::InvalidRequest(
             "Choose OpenAI or Anthropic.".into(),
@@ -221,9 +220,7 @@ impl LocalWorkspace {
         let mut config = if agent.provider == "anthropic" {
             HostedModelConfig::anthropic(&agent.model, agent.max_tokens as u32)
         } else {
-            let mut config = HostedModelConfig::openai(&agent.model, agent.max_tokens as u32);
-            config.output_limit_field = OutputLimitField::MaxCompletionTokens;
-            config
+            HostedModelConfig::responses(&agent.model, agent.max_tokens as u32)
         };
         // Optional temperature is not accepted by several reasoning models.
         config.send_temperature = false;

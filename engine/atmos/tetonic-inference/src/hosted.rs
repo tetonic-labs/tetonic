@@ -3,6 +3,8 @@
 pub mod anthropic;
 pub mod openai;
 pub mod registry;
+pub mod responses;
+mod responses_stream;
 #[cfg(test)]
 mod tests;
 pub mod wire;
@@ -88,6 +90,14 @@ impl HostedCredentialSource for StaticCredentialSource {
 pub trait HostedTransport: Send + Sync {
     async fn complete(&self, body: Value) -> Result<Value, InferenceError>;
 
+    async fn responses_stream(
+        &self,
+        body: Value,
+        _on_token: &mut TokenSink<'_>,
+    ) -> Result<Value, InferenceError> {
+        self.complete(body).await
+    }
+
     async fn list_models(
         &self,
         _endpoint: &str,
@@ -121,6 +131,27 @@ impl EgressHostedTransport {
 
 #[async_trait]
 impl HostedTransport for EgressHostedTransport {
+    async fn responses_stream(
+        &self,
+        body: Value,
+        on_token: &mut TokenSink<'_>,
+    ) -> Result<Value, InferenceError> {
+        let credential = self
+            .credentials
+            .credential()
+            .await
+            .map_err(|_| error("hosted credential unavailable"))?;
+        let mut stream = responses_stream::ResponsesStream::default();
+        self.guard
+            .post_hosted_stream(&self.endpoint, &body, &credential, &mut |bytes| {
+                stream.push(bytes, on_token).map_err(|_| {
+                    tetonic_egress::EgressError::StreamDecode("invalid Responses stream".into())
+                })
+            })
+            .await
+            .map_err(|e| error(&format!("hosted stream error: {e}")))?;
+        stream.finish()
+    }
     async fn list_models(
         &self,
         endpoint: &str,
@@ -156,6 +187,7 @@ impl HostedTransport for EgressHostedTransport {
 pub enum HostedWireProtocol {
     #[default]
     OpenAiChatCompletions,
+    OpenAiResponses,
     AnthropicMessages,
 }
 
@@ -180,6 +212,13 @@ pub struct HostedModelConfig {
 }
 
 impl HostedModelConfig {
+    pub fn responses(model: impl Into<String>, max_output_tokens: u32) -> Self {
+        Self {
+            protocol: HostedWireProtocol::OpenAiResponses,
+            send_temperature: false,
+            ..Self::openai(model, max_output_tokens)
+        }
+    }
     pub fn is_model_allowed(&self, model: &str) -> bool {
         if self.model == model {
             return true;
@@ -292,13 +331,18 @@ impl InferenceProvider for HostedChatProvider {
                 })
             }
         }
-        let value = self.transport.complete(body).await?;
+        let streaming = self.config.protocol == HostedWireProtocol::OpenAiResponses;
+        let value = if streaming {
+            self.transport.responses_stream(body, on_token).await?
+        } else {
+            self.transport.complete(body).await?
+        };
         let mut response = wire::response(value, &self.config, &req.model)?;
         response.provenance.placement_class = Some(class);
         response.provenance.placement_decision = Some("hosted_explicit".into());
         response.provenance.attempt_id = req.fabric.as_ref().and_then(|f| f.attempt_id.clone());
         // Buffered compatibility: publish only a complete, validated response.
-        if !response.message.content.is_empty() {
+        if !streaming && !response.message.content.is_empty() {
             on_token(&response.message.content);
         }
         Ok(response)

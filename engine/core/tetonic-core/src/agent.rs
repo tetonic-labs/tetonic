@@ -1610,6 +1610,7 @@ impl Agent {
             let mut msg = resp.message;
             tetonic_inference::recover_message_tool_calls(&mut msg);
             let tool_calls = msg.tool_calls.clone().unwrap_or_default();
+            let provider_call_ids = msg.provider_tool_call_ids();
             if let Some(a) = self.audit() {
                 let tcj = msg
                     .tool_calls
@@ -1691,7 +1692,7 @@ impl Agent {
 
             // Calls can depend on earlier mutations and on per-call discipline.
             // Execute only after those checks, preserving the requested order.
-            for tc in tool_calls {
+            for (ordinal, tc) in tool_calls.into_iter().enumerate() {
                 // Includes in-loop finish/spawn paths as well as ordinary tools.
                 // Cancellation wins before finish can record a completed outcome.
                 if convo.is_canceled() || self.work_scope.is_canceled() {
@@ -1708,7 +1709,10 @@ impl Agent {
                 }
                 let name = tc.function.name.clone();
                 let args = tc.function.arguments.clone();
-                let call_id = format!("tc_{:x}_{}", convo.nonce, convo.call_no);
+                let call_id = provider_call_ids
+                    .get(ordinal)
+                    .cloned()
+                    .unwrap_or_else(|| format!("tc_{:x}_{}", convo.nonce, convo.call_no));
                 convo.call_no += 1;
                 let args_json = serde_json::to_string(&args).unwrap_or_default();
 

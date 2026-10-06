@@ -166,7 +166,7 @@ fn public_address(ip: IpAddr) -> bool {
 
 impl EgressGuard {
     /// Explicit operator enrollment of one complete HTTPS API URL. Does not
-    /// enable other URLs, ordinary HTTP methods, or fabric-worker enrollment.
+    /// enable other URLs, generic network requests, or fabric-worker enrollment.
     pub fn allow_hosted_endpoint(&self, url: &str) -> Result<(), EgressError> {
         let url = endpoint(url)?.to_string();
         let mut grants = self
@@ -247,6 +247,55 @@ impl EgressGuard {
             bytes.extend_from_slice(&chunk);
         }
         serde_json::from_slice(&bytes).map_err(|_| failure("invalid hosted response JSON"))
+    }
+
+    /// Bounded streaming POST through the same endpoint, credential and DNS checks.
+    /// The caller decodes complete protocol events; dropping this future closes
+    /// the response stream. No transport retry can duplicate a model request.
+    pub async fn post_hosted_stream<C: AsRef<HostedCredential>>(
+        &self,
+        url: &str,
+        body: &Value,
+        credential: &C,
+        on_chunk: &mut (dyn FnMut(&[u8]) -> Result<(), EgressError> + Send),
+    ) -> Result<(), EgressError> {
+        tokio::time::timeout(Duration::from_secs(120), async {
+            let response = self
+                .hosted_request(
+                    url,
+                    reqwest::Method::POST,
+                    Some(body),
+                    &[],
+                    credential.as_ref(),
+                )
+                .await?;
+            if !response
+                .headers()
+                .get(reqwest::header::CONTENT_TYPE)
+                .and_then(|value| value.to_str().ok())
+                .is_some_and(|value| {
+                    value
+                        .split(';')
+                        .next()
+                        .is_some_and(|mime| mime.trim().eq_ignore_ascii_case("text/event-stream"))
+                })
+            {
+                return Err(failure("expected hosted event stream"));
+            }
+            let mut stream = response.bytes_stream();
+            let mut received = 0usize;
+            while let Some(chunk) = stream.next().await {
+                let chunk = chunk.map_err(|_| failure("hosted stream interrupted"))?;
+                received = received.saturating_add(chunk.len());
+                if received > MAX_BODY {
+                    return Err(failure("hosted stream exceeds 8 MiB"));
+                }
+                on_chunk(&chunk)?;
+            }
+            Ok(())
+        })
+        .await
+        .map_err(|_| failure("hosted stream timed out"))?
     }
 
     async fn hosted_request(
