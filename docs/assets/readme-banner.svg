@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="420" viewBox="0 0 1440 420" role="img" aria-labelledby="title desc">
+  <title id="title">Tetonic — Let agents run. You shape the work.</title>
+  <desc id="desc">A terracotta field with bold typography and a branching diagram of coordinated work.</desc>
+  <rect width="1440" height="420" fill="#bb7046"/>
+  <g fill="#242721" font-family="Arial, Helvetica, sans-serif">
+    <text x="64" y="65" font-size="28" font-weight="700" letter-spacing="-1">Tetonic</text>
+    <text x="1376" y="62" text-anchor="end" font-family="monospace" font-size="13" letter-spacing="1.4">AGENT RUNTIME INFRASTRUCTURE</text>
+    <path d="M64 91H1376" stroke="#242721" opacity=".3"/>
+    <text x="58" y="205" font-size="104" font-weight="800" letter-spacing="-6">Let agents</text>
+    <text x="64" y="320" fill="#f6f4ed" font-family="Georgia, serif" font-style="italic" font-size="126" letter-spacing="-5">run.</text>
+    <text x="67" y="376" font-size="21">You shape the work.</text>
+  </g>
+  <g fill="none" stroke="#242721" stroke-width="1.6" stroke-linejoin="round">
+    <path d="M1030 134 1110 174 1030 214 950 174Z"/>
+    <path d="M1030 152 1074 174 1030 196 986 174Z"/>
+    <path d="M1030 214V236L866 280M1030 236 1194 280M1030 236V305" stroke="#f6f4ed" stroke-dasharray="4 6"/>
+    <path d="M866 253 920 280 866 307 812 280ZM1194 253 1248 280 1194 307 1140 280ZM1030 292 1084 319 1030 346 976 319Z"/>
+    <path d="M812 280V290L866 317 920 290V280M1140 280V290L1194 317 1248 290V280M976 319V329L1030 356 1084 329V319"/>
+    <path d="M785 149H805M795 139V159M1290 349H1310M1300 339V359"/>
+  </g>
+  <g fill="#f6f4ed"><circle cx="1030" cy="236" r="5"/><circle cx="866" cy="280" r="4"/><circle cx="1194" cy="280" r="4"/><circle cx="1030" cy="319" r="4"/></g>
+</svg>

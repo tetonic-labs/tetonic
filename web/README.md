@@ -52,8 +52,9 @@ an explicit host `--workspace-root`; opening the UI does not grant it.
 ## Engine gaps kept explicit
 
 This connection does not yet expose team creation/membership editing, MCP
-connection management, skills, structured live tool destinations, or accepted-plan
-multi-agent dispatch. The map does not invent dependency graphs, external-service
+connection management, skills, or structured live tool destinations. Agreed plans
+can dispatch bounded local contributors using supplied context and written results;
+file tools, hosted models, and MCP tools are unavailable on this team path. The map does not invent dependency graphs, external-service
 activity, or agent collaboration to fill those gaps. A completed run means the
 execution finished, not that the result was independently verified.
 
