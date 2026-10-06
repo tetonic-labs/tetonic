@@ -373,6 +373,11 @@ impl LocalWorkspace {
             self.require_installed_model(&agent.model).await?;
         } else {
             settings.hosted = Some(self.hosted_binding(&agent).await?);
+            // A host's folder is not an agent grant. Prompt-only hosted agents
+            // must not inherit ambient tools or a workspace disclosure route.
+            // Requested tools still fail the independent activation guard.
+            settings.allowed_tools.clear();
+            settings.workspace_root = None;
             settings.data_class = DataClass::SensitiveSource;
         }
         settings.model = agent.model;

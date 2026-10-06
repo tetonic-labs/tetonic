@@ -76,16 +76,28 @@ async fn settled(workspace: &LocalWorkspace, id: &str) -> LocalTask {
 #[cfg(test)]
 #[tokio::test]
 async fn hosted_agents_use_managed_runs_without_ollama_and_keep_keys_out_of_history() {
+    hosted_agent_round_trip(false).await;
+}
+
+#[tokio::test]
+async fn hosted_prompt_only_agents_do_not_inherit_host_workspace_tools() {
+    hosted_agent_round_trip(true).await;
+}
+
+async fn hosted_agent_round_trip(with_folder: bool) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let dir = tempfile::tempdir().unwrap();
             let database = dir.path().join("hosted.db");
             let vault = Arc::new(Vault::default());
             let transport = Arc::new(Transport::default());
-            let mut workspace = LocalWorkspace::open(
+            let folder = tempfile::tempdir().unwrap();
+            let workspace_root = with_folder.then(|| folder.path().to_path_buf());
+            let mut workspace = LocalWorkspace::open_with_workspace(
                 database.clone(),
                 "offline".into(),
                 "http://127.0.0.1:1".into(),
+                workspace_root.clone(),
             )
             .await
             .unwrap();
@@ -98,6 +110,7 @@ async fn hosted_agents_use_managed_runs_without_ollama_and_keep_keys_out_of_hist
             assert!(catalog.models.is_empty());
             assert!(catalog.local_error.is_some());
             assert_eq!(catalog.providers.len(), 2);
+            assert_eq!(!catalog.tools.is_empty(), with_folder);
             for (provider, model) in [("openai", "gpt-4.1"), ("anthropic", "claude-sonnet-4-6")] {
                 let input = CreateLocalAgent {
                     provider: provider.into(),
@@ -178,6 +191,22 @@ async fn hosted_agents_use_managed_runs_without_ollama_and_keep_keys_out_of_hist
                 assert!(body.to_string().contains("copper compass"));
                 assert!(!body.to_string().contains(&secret));
                 assert!(body.get("temperature").is_none());
+                let names: Vec<_> = body["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|tool| {
+                        tool["name"]
+                            .as_str()
+                            .or_else(|| tool["function"]["name"].as_str())
+                            .unwrap()
+                    })
+                    .collect();
+                assert_eq!(
+                    names,
+                    vec!["finish"],
+                    "ambient tools must never reach hosted inference"
+                );
                 if provider == "openai" {
                     assert_eq!(body["max_completion_tokens"], 1024);
                     assert!(body.get("max_tokens").is_none());
@@ -201,10 +230,11 @@ async fn hosted_agents_use_managed_runs_without_ollama_and_keep_keys_out_of_hist
             let store = workspace.keys.store.clone();
             drop(workspace);
             drop(store);
-            let mut restored = LocalWorkspace::open(
+            let mut restored = LocalWorkspace::open_with_workspace(
                 database.clone(),
                 "offline".into(),
                 "http://127.0.0.1:1".into(),
+                workspace_root,
             )
             .await
             .unwrap();

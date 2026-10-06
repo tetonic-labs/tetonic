@@ -170,6 +170,7 @@ export interface EngineAgent {
   tools?: string[];
 }
 export interface AgentCatalog {
+  runtime_profiles?: AgentRuntimeProfile[];
   providers?: EngineProvider[];
   local_error?: string | null;
   models: string[];
@@ -178,6 +179,12 @@ export interface AgentCatalog {
   max_steps: number;
   max_seconds: number;
   max_tokens: number;
+}
+export interface AgentRuntimeProfile {
+  provider: string;
+  harness: string;
+  tools: string[];
+  tool_restriction: string | null;
 }
 export interface EngineProvider {
   id: string;

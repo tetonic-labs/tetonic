@@ -3,6 +3,9 @@ use crate::resources::GeneralAgentPreferences;
 use futures::{StreamExt, TryStreamExt};
 use serde::Deserialize;
 
+mod profiles;
+pub use profiles::LocalAgentRuntimeProfile;
+
 #[derive(Clone, Serialize)]
 pub struct LocalAgent {
     pub plan_coordinator: bool,
@@ -22,6 +25,7 @@ pub struct LocalAgent {
 
 #[derive(Serialize)]
 pub struct LocalAgentCatalog {
+    pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
     pub providers: Vec<LocalProvider>,
     pub local_error: Option<String>,
     pub models: Vec<String>,
@@ -74,6 +78,7 @@ impl LocalWorkspace {
             .collect();
         tools.sort();
         Ok(LocalAgentCatalog {
+            runtime_profiles: self.agent_runtime_profiles(),
             models,
             local_error,
             providers: self.providers().await,
@@ -153,13 +158,21 @@ impl LocalWorkspace {
                 .model
                 .chars()
                 .any(|c| c.is_control() || c.is_whitespace())
-            || input.harness != "general"
         {
             return Err(AppError::InvalidRequest(
                 "Invalid agent name, purpose, model or harness.".into(),
             ));
         }
         self.check_limits(input.max_steps, input.max_seconds, input.max_tokens)?;
+        let profile = self
+            .agent_runtime_profiles()
+            .into_iter()
+            .find(|profile| profile.provider == input.provider && profile.harness == input.harness)
+            .ok_or_else(|| {
+                AppError::InvalidRequest(
+                    "This model provider and harness cannot run together on this host.".into(),
+                )
+            })?;
         if !matches!(input.provider.as_str(), "ollama" | "openai" | "anthropic")
             || (input.provider != "ollama" && !input.hosted_consent)
         {
@@ -172,21 +185,16 @@ impl LocalWorkspace {
         // An omitted selection grants no workspace access. Reject unavailable tools
         // rather than silently accepting a definition different from the request.
         let mut requested_tools = input.tools.unwrap_or_default();
-        if requested_tools
-            .iter()
-            .any(|tool| tool != "finish" && !self.host.settings.allowed_tools.contains(tool))
-        {
-            return Err(AppError::InvalidRequest(
-                "A requested tool is not available on this host.".into(),
-            ));
-        }
         let mut seen = std::collections::HashSet::new();
         requested_tools.retain(|tool| tool != "finish" && seen.insert(tool.clone()));
-        // Hosted execution currently supports prompts only. A consent checkbox
-        // cannot implement the missing governed disclosure path for file tools.
-        if input.provider != "ollama" && !requested_tools.is_empty() {
+        if requested_tools
+            .iter()
+            .any(|tool| !profile.tools.contains(tool))
+        {
             return Err(AppError::InvalidRequest(
-                "Workspace tools are not supported for hosted models on this host.".into(),
+                profile
+                    .tool_restriction
+                    .unwrap_or_else(|| "A requested tool is not available on this host.".into()),
             ));
         }
         let config = serde_json::json!({
@@ -291,6 +299,11 @@ impl LocalWorkspace {
     ) -> Result<LocalAgent, AppError> {
         let value: serde_json::Value = serde_json::from_str(&stored.definition_json)
             .map_err(|_| AppError::InvalidRequest("Invalid stored agent definition.".into()))?;
+        if value["schema_version"] != 1 || value["harness"] != "general" {
+            return Err(AppError::InvalidRequest(
+                "This stored agent uses an unsupported definition or harness.".into(),
+            ));
+        }
         let config = &value["configuration"];
         let prefs: GeneralAgentPreferences = if key == AGENT {
             GeneralAgentPreferences {
@@ -302,14 +315,9 @@ impl LocalWorkspace {
                 reported_token_ceiling: self.host.settings.reported_token_ceiling.unwrap_or(4096),
             }
         } else if let Some(prefs_val) = config.get("preferences").filter(|v| !v.is_null()) {
-            serde_json::from_value(prefs_val.clone()).unwrap_or_else(|_| GeneralAgentPreferences {
-                provider: None,
-                hosted_consent: false,
-                display_name: key.clone(),
-                model: self.host.settings.model.clone(),
-                max_elapsed_seconds: self.host.settings.max_elapsed_seconds,
-                reported_token_ceiling: self.host.settings.reported_token_ceiling.unwrap_or(4096),
-            })
+            serde_json::from_value(prefs_val.clone()).map_err(|_| {
+                AppError::InvalidRequest("Invalid stored agent settings. The agent has not been switched to another model.".into())
+            })?
         } else {
             GeneralAgentPreferences {
                 provider: None,
@@ -322,7 +330,9 @@ impl LocalWorkspace {
         };
         let tools: Vec<String> = config
             .get("requested_tools")
-            .and_then(|t| serde_json::from_value(t.clone()).ok())
+            .map(|tools| serde_json::from_value(tools.clone()))
+            .transpose()
+            .map_err(|_| AppError::InvalidRequest("Invalid stored agent tools.".into()))?
             .unwrap_or_default();
         Ok(LocalAgent {
             plan_coordinator: key == plan_execution::COORDINATOR,

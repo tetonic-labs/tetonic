@@ -169,7 +169,10 @@ describe('agent configuration', () => {
     const generalConsent = screen.getByRole('checkbox', {
       name: /instructions, prompts, and conversation history/,
     });
-    expect(screen.queryByRole('checkbox', { name: 'Read files', exact: true })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Read files', exact: true })).toHaveProperty(
+      'disabled',
+      true,
+    );
     expect(
       screen.queryByRole('checkbox', { name: /use workspace tools and send tool results/ }),
     ).toBeNull();

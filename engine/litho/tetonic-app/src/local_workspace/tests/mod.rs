@@ -151,6 +151,16 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             let catalog = workspace.agent_catalog().await.unwrap();
             assert!(catalog.tools.contains(&"read_file".to_string()));
             assert!(!catalog.tools.contains(&"run_shell".to_string()));
+            assert_eq!(catalog.runtime_profiles.len(), 3);
+            for profile in &catalog.runtime_profiles {
+                assert_eq!(profile.harness, "general");
+                if profile.provider == "ollama" {
+                    assert_eq!(profile.tools, catalog.tools);
+                } else {
+                    assert!(profile.tools.is_empty());
+                    assert!(profile.tool_restriction.is_some());
+                }
+            }
             let input = CreateLocalAgent {
                 provider: "ollama".into(),
                 hosted_consent: false,
@@ -215,6 +225,28 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 .await
                 .unwrap();
             assert_eq!(reader.tools, vec!["read_file"]);
+            let mut stored = workspace.registered_agent(&reader.key).await.unwrap();
+            let original: serde_json::Value =
+                serde_json::from_str(&stored.definition_json).unwrap();
+            for (pointer, invalid) in [
+                ("/configuration/preferences/model", serde_json::json!(123)),
+                (
+                    "/configuration/requested_tools",
+                    serde_json::json!("read_file"),
+                ),
+                ("/harness", serde_json::json!("not-installed")),
+                ("/schema_version", serde_json::json!(99)),
+            ] {
+                let mut definition = original.clone();
+                *definition.pointer_mut(pointer).unwrap() = invalid;
+                stored.definition_json = serde_json::to_string(&definition).unwrap();
+                assert!(
+                    workspace
+                        .agent_profile(reader.key.clone(), &stored)
+                        .is_err(),
+                    "invalid {pointer} must not silently switch execution profiles"
+                );
+            }
         })
         .await;
     server.abort();

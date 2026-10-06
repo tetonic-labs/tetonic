@@ -54,19 +54,31 @@ describe('connected agent permissions', () => {
     expect(create.mock.calls[0][0].tools).toEqual([]);
   });
 
-  it('grants only selected file capabilities and clears them for prompt-only providers', async () => {
+  it('preserves selected tools across provider changes and blocks incompatible creation', async () => {
     const create = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
       target: { value: 'Reader' },
     });
     await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
     fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
-    expect(screen.queryByRole('checkbox', { name: 'Read files' })).toBeNull();
-    expect(screen.queryByRole('checkbox', { name: 'Write files' })).toBeNull();
+    expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('checkbox', { name: 'Write files' })).toHaveProperty('disabled', true);
     fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
       target: { value: 'gpt-4.1' },
     });
     await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    expect(screen.getByRole('alert').textContent).toContain('selected tools are unavailable');
+    expect(screen.getByRole('button', { name: /Create agent/ })).toHaveProperty('disabled', true);
+    fireEvent.submit(screen.getByRole('button', { name: /Create agent/ }).closest('form')!);
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'ollama' } });
+    expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+      target: { value: 'gpt-4.1' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
     await userEvent.click(screen.getByRole('button', { name: /Create agent/ }));
     await waitFor(() => expect(create).toHaveBeenCalledOnce());
     expect(create.mock.calls[0][0]).toMatchObject({ provider: 'openai', tools: [] });

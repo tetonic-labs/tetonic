@@ -6,6 +6,14 @@ The release should prove that digital autonomous teams can carry out the person'
 
 ## Active schedule
 
+October 6 priority update: the dedicated [frontier agent creation sprint](frontier-agent-creation/plan.md)
+is now the immediate implementation focus, following the source audit and explicit
+user request. It covers real model discovery, modern streaming/tool protocols,
+selected tools, vendor harnesses and integration with existing team execution.
+It is a focused workstream within the October schedule, not an additional calendar
+week or a completed release gate. Its plan supersedes the earlier no-fourth-sprint
+statement for organizing this work; broader vendor scope requires re-estimation.
+
 October 5 execution update: [finite agreed-plan execution](october-1-coherent-workspace/plan-execution-evidence-2026-10-05.md)
 now connects approved assignments to the existing managed child runtime, shared
 usage and current map. A live local model completed two distinct contributions

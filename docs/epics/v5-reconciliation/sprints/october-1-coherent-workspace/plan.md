@@ -8,6 +8,13 @@ The revised [UI consolidation sprint](ui-consolidation-sprint.md) specifies the 
 
 ## Changes to scope and order
 
+October 6: the [agent creation and frontier integration audit](agent-creation-frontier-audit-2026-10-06.md)
+traces current creation, tools, model protocols, harness execution and team dispatch.
+It proposes one governed path for selected tools across Tetonic and supported vendor
+harnesses, reusing registered agents and managed execution. Its ordered slices are
+recommendations requiring qualification and sizing, not implemented capability or
+an assertion that every vendor fits the October 25 release. No sprint gate closes here.
+
 October 5 latest COORD-A slice: [governed child execution evidence](child-execution-evidence-2026-10-05.md)
 supersedes the earlier child-admission status below. Funded children can execute
 through the application host in the parent's managed run with inherited grants,

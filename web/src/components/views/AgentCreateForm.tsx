@@ -73,13 +73,27 @@ export function AgentCreateForm({
     read_file: ['read_file', 'list_dir', 'grep', 'glob'],
     write_file: ['write_file', 'edit_file'],
   };
+  const runtimeProfile = connected?.catalog.runtime_profiles?.find(
+    (profile) => profile.provider === provider && profile.harness === configuration.harness,
+  );
+  const supportedTools = runtimeProfile?.tools ?? (hosted ? [] : (connected?.catalog.tools ?? []));
   const tools = connected
-    ? agentTools.filter(
-        (tool) =>
-          !hosted &&
-          connectedToolGroups[tool.id]?.every((id) => connected.catalog.tools?.includes(id)),
+    ? agentTools.filter((tool) =>
+        connectedToolGroups[tool.id]?.every((id) => connected.catalog.tools?.includes(id)),
       )
     : agentTools;
+  const incompatibleTools = connected
+    ? configuration.toolIds.filter(
+        (id) => !connectedToolGroups[id]?.every((tool) => supportedTools.includes(tool)),
+      )
+    : [];
+  const compatibilityIssue =
+    connected?.catalog.runtime_profiles && !runtimeProfile
+      ? 'This provider and harness cannot run together on this engine.'
+      : incompatibleTools.length
+        ? runtimeProfile?.tool_restriction ||
+          'The selected tools are unavailable with this provider. Choose another provider or remove them.'
+        : '';
   const choices = [...new Set([defaultModel, ...models])].filter(
     (name) => name && name !== 'Not connected' && name !== 'Workspace default',
   );
@@ -103,7 +117,14 @@ export function AgentCreateForm({
       }}
       onSubmit={(event) => {
         event.preventDefault();
-        if (!name.trim() || !resolvedModel || !providerReady || connected?.saving) return;
+        if (
+          !name.trim() ||
+          !resolvedModel ||
+          !providerReady ||
+          compatibilityIssue ||
+          connected?.saving
+        )
+          return;
         onCreate({
           ...(connected ? { provider, hostedConsent } : {}),
           name: name.trim(),
@@ -187,7 +208,6 @@ export function AgentCreateForm({
                   setModel('');
                   setCustomModel('');
                   setHostedConsent(false);
-                  setConfiguration((value) => ({ ...value, toolIds: [], resourceIds: [] }));
                 }}
               >
                 <option value="ollama">On this machine · Ollama</option>
@@ -310,6 +330,11 @@ export function AgentCreateForm({
                 type="checkbox"
                 aria-label={tool.name}
                 checked={configuration.toolIds.includes(tool.id)}
+                disabled={
+                  !!connected &&
+                  !configuration.toolIds.includes(tool.id) &&
+                  !connectedToolGroups[tool.id]?.every((id) => supportedTools.includes(id))
+                }
                 onChange={(event) =>
                   setConfiguration({
                     ...configuration,
@@ -328,9 +353,16 @@ export function AgentCreateForm({
         </div>
         {connected && (
           <p className="agent-field-note">
-            {tools.length
-              ? 'Only selected tools are granted, within the engine’s configured folder.'
-              : 'No workspace tools are available for this provider and host.'}
+            {hosted
+              ? 'Workspace tools need a supported execution profile. Your selections are kept when you change providers.'
+              : tools.length
+                ? 'Only selected tools are granted, within the engine’s configured folder.'
+                : 'No workspace tools are available for this provider and host.'}
+          </p>
+        )}
+        {compatibilityIssue && (
+          <p className="local-notice" role="alert">
+            {compatibilityIssue}
           </p>
         )}
         {!connected && (
@@ -453,7 +485,13 @@ export function AgentCreateForm({
         <button
           type="submit"
           className="canvas-primary"
-          disabled={!name.trim() || !resolvedModel || !providerReady || connected?.saving}
+          disabled={
+            !name.trim() ||
+            !resolvedModel ||
+            !providerReady ||
+            !!compatibilityIssue ||
+            connected?.saving
+          }
         >
           {connected?.saving ? 'Saving…' : 'Create agent'} <Plus size={16} />
         </button>
