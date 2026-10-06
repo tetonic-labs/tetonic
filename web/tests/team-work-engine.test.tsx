@@ -18,6 +18,8 @@ import { layoutProject } from '../src/lib/projectLayout';
 const agent = {
   key: 'mira',
   id: 'mira-id',
+  definition_digest: 'mira-revision-1',
+  editable: true,
   name: 'Mira',
   purpose: 'Understand problems',
   model: 'installed-model',
@@ -159,6 +161,39 @@ afterEach(() => {
 });
 
 describe('one connected team workspace', () => {
+  it('edits the selected agent from Agents and returns to its saved profile', async () => {
+    const f = fixture();
+    const create = vi.spyOn(f.client, 'createAgent');
+    const update = vi.spyOn(f.client, 'updateAgent').mockImplementation(async (old, input) => {
+      const changed = { ...old, ...input, definition_digest: 'mira-revision-2' };
+      f.setData({ ...f.getData(), agents: [changed] });
+      return changed;
+    });
+    f.view();
+    fireEvent.click(screen.getByRole('button', { name: 'Agents', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: /^Mira (Idle|Setup unchecked)$/ }));
+    const edit = screen.getByRole('button', { name: 'Edit agent' });
+    await waitFor(() => expect(edit).toHaveProperty('disabled', false));
+    fireEvent.click(edit);
+    const name = await screen.findByLabelText('Name', { exact: true });
+    expect(name).toHaveProperty('value', 'Mira');
+    expect(screen.getByRole('checkbox', { name: 'Read files', exact: true })).toHaveProperty(
+      'checked',
+      true,
+    );
+    expect(screen.getByRole('heading', { name: 'MCP connections' })).toBeTruthy();
+    fireEvent.change(name, { target: { value: 'Mira updated' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+    await screen.findByRole('heading', { name: 'Mira updated' });
+    expect(screen.getByText('Changes saved. New work will use these settings.')).toBeTruthy();
+    expect(update).toHaveBeenCalledExactlyOnceWith(
+      agent,
+      expect.objectContaining({ name: 'Mira updated', tools: ['read_file'] }),
+    );
+    expect(create).not.toHaveBeenCalled();
+    expect(f.getData().agents).toHaveLength(1);
+  });
+
   it('does not substitute another agent when the selected recipient is unavailable', async () => {
     const f = fixture();
     render(
@@ -427,9 +462,99 @@ describe('one connected team workspace', () => {
     const board = screen.getByRole('log', { name: 'Recorded team output' });
     expect(within(board).getByText('Observed file content.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
-    expect(screen.getByRole('heading', { name: 'Read file contents' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Manage Files' })).toBeTruthy();
     expect(screen.getByText('No MCP servers are configured on this engine.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Manage GitHub' })).toBeNull();
+  });
+  it('filters the live toolkit and opens the exact agent with a saved file grant', async () => {
+    const f = fixture();
+    vi.mocked(f.client.agentCatalog).mockResolvedValue({
+      models: [agent.model],
+      harnesses: ['general'],
+      tools: ['read_file', 'run_shell'],
+      mcp_connections: [],
+      max_steps: 8,
+      max_seconds: 120,
+      max_tokens: 4096,
+    });
+    f.view();
+    await screen.findByRole('button', { name: 'Our team' });
+    fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
+    fireEvent.change(screen.getByLabelText('Search tools and MCPs'), {
+      target: { value: 'commands' },
+    });
+    expect(screen.getByRole('button', { name: 'Manage Terminal' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Manage Files' })).toBeNull();
+    fireEvent.change(screen.getByLabelText('Search tools and MCPs'), { target: { value: '' } });
+    fireEvent.click(screen.getByRole('button', { name: 'MCPs', exact: true }));
+    expect(screen.queryByRole('button', { name: 'Manage Terminal' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Tools', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Files' }));
+    const details = screen.getByRole('complementary', { name: 'Files resource details' });
+    expect(within(details).getByText('Read file contents')).toBeTruthy();
+    expect(within(details).queryByText('Edit existing files')).toBeNull();
+    fireEvent.click(within(details).getByRole('button', { name: 'Mira' }));
+    expect(screen.getByRole('heading', { name: 'Mira' })).toBeTruthy();
+  });
+  it('discovers MCP tools from the restored library and keeps failures visible without granting access', async () => {
+    const f = fixture();
+    const connection = {
+      id: 'library',
+      name: 'Library',
+      endpoint: 'http://127.0.0.1:8765/mcp',
+      status: 'unchecked' as const,
+      message: 'Not checked yet',
+      tools: [],
+    };
+    const catalog = {
+      models: [agent.model],
+      harnesses: ['general'],
+      tools: ['read_file'],
+      mcp_connections: [connection],
+      max_steps: 8,
+      max_seconds: 120,
+      max_tokens: 4096,
+    };
+    vi.mocked(f.client.agentCatalog).mockResolvedValue(catalog);
+    const create = vi.spyOn(f.client, 'createAgent');
+    const discover = vi
+      .spyOn(f.client, 'discoverMcp')
+      .mockRejectedValueOnce(new Error('Service unavailable'));
+    f.view();
+    await screen.findByRole('button', { name: 'Our team' });
+    fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Manage Library' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Discover Library tools' }));
+    expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Service unavailable');
+    const discovered = {
+      ...connection,
+      status: 'discovered' as const,
+      message: '1 read tool discovered',
+      tools: [
+        {
+          id: 'mcp_library_search',
+          name: 'search',
+          description: 'Search shared knowledge',
+          input_schema: {},
+        },
+      ],
+    };
+    discover.mockImplementation(async () => {
+      vi.mocked(f.client.agentCatalog).mockResolvedValue({
+        ...catalog,
+        tools: ['read_file', 'mcp_library_search'],
+        mcp_connections: [discovered],
+      });
+      return discovered;
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Discover Library tools' }));
+    expect(await screen.findByText('search')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Refresh Library tools' })).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(discover).toHaveBeenNthCalledWith(1, 'library');
+    expect(discover).toHaveBeenNthCalledWith(2, 'library');
+    expect(create).not.toHaveBeenCalled();
+    expect(screen.getByText('No agent configured with this tool.')).toBeTruthy();
   });
   it('keeps the last engine state visible but stops calling it live after disconnect', async () => {
     const f = fixture([saved]);
@@ -514,7 +639,7 @@ describe('one connected team workspace', () => {
     });
     f.view();
     fireEvent.click(screen.getByRole('button', { name: 'Agents', exact: true }));
-    const add = screen.getByRole('button', { name: 'Add an assistant' });
+    const add = screen.getByRole('button', { name: 'Create agent' });
     await waitFor(() => expect(add).toHaveProperty('disabled', false));
     fireEvent.click(add);
     fireEvent.change(await screen.findByRole('textbox', { name: 'Name', exact: true }), {

@@ -28,7 +28,11 @@ mod compute_reservation;
 mod durability_tests;
 mod estate;
 mod identity_store;
+#[cfg(test)]
+mod organization_agent_edit_tests;
+mod organization_agent_edits;
 mod organization_agent_revisions;
+pub use organization_agent_edits::AgentEdit;
 mod organization_agents;
 pub use organization_agents::RegisteredAgent;
 mod context_access;

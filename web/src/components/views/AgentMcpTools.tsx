@@ -91,13 +91,19 @@ export function AgentMcpTools({
   ];
   return (
     <section>
-      <h3>Connected services</h3>
+      <h3>MCP connections</h3>
       <p>
         Choose the individual tools this teammate can use. Your selections stay with the agent when
         you change model providers.
       </p>
       {onDiscover && (
         <McpConnections connections={connections} onDiscover={onDiscover} disabled={disabled} />
+      )}
+      {!connections.length && (
+        <p className="agent-field-note">
+          Your engine operator can add an MCP server to the engine configuration. Once connected,
+          its tools can be selected here.
+        </p>
       )}
       <div className="agent-tool-grid">
         {ids.map((id) => {

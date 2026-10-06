@@ -11,7 +11,7 @@ use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf, rc::Rc, time::Durat
 use tetonic_app::local_workspace::{
     AmendPlanAssignment, AnswerPlanQuestion, BudgetSettingsRequest, CreateLocalAgent,
     CreateWorkItemRequest, LocalWorkspace, PlanCommand, RemoveProviderKey, ResolveApprovalRequest,
-    SaveProviderKey, SaveWorkBrief, StartPlan, WorkPurpose,
+    SaveProviderKey, SaveWorkBrief, StartPlan, UpdateLocalAgent, WorkPurpose,
 };
 
 #[derive(Parser)]
@@ -245,6 +245,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             path.as_str(),
             "/api/local/tasks"
                 | "/api/local/agents"
+                | "/api/local/agents/update"
                 | "/api/local/work-items"
                 | "/api/local/provider-key"
                 | "/api/local/provider-key/remove"
@@ -298,6 +299,15 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             state
                 .workspace
                 .save_provider_key(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/agents/update" {
+            let Ok(payload) = serde_json::from_slice::<UpdateLocalAgent>(&body) else {
+                return error(StatusCode::BAD_REQUEST, "Invalid agent edit.");
+            };
+            state
+                .workspace
+                .update_agent(payload)
                 .await
                 .map(|v| serde_json::to_value(v).unwrap_or_default())
         } else if path == "/api/local/agents" {

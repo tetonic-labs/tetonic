@@ -627,7 +627,7 @@
   justify-content: space-between;
   margin-bottom: 20px;
 }
-.px-inspector:not([data-tools='true']) button,
+:where(.px-inspector:not([data-tools='true'])) button,
 .px-inspector > header button {
   display: inline-flex;
   align-items: center;

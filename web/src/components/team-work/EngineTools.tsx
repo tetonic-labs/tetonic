@@ -1,129 +1,93 @@
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { McpConnections } from '../views/AgentMcpTools';
 import { toolDescription } from '../../lib/agentCapabilities';
+import { ToolsView, type ToolkitResource } from '../views/ToolsView';
 
 const internalTools = new Set(['finish', 'dispatch_assignment', 'ask_human']);
+const fileTools = new Set(['read_file', 'write_file', 'edit_file', 'list_dir', 'grep', 'glob']);
 
 export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
   const engine = useLocalEngine();
   const { workspace, catalog, readErrors, isConnected } = engine;
+  const ready = isConnected && Array.isArray(catalog?.tools) && !readErrors['Agent setup'];
   const tools = [
     ...new Set([
       ...(catalog?.tools || []),
       ...(workspace?.agents.flatMap((a) => a.tools || []) || []),
     ]),
-  ];
-  const workTools = tools.filter((tool) => !internalTools.has(tool));
-  const coordinationTools = tools.filter((tool) => internalTools.has(tool));
-  const catalogReady = isConnected && Array.isArray(catalog?.tools) && !readErrors['Agent setup'];
+  ].filter((id) => !internalTools.has(id));
+  const connections = catalog?.mcp_connections || [];
+  const connectedIds = new Set(connections.flatMap((c) => c.tools.map((t) => t.id)));
+  const users = (ids: string[]) =>
+    (workspace?.agents || [])
+      .filter((a) => ids.some((id) => a.tools?.includes(id)))
+      .map((a) => ({ key: a.key, name: a.name }));
+  const describe = (ids: string[]) =>
+    ids.map((id) => ({
+      id,
+      name: toolDescription([id], catalog),
+      available: !!ready && !!catalog?.tools?.includes(id),
+    }));
+  const local = tools.filter((id) => !id.startsWith('mcp_'));
+  const files = local.filter((id) => fileTools.has(id));
+  const resources: ToolkitResource[] = [];
+  if (files.length)
+    resources.push({
+      id: 'files',
+      name: 'Files',
+      kind: 'tool',
+      description: 'Read, find, and edit files in the working folder.',
+      tools: describe(files),
+      agents: users(files),
+    });
+  for (const id of local.filter((id) => !fileTools.has(id)))
+    resources.push({
+      id,
+      name: id === 'run_shell' ? 'Terminal' : toolDescription([id], catalog),
+      kind: 'tool',
+      description:
+        id === 'run_shell'
+          ? 'Run commands and installed command-line tools. Each command needs your approval.'
+          : toolDescription([id], catalog),
+      tools: describe([id]),
+      agents: users([id]),
+    });
+  for (const connection of connections) {
+    const ids = connection.tools.map((t) => t.id);
+    resources.push({
+      id: `connection:${connection.id}`,
+      name: connection.name,
+      kind: 'mcp',
+      description: 'Tools from a service configured on your engine.',
+      connection,
+      tools: describe(ids).map((t) => ({
+        ...t,
+        name: connection.tools.find((x) => x.id === t.id)!.name,
+      })),
+      agents: users(ids),
+    });
+  }
+  const missing = tools.filter((id) => id.startsWith('mcp_') && !connectedIds.has(id));
+  if (missing.length)
+    resources.push({
+      id: 'unavailable-mcp',
+      name: 'Previously selected MCP tools',
+      kind: 'mcp',
+      description:
+        'These agent grants are saved, but their connection is no longer in the current catalog.',
+      tools: describe(missing).map((t) => ({ ...t, available: false })),
+      agents: users(missing),
+    });
   return (
-    <section className="tw-tools">
-      <p>Tools let agents use files, terminal commands, and connected services.</p>
-      {(!isConnected || readErrors['Agent setup']) && (
-        <p role="status">Tool information may be out of date.</p>
-      )}
-      {workTools.map((tool) => (
-        <article className="px-team" key={tool}>
-          <h3>{toolDescription([tool], catalog)}</h3>
-          <p>
-            {catalog?.tools?.includes(tool)
-              ? 'Available on this host'
-              : 'Recorded in an agent profile'}
-          </p>
-          {tool === 'run_shell' && (
-            <p>
-              Commands run on this computer. Review each command in Needs you before it runs.
-              Available isolation depends on the host.
-            </p>
-          )}
-          {workspace?.agents
-            .filter((a) => a.tools?.includes(tool))
-            .map((a) => (
-              <button className="px-text-button" key={a.key} onClick={() => onAgent(a.key)}>
-                {a.name}
-              </button>
-            ))}
-          {!workspace?.agents.some((a) => a.tools?.includes(tool)) && (
-            <small>No agent configured with this tool.</small>
-          )}
-        </article>
-      ))}
-      {!workTools.length && (
-        <p>
-          {catalogReady
-            ? 'No external or file tools are available in this connection. Agents can work with information you supply, but cannot act in other systems.'
-            : 'Tool availability has not been confirmed. Reconnect to the engine to check access.'}
-        </p>
-      )}
-      <h3>MCP connections</h3>
-      {!catalogReady ? (
-        <p>Reconnect to check configured services.</p>
-      ) : !catalog?.mcp_connections ? (
-        <p>Update and restart the engine to enable MCP connections.</p>
-      ) : (
-        <McpConnections
-          connections={catalog?.mcp_connections || []}
-          disabled={!catalogReady}
-          onDiscover={async (id) => {
-            await engine.client.discoverMcp(id);
-            await engine.refresh();
-          }}
-        />
-      )}
-      <details>
-        <summary>Add a connection to this engine</summary>
-        <p>
-          The engine operator can supply a JSON file with <code>--mcp-config</code>. Start an
-          approved local HTTP MCP server separately, then list its exact read tools in the
-          configuration. No server is installed or launched from this screen.
-        </p>
-        <pre>
-          {JSON.stringify(
-            {
-              connections: [
-                {
-                  id: 'knowledge',
-                  name: 'Knowledge library',
-                  endpoint: 'http://127.0.0.1:8765/mcp',
-                  read_tools: ['search', 'lookup'],
-                },
-              ],
-            },
-            null,
-            2,
-          )}
-        </pre>
-        <p>
-          Remote MCP URLs, credentials and MCP write tools are not supported yet. Hosted models
-          require your approval to receive selected tool inputs and results. Server read-only hints
-          are checked but are not a security guarantee; the operator must vet the server and its
-          tools.
-        </p>
-      </details>
-      {coordinationTools.length > 0 && (
-        <details>
-          <summary>Internal coordination</summary>
-          <p>
-            These controls manage replies and assignments. They do not provide access to your apps.
-          </p>
-          <ul>
-            {coordinationTools.map((tool) => (
-              <li key={tool}>{tool.replaceAll('_', ' ')}</li>
-            ))}
-          </ul>
-        </details>
-      )}
-      <details>
-        <summary>Access boundaries</summary>
-        <p>
-          Tool availability is not proof of activity. File tools stay within the host’s configured
-          workspace; this screen does not change grants.
-        </p>
-        <p>
-          Terminal access requires a working folder with the engine database stored outside it.
-          Commands use the computer’s installed tools and require approval.
-        </p>
-      </details>
-    </section>
+    <ToolsView
+      resources={resources}
+      ready={ready}
+      workspaceRoot={catalog?.workspace_root}
+      mcpSupported={Array.isArray(catalog?.mcp_connections)}
+      onAgent={onAgent}
+      onDiscover={async (id) => {
+        await engine.client.discoverMcp(id);
+        await engine.refresh();
+      }}
+    />
   );
 }

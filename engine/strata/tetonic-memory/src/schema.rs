@@ -225,6 +225,7 @@ impl Store {
         self.migrate_huddle_execution_v59()?;
         self.migrate_plan_human_v60()?;
         self.migrate_shell_approvals_v61()?;
+        self.migrate_agent_edits_v62()?;
         Ok(())
     }
 

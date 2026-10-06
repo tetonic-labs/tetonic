@@ -25,7 +25,7 @@ pub use plan_execution::{PlanExecutionView, PlanTaskLink, StartPlan};
 mod providers;
 mod shaping;
 mod workroom;
-pub use agents::{CreateLocalAgent, LocalAgent, LocalAgentCatalog};
+pub use agents::{CreateLocalAgent, LocalAgent, LocalAgentCatalog, UpdateLocalAgent};
 pub use plans::PlanCommand;
 pub use providers::{LocalModelCatalog, LocalProvider, RemoveProviderKey, SaveProviderKey};
 pub use shaping::{SaveWorkBrief, WorkPurpose};

@@ -155,6 +155,8 @@ export interface WorkUsage {
   over_limit: boolean;
 }
 export interface EngineAgent {
+  definition_digest?: string;
+  editable?: boolean;
   tool_disclosure?: {
     version: number;
     provider: string;
@@ -380,6 +382,13 @@ export class LocalEngine {
   }
   createAgent(input: CreateEngineAgent) {
     return this.request<EngineAgent>('/agents', input);
+  }
+  updateAgent(agent: EngineAgent, configuration: CreateEngineAgent) {
+    return this.request<EngineAgent>('/agents/update', {
+      agent_key: agent.key,
+      expected_definition_digest: agent.definition_digest,
+      configuration,
+    });
   }
   saveProviderKey(provider: string, api_key: string) {
     return this.request<EngineProvider>('/provider-key', { provider, api_key });

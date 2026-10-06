@@ -49,7 +49,7 @@ impl Store {
         if !self.control_access(actor, ControlPermission::ManageOrganization, org, "")? {
             return Err(StoreError::ControlAccessDenied);
         }
-        if let Some(existing) = self.registered_agent_unchecked(org, key)? {
+        if let Some(existing) = self.initial_registered_agent_unchecked(org, key)? {
             if existing.definition_json != definition_json {
                 return Err(StoreError::ControlResourceConflict);
             }
@@ -128,6 +128,28 @@ impl Store {
     }
 
     pub(crate) fn registered_agent_unchecked(
+        &self,
+        org: &str,
+        key: &str,
+    ) -> Result<Option<RegisteredAgent>> {
+        let row: Option<(String, String, String)> = self.conn.query_row(
+            "SELECT a.identity_id,COALESCE(h.definition_digest,a.definition_digest),d.definition_json
+             FROM organization_agents a LEFT JOIN organization_agent_heads h ON h.org_id=a.org_id AND h.agent_key=a.agent_key
+             JOIN agent_definition_revisions d ON d.identity_id=a.identity_id AND d.definition_digest=COALESCE(h.definition_digest,a.definition_digest)
+             WHERE a.org_id=?1 AND a.agent_key=?2", params![org,key], |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?))).optional()?;
+        row.map(|(id, digest, definition_json)| {
+            let identity = self
+                .get_agent_identity_revision(&id, &digest)?
+                .ok_or(StoreError::ControlResourceConflict)?;
+            Ok(RegisteredAgent {
+                identity,
+                definition_json,
+            })
+        })
+        .transpose()
+    }
+
+    fn initial_registered_agent_unchecked(
         &self,
         org: &str,
         key: &str,

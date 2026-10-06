@@ -597,6 +597,7 @@ fn migration_does_not_turn_legacy_budget_claims_into_authority() {
         db.authorize_work_budget("alice", "org", "team", "root", "fund", 100)
             .unwrap();
         child(&db, "first", 40).unwrap();
+        db.remove_agent_edits_schema_for_test();
         db.conn
             .execute_batch(
                 "DROP TABLE work_budget_reservations; DROP TABLE work_budget_envelopes;

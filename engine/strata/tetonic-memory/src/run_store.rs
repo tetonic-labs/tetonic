@@ -24,6 +24,7 @@ impl Store {
 
     #[cfg(test)]
     pub(crate) fn remove_execution_limits_schema_for_test(&self) {
+        self.remove_agent_edits_schema_for_test();
         self.conn
             .execute_batch(
                 "DROP TRIGGER organization_execution_limits_defaults;

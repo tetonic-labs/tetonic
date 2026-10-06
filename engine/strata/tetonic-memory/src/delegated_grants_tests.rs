@@ -623,6 +623,7 @@ fn upgrading_version_55_preserves_roots_without_inventing_child_permission() {
     let fixture = {
         let db = Store::open(&path).unwrap();
         let fixture = seed(&db, true);
+        db.remove_agent_edits_schema_for_test();
         db.conn.execute_batch("DROP TABLE execution_grant_lineage; DELETE FROM schema_versions WHERE version>=56;").unwrap();
         fixture
     };

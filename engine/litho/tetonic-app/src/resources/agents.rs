@@ -1,6 +1,36 @@
 use super::*;
 
 impl ResourceService {
+    pub async fn edit_agent(
+        &self,
+        credential: &str,
+        edit: EditAgent,
+    ) -> Result<tetonic_memory::RegisteredAgent, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ManageOrganization {
+                    org_id: edit.org.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.edit_organization_agent(tetonic_memory::AgentEdit {
+                    actor: &actor.principal_id,
+                    org: &edit.org,
+                    key: &edit.key,
+                    request: &edit.request,
+                    expected: &edit.expected,
+                    harness: &edit.harness,
+                    configuration: &edit.configuration,
+                })
+            })
+            .await??)
+    }
+
     pub async fn list_agents(
         &self,
         credential: &str,
@@ -74,6 +104,15 @@ impl ResourceService {
             .read(move |db| db.get_organization_agent(&actor.principal_id, &org, &key))
             .await??)
     }
+}
+
+pub struct EditAgent {
+    pub org: String,
+    pub key: String,
+    pub request: String,
+    pub expected: String,
+    pub harness: String,
+    pub configuration: serde_json::Value,
 }
 
 impl ResourceService {

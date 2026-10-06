@@ -14,11 +14,13 @@ export function LocalAgentSetup({
   workspace,
   onCreated,
   onBack,
+  agent,
 }: {
   client: LocalEngine;
   workspace: EngineWorkspace;
-  onCreated: (agent: EngineAgent) => void;
+  onCreated: (agent: EngineAgent) => void | Promise<void>;
   onBack: () => void;
+  agent?: EngineAgent;
 }) {
   const [catalog, setCatalog] = useState<AgentCatalog | null>(null);
   const [error, setError] = useState('');
@@ -77,8 +79,12 @@ export function LocalAgentSetup({
     setSaving(true);
     setError('');
     try {
-      const agent = await client.createAgent(candidate);
-      if (active.current) onCreated(agent);
+      const saved = agent
+        ? await client.updateAgent(agent, candidate)
+        : await client.createAgent(candidate);
+      if (agent && (saved.key !== agent.key || saved.id !== agent.id))
+        throw new Error('The engine did not confirm this agent update. Refresh before retrying.');
+      if (active.current) await onCreated(saved);
     } catch (error) {
       if (active.current)
         setError(error instanceof Error ? error.message : 'Could not save agent.');
@@ -90,7 +96,7 @@ export function LocalAgentSetup({
     return (
       <div className="local-agent-loading">
         <button className="local-back" onClick={onBack}>
-          Back to work
+          Back to agents
         </button>
         <p role={error ? 'alert' : 'status'}>
           {error ||
@@ -107,6 +113,7 @@ export function LocalAgentSetup({
     );
   return (
     <AgentCreateForm
+      agent={agent}
       teams={[
         {
           id: workspace.team_id,
@@ -126,6 +133,7 @@ export function LocalAgentSetup({
       }
       onCreate={(draft) => void create(draft)}
       onBack={saving ? undefined : onBack}
+      backLabel="Back to agents"
       connected={{
         catalog,
         saving,

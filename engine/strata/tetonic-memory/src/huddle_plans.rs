@@ -429,6 +429,7 @@ mod tests {
         db.conn
             .execute("DELETE FROM schema_versions WHERE version>=54", [])
             .unwrap();
+        db.remove_agent_edits_schema_for_test();
         drop(db);
         let migrated = Store::open(path).unwrap();
         assert_eq!(

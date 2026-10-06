@@ -63,6 +63,9 @@
 .tw-live .px-inspector[data-wide='true'] {
   width: min(620px, calc(100% - 36px));
 }
+.tw-live .px-inspector[data-tools='true'][data-wide='true'] {
+  width: min(880px, calc(100% - 36px));
+}
 .tw-connection {
   position: absolute;
   top: 168px;
@@ -137,6 +140,23 @@
   grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 12px;
   margin: 20px 0;
+}
+.tw-agent-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.tw-agent-toolbar p {
+  flex: 1;
+  min-width: 190px;
+  font-size: 13px;
+  line-height: 1.7;
+  color: var(--text-secondary);
+}
+.tw-agent-toolbar .tw-primary {
+  flex-shrink: 0;
 }
 .px-inspector .tw-agent-list > button {
   display: flex;
@@ -367,6 +387,18 @@
 }
 .tw-live .px-inspector .simple-form .agent-setting-toggle {
   display: flex;
+}
+.tw-live .px-inspector .simple-form .agent-tool-choice {
+  display: flex;
+}
+.tw-live .px-inspector .simple-form .agent-runtime-fields select,
+.tw-live .px-inspector .simple-form .agent-runtime-fields input {
+  background: #ffffff0c;
+  color: var(--on-ink);
+  border-color: #a4b39670;
+}
+.tw-live .px-inspector .agent-create-footer {
+  bottom: 0;
 }
 .tw-live .skip-link {
   position: fixed;

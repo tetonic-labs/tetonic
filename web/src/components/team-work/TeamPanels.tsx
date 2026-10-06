@@ -1,4 +1,5 @@
 import { useRef, useState } from 'react';
+import { Plus } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import type { EngineAgent, LocalApproval } from '../../lib/localEngine';
 import { needsHelp, stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
@@ -144,6 +145,8 @@ export function TeamPanels({
   const [creating, setCreating] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(initialAgentId || null);
   const [createdAgent, setCreatedAgent] = useState<EngineAgent | null>(null);
+  const [editingAgent, setEditingAgent] = useState<EngineAgent | null>(null);
+  const [updatedAgentKey, setUpdatedAgentKey] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   if (panel === 'work')
     return (
@@ -221,6 +224,21 @@ export function TeamPanels({
       </>
     );
   if (panel === 'agents') {
+    if (editingAgent && workspace)
+      return (
+        <LocalAgentSetup
+          key={editingAgent.definition_digest}
+          client={client}
+          workspace={workspace}
+          agent={editingAgent}
+          onBack={() => setEditingAgent(null)}
+          onCreated={async (saved) => {
+            await engine.refresh();
+            setUpdatedAgentKey(saved.key);
+            setEditingAgent(null);
+          }}
+        />
+      );
     if (creating && workspace)
       return (
         <LocalAgentSetup
@@ -243,6 +261,12 @@ export function TeamPanels({
         <EngineAgentDetail
           profile={profile}
           created={createdAgent?.key === profile.key}
+          updated={updatedAgentKey === profile.key}
+          onEdit={() => {
+            setCreatedAgent(null);
+            setUpdatedAgentKey(null);
+            setEditingAgent(profile);
+          }}
           records={records}
           onBack={() => {
             setAgentId(null);
@@ -254,7 +278,16 @@ export function TeamPanels({
       );
     return (
       <>
-        <p>Choose someone to work with, or add an assistant for a different purpose.</p>
+        <div className="tw-agent-toolbar">
+          <p>Choose someone to work with, or create a new teammate.</p>
+          <button
+            className="tw-primary"
+            disabled={!workspace || !engine.isConnected}
+            onClick={() => setCreating(true)}
+          >
+            <Plus size={16} /> Create agent
+          </button>
+        </div>
         <div className="tw-agent-list">
           {uiAgents.map((entry) => (
             <button key={entry.id} onClick={() => setAgentId(entry.id)}>
@@ -280,13 +313,6 @@ export function TeamPanels({
             </button>
           ))}
         </div>
-        <button
-          className="tw-primary"
-          disabled={!workspace || !engine.isConnected}
-          onClick={() => setCreating(true)}
-        >
-          Add an assistant
-        </button>
       </>
     );
   }

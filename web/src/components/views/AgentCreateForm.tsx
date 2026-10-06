@@ -11,7 +11,7 @@ import {
   type AgentDraft,
 } from '../../lib/agentConfiguration';
 import { AgentAdvancedSettings } from './AgentAdvancedSettings';
-import type { AgentCatalog, ProviderModelCatalog } from '../../lib/localEngine';
+import type { AgentCatalog, EngineAgent, ProviderModelCatalog } from '../../lib/localEngine';
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
 import { AgentMcpTools } from './AgentMcpTools';
@@ -25,7 +25,9 @@ export function AgentCreateForm({
   defaultModel,
   onCreate,
   onBack,
+  backLabel,
   connected,
+  agent,
 }: {
   teams: Team[];
   currentTeamId: string;
@@ -34,6 +36,8 @@ export function AgentCreateForm({
   defaultModel: string;
   onCreate: (draft: AgentDraft) => void;
   onBack?: () => void;
+  backLabel?: string;
+  agent?: EngineAgent;
   connected?: {
     catalog: AgentCatalog;
     saving: boolean;
@@ -47,21 +51,22 @@ export function AgentCreateForm({
     onDiscoverMcp?: (id: string) => Promise<void>;
   };
 }) {
-  const [name, setName] = useState(''),
-    [purpose, setPurpose] = useState('');
+  const [name, setName] = useState(agent?.name || ''),
+    [purpose, setPurpose] = useState(agent?.purpose || '');
   const [teamId, setTeamId] = useState(
     teams.some((team) => team.id === currentTeamId) ? currentTeamId : '',
   );
-  const [model, setModel] = useState(''),
+  const [model, setModel] = useState(agent?.model || ''),
     [customModel, setCustomModel] = useState('');
-  const [provider, setProvider] = useState(() =>
-    connected && !models.length
-      ? connected.catalog.providers?.find((provider) => provider.key_saved)?.id || 'ollama'
-      : 'ollama',
+  const [provider, setProvider] = useState(
+    () =>
+      agent?.provider ||
+      (connected && !models.length
+        ? connected.catalog.providers?.find((provider) => provider.key_saved)?.id || 'ollama'
+        : 'ollama'),
   );
-  const [selectedTools, setSelectedTools] = useState<string[]>([]);
-  const [hostedConsent, setHostedConsent] = useState(false);
-  const [approvedScope, setApprovedScope] = useState<string | null>(null);
+  const [selectedTools, setSelectedTools] = useState<string[]>(agent?.tools || []);
+  const [hostedConsent, setHostedConsent] = useState(!!agent?.hosted_consent);
   const scopeKey = JSON.stringify([
     provider,
     model,
@@ -69,6 +74,16 @@ export function AgentCreateForm({
     connected?.catalog.workspace_root,
     [...selectedTools].sort(),
   ]);
+  const [approvedScope, setApprovedScope] = useState<string | null>(() => {
+    const disclosure = agent?.tool_disclosure;
+    const hasWorkspaceTools = selectedTools.some((id) => !id.startsWith('mcp_'));
+    return disclosure?.version === 1 &&
+      disclosure.provider === provider &&
+      JSON.stringify([...disclosure.tools].sort()) === JSON.stringify([...selectedTools].sort()) &&
+      disclosure.workspace === (hasWorkspaceTools ? connected?.catalog.workspace_root : null)
+      ? scopeKey
+      : null;
+  });
   const hostedToolsConsent = approvedScope === scopeKey;
   const hosted = provider !== 'ollama';
   const lab = connected?.catalog.providers?.find((value) => value.id === provider);
@@ -80,6 +95,17 @@ export function AgentCreateForm({
         maxSeconds: connected.catalog.max_seconds,
         maxTokens: connected.catalog.max_tokens,
       };
+    if (agent) {
+      value.harness = agent.harness as typeof value.harness;
+      value.toolIds = agentTools
+        .filter((tool) => agentToolGroups[tool.id]?.some((id) => agent.tools?.includes(id)))
+        .map((tool) => tool.id);
+      value.limits = {
+        maxSteps: agent.max_steps,
+        maxSeconds: agent.max_seconds,
+        maxTokens: agent.max_tokens,
+      };
+    }
     return value;
   });
   const [query, setQuery] = useState(''),
@@ -182,14 +208,26 @@ export function AgentCreateForm({
       {onBack && (
         <button type="button" className="quiet-back" onClick={onBack}>
           <ArrowLeft size={16} />
-          {connected ? 'Back to work' : 'Agents'}
+          {backLabel || (connected ? 'Back to work' : 'Agents')}
         </button>
       )}
       <header className="agent-create-heading">
         <h2>
-          A new <i>teammate.</i>
+          {agent ? (
+            <>
+              Edit <i>{agent.name}.</i>
+            </>
+          ) : (
+            <>
+              A new <i>teammate.</i>
+            </>
+          )}
         </h2>
-        <p>Give them a purpose. Choose how they work.</p>
+        <p>
+          {agent
+            ? 'Changes apply to new work. Work already started keeps its current settings.'
+            : 'Give them a purpose. Choose how they work.'}
+        </p>
       </header>
       <div className="agent-create-basics">
         <div className="agent-identity-fields">
@@ -420,6 +458,31 @@ export function AgentCreateForm({
                 : 'No workspace tools are available for this provider and host.'}
           </p>
         )}
+        {connected &&
+          selectedTools
+            .filter(
+              (id) =>
+                !id.startsWith('mcp_') &&
+                !Object.values(agentToolGroups).some((group) => group.includes(id)),
+            )
+            .map((id) => (
+              <label className="agent-tool-choice" key={id}>
+                <input
+                  type="checkbox"
+                  checked
+                  aria-label={`Selected tool: ${id}`}
+                  onChange={() => setSelectedTools(selectedTools.filter((name) => name !== id))}
+                />
+                <span>
+                  <strong>{id}</strong>
+                  <small>
+                    {supportedTools.includes(id)
+                      ? 'Selected for this agent'
+                      : 'Unavailable. Remove this tool or restore its access.'}
+                  </small>
+                </span>
+              </label>
+            ))}
         {compatibilityIssue && (
           <p className="local-notice" role="alert">
             {compatibilityIssue}
@@ -432,18 +495,16 @@ export function AgentCreateForm({
             operating system; any isolation gaps are shown with the command.
           </p>
         )}
-        {connected &&
-          (!!connected.catalog.mcp_connections?.length ||
-            selectedTools.some((name) => name.startsWith('mcp_'))) && (
-            <AgentMcpTools
-              connections={connected.catalog.mcp_connections || []}
-              selected={selectedTools}
-              supported={supportedTools}
-              onSelect={setSelectedTools}
-              onDiscover={connected.onDiscoverMcp}
-              disabled={connected.saving}
-            />
-          )}
+        {connected && (
+          <AgentMcpTools
+            connections={connected.catalog.mcp_connections || []}
+            selected={selectedTools}
+            supported={supportedTools}
+            onSelect={setSelectedTools}
+            onDiscover={connected.onDiscoverMcp}
+            disabled={connected.saving}
+          />
+        )}
         {requiresToolConsent && !compatibilityIssue && (
           <label className="agent-hosted-consent">
             <input
@@ -587,7 +648,8 @@ export function AgentCreateForm({
             connected?.saving
           }
         >
-          {connected?.saving ? 'Saving…' : 'Create agent'} <Plus size={16} />
+          {connected?.saving ? 'Saving…' : agent ? 'Save changes' : 'Create agent'}{' '}
+          {!agent && <Plus size={16} />}
         </button>
       </footer>
     </form>

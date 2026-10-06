@@ -294,6 +294,7 @@ mod tests {
         let dir = tempfile::tempdir().unwrap();
         let path = dir.path().join("work.db");
         let db = seed(path.to_str().unwrap());
+        db.remove_agent_edits_schema_for_test();
         db.conn.execute_batch("DROP TABLE work_brief_revisions; ALTER TABLE team_work_items DROP COLUMN purpose; DELETE FROM schema_versions WHERE version>=53;").unwrap();
         drop(db);
         let db = Store::open(&path).unwrap();

@@ -294,6 +294,7 @@ fn child_capacity_upgrade_recovers_interrupted_admission_holds() {
         db.persist_run_projection(&run).unwrap();
         db.set_team_execution_limits("owner", "org", "team", 1, 2)
             .unwrap();
+        db.remove_agent_edits_schema_for_test();
         db.conn.execute_batch("DROP TABLE work_human_questions; DROP TABLE huddle_execution_directions; DROP TABLE huddle_execution_work; DROP TABLE huddle_executions; DROP TABLE registered_child_capacity; DELETE FROM schema_versions WHERE version>=58;").unwrap();
     }
     let db = Store::open(&path).unwrap();

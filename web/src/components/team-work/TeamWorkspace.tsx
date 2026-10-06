@@ -387,7 +387,10 @@ function ConnectedTeamWorkspace() {
             className="px-inspector"
             aria-label="Project details"
             data-shaping={journey}
-            data-wide={['detail', 'agents', 'blackboard', 'context', 'usage'].includes(panel.kind)}
+            data-wide={['detail', 'agents', 'blackboard', 'context', 'usage', 'tools'].includes(
+              panel.kind,
+            )}
+            data-tools={panel.kind === 'tools'}
           >
             <header>
               <button

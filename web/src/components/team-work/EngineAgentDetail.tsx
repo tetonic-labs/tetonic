@@ -13,6 +13,8 @@ export function EngineAgentDetail({
   onBack,
   onWork,
   onAgent,
+  onEdit,
+  updated,
 }: {
   profile: EngineAgent;
   created: boolean;
@@ -20,6 +22,8 @@ export function EngineAgentDetail({
   onBack: () => void;
   onWork: (id: string) => void;
   onAgent: (key: string) => void;
+  onEdit?: () => void;
+  updated?: boolean;
 }) {
   const engine = useLocalEngine();
   const fresh = engine.isConnected && !engine.readErrors['Agent setup'];
@@ -46,6 +50,21 @@ export function EngineAgentDetail({
       <button onClick={onBack}>Back to agents</button>
       <Portrait agent={engineAgentToUI(profile)} size={76} square={false} />
       <h3>{profile.name}</h3>
+      {onEdit && profile.editable !== false && (
+        <button
+          className="tw-primary"
+          disabled={!fresh || !profile.definition_digest}
+          onClick={onEdit}
+        >
+          Edit agent
+        </button>
+      )}
+      {profile.editable === false && (
+        <p className="tw-small">
+          Engine-managed planning agent. Create a teammate to choose your own settings and tools.
+        </p>
+      )}
+      {updated && <p role="status">Changes saved. New work will use these settings.</p>}
       {created && (
         <p role="status">
           {listed

@@ -248,6 +248,7 @@ mod tests;
 mod context_pipeline_tests;
 
 mod agents;
+pub use agents::EditAgent;
 
 mod general_harness;
 pub use general_harness::{
