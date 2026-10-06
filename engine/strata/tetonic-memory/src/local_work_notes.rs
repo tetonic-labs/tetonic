@@ -2,6 +2,9 @@
 use crate::{Result, Store};
 use rusqlite::{params, OptionalExtension};
 
+// Serialized notes, status, lead, and serialized agent IDs from local_work_notes.
+type LocalWorkDataRow = (String, Option<String>, Option<String>, Option<String>);
+
 #[derive(Clone, Debug, Default)]
 pub struct LocalWorkData {
     pub notes: Vec<String>,
@@ -35,7 +38,7 @@ impl Store {
             .unwrap_or(false);
 
         if has_status {
-            let row: Option<(String, Option<String>, Option<String>, Option<String>)> = self
+            let row: Option<LocalWorkDataRow> = self
                 .conn
                 .query_row(
                     "SELECT notes_json, status, lead_id, agent_ids_json FROM local_work_notes WHERE work_id = ?1",

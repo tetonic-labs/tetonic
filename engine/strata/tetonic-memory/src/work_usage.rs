@@ -4,6 +4,18 @@ use crate::{ControlPermission, Result, Store, StoreError, WorkBudget};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use tetonic_domain::{AttemptId, AttemptState, RunState, TaskId};
 
+// Work, run, fence, allowance, released tokens, organization, team, and task.
+type BudgetExecutionRow = (
+    String,
+    String,
+    String,
+    Option<i64>,
+    i64,
+    String,
+    String,
+    String,
+);
+
 /// Preserve the existing activation-key mapping for work request IDs.
 pub fn work_activation_request_id(request: &str) -> String {
     if request.is_empty()
@@ -242,7 +254,7 @@ impl Store {
             attempt_row.task_version
         ])
         .to_string();
-        let existing: Option<(String,String,String,Option<i64>,i64,String,String,String)> = self.conn.query_row(
+        let existing: Option<BudgetExecutionRow> = self.conn.query_row(
             "SELECT work_id,run_id,fence,allowance,released_tokens,org_id,team_id,task_id FROM work_budget_executions WHERE attempt_id=?1",[attempt],
             |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?))).optional()?;
         let allowance = if let Some((

@@ -10,21 +10,16 @@ use std::path::{Path, PathBuf};
 use thiserror::Error;
 
 /// Operating role/mode of an engine node.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum NodeMode {
     /// Local desktop mode: embedded coordinator, local runner, and local SQLite engine.
+    #[default]
     Standalone,
     /// Cluster Keeper: manages cluster metadata, lease proofs, topologies, and failover.
     Coordinator,
     /// Cluster Worker: executes continuous cognitive loops and streams heartbeats.
     Runner,
-}
-
-impl Default for NodeMode {
-    fn default() -> Self {
-        Self::Standalone
-    }
 }
 
 impl std::fmt::Display for NodeMode {
@@ -54,21 +49,16 @@ impl std::str::FromStr for NodeMode {
 }
 
 /// Backing storage engine mode.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum StorageMode {
     /// Local SQLite database.
+    #[default]
     LocalSqlite,
     /// Distributed database cluster.
     DistributedDb,
     /// Cloud persistent volume claim (PVC) with atomic state checkpoints.
     MoveableVolume,
-}
-
-impl Default for StorageMode {
-    fn default() -> Self {
-        Self::LocalSqlite
-    }
 }
 
 impl std::fmt::Display for StorageMode {
@@ -98,21 +88,16 @@ impl std::str::FromStr for StorageMode {
 }
 
 /// Upstream inference provider type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum InferenceProviderKind {
     /// Local resident inference server (e.g. Ollama or embedded model).
+    #[default]
     Local,
     /// Decoupled stateless GPU inference fabric (vLLM, TensorRT-LLM, remote cluster pool).
     RemoteFabric,
     /// Hosted cloud provider API.
     Cloud,
-}
-
-impl Default for InferenceProviderKind {
-    fn default() -> Self {
-        Self::Local
-    }
 }
 
 impl std::fmt::Display for InferenceProviderKind {
@@ -202,21 +187,16 @@ impl Default for InferenceConfig {
 }
 
 /// Upstream telemetry and trace sink type.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum TelemetrySinkKind {
     /// In-memory ring buffer (default for Web UI) and stdout/stderr.
+    #[default]
     Embedded,
     /// Universal OpenTelemetry Protocol (OTLP) gRPC/HTTP exporter.
     Otlp,
     /// Local append-only JSON-lines log file.
     File,
-}
-
-impl Default for TelemetrySinkKind {
-    fn default() -> Self {
-        Self::Embedded
-    }
 }
 
 impl std::fmt::Display for TelemetrySinkKind {
@@ -702,10 +682,10 @@ pub fn redact_url_credentials(url: &str) -> String {
 
 fn unquote_str(s: &str) -> String {
     let t = s.trim();
-    if (t.starts_with('"') && t.ends_with('"')) || (t.starts_with('\'') && t.ends_with('\'')) {
-        if t.len() >= 2 {
-            return t[1..t.len() - 1].to_string();
-        }
+    if t.len() >= 2
+        && ((t.starts_with('"') && t.ends_with('"')) || (t.starts_with('\'') && t.ends_with('\'')))
+    {
+        return t[1..t.len() - 1].to_string();
     }
     t.to_string()
 }

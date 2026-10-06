@@ -148,6 +148,32 @@ impl Store {
     }
 }
 
+pub(super) fn definition_payload(
+    key: &str,
+    harness: &str,
+    configuration: &serde_json::Value,
+) -> Result<(String, String)> {
+    if [key, harness]
+        .iter()
+        .any(|s| s.trim().is_empty() || s.len() > 256 || s.contains('\0'))
+        || !configuration.is_object()
+    {
+        return Err(StoreError::InvalidControlResource(
+            "agent definition".into(),
+        ));
+    }
+    let definition_json =
+        serde_json::json!({"schema_version":1,"harness":harness,"configuration":configuration})
+            .to_string();
+    if definition_json.len() > 65536 {
+        return Err(StoreError::InvalidControlResource(
+            "agent definition size".into(),
+        ));
+    }
+    let digest = format!("sha256:{:x}", Sha256::digest(definition_json.as_bytes()));
+    Ok((definition_json, digest))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -220,30 +246,4 @@ mod tests {
             original
         );
     }
-}
-
-pub(super) fn definition_payload(
-    key: &str,
-    harness: &str,
-    configuration: &serde_json::Value,
-) -> Result<(String, String)> {
-    if [key, harness]
-        .iter()
-        .any(|s| s.trim().is_empty() || s.len() > 256 || s.contains('\0'))
-        || !configuration.is_object()
-    {
-        return Err(StoreError::InvalidControlResource(
-            "agent definition".into(),
-        ));
-    }
-    let definition_json =
-        serde_json::json!({"schema_version":1,"harness":harness,"configuration":configuration})
-            .to_string();
-    if definition_json.len() > 65536 {
-        return Err(StoreError::InvalidControlResource(
-            "agent definition size".into(),
-        ));
-    }
-    let digest = format!("sha256:{:x}", Sha256::digest(definition_json.as_bytes()));
-    Ok((definition_json, digest))
 }

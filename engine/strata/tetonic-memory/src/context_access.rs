@@ -47,100 +47,6 @@ impl Store {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::{OrganizationRole, TeamRow};
-    #[test]
-    fn private_and_team_content_require_participation_not_administration() {
-        let db = Store::open(":memory:").unwrap();
-        db.bootstrap_control("admin", "org", "Org").unwrap();
-        for actor in ["alice", "bob"] {
-            db.register_control_principal(actor).unwrap();
-            db.set_organization_member("org", actor, OrganizationRole::Member)
-                .unwrap();
-        }
-        db.create_team(&TeamRow {
-            org_id: "org".into(),
-            team_id: "team".into(),
-            name: "Team".into(),
-            owner_principal_id: "alice".into(),
-        })
-        .unwrap();
-        let private = ContextOwner::Private {
-            org_id: "org".into(),
-        };
-        let team = ContextOwner::Team {
-            org_id: "org".into(),
-            team_id: "team".into(),
-        };
-        db.create_information_context("alice", "private-a", &private)
-            .unwrap();
-        db.create_information_context("alice", "private-a", &private)
-            .unwrap();
-        db.create_information_context("alice", "shared", &team)
-            .unwrap();
-        assert!(db
-            .create_information_context("bob", "private-a", &private)
-            .is_err());
-        assert!(db
-            .create_information_context("admin", "admin-shared", &team)
-            .is_err());
-        for (id, context, content) in [
-            ("p", "private-a", "PRIVATECANARY"),
-            ("t", "shared", "team discussion"),
-        ] {
-            db.conn.execute("INSERT INTO sessions(id,workspace_root,mode,model,status,started_at,context_id) VALUES(?1,'same-workspace','test','test','ok','t',?2)",params![id,context]).unwrap();
-            db.append_message(id, "user", "", content, None).unwrap();
-        }
-        assert_eq!(
-            db.scoped_transcript("alice", "private-a", "p", 10).unwrap()[0].2,
-            "PRIVATECANARY"
-        );
-        for actor in ["admin", "bob"] {
-            assert!(db.scoped_transcript(actor, "private-a", "p", 10).is_err());
-            assert!(db.scoped_transcript(actor, "shared", "t", 10).is_err());
-        }
-        db.append_message("t", "assistant", "rolled-back", "discarded branch", None)
-            .unwrap();
-        assert!(db.record_spawn_rollback("t", "rolled-back").is_err());
-        db.conn
-            .execute(
-                "INSERT OR IGNORE INTO spawn_rollbacks(session_id, agent_id, rolled_at)
-                 VALUES('t','rolled-back','t')",
-                [],
-            )
-            .unwrap();
-        db.add_team_member("org", "team", "bob").unwrap();
-        assert_eq!(
-            db.scoped_transcript("bob", "shared", "t", 10).unwrap()[0].2,
-            "team discussion"
-        );
-        assert!(db.scoped_transcript("bob", "shared", "p", 10).is_err());
-        assert!(db
-            .scoped_transcript("bob", "shared", "missing", 10)
-            .is_err());
-        assert_eq!(
-            db.scoped_transcript("bob", "shared", "t", 200)
-                .unwrap()
-                .len(),
-            1
-        );
-        db.remove_team_member("org", "team", "bob").unwrap();
-        assert!(db.scoped_transcript("bob", "shared", "t", 10).is_err());
-        assert!(db
-            .context_access_in_organization("alice", "private-a", "org")
-            .unwrap());
-        assert!(!db
-            .context_access_in_organization("alice", "private-a", "other-org")
-            .unwrap());
-        db.remove_organization_member("org", "alice").unwrap();
-        assert!(db.scoped_transcript("alice", "private-a", "p", 10).is_err());
-        assert!(db.scoped_transcript("alice", "shared", "t", 10).is_err());
-        assert!(!db.context_access("admin", "legacy-local").unwrap());
-    }
-}
-
 impl Store {
     pub fn context_session_access(
         &self,
@@ -264,5 +170,99 @@ impl Store {
             return Err(StoreError::ControlAccessDenied);
         }
         Ok(rows.into_iter().rev().collect())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{OrganizationRole, TeamRow};
+    #[test]
+    fn private_and_team_content_require_participation_not_administration() {
+        let db = Store::open(":memory:").unwrap();
+        db.bootstrap_control("admin", "org", "Org").unwrap();
+        for actor in ["alice", "bob"] {
+            db.register_control_principal(actor).unwrap();
+            db.set_organization_member("org", actor, OrganizationRole::Member)
+                .unwrap();
+        }
+        db.create_team(&TeamRow {
+            org_id: "org".into(),
+            team_id: "team".into(),
+            name: "Team".into(),
+            owner_principal_id: "alice".into(),
+        })
+        .unwrap();
+        let private = ContextOwner::Private {
+            org_id: "org".into(),
+        };
+        let team = ContextOwner::Team {
+            org_id: "org".into(),
+            team_id: "team".into(),
+        };
+        db.create_information_context("alice", "private-a", &private)
+            .unwrap();
+        db.create_information_context("alice", "private-a", &private)
+            .unwrap();
+        db.create_information_context("alice", "shared", &team)
+            .unwrap();
+        assert!(db
+            .create_information_context("bob", "private-a", &private)
+            .is_err());
+        assert!(db
+            .create_information_context("admin", "admin-shared", &team)
+            .is_err());
+        for (id, context, content) in [
+            ("p", "private-a", "PRIVATECANARY"),
+            ("t", "shared", "team discussion"),
+        ] {
+            db.conn.execute("INSERT INTO sessions(id,workspace_root,mode,model,status,started_at,context_id) VALUES(?1,'same-workspace','test','test','ok','t',?2)",params![id,context]).unwrap();
+            db.append_message(id, "user", "", content, None).unwrap();
+        }
+        assert_eq!(
+            db.scoped_transcript("alice", "private-a", "p", 10).unwrap()[0].2,
+            "PRIVATECANARY"
+        );
+        for actor in ["admin", "bob"] {
+            assert!(db.scoped_transcript(actor, "private-a", "p", 10).is_err());
+            assert!(db.scoped_transcript(actor, "shared", "t", 10).is_err());
+        }
+        db.append_message("t", "assistant", "rolled-back", "discarded branch", None)
+            .unwrap();
+        assert!(db.record_spawn_rollback("t", "rolled-back").is_err());
+        db.conn
+            .execute(
+                "INSERT OR IGNORE INTO spawn_rollbacks(session_id, agent_id, rolled_at)
+                 VALUES('t','rolled-back','t')",
+                [],
+            )
+            .unwrap();
+        db.add_team_member("org", "team", "bob").unwrap();
+        assert_eq!(
+            db.scoped_transcript("bob", "shared", "t", 10).unwrap()[0].2,
+            "team discussion"
+        );
+        assert!(db.scoped_transcript("bob", "shared", "p", 10).is_err());
+        assert!(db
+            .scoped_transcript("bob", "shared", "missing", 10)
+            .is_err());
+        assert_eq!(
+            db.scoped_transcript("bob", "shared", "t", 200)
+                .unwrap()
+                .len(),
+            1
+        );
+        db.remove_team_member("org", "team", "bob").unwrap();
+        assert!(db.scoped_transcript("bob", "shared", "t", 10).is_err());
+        assert!(db
+            .context_access_in_organization("alice", "private-a", "org")
+            .unwrap());
+        assert!(!db
+            .context_access_in_organization("alice", "private-a", "other-org")
+            .unwrap());
+        db.remove_organization_member("org", "alice").unwrap();
+        assert!(db.scoped_transcript("alice", "private-a", "p", 10).is_err());
+        assert!(db.scoped_transcript("alice", "shared", "t", 10).is_err());
+        assert!(!db.context_access("admin", "legacy-local").unwrap());
     }
 }

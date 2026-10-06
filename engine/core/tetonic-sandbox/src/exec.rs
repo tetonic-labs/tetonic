@@ -264,6 +264,15 @@ pub fn truncate_output(s: &str) -> String {
     }
 }
 
+pub fn clip_shell_command(cmd: &str) -> String {
+    let one = cmd.split_whitespace().collect::<Vec<_>>().join(" ");
+    if one.chars().count() <= 72 {
+        one
+    } else {
+        format!("{}…", one.chars().take(71).collect::<String>())
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -296,14 +305,5 @@ mod tests {
             "cancel did not stop the owned process"
         );
         assert!(result.expect_err("canceled command").contains("canceled"));
-    }
-}
-
-pub fn clip_shell_command(cmd: &str) -> String {
-    let one = cmd.split_whitespace().collect::<Vec<_>>().join(" ");
-    if one.chars().count() <= 72 {
-        one
-    } else {
-        format!("{}…", one.chars().take(71).collect::<String>())
     }
 }

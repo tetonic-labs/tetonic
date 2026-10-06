@@ -916,7 +916,7 @@ impl Store {
                 || existing.created_by != actor
                 || self
                     .get_team_work_item(org, team, child_work_id)?
-                    .is_none_or(|child| child.title != child_title)
+                    .map_or(true, |child| child.title != child_title)
             {
                 return Err(StoreError::ControlResourceConflict);
             }

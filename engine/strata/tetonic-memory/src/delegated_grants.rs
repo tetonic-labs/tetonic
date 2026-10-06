@@ -190,7 +190,7 @@ impl Store {
             || attempt.task_id != lineage.parent_task_id
             || attempt.task_version != lineage.parent_task_version
             || task.binding.task_definition_version != lineage.parent_task_version
-            || attempt.lease.as_ref().is_none_or(|lease| {
+            || attempt.lease.as_ref().map_or(true, |lease| {
                 lease.expires_at <= now as u64
                     || lease.attempt_id != lineage.parent_attempt_id
                     || lease.lease_id != lineage.parent_lease.lease_id

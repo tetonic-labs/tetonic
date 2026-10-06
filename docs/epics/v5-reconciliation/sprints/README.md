@@ -43,6 +43,12 @@ and passing application/managed-service regressions. Repository formatting now
 passes; the broader engineering gate still has Clippy and static-check findings.
 This is reliability progress, not closure of the full sprint gate.
 
+October 5 engineering follow-up: [gate cleanup evidence](october-1-coherent-workspace/engineering-gate-evidence-2026-10-05.md)
+records 513 passing tests, a focused workspace startup extraction, and removal of
+the file-size and fixture-model findings. Formatting, architecture, and static
+quality checks now pass; the overall package gate still fails on existing Clippy
+debt. No gate was relaxed, and the remaining storage API findings are inventoried.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)
