@@ -413,8 +413,14 @@ fn work03_broker_has_no_session_as_run() {
 
 #[test]
 fn work03_session_cancel_uses_current_run_id() {
-    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
-    assert!(misc.contains("services.app.cancel_session_broker_jobs(&p.session_id)"));
+    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
+    assert!(ui.contains(".cancel(id)"));
+    let workspace = crate_src("src/local_workspace.rs");
+    let cancel = fn_body(&workspace, "pub async fn cancel(");
+    assert!(cancel.contains("let task = self.task(id).await?"));
+    assert!(cancel.contains("if let Some(run_id) = task.run_id"));
+    assert!(cancel.contains(".managed()"));
+    assert!(cancel.contains(".cancel_run(&tetonic_domain::RunId::new(run_id))"));
     let src = crate_src("src/product_submit.rs");
     assert!(src.contains("broker.cancel_session_jobs(session_id)"));
     assert!(src.contains("live.current_run_id()"));

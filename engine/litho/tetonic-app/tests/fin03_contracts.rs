@@ -27,6 +27,9 @@ use tetonic_domain::{
 };
 use tetonic_run::{command_envelope, DurableRunSupervisor, RunSupervisor};
 
+#[path = "support/competing_attempts.rs"]
+mod competing_attempts;
+
 fn dummy_workspace_version() -> WorkspaceVersion {
     WorkspaceVersion {
         repository_id: RepositoryId::new("repo_test"),
@@ -142,6 +145,10 @@ struct TestHarness {
 }
 
 fn create_harness() -> TestHarness {
+    create_harness_with_speculation(false)
+}
+
+fn create_harness_with_speculation(competing: bool) -> TestHarness {
     let count = DB_COUNTER.fetch_add(1, Ordering::Relaxed);
     let db_path = std::env::temp_dir().join(format!(
         "lokai_fin03_contracts_{}_{}.db",
@@ -151,6 +158,11 @@ fn create_harness() -> TestHarness {
     let store = tetonic_memory::SharedStore::open(&db_path, 1).unwrap();
     let supervisor: Arc<dyn RunSupervisor> =
         Arc::new(DurableRunSupervisor::new(Some(store.clone())));
+    let supervisor = if competing {
+        competing_attempts::allow_two_attempts(supervisor)
+    } else {
+        supervisor
+    };
     let policy = Arc::new(tetonic_policy::PolicyEngine::default());
     let artifact_dir = std::env::temp_dir().join(format!(
         "lokai_fin03_artifacts_{}_{}",
@@ -474,7 +486,7 @@ async fn fin03_verification_failure_blocks_commit() {
 /// 4. Competing finalizers fail closed: loser cannot claim finalization and never invokes driver.
 #[tokio::test]
 async fn fin03_competing_finalizers_fail_closed() {
-    let harness = create_harness();
+    let harness = create_harness_with_speculation(true);
     let session_id = start_test_session(&harness.store).await;
     let plan = harness
         .runs

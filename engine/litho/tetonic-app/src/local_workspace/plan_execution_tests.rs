@@ -5,6 +5,28 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[path = "plan_human_tests.rs"]
 mod human;
 
+async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
+    // The run journal publishes the result before the registered executor's
+    // completion watcher settles usage. Observe that separate durable boundary;
+    // a missing settlement must still fail, rather than racing a single read.
+    tokio::time::timeout(std::time::Duration::from_secs(10), async {
+        loop {
+            let usage = workspace
+                .local
+                .resources()
+                .team_work_usage(&workspace.host.credential, ORG.into(), TEAM.into())
+                .await
+                .unwrap();
+            if !usage.is_empty() && usage.iter().all(|row| row.held_tokens == 0) {
+                return usage;
+            }
+            tokio::time::sleep(std::time::Duration::from_millis(20)).await;
+        }
+    })
+    .await
+    .expect("completed plan must release known unused reservations")
+}
+
 async fn server(hang_child: bool) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     scripted_server(if hang_child { 1 } else { 0 }).await
 }
@@ -369,12 +391,7 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
             assert_eq!(task.run_id, root.run_id);
             assert!(!contribution_text(task).unwrap().contains("COMBINED_RESULT"));
         }
-        let usage = workspace
-            .local
-            .resources()
-            .team_work_usage(&workspace.host.credential, ORG.into(), TEAM.into())
-            .await
-            .unwrap();
+        let usage = settled_usage(&workspace).await;
         assert_eq!(
             usage
                 .iter()

@@ -395,7 +395,10 @@ fn cap01_runtime_crate_clean_of_repository_heuristics() {
         .and_then(|after| after.split('[').next())
         .unwrap_or("");
 
-    for forbidden in ["ignore", "tetonic-secrets", "lokai-secrets", "sha2", "hex"] {
+    // Continuous inference needs outbound redaction even without a repository.
+    // Keep that scanner at the brain boundary, not in repository discovery or
+    // runtime assembly. brain.rs has behavioral provider/observer redaction tests.
+    for forbidden in ["ignore", "lokai-secrets", "sha2", "hex"] {
         assert!(
             !prod_deps.contains(forbidden),
             "lokai-runtime [dependencies] must not include `{forbidden}`: {prod_deps}"
@@ -413,6 +416,16 @@ fn cap01_runtime_crate_clean_of_repository_heuristics() {
         }
         let content = fs::read_to_string(&path).expect("read rs file");
         let prod_content = content.split("#[cfg(test)]").next().unwrap_or(&content);
+
+        if path == src_dir.join("brain.rs") {
+            assert!(prod_content.contains("tetonic_secrets::redact_json_value"));
+            assert!(prod_content.contains("scan_request(&mut chat_req)?"));
+        } else {
+            assert!(
+                !prod_content.contains("tetonic_secrets"),
+                "outbound scanner belongs at the brain boundary, not {path:?}"
+            );
+        }
 
         assert!(
             !prod_content.contains("WalkBuilder"),

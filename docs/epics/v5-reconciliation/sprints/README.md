@@ -56,6 +56,14 @@ pass. The broader integration run exposes 19 failures, recorded in the evidence.
 Later Clippy findings also remain, including fleet registry locks held across
 asynchronous steering delivery. This does not close the release baseline.
 
+October 5 reliability follow-up: [fleet steering and current integration contracts](october-1-coherent-workspace/fleet-and-contract-evidence-2026-10-05.md)
+releases fleet registry locks before waiting on an agent's inbox, with a reproduced
+backpressure regression. All 19 prior integration failures are reconciled with
+the active system; redaction and finalization protections remain covered. The
+latest affected-suite results total 698 passing tests, with two existing live
+proof tests ignored. Runtime/orchestrator Clippy passes; the full package gate
+still stops on managed-runtime lint findings. This does not close the sprint.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)

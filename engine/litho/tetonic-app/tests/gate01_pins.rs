@@ -72,18 +72,15 @@ fn gate01_app_root_execute_bound() {
 #[test]
 fn gate01_portals_submit_only() {
     let cli = crate_src("../../litho/tetonic-cli/src/chat.rs");
-    let daemon_chat = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
-    let daemon_agent = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
+    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     let eval = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
     assert!(cli.contains("submit_chat_turn"));
-    assert!(daemon_chat.contains("submit_chat_turn"));
-    assert!(daemon_agent.contains("submit_spawn"));
+    assert!(ui.contains(".submit_with_purpose("));
     assert!(eval.contains("submit_chat_turn"));
     assert!(!eval.contains("submit_spawn"));
     for (name, src) in [
         ("cli chat", cli.as_str()),
-        ("daemon chat", daemon_chat.as_str()),
-        ("daemon agent", daemon_agent.as_str()),
+        ("local UI", ui.as_str()),
         ("eval kernel", eval.as_str()),
     ] {
         assert!(

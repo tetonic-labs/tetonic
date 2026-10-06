@@ -217,5 +217,5 @@ async fn test_twp_continuous_agent_standing_loop_with_sensory_filter() {
     assert!(adapter.is_estopped());
 
     drop(server_reader);
-    let _ = agent_handle;
+    drop(agent_handle);
 }

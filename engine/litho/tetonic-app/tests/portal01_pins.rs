@@ -247,15 +247,17 @@ fn portal01_cli_no_end_turn() {
 }
 
 #[test]
-fn portal01_daemon_chat_no_spawn_local() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
+fn portal01_local_ui_handler_does_not_spawn_execution() {
+    let owned = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
+    // dispatch() spawns HTTP connections; only the request handler is submit-only.
+    let src = fn_body(production_prefix(&owned), "async fn handle(");
     assert!(!src.contains("spawn_local"));
-    assert!(src.contains("submit_chat_turn"));
+    assert!(src.contains(".submit_with_purpose("));
 }
 
 #[test]
-fn portal01_daemon_chat_no_take_restore() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
+fn portal01_local_ui_no_take_restore() {
+    let src = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     assert!(!src.contains("take_conversation"));
     assert!(!src.contains("restore_conversation"));
 }
@@ -268,16 +270,16 @@ fn portal01_fabric_spawn_local_untouched() {
 }
 
 #[test]
-fn portal01_daemon_spawn_no_coding_pack_parse() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
+fn portal01_local_ui_no_coding_pack_parse() {
+    let src = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     assert!(!src.contains("CodingPack"));
 }
 
 #[test]
-fn portal01_daemon_spawn_no_execute_spawn_call() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
+fn portal01_local_ui_no_execute_spawn_call() {
+    let src = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     assert!(!src.contains("execute_spawn"));
-    assert!(src.contains("submit_spawn"));
+    assert!(src.contains(".submit_with_purpose("));
 }
 
 #[test]
@@ -310,22 +312,24 @@ fn portal01_cli_no_approval_oneshot() {
 }
 
 #[test]
-fn portal01_daemon_no_rpc_approval_waiter() {
-    let chat = crate_src("../../litho/tetonicd/src/daemon/handlers/chat.rs");
-    let agent = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
-    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
-    assert!(!chat.contains("RpcApprovalWaiter"));
-    assert!(!agent.contains("RpcApprovalWaiter"));
-    assert!(!misc.contains("take_pending"));
+fn portal01_local_ui_no_private_approval_waiter() {
+    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
+    assert!(!ui.contains("RpcApprovalWaiter"));
+    assert!(!ui.contains("take_pending"));
+    assert!(!ui.contains("oneshot::Sender<bool>"));
+    assert!(ui.contains(".resolve_approval(id, payload)"));
 }
 
 #[test]
 fn portal01_approval_ux_respond_remains() {
     let tui = crate_src("../../litho/tetonic-cli/src/tui/mod.rs");
     assert!(tui.contains("approvals.respond") || tui.contains("svc.respond"));
-    let misc = crate_src("../../litho/tetonicd/src/daemon/handlers/misc.rs");
-    assert!(misc.contains("approvals"));
-    assert!(misc.contains("respond("));
+    let workroom = crate_src("src/local_workspace/workroom.rs");
+    let resolve = fn_body(&workroom, "pub async fn resolve_approval(");
+    assert!(resolve.contains(".resolve_effect_approval("));
+    assert!(resolve.contains("&self.host.credential"));
+    assert!(resolve.contains("req.proposal_digest"));
+    assert!(resolve.contains("req.allow"));
 }
 
 #[test]
@@ -346,13 +350,14 @@ fn portal01_cancel_run_does_not_require_session() {
 }
 
 #[test]
-fn portal01_daemon_toolcall_rpc_mapped() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/events.rs");
+fn portal01_cli_tool_events_mapped() {
+    // The RPC daemon is retired. The CLI remains an ApplicationEvent consumer;
+    // this contract does not imply the local HTTP UI has an RPC event stream.
+    let src = crate_src("../../litho/tetonic-cli/src/app_kernel.rs");
     assert!(src.contains("ApplicationEvent::ToolCall"));
-    assert!(src.contains("events::TOOL_CALL"));
+    assert!(src.contains(".on_tool_call(tool, args)"));
     assert!(src.contains("ApplicationEvent::ToolResult"));
-    assert!(src.contains("events::TOOL_RESULT"));
-    assert!(!src.contains("audit path owns RPC notify"));
+    assert!(src.contains(".on_tool_result(*ok, summary)"));
 }
 
 #[test]
@@ -428,9 +433,9 @@ fn portal01_supervisor_field_remains() {
     assert!(src.contains("supervisor: Arc<dyn tetonic_run::RunSupervisor>"));
     assert!(!src.contains("pub supervisor: Arc<dyn tetonic_run::RunSupervisor>"));
     let cli = crate_src("../../litho/tetonic-cli/src/main.rs");
-    let daemon = crate_src("../../litho/tetonicd/src/daemon/handlers/initialize.rs");
+    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     assert!(!cli.contains("RunSupervisor"));
-    assert!(!daemon.contains("RunSupervisor"));
+    assert!(!ui.contains("RunSupervisor"));
 }
 
 #[test]

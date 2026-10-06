@@ -180,10 +180,10 @@ fn comp01_public_run_service_has_no_turn_execution_host() {
 }
 
 #[test]
-fn comp01_cli_tetonicd_eval_have_no_turn_execution_host() {
+fn comp01_cli_ui_eval_have_no_turn_execution_host() {
     for rel in [
         "../../litho/tetonic-cli/src/main.rs",
-        "../../litho/tetonicd/src/daemon/handlers/initialize.rs",
+        "../../litho/tetonic-cli/src/local_ui.rs",
         "../../tooling/tetonic-eval/src/kernel.rs",
     ] {
         let src = crate_src(rel);
@@ -192,8 +192,6 @@ fn comp01_cli_tetonicd_eval_have_no_turn_execution_host() {
             "{rel} must not name TurnExecutionHost"
         );
     }
-    let parity = crate_src("../../litho/tetonicd/src/daemon/tests/parity.rs");
-    assert!(!parity.contains("TurnExecutionHost"));
 }
 
 #[test]
@@ -219,20 +217,29 @@ fn comp01_cli_no_supervisor_clone() {
     assert!(!src.contains("SupervisorRunBridge"));
     let cli_boot = crate_src("src/cli_bootstrap.rs");
     assert!(cli_boot.contains("install_compute_services"));
-    assert!(crate_src("src/product_submit.rs").contains("self.install_compute_plane("));
+    let submit = crate_src("src/product_submit.rs");
+    let install = fn_body(&submit, "pub fn install_compute_services(");
+    assert!(install.contains("self.set_fabric_plane("));
+    assert!(install.contains("self.attach_compute_lifecycle("));
+    assert!(install.contains("InstalledInference::Compute(plane.provider.clone())"));
+    let lifecycle = fn_body(&submit, "pub(crate) fn attach_compute_lifecycle(");
+    assert!(lifecycle.contains("SupervisorRunBridge::arc(self.supervisor.clone())"));
+    assert!(lifecycle.contains("set_run_bridge(bridge.clone())"));
+    assert!(lifecycle.contains("set_supervisor(self.supervisor.clone())"));
 }
 
 #[test]
-fn comp01_daemon_no_build_supervisor() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/initialize.rs");
+fn comp01_local_ui_uses_application_owned_bootstrap() {
+    let src = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
     assert!(!src.contains("build_supervisor"));
     assert!(!src.contains("from_bootstrap_with_supervisor"));
     assert!(!src.contains("app.supervisor"));
     assert!(!src.contains("RunSupervisor"));
     assert!(!src.contains("SupervisorRunBridge"));
-    let daemon_boot = crate_src("src/daemon_bootstrap.rs");
-    assert!(daemon_boot.contains("from_bootstrap("));
-    assert!(daemon_boot.contains("install_compute_plane"));
+    assert!(src.contains("LocalWorkspace::open_with_workspace("));
+    let bootstrap = crate_src("src/local_workspace/bootstrap.rs");
+    assert!(bootstrap.contains("prepare_launch("));
+    assert!(bootstrap.contains("RegisteredLaunchHost"));
 }
 
 #[test]
@@ -322,8 +329,9 @@ fn comp01_host_construction_lives_in_app() {
     let submit = crate_src("src/product_submit.rs");
     assert!(submit.contains("build_session_host"));
     assert!(submit.contains("TurnExecutionHost"));
-    let parity = crate_src("../../litho/tetonicd/src/daemon/tests/parity.rs");
-    assert!(!parity.contains("TurnExecutionHost"));
+    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
+    assert!(!ui.contains("TurnExecutionHost"));
+    assert!(!ui.contains("build_session_host"));
 }
 
 #[path = "support/lifecycle_contract.rs"]

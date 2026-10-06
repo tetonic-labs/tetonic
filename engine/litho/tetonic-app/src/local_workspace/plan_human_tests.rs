@@ -342,12 +342,7 @@ async fn human_wait_and_direction(scenario: u8) {
             assert!(!serde_json::to_string(&requests)
                 .unwrap()
                 .contains("PRIVATE_CANARY_MUST_NOT_LEAK"));
-            let usage = workspace
-                .local
-                .resources()
-                .team_work_usage(&workspace.host.credential, ORG.into(), TEAM.into())
-                .await
-                .unwrap();
+            let usage = settled_usage(&workspace).await;
             assert_eq!(
                 usage
                     .iter()

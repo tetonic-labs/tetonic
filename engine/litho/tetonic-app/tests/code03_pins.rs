@@ -147,10 +147,10 @@ fn code03_execute_spawn_still_turn_none() {
 }
 
 #[test]
-fn code03_daemon_agent_spawn_rpc_untouched() {
-    let src = crate_src("../../litho/tetonicd/src/daemon/handlers/agent.rs");
-    assert!(src.contains("fn agent_spawn"));
-    assert!(src.contains("submit_spawn"));
+fn code03_local_ui_submits_work_through_application() {
+    let owned = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
+    let src = fn_body(production_prefix(&owned), "async fn handle(");
+    assert!(src.contains(".submit_with_purpose("));
     assert!(!src.contains("execute_spawn"));
     assert!(!src.contains("CodingPack"));
 }
@@ -160,10 +160,16 @@ fn code03_llm_route_stamps_parent_fabric() {
     let owned = crate_src("src/turn_execution.rs");
     let src = production_prefix(&owned);
     let body = fn_body(src, "async fn run_turn_body(");
-    assert!(body.contains("FabricCallMeta"));
+    assert!(body.contains("session_classifier_fabric("));
     assert!(body.contains("turn_plan.run_id"));
     assert!(body.contains("turn_plan.task_id"));
     assert!(body.contains("turn_plan.attempt_id"));
+    let metadata = fn_body(src, "pub(crate) fn session_classifier_fabric(");
+    for field in ["session_id", "run_id", "task_id", "attempt_id"] {
+        assert!(metadata.contains(&format!("{field}: Some({field}.to_string())")));
+    }
+    assert!(metadata.contains("data_class: plan.data_class"));
+    assert!(metadata.contains("disclosure_tier: plan.disclosure_tier"));
 }
 
 #[test]

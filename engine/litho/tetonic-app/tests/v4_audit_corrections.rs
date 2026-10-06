@@ -755,8 +755,9 @@ async fn v4_audit_lease_loss_during_verify_e2e() {
     let tmp = tempfile::tempdir().unwrap();
     let db_path = tmp.path().join("db.sqlite");
     let store = tetonic_memory::SharedStore::open(&db_path, 1).unwrap();
-    let supervisor: Arc<dyn RunSupervisor> =
-        Arc::new(DurableRunSupervisor::new(Some(store.clone())));
+    let supervisor: Arc<dyn RunSupervisor> = competing_attempts::allow_two_attempts(Arc::new(
+        DurableRunSupervisor::new(Some(store.clone())),
+    ));
     let (approval_tx, _approval_rx) = tokio::sync::mpsc::unbounded_channel();
     let sink = Arc::new(TestApprovalSink {
         events: Mutex::new(Vec::new()),
@@ -1324,3 +1325,6 @@ async fn v4_audit_standalone_spawn_shell_approval_denied_blocks_execution() {
         })
         .await;
 }
+
+#[path = "support/competing_attempts.rs"]
+mod competing_attempts;

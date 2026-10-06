@@ -284,6 +284,122 @@ mod tests {
     use chrono::Utc;
     use tetonic_domain::{Perception, Urgency, WorldAction, WorldState};
 
+    // Public AWS documentation example, not a live credential.
+    const EXAMPLE_SECRET: &str = "AKIAIOSFODNN7EXAMPLE";
+
+    #[derive(Default)]
+    struct RecordingProvider(std::sync::Mutex<Vec<ChatRequest>>);
+
+    #[async_trait]
+    impl InferenceProvider for RecordingProvider {
+        async fn chat(
+            &self,
+            req: ChatRequest,
+            _sink: &mut tetonic_inference::TokenSink<'_>,
+        ) -> Result<tetonic_inference::ChatResponse, tetonic_inference::InferenceError> {
+            self.0.lock().unwrap().push(req);
+            Ok(tetonic_inference::ChatResponse {
+                message: Message::assistant(""),
+                usage: Default::default(),
+                provenance: Default::default(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn completion_redacts_messages_and_tools_before_provider_and_observer() {
+        let provider = Arc::new(RecordingProvider::default());
+        let observed = Arc::new(std::sync::Mutex::new(Vec::new()));
+        let recorded = observed.clone();
+        let brain = SingleModelBrain::new(provider.clone(), "test", 4096).with_observer(Arc::new(
+            move |_, stage, data| {
+                recorded.lock().unwrap().push((stage.to_string(), data));
+            },
+        ));
+        let req = BrainRequest {
+            messages: vec![BrainMessage {
+                role: BrainRole::User,
+                content: format!("Inspect this example key: {EXAMPLE_SECRET}"),
+                tool_calls: None,
+                tool_call_id: None,
+            }],
+            tools: vec![serde_json::json!({
+                "type": "function",
+                "function": {
+                    "name": "inspect",
+                    "description": format!("Example: {EXAMPLE_SECRET}"),
+                    "parameters": {"type": "object", "properties": {
+                        "key": {"type": "string", "description": EXAMPLE_SECRET}
+                    }}
+                }
+            })],
+            max_tokens: Some(256),
+            trace_label: "redaction-test".into(),
+        };
+        brain.complete(req, &mut |_| {}).await.unwrap();
+
+        let requests = provider.0.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        let sent = &requests[0];
+        assert!(sent.outbound_scan.is_scanned());
+        assert!(sent.outbound_scan.blocks_remote());
+        assert_eq!(
+            sent.messages[0].content,
+            "Inspect this example key: [REDACTED:aws-access-key]"
+        );
+        assert_eq!(
+            sent.tools[0].function.description,
+            "Example: [REDACTED:aws-access-key]"
+        );
+        assert_eq!(
+            sent.tools[0].function.parameters["properties"]["key"]["description"],
+            "[REDACTED:aws-access-key]"
+        );
+        let observed = observed.lock().unwrap();
+        let request = observed
+            .iter()
+            .find(|(stage, _)| stage == "inference_request")
+            .unwrap();
+        assert_eq!(
+            request.1["messages"],
+            serde_json::to_value(&sent.messages).unwrap()
+        );
+        assert_eq!(
+            request.1["tools"],
+            serde_json::to_value(&sent.tools).unwrap()
+        );
+        assert!(!serde_json::to_string(&*observed)
+            .unwrap()
+            .contains(EXAMPLE_SECRET));
+    }
+
+    #[tokio::test]
+    async fn perception_redacts_world_state_before_provider() {
+        let provider = Arc::new(RecordingProvider::default());
+        let brain = SingleModelBrain::new(provider.clone(), "test", 4096);
+        let perception = Perception {
+            when: Utc::now(),
+            sequence: 1,
+            urgency: Urgency::Medium,
+            signals: vec![],
+            events: vec![],
+            state: WorldState {
+                schema_id: "test".into(),
+                data: serde_json::json!({"note": "inspect the environment", "key": EXAMPLE_SECRET}),
+            },
+        };
+        assert!(brain.perceive(perception).await.unwrap().is_none());
+        let requests = provider.0.lock().unwrap();
+        assert_eq!(requests.len(), 1);
+        let sent = &requests[0];
+        assert!(sent.outbound_scan.is_scanned());
+        assert!(sent.outbound_scan.blocks_remote());
+        let contents = serde_json::to_string(&sent.messages).unwrap();
+        assert!(!contents.contains(EXAMPLE_SECRET));
+        assert!(contents.contains("[REDACTED:aws-access-key]"));
+        assert!(contents.contains("inspect the environment"));
+    }
+
     struct TraceProvider;
     #[async_trait]
     impl InferenceProvider for TraceProvider {
@@ -350,12 +466,10 @@ mod tests {
         assert_eq!(events[3].2["message"]["content"], "not valid JSON");
     }
 
+    type PerceptionHandler = Arc<dyn Fn(&Perception) -> Option<WorldAction> + Send + Sync>;
+
     struct ScriptedBrain {
-        handler: Arc<
-            dyn Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction>
-                + Send
-                + Sync,
-        >,
+        handler: PerceptionHandler,
         description: String,
     }
 
