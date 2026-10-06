@@ -253,6 +253,7 @@ async fn seed_variant(workspace: &LocalWorkspace, handoff: bool) -> String {
             provider: "ollama".into(),
             hosted_consent: false,
             hosted_tools_consent: false,
+            expected_workspace_root: None,
             request_id: uuid::Uuid::new_v4().to_string(),
             name: "Reviewer".into(),
             purpose: "Review the explicit supplied evidence; call finish with the result.".into(),

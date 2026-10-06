@@ -26,7 +26,7 @@ function setup(
     models: ['gpt-4.1'],
     capabilities_verified: false,
   });
-  vi.spyOn(client, 'agentCatalog').mockResolvedValue({
+  const catalog = vi.spyOn(client, 'agentCatalog').mockResolvedValue({
     workspace_root: 'C:/approved-work',
     runtime_profiles: hostedReads
       ? [
@@ -56,14 +56,14 @@ function setup(
   render(
     <LocalAgentSetup client={client} workspace={workspace} onCreated={vi.fn()} onBack={vi.fn()} />,
   );
-  return create;
+  return { create, catalog };
 }
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('connected agent permissions', () => {
   it('attaches selected hosted read tools only after explicit folder disclosure consent', async () => {
-    const create = setup(undefined, true);
+    const { create } = setup(undefined, true);
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
       target: { value: 'Lab reader' },
     });
@@ -85,11 +85,12 @@ describe('connected agent permissions', () => {
     expect(create.mock.calls[0][0]).toMatchObject({
       provider: 'openai',
       hosted_tools_consent: true,
+      expected_workspace_root: 'C:/approved-work',
       tools: ['read_file', 'list_dir', 'grep', 'glob'],
     });
   });
   it('sends an explicit empty tool grant when no tools are selected', async () => {
-    const create = setup();
+    const { create } = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
       target: { value: 'Thinker' },
     });
@@ -102,7 +103,7 @@ describe('connected agent permissions', () => {
   });
 
   it('preserves selected tools across provider changes and blocks incompatible creation', async () => {
-    const create = setup();
+    const { create } = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
       target: { value: 'Reader' },
     });
@@ -141,7 +142,7 @@ describe('connected agent permissions', () => {
   });
 
   it('keeps a selected read grant distinct from permission to write', async () => {
-    const create = setup();
+    const { create } = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
       target: { value: 'Reader' },
     });
@@ -149,5 +150,54 @@ describe('connected agent permissions', () => {
     await userEvent.click(screen.getByRole('button', { name: /Create agent/ }));
     await waitFor(() => expect(create).toHaveBeenCalledOnce());
     expect(create.mock.calls[0][0].tools).toEqual(['read_file', 'list_dir', 'grep', 'glob']);
+  });
+
+  it('does not expand a selected partial toolkit after the host adds capabilities', async () => {
+    const { create, catalog } = setup(['read_file']);
+    fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
+      target: { value: 'Reader' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
+    const before = await catalog.mock.results[0].value;
+    catalog.mockResolvedValue({ ...before, tools: ['read_file', 'list_dir', 'grep', 'glob'] });
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh engine setup' }));
+    await waitFor(() => expect(catalog).toHaveBeenCalledTimes(2));
+    expect(screen.getByLabelText('Name', { exact: true })).toHaveProperty('value', 'Reader');
+    await userEvent.click(screen.getByRole('button', { name: 'Create agent' }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(create.mock.calls[0][0].tools).toEqual(['read_file']);
+  });
+
+  it('requires fresh disclosure approval when refreshing reveals a different folder', async () => {
+    const { create, catalog } = setup(['read_file'], true);
+    fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
+      target: { value: 'Lab reader' },
+    });
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
+    fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+      target: { value: 'gpt-4.1' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow selected file results/ }));
+    expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', false);
+    const before = await catalog.mock.results[0].value;
+    catalog.mockResolvedValue({ ...before, workspace_root: 'C:/different-work' });
+    await userEvent.click(screen.getByRole('button', { name: 'Refresh engine setup' }));
+    const consent = await screen.findByRole('checkbox', {
+      name: /Allow selected file results from C:\/different-work/,
+    });
+    expect(consent).toHaveProperty('checked', false);
+    expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', true);
+    fireEvent.submit(screen.getByRole('button', { name: 'Create agent' }).closest('form')!);
+    expect(create).not.toHaveBeenCalled();
+    await userEvent.click(consent);
+    await userEvent.click(screen.getByRole('button', { name: 'Create agent' }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(create.mock.calls[0][0]).toMatchObject({
+      expected_workspace_root: 'C:/different-work',
+      tools: ['read_file'],
+    });
   });
 });

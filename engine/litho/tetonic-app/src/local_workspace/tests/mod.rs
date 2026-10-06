@@ -169,6 +169,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 provider: "ollama".into(),
                 hosted_consent: false,
                 hosted_tools_consent: false,
+                expected_workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "No tools".into(),
                 purpose: "Answer from the supplied prompt".into(),
@@ -215,6 +216,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                     provider: "openai".into(),
                     hosted_consent: true,
                     hosted_tools_consent: false,
+                    expected_workspace_root: None,
                     tools: Some(vec!["read_file".into()]),
                     ..input.clone()
                 })
@@ -352,6 +354,7 @@ async fn local_agents_persist_validate_and_execute_the_selected_definition() {
                 provider: "ollama".into(),
                 hosted_consent: false,
                 hosted_tools_consent: false,
+                expected_workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "Analyst".into(),
                 purpose: "Use the amber compass method. Call finish with your answer.".into(),
@@ -731,6 +734,7 @@ async fn sprint2_autonomy_and_review_lifecycle() {
                 provider: "ollama".into(),
                 hosted_consent: false,
                 hosted_tools_consent: false,
+                expected_workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "Scoper".into(),
                 purpose: "Scoped agent. Call finish.".into(),

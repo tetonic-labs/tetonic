@@ -25,6 +25,7 @@ export function LocalAgentSetup({
   const [saving, setSaving] = useState(false);
   const [retry, setRetry] = useState(0);
   const [connectionRevision, setConnectionRevision] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const discoverModels = useCallback(
     (provider: string, signal?: AbortSignal) => client.providerModels(provider, signal),
     [client],
@@ -35,6 +36,7 @@ export function LocalAgentSetup({
     active.current = true;
     const abort = new AbortController();
     setError('');
+    setRefreshing(true);
     client
       .agentCatalog(abort.signal)
       .then((value) => {
@@ -43,6 +45,9 @@ export function LocalAgentSetup({
       .catch((error: unknown) => {
         if (active.current && !abort.signal.aborted)
           setError(error instanceof Error ? error.message : 'Model discovery failed.');
+      })
+      .finally(() => {
+        if (active.current && !abort.signal.aborted) setRefreshing(false);
       });
     return () => {
       active.current = false;
@@ -51,18 +56,12 @@ export function LocalAgentSetup({
   }, [client, retry]);
   async function create(draft: AgentDraft) {
     if (saving) return;
-    const tools: string[] = [];
-    if (draft.configuration.toolIds.includes('read_file')) {
-      tools.push('read_file', 'list_dir', 'grep', 'glob');
-    }
-    if (draft.configuration.toolIds.includes('write_file')) {
-      tools.push('write_file', 'edit_file');
-    }
     const value = {
       provider: draft.provider || 'ollama',
       hosted_consent: !!draft.hostedConsent,
       hosted_tools_consent: !!draft.hostedToolsConsent,
-      tools,
+      expected_workspace_root: draft.expectedWorkspaceRoot,
+      tools: draft.tools || [],
       name: draft.name,
       purpose: draft.purpose,
       model: draft.model,
@@ -133,6 +132,8 @@ export function LocalAgentSetup({
         error,
         onDiscoverModels: discoverModels,
         connectionRevision,
+        refreshing,
+        onRefresh: () => setRetry((value) => value + 1),
         onSaveKey: async (provider, key) => {
           const saved = await client.saveProviderKey(provider, key);
           if (active.current) setConnectionRevision((value) => value + 1);

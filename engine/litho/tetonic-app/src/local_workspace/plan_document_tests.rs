@@ -59,6 +59,7 @@ async fn local_model_document_plan_journey() {
                             max_tokens: 4096,
                             hosted_consent: false,
                             hosted_tools_consent: false,
+                expected_workspace_root: None,
                         })
                         .await
                         .unwrap();

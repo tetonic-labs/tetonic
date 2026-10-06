@@ -4,6 +4,7 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../lib/localEngine';
 import { canReply, type WorkRecord } from '../../lib/workspaceRecords';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
+import { agentSetup } from '../../lib/agentCapabilities';
 
 export function WorkComposer({
   work,
@@ -21,12 +22,25 @@ export function WorkComposer({
   const agents = (engine.workspace?.agents || []).filter(
     (agent) => agent.key !== engine.workspace?.shaping_agent_key && !agent.plan_coordinator,
   );
-  const agentKey =
-    work?.latest?.agent_key ||
-    (agents.some((agent) => agent.key === choice) ? choice : agents[0]?.key || '');
   const key = work ? `work:${work.id}` : 'new';
   const writer = useWorkspaceDraft(`team-work:${connectionDraftScope()}`);
   const draft = writer.drafts[key] || { text: '' };
+  const agentKey =
+    draft.pending?.agent || work?.latest?.agent_key || choice || agents[0]?.key || '';
+  const selectedAgent = agents.find((agent) => agent.key === agentKey);
+  const setup =
+    selectedAgent &&
+    agentSetup(
+      selectedAgent,
+      engine.catalog,
+      engine.isConnected && !engine.readErrors['Agent setup'],
+    );
+  const setupIssue =
+    !selectedAgent && agentKey
+      ? 'The selected agent is not in this workspace. Refresh or choose another agent.'
+      : setup?.state === 'needs_setup'
+        ? setup.message
+        : '';
   const current = useRef(key);
   current.current = key;
   const withinLimit =
@@ -34,6 +48,7 @@ export function WorkComposer({
   const enabled =
     engine.isConnected &&
     !!agentKey &&
+    (!setupIssue || !!draft.pending) &&
     !writer.busyKey &&
     !!draft.text.trim() &&
     withinLimit &&
@@ -63,6 +78,9 @@ export function WorkComposer({
               onChange={(event) => setChoice(event.target.value)}
             >
               {!agents.length && <option value="">No agent available</option>}
+              {agentKey && !selectedAgent && (
+                <option value={agentKey}>Selected agent unavailable</option>
+              )}
               {agents.map((agent) => (
                 <option key={agent.key} value={agent.key}>
                   {agent.name}
@@ -109,6 +127,7 @@ export function WorkComposer({
             : 'Disconnected · your text stays here.'}
       </small>
       {!withinLimit && <p role="alert">Shorten this request before sending.</p>}
+      {setupIssue && <p role="status">{setupIssue} Open Agents to check their setup.</p>}
       {draft.error && (
         <p role="alert">
           {draft.error}{' '}

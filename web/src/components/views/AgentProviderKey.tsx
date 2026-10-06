@@ -66,7 +66,7 @@ export function AgentProviderKey({
           )}
         </div>
       )}
-      {editing && (
+      {(editing || !provider.key_saved) && (
         <>
           <label>
             {provider.name} API key

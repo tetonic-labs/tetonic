@@ -1,11 +1,13 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import type { LocalApproval } from '../../lib/localEngine';
+import type { EngineAgent, LocalApproval } from '../../lib/localEngine';
 import { needsHelp, stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
 import { workJourneys, journeyStatus, journeyPriority } from '../../lib/workJourneys';
 import { HumanQuestion } from './HumanQuestion';
 import { Portrait } from '../ui/Portrait';
 import { LocalAgentSetup } from '../work/LocalAgentSetup';
+import { EngineAgentDetail } from './EngineAgentDetail';
+import { agentSetup } from '../../lib/agentCapabilities';
 
 export type TeamPanel = 'work' | 'agents' | 'teams' | 'attention' | 'settings';
 
@@ -100,6 +102,7 @@ export function TeamPanels({
   const { workspace, client, uiAgents, teams, approvals, readErrors } = engine;
   const [creating, setCreating] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(initialAgentId || null);
+  const [createdAgent, setCreatedAgent] = useState<EngineAgent | null>(null);
   const [query, setQuery] = useState('');
   if (panel === 'work')
     return (
@@ -183,58 +186,30 @@ export function TeamPanels({
           client={client}
           workspace={workspace}
           onBack={() => setCreating(false)}
-          onCreated={() => {
+          onCreated={(created) => {
+            setCreatedAgent(created);
+            setAgentId(created.key);
             setCreating(false);
             void engine.refresh();
           }}
         />
       );
-    const agent = uiAgents.find((entry) => entry.id === agentId);
-    const profile = workspace?.agents.find((entry) => entry.key === agentId);
-    if (agent && profile)
+    const profile =
+      workspace?.agents.find((entry) => entry.key === agentId) ||
+      (createdAgent?.key === agentId ? createdAgent : null);
+    if (profile)
       return (
-        <div className="tw-agent-detail">
-          <button onClick={() => setAgentId(null)}>Back to agents</button>
-          <Portrait agent={agent} size={76} square={false} />
-          <h3>{agent.name}</h3>
-          <p>{profile.purpose}</p>
-          {!profile.plan_coordinator && (
-            <button className="tw-primary" onClick={() => onAgent(profile.key)}>
-              Ask {agent.name}
-            </button>
-          )}
-          <div className="tw-record-list">
-            {records
-              .filter((work) => work.latest?.agent_key === profile.key)
-              .map((work) => (
-                <button key={work.id} onClick={() => onWork(work.id)}>
-                  <strong>{work.title}</strong>
-                  <span>{stateLabel(work)}</span>
-                </button>
-              ))}
-          </div>
-          <details>
-            <summary>Access and limits</summary>
-            <p>
-              Model: {profile.model} · {profile.provider || 'Local provider'}
-            </p>
-            <p>Tools: {profile.tools?.join(', ') || 'No file or external tools'}</p>
-            {profile.plan_coordinator ? (
-              <p>
-                The agreed plan sets the shared allowance and whole-plan time limit. Review them in
-                Shape work.
-              </p>
-            ) : (
-              <p>
-                Up to {profile.max_steps} steps, {profile.max_seconds} seconds and{' '}
-                {profile.max_tokens} reported tokens per run.
-              </p>
-            )}
-            <p>
-              Files are limited to the workspace configured by the host. No other access is implied.
-            </p>
-          </details>
-        </div>
+        <EngineAgentDetail
+          profile={profile}
+          created={createdAgent?.key === profile.key}
+          records={records}
+          onBack={() => {
+            setAgentId(null);
+            setCreatedAgent(null);
+          }}
+          onWork={onWork}
+          onAgent={onAgent}
+        />
       );
     return (
       <>
@@ -249,7 +224,17 @@ export function TeamPanels({
                   ? 'Working'
                   : !engine.isConnected
                     ? 'Connection lost'
-                    : 'Available'}
+                    : (() => {
+                        const profile = workspace?.agents.find((agent) => agent.key === entry.id);
+                        const setup =
+                          profile &&
+                          agentSetup(profile, engine.catalog, !readErrors['Agent setup']);
+                        return setup?.state === 'needs_setup'
+                          ? 'Needs setup'
+                          : setup?.state === 'configured'
+                            ? 'Idle'
+                            : 'Setup unchecked';
+                      })()}
               </span>
             </button>
           ))}

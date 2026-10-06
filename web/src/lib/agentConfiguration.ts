@@ -11,9 +11,12 @@ export interface AgentConfiguration {
   limits: { maxSteps: number; maxSeconds: number; maxTokens: number };
 }
 export interface AgentDraft {
+  /** Exact connected tool names selected at click time, never a permission grant. */
+  tools?: string[];
   provider?: string;
   hostedConsent?: boolean;
   hostedToolsConsent?: boolean;
+  expectedWorkspaceRoot?: string;
   name: string;
   purpose: string;
   teamId: string;

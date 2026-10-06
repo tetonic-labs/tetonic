@@ -14,6 +14,7 @@ import { AgentAdvancedSettings } from './AgentAdvancedSettings';
 import type { AgentCatalog, ProviderModelCatalog } from '../../lib/localEngine';
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
+import { agentToolGroups, supportedAgentTools, toolDescription } from '../../lib/agentCapabilities';
 
 export function AgentCreateForm({
   teams,
@@ -40,6 +41,8 @@ export function AgentCreateForm({
     onRemoveKey?: (provider: string) => Promise<void>;
     onDiscoverModels?: (provider: string, signal?: AbortSignal) => Promise<ProviderModelCatalog>;
     connectionRevision?: number;
+    refreshing?: boolean;
+    onRefresh?: () => void;
   };
 }) {
   const [name, setName] = useState(''),
@@ -49,9 +52,16 @@ export function AgentCreateForm({
   );
   const [model, setModel] = useState(''),
     [customModel, setCustomModel] = useState('');
-  const [provider, setProvider] = useState('ollama');
+  const [provider, setProvider] = useState(() =>
+    connected && !models.length
+      ? connected.catalog.providers?.find((provider) => provider.key_saved)?.id || 'ollama'
+      : 'ollama',
+  );
+  const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [hostedConsent, setHostedConsent] = useState(false);
-  const [hostedToolsConsent, setHostedToolsConsent] = useState(false);
+  const [approvedScope, setApprovedScope] = useState<string | null>(null);
+  const scopeKey = JSON.stringify([provider, connected?.catalog.workspace_root]);
+  const hostedToolsConsent = approvedScope === scopeKey;
   const hosted = provider !== 'ollama';
   const lab = connected?.catalog.providers?.find((value) => value.id === provider);
   const [configuration, setConfiguration] = useState(() => {
@@ -72,27 +82,25 @@ export function AgentCreateForm({
   );
   const resolvedModel =
     model === 'custom' ? customModel.trim() : model || (hosted ? '' : defaultModel);
-  const connectedToolGroups: Record<string, string[]> = {
-    read_file: ['read_file', 'list_dir', 'grep', 'glob'],
-    write_file: ['write_file', 'edit_file'],
-  };
   const runtimeProfile = connected?.catalog.runtime_profiles?.find(
     (profile) => profile.provider === provider && profile.harness === configuration.harness,
   );
-  const supportedTools = runtimeProfile?.tools ?? (hosted ? [] : (connected?.catalog.tools ?? []));
+  const supportedTools = connected
+    ? supportedAgentTools(connected.catalog, provider, configuration.harness)
+    : [];
   const requiresToolConsent =
     hosted && !!runtimeProfile?.requires_tool_consent && configuration.toolIds.length > 0;
   const providerReady =
     !hosted || (!!lab?.key_saved && hostedConsent && (!requiresToolConsent || hostedToolsConsent));
   const tools = connected
-    ? agentTools.filter((tool) =>
-        connectedToolGroups[tool.id]?.every((id) => connected.catalog.tools?.includes(id)),
+    ? agentTools.filter(
+        (tool) =>
+          configuration.toolIds.includes(tool.id) ||
+          agentToolGroups[tool.id]?.some((id) => connected.catalog.tools?.includes(id)),
       )
     : agentTools;
   const incompatibleTools = connected
-    ? configuration.toolIds.filter(
-        (id) => !connectedToolGroups[id]?.every((tool) => supportedTools.includes(tool)),
-      )
+    ? selectedTools.filter((tool) => !supportedTools.includes(tool))
     : [];
   const compatibilityIssue =
     connected?.catalog.runtime_profiles && !runtimeProfile
@@ -138,6 +146,11 @@ export function AgentCreateForm({
                 provider,
                 hostedConsent,
                 hostedToolsConsent: requiresToolConsent && hostedToolsConsent,
+                expectedWorkspaceRoot:
+                  requiresToolConsent && hostedToolsConsent
+                    ? connected?.catalog.workspace_root || undefined
+                    : undefined,
+                tools: selectedTools,
               }
             : {}),
           name: name.trim(),
@@ -221,7 +234,7 @@ export function AgentCreateForm({
                   setModel('');
                   setCustomModel('');
                   setHostedConsent(false);
-                  setHostedToolsConsent(false);
+                  setApprovedScope(null);
                 }}
               >
                 <option value="ollama">On this machine · Ollama</option>
@@ -279,29 +292,45 @@ export function AgentCreateForm({
           {!hosted && connected?.catalog.local_error && (
             <p role="status">{connected.catalog.local_error}</p>
           )}
-          <label>
-            Harness
-            <select
-              value={configuration.harness}
-              onChange={(event) =>
-                setConfiguration({
-                  ...configuration,
-                  harness: event.target.value as 'general' | 'coding',
-                })
-              }
+          {connected?.onRefresh && (
+            <button
+              type="button"
+              className="px-text-button"
+              disabled={connected.refreshing || connected.saving}
+              onClick={connected.onRefresh}
             >
-              {harnesses
-                .filter((harness) => !connected || connected.catalog.harnesses.includes(harness.id))
-                .map((harness) => (
-                  <option key={harness.id} value={harness.id}>
-                    {harness.name}
-                  </option>
-                ))}
-            </select>
-          </label>
+              {connected.refreshing ? 'Checking setup…' : 'Refresh engine setup'}
+            </button>
+          )}
+          {(!connected || connected.catalog.harnesses.length > 1) && (
+            <label>
+              Harness
+              <select
+                value={configuration.harness}
+                onChange={(event) =>
+                  setConfiguration({
+                    ...configuration,
+                    harness: event.target.value as 'general' | 'coding',
+                  })
+                }
+              >
+                {harnesses
+                  .filter(
+                    (harness) => !connected || connected.catalog.harnesses.includes(harness.id),
+                  )
+                  .map((harness) => (
+                    <option key={harness.id} value={harness.id}>
+                      {harness.name}
+                    </option>
+                  ))}
+              </select>
+            </label>
+          )}
           <p>
             {connected
-              ? 'Tetonic runs the agent on your machine using the model you choose.'
+              ? hosted
+                ? `Tetonic runs the agent here. Model requests go to ${lab?.name || provider}. Codex and Claude Code runtimes are not connected yet.`
+                : 'Tetonic runs the agent and its tools here, using your local model.'
               : harnesses.find((harness) => harness.id === configuration.harness)?.description}
           </p>
           {!connected && (
@@ -317,36 +346,57 @@ export function AgentCreateForm({
           <span>{configuration.toolIds.length + configuration.resourceIds.length} selected</span>
         </legend>
         <div className="agent-tool-grid">
-          {tools.map((tool) => (
-            <label
-              className="agent-tool-choice"
-              key={tool.id}
-              data-selected={configuration.toolIds.includes(tool.id)}
-            >
-              <input
-                type="checkbox"
-                aria-label={tool.name}
-                checked={configuration.toolIds.includes(tool.id)}
-                disabled={
-                  !!connected &&
-                  !configuration.toolIds.includes(tool.id) &&
-                  !connectedToolGroups[tool.id]?.every((id) => supportedTools.includes(id))
-                }
-                onChange={(event) =>
-                  setConfiguration({
-                    ...configuration,
-                    toolIds: event.target.checked
-                      ? [...configuration.toolIds, tool.id]
-                      : configuration.toolIds.filter((id) => id !== tool.id),
-                  })
-                }
-              />
-              <span>
-                <strong>{tool.name}</strong>
-                <small>{tool.description}</small>
-              </span>
-            </label>
-          ))}
+          {tools.map((tool) => {
+            const group = agentToolGroups[tool.id] || [];
+            const availableTools = group.filter((name) => supportedTools.includes(name));
+            const selected = configuration.toolIds.includes(tool.id);
+            const described = selected
+              ? selectedTools.filter((name) => group.includes(name))
+              : availableTools;
+            return (
+              <label
+                className="agent-tool-choice"
+                key={tool.id}
+                data-selected={configuration.toolIds.includes(tool.id)}
+              >
+                <input
+                  type="checkbox"
+                  aria-label={tool.name}
+                  checked={configuration.toolIds.includes(tool.id)}
+                  disabled={
+                    !!connected &&
+                    !configuration.toolIds.includes(tool.id) &&
+                    !availableTools.length
+                  }
+                  onChange={(event) => {
+                    if (connected)
+                      setSelectedTools(
+                        event.target.checked
+                          ? [
+                              ...selectedTools.filter((name) => !group.includes(name)),
+                              ...availableTools,
+                            ]
+                          : selectedTools.filter((name) => !group.includes(name)),
+                      );
+                    setConfiguration({
+                      ...configuration,
+                      toolIds: event.target.checked
+                        ? [...configuration.toolIds, tool.id]
+                        : configuration.toolIds.filter((id) => id !== tool.id),
+                    });
+                  }}
+                />
+                <span>
+                  <strong>{tool.name}</strong>
+                  <small>
+                    {connected
+                      ? toolDescription(described) || 'Unavailable with this provider'
+                      : tool.description}
+                  </small>
+                </span>
+              </label>
+            );
+          })}
         </div>
         {connected && (
           <p className="agent-field-note">
@@ -367,7 +417,7 @@ export function AgentCreateForm({
             <input
               type="checkbox"
               checked={hostedToolsConsent}
-              onChange={(event) => setHostedToolsConsent(event.target.checked)}
+              onChange={(event) => setApprovedScope(event.target.checked ? scopeKey : null)}
             />
             <span>
               Allow selected file results from{' '}

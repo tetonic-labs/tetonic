@@ -140,6 +140,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     provider: provider.into(),
                     hosted_consent: true,
                     hosted_tools_consent: false,
+                    expected_workspace_root: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
                     name: "Lab analyst".into(),
                     purpose: "Use the copper compass. Return your answer with finish.".into(),

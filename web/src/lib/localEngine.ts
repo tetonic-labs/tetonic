@@ -203,6 +203,7 @@ export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key'> & {
   request_id: string;
   tools?: string[];
   hosted_tools_consent?: boolean;
+  expected_workspace_root?: string;
 };
 export const engineStates: Record<EngineTaskState, string> = {
   waiting_human: 'Needs your input',

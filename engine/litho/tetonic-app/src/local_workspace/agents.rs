@@ -48,6 +48,9 @@ pub struct CreateLocalAgent {
     pub hosted_consent: bool,
     #[serde(default)]
     pub hosted_tools_consent: bool,
+    /// The folder displayed when disclosure was approved, not a requested root.
+    #[serde(default)]
+    pub expected_workspace_root: Option<String>,
     pub request_id: String,
     pub name: String,
     pub purpose: String,
@@ -216,14 +219,16 @@ impl LocalWorkspace {
                 .workspace_root
                 .as_ref()
                 .ok_or(AppError::WorkspaceUnavailable)?;
-            Some(
-                tetonic_tools::Workspace::new(root)
-                    .map_err(|_| AppError::WorkspaceUnavailable)?
-                    .root()
-                    .to_str()
-                    .ok_or(AppError::WorkspaceUnavailable)?
-                    .to_owned(),
-            )
+            let approved_root = tetonic_tools::Workspace::new(root)
+                .map_err(|_| AppError::WorkspaceUnavailable)?
+                .root()
+                .to_str()
+                .ok_or(AppError::WorkspaceUnavailable)?
+                .to_owned();
+            if input.expected_workspace_root.as_deref() != Some(approved_root.as_str()) {
+                return Err(AppError::InvalidRequest("The configured folder changed or its approval is missing. Refresh agent setup and approve the displayed folder.".into()));
+            }
+            Some(approved_root)
         } else {
             None
         };

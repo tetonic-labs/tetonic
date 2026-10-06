@@ -2,6 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { readFileSync, existsSync } from 'node:fs';
 import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
+import { WorkComposer } from '../src/components/team-work/WorkComposer';
+import { EngineAgentDetail } from '../src/components/team-work/EngineAgentDetail';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import {
   LocalEngine,
@@ -156,6 +158,75 @@ afterEach(() => {
 });
 
 describe('one connected team workspace', () => {
+  it('does not substitute another agent when the selected recipient is unavailable', async () => {
+    const f = fixture();
+    render(
+      <LocalEngineProvider client={f.client}>
+        <WorkComposer recipient="missing-agent" onAccepted={vi.fn()} />
+      </LocalEngineProvider>,
+    );
+    await screen.findByRole('option', { name: 'Mira' });
+    fireEvent.change(screen.getByLabelText('What would you like done?'), {
+      target: { value: 'Private research for the selected agent' },
+    });
+    expect(screen.getByLabelText('Assign to agent')).toHaveProperty('value', 'missing-agent');
+    expect(screen.getByRole('button', { name: 'Start work' })).toHaveProperty('disabled', true);
+    fireEvent.submit(screen.getByRole('button', { name: 'Start work' }).closest('form')!);
+    expect(f.submit).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByLabelText('Assign to agent'), { target: { value: agent.key } });
+    fireEvent.click(screen.getByRole('button', { name: 'Start work' }));
+    await waitFor(() => expect(f.submit).toHaveBeenCalledOnce());
+    expect(f.submit.mock.calls[0][2]).toBe(agent.key);
+  });
+
+  it('repairs a missing provider key on an existing agent before its first assignment', async () => {
+    const f = fixture();
+    const hosted = { ...agent, provider: 'openai', hosted_consent: true, tools: [] };
+    f.setData({ ...f.getData(), agents: [hosted] });
+    let keySaved = false;
+    vi.mocked(f.client.agentCatalog).mockImplementation(async () => ({
+      models: [],
+      harnesses: ['general'],
+      tools: [],
+      runtime_profiles: [
+        { provider: 'openai', harness: 'general', tools: [], tool_restriction: null },
+      ],
+      providers: [{ id: 'openai', name: 'OpenAI', key_saved: keySaved }],
+      max_steps: 8,
+      max_seconds: 120,
+      max_tokens: 4096,
+    }));
+    const save = vi.spyOn(f.client, 'saveProviderKey').mockImplementation(async () => {
+      keySaved = true;
+      return { id: 'openai', name: 'OpenAI', key_saved: true };
+    });
+    const create = vi.spyOn(f.client, 'createAgent');
+    const assign = vi.fn();
+    render(
+      <LocalEngineProvider client={f.client}>
+        <EngineAgentDetail
+          profile={hosted}
+          created={false}
+          records={[]}
+          onBack={vi.fn()}
+          onWork={vi.fn()}
+          onAgent={assign}
+        />
+      </LocalEngineProvider>,
+    );
+    const key = await screen.findByLabelText('OpenAI API key');
+    const start = screen.getByRole('button', { name: 'Give Mira work' });
+    expect(start).toHaveProperty('disabled', true);
+    fireEvent.change(key, { target: { value: 'fixture-key-only' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save key securely' }));
+    expect(key).toHaveProperty('value', '');
+    await waitFor(() => expect(start).toHaveProperty('disabled', false));
+    fireEvent.click(start);
+    expect(save).toHaveBeenCalledExactlyOnceWith('openai', 'fixture-key-only');
+    expect(assign).toHaveBeenCalledExactlyOnceWith(agent.key);
+    expect(create).not.toHaveBeenCalled();
+    expect(JSON.stringify(sessionStorage)).not.toContain('fixture-key-only');
+  });
   it('shows real planning activity at its source work without inventing a second outcome', () => {
     const f = fixture([{ ...saved, purpose: 'explore' }]);
     const data = f.getData();
@@ -265,7 +336,7 @@ describe('one connected team workspace', () => {
     );
     expect(f.submit).toHaveBeenCalledTimes(2);
   });
-  it('retains uncertain sends across navigation and retries the identical request', async () => {
+  it('retains uncertain sends and retries the original agent even after roster changes', async () => {
     const f = fixture();
     f.submit.mockRejectedValueOnce(new Error('Response lost'));
     f.view();
@@ -276,12 +347,18 @@ describe('one connected team workspace', () => {
     await waitFor(() => expect(send).toHaveProperty('disabled', false));
     fireEvent.click(send);
     await screen.findByText(/Response lost/);
+    f.setData({
+      ...f.getData(),
+      agents: [{ ...agent, key: 'someone-else', name: 'Someone else' }],
+    });
+    await screen.findByRole('option', { name: 'Someone else' }, { timeout: 3000 });
     fireEvent.click(screen.getByRole('button', { name: 'Teams', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
     expect(screen.getByRole('textbox', { name: 'What would you like done?' })).toHaveProperty(
       'value',
       'Keep this request.',
     );
+    expect(screen.getByLabelText('Assign to agent')).toHaveProperty('value', agent.key);
     fireEvent.click(screen.getByRole('button', { name: 'Retry work request' }));
     await screen.findByRole('region', { name: 'Work details' });
     expect(f.submit.mock.calls[1]).toEqual(f.submit.mock.calls[0]);
@@ -395,7 +472,7 @@ describe('one connected team workspace', () => {
     await screen.findByText('Request declined');
     expect(resolve).toHaveBeenCalledExactlyOnceWith('approval', false, 'digest');
   });
-  it('creates an engine agent through the team panel and reads its saved profile back', async () => {
+  it('creates an agent with a partial host toolkit and gives that exact agent its first assignment', async () => {
     const f = fixture();
     const create = vi.spyOn(f.client, 'createAgent').mockImplementation(async (input) => {
       const added = { ...input, key: 'new-agent', id: 'new-id' };
@@ -410,18 +487,28 @@ describe('one connected team workspace', () => {
     fireEvent.change(await screen.findByRole('textbox', { name: 'Name', exact: true }), {
       target: { value: 'June' },
     });
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Read files', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Create agent', exact: true }));
-    fireEvent.click(await screen.findByRole('button', { name: 'June Available' }));
-    expect(screen.getByRole('heading', { name: 'June' })).toBeTruthy();
+    expect(await screen.findByRole('heading', { name: 'June' })).toBeTruthy();
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
         name: 'June',
         harness: 'general',
-        tools: [],
+        tools: ['read_file'],
         model: agent.model,
         request_id: expect.any(String),
       }),
     );
+    const start = screen.getByRole('button', { name: 'Give June work' });
+    await waitFor(() => expect(start).toHaveProperty('disabled', false));
+    fireEvent.click(start);
+    expect(screen.getByLabelText('Assign to agent')).toHaveProperty('value', 'new-agent');
+    fireEvent.change(screen.getByLabelText('What would you like done?'), {
+      target: { value: 'Read our project notes' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start work', exact: true }));
+    await waitFor(() => expect(f.submit).toHaveBeenCalledOnce());
+    expect(f.submit.mock.calls[0][2]).toBe('new-agent');
   });
 });
 

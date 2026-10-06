@@ -83,6 +83,14 @@ async fn hosted_reads_use_selected_tools_exact_folder_and_actual_provider_result
                     provider: "openai".into(),
                     hosted_consent: true,
                     hosted_tools_consent: false,
+                    expected_workspace_root: Some(
+                        tetonic_tools::Workspace::new(&root)
+                            .unwrap()
+                            .root()
+                            .to_str()
+                            .unwrap()
+                            .to_owned(),
+                    ),
                     request_id: uuid::Uuid::new_v4().to_string(),
                     name: "Reader".into(),
                     purpose: "Read the assigned document with selected tools.".into(),
@@ -97,6 +105,19 @@ async fn hosted_reads_use_selected_tools_exact_folder_and_actual_provider_result
                     workspace.create_agent(input.clone()).await.is_err(),
                     "file disclosure requires explicit consent"
                 );
+                for stale_root in [None, Some("a-different-folder".into())] {
+                    assert!(
+                        workspace
+                            .create_agent(CreateLocalAgent {
+                                hosted_tools_consent: true,
+                                expected_workspace_root: stale_root,
+                                ..input.clone()
+                            })
+                            .await
+                            .is_err(),
+                        "consent must name the folder actually shown to the owner"
+                    );
+                }
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
                         hosted_tools_consent: true,
