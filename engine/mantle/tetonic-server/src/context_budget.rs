@@ -15,16 +15,6 @@ pub fn estimate(text: &str) -> usize {
 }
 
 impl ContextBudget {
-    pub fn assemble(
-        &self,
-        system: &str,
-        current: &Value,
-        intents: &[Value],
-        memories: &[Value],
-    ) -> Result<(String, Value), String> {
-        self.assemble_with_state(system, current, intents, memories, &Value::Null)
-    }
-
     pub fn assemble_with_state(
         &self,
         system: &str,
@@ -75,7 +65,9 @@ mod tests {
         let mut memories = vec![];
         for n in 0..100 {
             memories.push(json!({"id":n,"fact":"old detail ".repeat(100)}));
-            let (input, report) = budget.assemble("system", &current, &[], &memories).unwrap();
+            let (input, report) = budget
+                .assemble_with_state("system", &current, &[], &memories, &Value::Null)
+                .unwrap();
             assert!(report["estimated_input_tokens"].as_u64().unwrap() + 384 + 512 <= 4096);
             assert!(input.contains(&current.to_string()));
         }
@@ -89,14 +81,20 @@ mod tests {
             margin: 256,
         };
         assert!(budget
-            .assemble("system", &json!({"event":"x".repeat(4096)}), &[], &[])
+            .assemble_with_state(
+                "system",
+                &json!({"event":"x".repeat(4096)}),
+                &[],
+                &[],
+                &Value::Null
+            )
             .is_err());
         assert!(ContextBudget {
             context: 100,
             completion: 256,
             margin: 256
         }
-        .assemble("", &json!({}), &[], &[])
+        .assemble_with_state("", &json!({}), &[], &[], &Value::Null)
         .is_err());
     }
     #[test]
@@ -108,19 +106,21 @@ mod tests {
             completion: 256,
             margin: 256,
         };
-        let (_, r) = b.assemble("s", &value, &[], &[]).unwrap();
+        let (_, r) = b
+            .assemble_with_state("s", &value, &[], &[], &Value::Null)
+            .unwrap();
         let exact = r["estimated_input_tokens"].as_u64().unwrap() as usize + 512;
         assert!(ContextBudget {
             context: exact,
             ..b
         }
-        .assemble("s", &value, &[], &[])
+        .assemble_with_state("s", &value, &[], &[], &Value::Null)
         .is_ok());
         assert!(ContextBudget {
             context: exact - 1,
             ..b
         }
-        .assemble("s", &value, &[], &[])
+        .assemble_with_state("s", &value, &[], &[], &Value::Null)
         .is_err());
     }
 }

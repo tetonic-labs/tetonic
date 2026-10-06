@@ -99,14 +99,14 @@ pub fn validate_intention(decision: &Value) -> Result<(), String> {
         {
             return Err("unsupported intention field".into());
         }
-        if !o
-            .get("purpose")
-            .is_some_and(|v| v.as_str().is_some_and(|s| !s.trim().is_empty()))
+        if o.get("purpose")
+            .and_then(Value::as_str)
+            .is_none_or(|s| s.trim().is_empty())
         {
             return Err("intention requires purpose".into());
         }
         if o.values()
-            .any(|v| !v.as_str().is_some_and(|s| s.chars().count() <= 240))
+            .any(|v| v.as_str().is_none_or(|s| s.chars().count() > 240))
         {
             return Err("intention fields must be strings of at most 240 characters".into());
         }

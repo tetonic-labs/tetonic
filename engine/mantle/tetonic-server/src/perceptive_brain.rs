@@ -10,6 +10,8 @@ use tetonic_domain::{
 };
 use tetonic_runtime::SingleModelBrain;
 
+type EventAcknowledger = std::sync::Arc<dyn Fn(&str, &[String], &str) + Send + Sync>;
+
 pub struct PerceptiveBrain {
     inner: SingleModelBrain,
     instructions: String,
@@ -22,7 +24,7 @@ pub struct PerceptiveBrain {
     history: Mutex<DecisionHistory>,
     memory: Mutex<ObservationMemory>,
     experience: Mutex<crate::experience::ExperienceMemory>,
-    event_ack: Option<std::sync::Arc<dyn Fn(&str, &[String], &str) + Send + Sync>>,
+    event_ack: Option<EventAcknowledger>,
     trace: std::sync::Arc<crate::observability::TraceStore>,
     budget: crate::context_budget::ContextBudget,
 }
@@ -89,10 +91,7 @@ impl PerceptiveBrain {
         self.idle_interval = interval.max(self.cadence);
         self
     }
-    pub fn with_event_acknowledger(
-        mut self,
-        ack: std::sync::Arc<dyn Fn(&str, &[String], &str) + Send + Sync>,
-    ) -> Self {
+    pub fn with_event_acknowledger(mut self, ack: EventAcknowledger) -> Self {
         self.event_ack = Some(ack);
         self
     }

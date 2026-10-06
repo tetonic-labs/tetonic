@@ -64,6 +64,14 @@ latest affected-suite results total 698 passing tests, with two existing live
 proof tests ignored. Runtime/orchestrator Clippy passes; the full package gate
 still stops on managed-runtime lint findings. This does not close the sprint.
 
+October 5 managed-runtime follow-up: [managed runtime and server gate cleanup](october-1-coherent-workspace/managed-gate-evidence-2026-10-05.md)
+clears the managed-runtime and server Clippy findings while retaining their
+existing execution and validation behavior. All 718 runtime/application/server
+tests pass, with two existing live-proof tests ignored. The package gate now
+reaches 19 application-layer findings, inventoried for the next resource API
+slice. Formatting, architecture and static quality continue to pass; the overall
+release baseline remains open.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)
