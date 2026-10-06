@@ -18,7 +18,34 @@ pub struct RuntimeActionBroker {
         std::sync::Mutex<std::collections::HashMap<tetonic_domain::AttemptId, ApprovalHook>>,
 }
 
+/// One host-assembled agent's approval callback over the shared policy and
+/// capability store. Managed attempts are assigned after assembly; a scoped
+/// callback validates that actual attempt instead of relying on legacy registry
+/// registration timing.
+struct BoundApprovalBroker {
+    inner: Arc<RuntimeActionBroker>,
+    approval: ApprovalHook,
+}
+
+#[async_trait]
+impl ActionBroker for BoundApprovalBroker {
+    async fn evaluate_and_issue(
+        &self,
+        action: &ProposedAction,
+    ) -> Result<IssuedCapability, CapabilityError> {
+        self.inner
+            .evaluate_with_approval(action, Some(&self.approval))
+            .await
+    }
+}
+
 impl RuntimeActionBroker {
+    pub fn with_approval(self: &Arc<Self>, approval: ApprovalHook) -> Arc<dyn ActionBroker> {
+        Arc::new(BoundApprovalBroker {
+            inner: self.clone(),
+            approval,
+        })
+    }
     pub fn new(
         policy_engine: Arc<PolicyEngine>,
         capability_store: Arc<InMemoryCapabilityStore>,
@@ -63,6 +90,16 @@ impl ActionBroker for RuntimeActionBroker {
         &self,
         action: &ProposedAction,
     ) -> Result<IssuedCapability, CapabilityError> {
+        self.evaluate_with_approval(action, None).await
+    }
+}
+
+impl RuntimeActionBroker {
+    async fn evaluate_with_approval(
+        &self,
+        action: &ProposedAction,
+        approval: Option<&ApprovalHook>,
+    ) -> Result<IssuedCapability, CapabilityError> {
         let action = prepare_proposed_action(action.clone());
         let outcome = self.policy_engine.evaluate_action(&action);
 
@@ -75,10 +112,12 @@ impl ActionBroker for RuntimeActionBroker {
         }
 
         if outcome.approval == ApprovalRequirement::Interactive {
-            let hook = action
-                .attempt_id
-                .as_ref()
-                .and_then(|att| self.attempt_approvals.lock().unwrap().get(att).cloned());
+            let hook = approval.cloned().or_else(|| {
+                action
+                    .attempt_id
+                    .as_ref()
+                    .and_then(|att| self.attempt_approvals.lock().unwrap().get(att).cloned())
+            });
             if let Some(hook) = hook {
                 let req = ApprovalRequest {
                     call_id: action.action_id.to_string(),

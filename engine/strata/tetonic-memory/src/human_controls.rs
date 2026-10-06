@@ -6,6 +6,8 @@ use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use crate::{Result, Store, StoreError};
 
 mod approvals;
+mod shell_approvals;
+pub use shell_approvals::ShellApprovalProposal;
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct ControlStop {
@@ -31,6 +33,7 @@ pub struct EffectApproval {
     pub expires_at: i64,
     pub created_by: String,
     pub resolved_by: Option<String>,
+    pub proposal: Option<ShellApprovalProposal>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]

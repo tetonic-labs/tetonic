@@ -64,3 +64,21 @@ Final checks on this increment:
 | `git diff --check` | Passed |
 
 The prior default-parallel audit-failure/cancellation classification race remains open; serial results do not resolve it. No running engine was restarted, and no paid inference, persistent OAuth grant, external MCP server installation or publication was performed. The operator must rebuild/restart with `--mcp-config` to expose this profile in an existing local session. Remote/authenticated/write MCP, hosted MCP disclosure, vendor harness attachment, delegated child tools and skills remain incomplete.
+
+
+## Terminal and local command tools — October 6 follow-up
+
+Added actual-process tests to the direct-agent provider matrix. OpenAI, Anthropic and Google fixture inference each requests the same shell command through a created agent. The approved command writes a real receipt; unselected, rejected, canceled and expired requests cannot produce it. Tests verify exact digest checking, working directory, provider call/result correlation, owner-only disclosure/decision, consumption and empty pending lists after completion/cancellation. No provider network calls or paid inference are involved.
+
+The local Ollama HTTP fixture executes the same tool host and receives real stdout. A second case launches an actual local Python script through the shell, waits for its start marker, confirms approval cannot be consumed twice while it is running, cancels the managed work, and verifies its delayed effect never occurs. Control storage inside the working folder removes Terminal from host availability. A registered shell job without its work/owner approval binding is rejected before inference.
+
+Verification:
+
+- Hosted shell matrix: all 15 provider/decision scenarios passed.
+- Local shell execution, child cancellation, and storage-location checks passed. The initial child fixture encountered Windows' PowerShell script policy; the final fixture uses a local Python file without changing host policy.
+- The app regression run passed 221 tests with three live-model scenarios ignored; its one failing legacy unbound-shell expectation exposed a preflight ordering regression. That guard was restored and its focused check passed. The final local shell checks passed after adding child cancellation and duplicate-consumption coverage.
+- Memory: 168 tests passed, including schema upgrade/crash/backup tests exercising schema 61. Runtime: 31 passed. Tools: 58 passed, one pre-existing ignored test.
+- Package gate: formatting, workspace Clippy with warnings denied, architecture and static quality all passed.
+- Web: 147 tests passed across 25 files, including command review/allow-once and keeping Terminal selected across a provider change. TypeScript/Vite build passed; the existing >500 kB bundle warning remains.
+
+The installed engine was not restarted or migrated, and no live vendor/harness execution was performed. This evidence qualifies the shared execution path, not a claim that every model can reliably choose tools. Native index/LSP bindings, remote/auth/write MCP, vendor harness bridging and inherited team-tool execution remain open.

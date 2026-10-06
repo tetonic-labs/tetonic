@@ -46,7 +46,11 @@ pub fn tool_defs() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "run_shell",
-            description: "Run a shell command in the workspace. Requires user approval.",
+            description: if cfg!(windows) {
+                "Run a command with cmd.exe on Windows in the working folder, including installed command-line tools. Each command needs user approval. Commands have a time limit; do not start background or persistent services."
+            } else {
+                "Run a command with /bin/sh in the working folder, including installed command-line tools. Each command needs user approval. Commands have a time limit; do not start background or persistent services."
+            },
             parameters: schema_of::<RunShellArgs>(),
             mutating: true,
         },

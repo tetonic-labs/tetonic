@@ -31,8 +31,8 @@ impl ToolDisclosure {
     }
 }
 
-/// These capabilities use the jailed workspace and existing effect/finalization
-/// brokers. Model choice does not alter their implementation or grants.
+/// These capabilities require an explicit working folder. File tools are jailed;
+/// shell confinement depends on the host OS and requires command approval.
 pub const WORKSPACE_TOOLS: &[&str] = &[
     "read_file",
     "list_dir",
@@ -42,6 +42,7 @@ pub const WORKSPACE_TOOLS: &[&str] = &[
     "search_code",
     "edit_file",
     "write_file",
+    "run_shell",
 ];
 
 pub fn uses_workspace(tools: &[String]) -> bool {

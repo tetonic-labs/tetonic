@@ -17,6 +17,7 @@ impl Store {
             request_id,
             expires_at,
             work_id,
+            proposal,
         } = command;
         validate_id(org, "org_id")?;
         validate_id(team, "team_id")?;
@@ -28,8 +29,29 @@ impl Store {
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
+        if let Some(p) = proposal {
+            let deadline = self.human_live_deadline(
+                org,
+                team,
+                work_id.ok_or(StoreError::ControlAccessDenied)?,
+                &p.attempt_id,
+                chrono::Utc::now().timestamp().max(0) as u64,
+            )?;
+            if p.command.trim().is_empty()
+                || p.command.len() > 32_768
+                || p.command.contains('\0')
+                || p.digest() != proposal_digest
+                || expires_at > deadline as i64
+            {
+                return Err(StoreError::ControlAccessDenied);
+            }
+        }
         if let Some(existing) = self.effect_approval_by_request(org, team, request_id)? {
-            if existing.approval_id != approval_id || existing.proposal_digest != proposal_digest {
+            if existing.approval_id != approval_id
+                || existing.proposal_digest != proposal_digest
+                || existing.proposal.as_ref() != proposal
+                || existing.work_id.as_deref() != work_id
+            {
                 return Err(StoreError::ControlResourceConflict);
             }
             tx.commit()?;
@@ -38,8 +60,8 @@ impl Store {
         self.conn.execute(
             "INSERT INTO effect_approvals(
                 org_id,team_id,approval_id,work_id,proposal_digest,status,request_id,
-                expires_at,created_by,resolved_by,created_at
-             ) VALUES(?1,?2,?3,?4,?5,'pending',?6,?7,?8,NULL,?9)",
+                expires_at,created_by,resolved_by,created_at,proposal_json
+             ) VALUES(?1,?2,?3,?4,?5,'pending',?6,?7,?8,NULL,?9,?10)",
             params![
                 org,
                 team,
@@ -49,7 +71,8 @@ impl Store {
                 request_id,
                 expires_at,
                 actor,
-                crate::util::now()
+                crate::util::now(),
+                proposal.map(|p| serde_json::to_string(p).expect("shell proposal"))
             ],
         )?;
         let row = self
@@ -69,7 +92,7 @@ impl Store {
             .conn
             .query_row(
                 "SELECT org_id,team_id,approval_id,work_id,proposal_digest,status,request_id,
-                        expires_at,created_by,resolved_by
+                        expires_at,created_by,resolved_by,proposal_json
                  FROM effect_approvals WHERE org_id=?1 AND team_id=?2 AND request_id=?3",
                 params![org, team, request_id],
                 Self::map_effect_approval,
@@ -87,7 +110,7 @@ impl Store {
             .conn
             .query_row(
                 "SELECT org_id,team_id,approval_id,work_id,proposal_digest,status,request_id,
-                        expires_at,created_by,resolved_by
+                        expires_at,created_by,resolved_by,proposal_json
                  FROM effect_approvals WHERE org_id=?1 AND team_id=?2 AND approval_id=?3",
                 params![org, team, approval_id],
                 Self::map_effect_approval,
@@ -107,6 +130,18 @@ impl Store {
             expires_at: r.get(7)?,
             created_by: r.get(8)?,
             resolved_by: r.get(9)?,
+            proposal: r
+                .get::<_, Option<String>>(10)?
+                .map(|json| {
+                    serde_json::from_str(&json).map_err(|e| {
+                        rusqlite::Error::FromSqlConversionFailure(
+                            10,
+                            rusqlite::types::Type::Text,
+                            Box::new(e),
+                        )
+                    })
+                })
+                .transpose()?,
         })
     }
 
@@ -130,9 +165,15 @@ impl Store {
         let current = self
             .get_effect_approval(org, team, approval_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
+        // Commands originate in the initiating person's participation context.
+        // Team membership alone does not disclose or authorize that command.
+        if current.proposal.is_some() && current.created_by != actor {
+            return Err(StoreError::ControlAccessDenied);
+        }
         if current.proposal_digest != proposal_digest {
             return Err(StoreError::ControlResourceConflict);
         }
+        self.shell_approval_live(&current, now_unix)?;
         if current.status != "pending" {
             if current.status == "approved" && allow || current.status == "rejected" && !allow {
                 tx.commit()?;
@@ -176,6 +217,10 @@ impl Store {
         if row.proposal_digest != proposal_digest {
             return Ok(false);
         }
+        // Shell approvals must pass the live, single-consumption gate.
+        if row.proposal.is_some() {
+            return Ok(false);
+        }
         if row.status == "approved" && row.expires_at > now_unix {
             return Ok(true);
         }
@@ -198,7 +243,7 @@ impl Store {
         self.require_team_participant(actor, org, team)?;
         let mut stmt = self.conn.prepare(
             "SELECT org_id,team_id,approval_id,work_id,proposal_digest,status,request_id,
-                    expires_at,created_by,resolved_by
+                    expires_at,created_by,resolved_by,proposal_json
              FROM effect_approvals
              WHERE org_id=?1 AND team_id=?2 AND status='pending'
              ORDER BY created_at, approval_id",
@@ -206,6 +251,15 @@ impl Store {
         let rows = stmt
             .query_map(params![org, team], Self::map_effect_approval)?
             .collect::<std::result::Result<Vec<_>, _>>()?;
-        Ok(rows)
+        let now = chrono::Utc::now().timestamp();
+        Ok(rows
+            .into_iter()
+            .filter(|row| {
+                row.proposal.is_none()
+                    || (row.created_by == actor
+                        && row.expires_at > now
+                        && self.shell_approval_live(row, now).is_ok())
+            })
+            .collect())
     }
 }

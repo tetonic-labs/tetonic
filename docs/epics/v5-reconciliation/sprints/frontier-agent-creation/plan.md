@@ -19,6 +19,10 @@ User clarification, October 6: an agent's granted tools and MCP connections must
 
 Acceptance: run the same neutral MCP and ordinary tool scenarios through OpenAI, Anthropic, Google and local adapters. Exercise success, unselected-tool denial, mismatched/changed manifests, argument/result correlation, errors, partial streams, cancellation, revocation and denied disclosure. Repeat the selected-tool path through managed team dispatch and the first enabled vendor harness. Do not claim parity from a model dropdown, standalone probe or fixture-free assertion.
 
+## Local execution scope — October 6 clarification
+
+Tool parity includes shell commands and installed local command-line tools, as well as files and configured MCP tools. Inference location does not select the execution machine: the agent's host executes its granted local tools. Terminal is an explicit permission, with the exact proposed command reviewed in the existing Needs you area. No implicit terminal grant is added to existing agents.
+
 ## Immediate implementation order
 
 This clarification supersedes the earlier vendor-first ordering below. Prioritize FAR-004's common capability/disclosure binding with FAR-006 MCP use; qualify the existing OpenAI and Anthropic adapters plus the new Google route under FAR-002/003/008. Carry the resolved binding through FAR-007 team dispatch. FAR-005 must then connect its harness to that same path. Versioned editing and lifecycle controls continue to reuse existing identity/revision primitives. Do not remove the current guards before their common replacement and tests exist. This is a target and priority change, not a claim that the current restrictions have been removed.

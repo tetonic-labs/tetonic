@@ -41,7 +41,7 @@ impl LocalWorkspace {
             .map_err(resource)?;
 
         let has_workspace = workspace_root.is_some();
-        let allowed_tools: std::collections::HashSet<String> = if has_workspace {
+        let mut allowed_tools: std::collections::HashSet<String> = if has_workspace {
             [
                 "read_file",
                 "list_dir",
@@ -49,8 +49,7 @@ impl LocalWorkspace {
                 "glob",
                 "edit_file",
                 "write_file",
-                "outline",
-                "search_code",
+                "run_shell",
                 "finish",
             ]
             .into_iter()
@@ -59,6 +58,16 @@ impl LocalWorkspace {
         } else {
             Default::default()
         };
+        // Keep control state outside the command working folder. The process
+        // sink enforces this too; do not offer an unusable terminal permission.
+        let shell_ready = workspace_root
+            .as_ref()
+            .and_then(|path| tetonic_tools::Workspace::new(path).ok())
+            .zip(database.canonicalize().ok())
+            .is_some_and(|(workspace, database)| !database.starts_with(workspace.root()));
+        if !shell_ready {
+            allowed_tools.remove("run_shell");
+        }
 
         let requested_tools: Vec<String> = if has_workspace {
             vec![

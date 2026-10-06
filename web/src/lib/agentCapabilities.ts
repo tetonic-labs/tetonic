@@ -4,6 +4,7 @@ import type { AgentCatalog, EngineAgent } from './localEngine';
 export const agentToolGroups: Record<string, readonly string[]> = {
   read_file: ['read_file', 'list_dir', 'grep', 'glob'],
   write_file: ['write_file', 'edit_file'],
+  run_shell: ['run_shell'],
 };
 const toolDescriptions: Record<string, string> = {
   read_file: 'Read file contents',
@@ -12,6 +13,7 @@ const toolDescriptions: Record<string, string> = {
   glob: 'Find files by name',
   write_file: 'Create or replace files',
   edit_file: 'Edit existing files',
+  run_shell: 'Run commands with your approval',
   outline: 'Inspect code structure',
   search_code: 'Search code',
 };

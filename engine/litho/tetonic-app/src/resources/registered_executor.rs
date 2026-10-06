@@ -108,8 +108,8 @@ impl crate::Application {
     /// Trusted host launch using the installed compute plane and runtime. No
     /// caller-supplied Agent/provider/audit can bypass this assembly. Requires a
     /// LocalSet, a stored job grant and a brokered compute plane installed through
-    /// install_compute_services. Interactive actions deny until scoped approvals
-    /// are integrated. This is not yet an employee transport or cumulative budget.
+    /// install_compute_services. Shell approvals require a bound team work item;
+    /// other interactive actions fail closed.
     pub async fn submit_registered_job(
         &self,
         credential: &str,
@@ -311,6 +311,27 @@ impl crate::Application {
                 "{tool} is not a supported registered isolation profile"
             )));
         }
+        if prepared
+            .command
+            .job_spec
+            .capability_bindings
+            .iter()
+            .any(|tool| tool == "run_shell")
+            && !work.as_ref().is_some_and(|(team, _)| {
+                tetonic_memory::team_participation_context_id(
+                    &prepared.authorization.scope.organization_id,
+                    team,
+                    &prepared.authorization.scope.principal_id,
+                )
+                .ok()
+                .as_deref()
+                    == Some(prepared.authorization.scope.information_context_id.as_str())
+            })
+        {
+            return Err(AppError::PolicyDenied(
+                "run_shell requires an owner-scoped work approval profile.".into(),
+            ));
+        }
         let repository_requested = settings
             .allowed_tools
             .iter()
@@ -475,7 +496,7 @@ impl crate::Application {
             .collect();
         allowed.insert("finish".into());
         let mut tools = match workspace {
-            Some(workspace) => tetonic_tools::Tools::new(workspace, false),
+            Some(workspace) => tetonic_tools::Tools::new(workspace, allowed.contains("run_shell")),
             None => tetonic_tools::Tools::without_repository()
                 .map_err(|_| AppError::WorkspaceUnavailable)?,
         }
@@ -544,6 +565,13 @@ impl crate::Application {
             provider.broker().clone(),
             Arc::new(tools.executor().clone()),
         ));
+        let approval = super::shell_approval::for_work(
+            kind_store.clone(),
+            prepared.authorization.scope.clone(),
+            work.clone(),
+            root.clone(),
+            deadline,
+        );
         let provider: Arc<dyn tetonic_inference::InferenceProvider> = match work {
             Some((team, work)) => Arc::new(super::work_usage::WorkUsageProvider {
                 inner: provider,
@@ -617,9 +645,7 @@ impl crate::Application {
                 tetonic_runtime::AgentAssemblyParts {
                     agent,
                     audit,
-                    approval: tetonic_runtime::ProductionApproval::host(Arc::new(|_| {
-                        Box::pin(async { false })
-                    })),
+                    approval: tetonic_runtime::ProductionApproval::host(approval.clone()),
                     spawn: settings
                         .plan_dispatch
                         .as_ref()
@@ -631,7 +657,8 @@ impl crate::Application {
                     capture_workspace_version,
                 },
             )
-            .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?;
+            .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?
+            .with_action_broker(runtime.action_broker().with_approval(approval));
         let submission = self
             .run_manager
             .submit_prepared_registered_job(prepared, agent)
@@ -673,12 +700,13 @@ impl crate::Application {
     }
 }
 
-/// In-process tools and workspace-jailed file tools are supported. Model-requested
-/// shells are not, because this path does not start an OS sandbox for them.
+/// Tool implementations share the existing capability and process brokers.
+/// Shell execution additionally requires a live, exact-command human approval.
 fn supported_registered_tool(tool: &str) -> bool {
     matches!(
         tool,
         "finish"
+            | "run_shell"
             | "dispatch_assignment"
             | "ask_human"
             | "recall"
@@ -753,11 +781,11 @@ mod isolation_tests {
     }
 
     #[test]
-    fn shell_is_outside_the_registered_isolation_matrix() {
+    fn shell_uses_the_registered_process_broker() {
         assert!(supported_registered_tool("recall"));
         assert!(supported_registered_tool("read_file"));
         assert!(supported_registered_tool("write_file"));
-        assert!(!supported_registered_tool("run_shell"));
+        assert!(supported_registered_tool("run_shell"));
     }
 }
 

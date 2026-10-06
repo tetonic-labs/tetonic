@@ -101,7 +101,9 @@ pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
 pub use control_credentials::ControlCredentialRow;
-pub use human_controls::{ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection};
+pub use human_controls::{
+    ControlStop, EffectApproval, ShellApprovalProposal, TeamEffortEntry, TeamWorkInspection,
+};
 pub use identity_store::AgentIdentityRow;
 pub use membership_store::{ControlPermission, OrganizationRole};
 pub use recall::RecallHit;

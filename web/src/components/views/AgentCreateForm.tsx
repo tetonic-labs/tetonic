@@ -416,13 +416,20 @@ export function AgentCreateForm({
             {hosted
               ? 'Workspace tools need a supported execution profile. Your selections are kept when you change providers.'
               : tools.length
-                ? 'Only selected tools are granted, within the engine’s configured folder.'
+                ? 'Only selected tools are granted. Terminal commands need your approval each time.'
                 : 'No workspace tools are available for this provider and host.'}
           </p>
         )}
         {compatibilityIssue && (
           <p className="local-notice" role="alert">
             {compatibilityIssue}
+          </p>
+        )}
+        {connected && selectedTools.includes('run_shell') && (
+          <p className="agent-field-note">
+            Terminal runs local commands and installed command-line tools. Each command appears in
+            Needs you for your approval. The working folder is not a security boundary on every
+            operating system; any isolation gaps are shown with the command.
           </p>
         )}
         {connected &&
@@ -447,7 +454,7 @@ export function AgentCreateForm({
             <span>
               Allow selected tool inputs and results to be sent to {lab?.name}.
               {selectedTools.some((tool) => !tool.startsWith('mcp_')) &&
-                ` File access stays within ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
+                ` Working folder: ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
               Only the selected tools are included in this approval.
             </span>
           </label>

@@ -224,6 +224,7 @@ impl Store {
         self.migrate_child_capacity_v58()?;
         self.migrate_huddle_execution_v59()?;
         self.migrate_plan_human_v60()?;
+        self.migrate_shell_approvals_v61()?;
         Ok(())
     }
 

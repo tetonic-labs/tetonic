@@ -471,6 +471,40 @@ describe('one connected team workspace', () => {
     await screen.findByText('Request declined');
     expect(resolve).toHaveBeenCalledExactlyOnceWith('approval', false, 'digest');
   });
+  it('shows the exact shell action and isolation limits before allowing it once', async () => {
+    const f = fixture();
+    const approval = {
+      org_id: 'org',
+      team_id: 'our-team',
+      approval_id: 'shell-approval',
+      proposal_digest: 'exact-shell-digest',
+      status: 'pending',
+      request_id: 'shell-request',
+      expires_at: 4102444800,
+      proposal: {
+        command: 'git status --short',
+        working_directory: 'C:/work/project',
+        shell: 'cmd',
+        attempt_id: 'attempt',
+        call_id: 'call',
+        parameter_digest: 'command-digest',
+        confinement_warnings: ['Filesystem isolation is unavailable on this host.'],
+      },
+    };
+    f.approvals.mockResolvedValue({ active_stops: [], pending_approvals: [approval], effort: [] });
+    const resolve = vi
+      .spyOn(f.client, 'resolveApproval')
+      .mockResolvedValue({ ...approval, status: 'approved' });
+    f.view();
+    fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
+    expect(screen.getByText('git status --short')).toBeTruthy();
+    expect(screen.getByText('C:/work/project')).toBeTruthy();
+    expect(screen.getByText('Filesystem isolation is unavailable on this host.')).toBeTruthy();
+    expect(resolve).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Allow once' }));
+    await screen.findByText('Command approved once');
+    expect(resolve).toHaveBeenCalledExactlyOnceWith('shell-approval', true, 'exact-shell-digest');
+  });
   it('creates an agent with a partial host toolkit and gives that exact agent its first assignment', async () => {
     const f = fixture();
     const create = vi.spyOn(f.client, 'createAgent').mockImplementation(async (input) => {

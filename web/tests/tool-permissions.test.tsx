@@ -19,6 +19,7 @@ const workspace: EngineWorkspace = {
 function setup(
   tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', 'edit_file'],
   hostedReads = false,
+  hostedTools = ['read_file', 'list_dir', 'grep', 'glob'],
 ) {
   const client = new LocalEngine('test');
   vi.spyOn(client, 'providerModels').mockResolvedValue({
@@ -34,7 +35,7 @@ function setup(
           {
             provider: 'openai',
             harness: 'general',
-            tools: ['read_file', 'list_dir', 'grep', 'glob'],
+            tools: hostedTools,
             requires_tool_consent: true,
             tool_restriction: 'Writes are not supported.',
           },
@@ -62,6 +63,33 @@ function setup(
 afterEach(() => vi.restoreAllMocks());
 
 describe('connected agent permissions', () => {
+  it('retains a selected terminal when switching to a compatible frontier provider', async () => {
+    const { create } = setup(['read_file', 'run_shell'], true, ['read_file', 'run_shell']);
+    fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
+      target: { value: 'Operator' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Terminal' }));
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
+    expect(screen.getByRole('checkbox', { name: 'Terminal' })).toHaveProperty('checked', true);
+    expect(screen.getByText(/Each command appears in Needs you/)).toBeTruthy();
+    fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+      target: { value: 'gpt-4.1' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    expect(screen.getByRole('button', { name: /Create agent/ })).toHaveProperty('disabled', true);
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Create agent/ }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(create.mock.calls[0][0]).toMatchObject({
+      provider: 'openai',
+      tools: ['run_shell'],
+      hosted_tools_consent: true,
+      expected_workspace_root: 'C:/approved-work',
+    });
+  });
   it('attaches selected hosted read tools only after explicit folder disclosure consent', async () => {
     const { create } = setup(undefined, true);
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {

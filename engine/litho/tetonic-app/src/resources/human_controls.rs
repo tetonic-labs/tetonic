@@ -107,6 +107,7 @@ impl ResourceService {
             .store
             .write(move |db| {
                 db.propose_effect_approval(tetonic_memory::ProposeEffectApproval {
+                    proposal: None,
                     actor: &actor.principal_id,
                     org: &org,
                     team: &team,

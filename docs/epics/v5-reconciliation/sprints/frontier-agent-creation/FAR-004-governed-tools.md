@@ -1,6 +1,6 @@
 # FAR-004 — Provider-independent tool execution and disclosure
 
-Status: **in progress — direct-agent file/MCP parity implemented for Ollama, OpenAI, Anthropic and Google; fixture verified**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress — direct-agent file/shell/MCP parity implemented for Ollama, OpenAI, Anthropic and Google; fixture verified**. Size: L. Parent: [frontier agent sprint](plan.md).
 
 ## Work
 
@@ -37,7 +37,19 @@ Hosted approval now covers selected tool inputs/results. The editor retains tool
 
 One shared fixture matrix exercises real file reads and staged writes, genuine result correlation, unselected-write denial, path escape, secret-result denial and legacy/destination checks against all three hosted protocols. Another exercises actual local HTTP MCP through created hosted agents, including unselected calls, changed manifests, key removal and managed cancellation. Existing Ollama tests exercise the same underlying runtime and MCP host. Results and commands are recorded in FAR-008. No paid inference or live vendor compatibility is claimed.
 
-Remaining: inherited tools/data scope for agreed-plan children (fourth coupling row), integrated interactive approval where policy requires it, vendor harness attachment, durable frontier continuation, stronger capability qualification and live provider/product evidence. Provider independence is implemented for direct general-harness agents; this does not finish the whole ticket or sprint.
+Remaining: inherited tools/data scope for agreed-plan children (fourth coupling row), interactive approval beyond shell commands, vendor harness attachment, durable frontier continuation, stronger capability qualification and live provider/product evidence. Provider independence is implemented for direct general-harness agents; this does not finish the whole ticket or sprint.
+
+### Local terminal increment — October 6
+
+Direct general agents can select `run_shell` with Ollama, OpenAI, Anthropic or Google. This uses the existing Tools implementation, ActionBroker policy/capability store, sandbox ProcessExecutor and managed cancellation. A per-agent broker facade connects the host approval callback after managed attempt assignment; it shares policy and capability storage, without a separate executor or permission registry. Commands receive the platform shell identity in their tool description, and can use installed CLI programs within existing policy and command restrictions. No background-service lifecycle is added.
+
+Schema 61 adds an optional exact shell proposal to existing effect approvals. The initiating owner reviews command, shell, working folder and predicted OS confinement gaps in Needs you. Its digest binds the proposal, canonical command parameters, call and attempt; consumption is transactional and once only. Existing work/run/deadline/stop checks gate proposal, resolution and consumption. Requests from a person's participation context are visible/resolvable only by that person, not every team member. Missing work bindings and other interactive action kinds deny. The legacy generic approval endpoint cannot create shell payloads.
+
+Terminal permissions require control storage outside the working folder. The existing protected-store, traversal, credential and inline-code checks now also run at the capability-backed shell sink. Windows process-tree containment is reused, but filesystem confinement is unavailable; the working folder must not be represented as an OS security boundary. Host-specific gaps are displayed before approval. Provider disclosure consent remains separate from permission to run the command.
+
+The local catalog no longer advertises `outline`/`search_code` without a bound code index. This does not remove their existing implementations. File browsing/search, granted commands and discovered local MCP read tools remain available; LSP/index configuration and other native integrations need their own actual bindings.
+
+Still open: delegated team-tool inheritance, vendor harnesses, remote/authenticated/write MCP, durable provider continuation and live-provider qualification. Shell approval waits use the existing execution deadline; they are not resumable approvals after restart. Existing recovery makes stale attempts non-executable. This increment does not provide a shell confined to its folder on Windows or imply unrestricted tool access.
 
 ### Historical first slice
 

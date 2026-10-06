@@ -76,6 +76,7 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
     let db = primed();
     let proposed = db
         .propose_effect_approval(crate::ProposeEffectApproval {
+            proposal: None,
             actor: "alice",
             org: "org",
             team: "team",
@@ -118,6 +119,7 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
         })
         .is_err());
     db.propose_effect_approval(crate::ProposeEffectApproval {
+        proposal: None,
         actor: "alice",
         org: "org",
         team: "team",
@@ -142,6 +144,7 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
         .effect_approval_allows_dispatch("org", "team", "ap2", "digest-c", 1_000)
         .unwrap());
     db.propose_effect_approval(crate::ProposeEffectApproval {
+        proposal: None,
         actor: "alice",
         org: "org",
         team: "team",

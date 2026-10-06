@@ -76,7 +76,7 @@ impl Store {
         Ok(())
     }
 
-    fn human_live_deadline(
+    pub(crate) fn human_live_deadline(
         &self,
         org: &str,
         team: &str,

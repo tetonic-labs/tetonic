@@ -150,7 +150,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             .unwrap();
             let catalog = workspace.agent_catalog().await.unwrap();
             assert!(catalog.tools.contains(&"read_file".to_string()));
-            assert!(!catalog.tools.contains(&"run_shell".to_string()));
+            assert!(catalog.tools.contains(&"run_shell".to_string()));
             assert_eq!(catalog.runtime_profiles.len(), 4);
             for profile in &catalog.runtime_profiles {
                 assert_eq!(profile.harness, "general");
@@ -192,7 +192,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 );
             }
             for tools in [
-                vec!["run_shell".into()],
+                vec!["not_installed_tool".into()],
                 vec!["read_file".into(), "unknown_tool".into()],
             ] {
                 assert!(workspace

@@ -875,7 +875,7 @@ async fn noncoding_recall_job_runs_without_a_repository() {
 }
 
 #[tokio::test]
-async fn registered_shell_is_rejected_before_inference() {
+async fn unbound_registered_shell_is_rejected_before_inference() {
     let dir = tempfile::tempdir().unwrap();
     let database = dir.path().join("control.db");
     let local = LocalControl::open(database.clone(), "test".into())

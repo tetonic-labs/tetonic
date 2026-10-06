@@ -482,6 +482,15 @@ export interface LocalWorkItem {
 }
 
 export interface LocalApproval {
+  proposal?: {
+    command: string;
+    working_directory: string;
+    shell: string;
+    attempt_id: string;
+    call_id: string;
+    parameter_digest: string;
+    confinement_warnings: string[];
+  } | null;
   org_id: string;
   team_id: string;
   approval_id: string;

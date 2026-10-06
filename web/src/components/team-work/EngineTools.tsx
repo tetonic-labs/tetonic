@@ -18,7 +18,7 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
   const catalogReady = isConnected && Array.isArray(catalog?.tools) && !readErrors['Agent setup'];
   return (
     <section className="tw-tools">
-      <p>Tools let agents work with files and other services.</p>
+      <p>Tools let agents use files, terminal commands, and connected services.</p>
       {(!isConnected || readErrors['Agent setup']) && (
         <p role="status">Tool information may be out of date.</p>
       )}
@@ -30,6 +30,12 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
               ? 'Available on this host'
               : 'Recorded in an agent profile'}
           </p>
+          {tool === 'run_shell' && (
+            <p>
+              Commands run on this computer. Review each command in Needs you before it runs.
+              Available isolation depends on the host.
+            </p>
+          )}
           {workspace?.agents
             .filter((a) => a.tools?.includes(tool))
             .map((a) => (
@@ -112,6 +118,10 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
         <p>
           Tool availability is not proof of activity. File tools stay within the host’s configured
           workspace; this screen does not change grants.
+        </p>
+        <p>
+          Terminal access requires a working folder with the engine database stored outside it.
+          Commands use the computer’s installed tools and require approval.
         </p>
       </details>
     </section>

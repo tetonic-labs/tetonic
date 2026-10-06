@@ -37,6 +37,7 @@ pub struct ProposeEffectApproval<'a> {
     pub request_id: &'a str,
     pub expires_at: i64,
     pub work_id: Option<&'a str>,
+    pub proposal: Option<&'a crate::ShellApprovalProposal>,
 }
 
 /// Human decision bound to the exact approval and proposal digest.

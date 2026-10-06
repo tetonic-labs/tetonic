@@ -655,6 +655,16 @@ impl Tools {
                     return self.mutation.run_authorized(&self.ws, authorized);
                 }
                 "run_shell" => {
+                    let command = authorized
+                        .action
+                        .parameters
+                        .script_bytes
+                        .as_deref()
+                        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                        .unwrap_or("");
+                    if let Err(error) = self.validate_shell_command(command) {
+                        return crate::types::outcome_err(error);
+                    }
                     return tool_outcome_from_execution(
                         self.executor
                             .run_process_sync_cancellable(authorized, cancel),

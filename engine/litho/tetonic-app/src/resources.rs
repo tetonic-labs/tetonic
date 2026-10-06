@@ -31,6 +31,7 @@ mod context_compiler;
 mod contexts;
 mod credential_binding;
 mod human_controls;
+mod shell_approval;
 mod workstation_placement;
 pub use contexts::ContextService;
 pub use local_credentials::{IssuedCredential, LocalCredentials};
