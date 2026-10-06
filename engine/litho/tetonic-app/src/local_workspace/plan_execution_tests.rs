@@ -5,6 +5,9 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 #[path = "plan_human_tests.rs"]
 mod human;
 
+#[path = "plan_document_tests.rs"]
+mod documents;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;

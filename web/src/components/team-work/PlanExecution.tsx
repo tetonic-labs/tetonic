@@ -87,6 +87,14 @@ export function PlanExecution({
   const used = usage.reduce((sum, row) => sum + row.input_tokens + row.output_tokens, 0);
   const usageIncomplete =
     usage.length !== ids.size || usage.some((row) => row.unknown_calls || row.pending_calls);
+  const rootUsage = usage.find((row) => row.work_id === execution?.receipt.root_work_id);
+  const rootAllowance = rootUsage?.budget
+    ? rootUsage.budget.token_limit - rootUsage.budget.delegated_tokens
+    : null;
+  const coordinationOverrun =
+    rootUsage &&
+    rootAllowance !== null &&
+    rootUsage.input_tokens + rootUsage.output_tokens > rootAllowance;
   const openWork = (event: React.MouseEvent<HTMLAnchorElement>, id: string, inspect = false) => {
     if (
       onWork &&
@@ -151,6 +159,14 @@ export function PlanExecution({
             {execution.receipt.assignments.length} contributions ready
           </p>
           {execution.error && <p role="alert">{execution.error}</p>}
+          {coordinationOverrun && (
+            <p role="status">
+              {!isConnected ? 'Last recorded: ' : ''}Coordination used{' '}
+              {(rootUsage.input_tokens + rootUsage.output_tokens).toLocaleString()} tokens against
+              its {rootAllowance.toLocaleString()} allowance. Unused contribution allowances are not
+              automatically moved into coordination.
+            </p>
+          )}
           {pendingQuestions.map(({ task, question }) => (
             <HumanQuestion key={question.id} task={task} question={question} refresh={refresh} />
           ))}
@@ -159,6 +175,21 @@ export function PlanExecution({
               <FormattedMarkdown text={result} />
             </div>
           )}
+          <details className="tw-execution-brief">
+            <summary>What the team was given</summary>
+            {execution.receipt.brief ? (
+              <>
+                <p>
+                  Brief
+                  {execution.receipt.brief_revision ? ` ${execution.receipt.brief_revision}` : ''},
+                  saved when this team started. Later edits are not included.
+                </p>
+                <FormattedMarkdown text={execution.receipt.brief} />
+              </>
+            ) : (
+              <p>The original brief is unavailable for this saved run.</p>
+            )}
+          </details>
           <div className="tw-contributions-heading">
             <h4>Contributions</h4>
             <span>Open any contribution to read it here</span>
@@ -231,8 +262,10 @@ export function PlanExecution({
                       {tasks.find((t) => t.id === row.work_id)?.agent_name || 'Assignment'}
                     </span>
                     <span>
-                      {(row.input_tokens + row.output_tokens).toLocaleString()} reported ·{' '}
-                      {row.held_tokens.toLocaleString()} held
+                      {(row.input_tokens + row.output_tokens).toLocaleString()} reported
+                      {row.budget &&
+                        ` / ${(row.budget.token_limit - row.budget.delegated_tokens).toLocaleString()} allowed`}{' '}
+                      · {row.held_tokens.toLocaleString()} held
                     </span>
                   </li>
                 ))}

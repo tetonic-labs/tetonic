@@ -1,0 +1,32 @@
+{
+  "source_revision": "53911d072809ac5ed9ad768881acaa7930b0085d",
+  "sources": [
+    {
+      "id": "S1",
+      "title": "Earlier team trial",
+      "path": "docs/epics/v5-reconciliation/sprints/october-1-coherent-workspace/plan-execution-evidence-2026-10-05.md",
+      "start_line": 136,
+      "end_line": 139,
+      "sha256": "b02186c6a389d6b4d9539be1285d5787b3179ad45ed17aa31af4395bdcc0409c",
+      "excerpt": "The successful model output is **not verified research**. It made unsupported\nlearning/retention assertions and omitted the requested inline work citations;\nthe UI supplies separate durable contribution links. This establishes actual\nhandoff and synthesis, not factual correctness or measured team advantage."
+    },
+    {
+      "id": "S2",
+      "title": "Later handoff trial",
+      "path": "docs/epics/v5-reconciliation/sprints/october-1-coherent-workspace/completion-reliability-evidence-2026-10-05.md",
+      "start_line": 72,
+      "end_line": 77,
+      "sha256": "b07656eb483e4d511c525c737c613ace279c4c918bce6da1a2e7c8a38e3493bd",
+      "excerpt": "**Outcome: completed.** The owner answered **Beginners**. The comparison worker\nused that audience, the reviewer supplied the amended risk/mitigation bullets,\nand the coordinator returned both in its final result. The second dispatch reply\nincluded the comparison in `also_completed` and an empty outstanding list;\nthere was no premature finish rejection or repeat result-fetch call. The UI\ndisplayed **Your team's result / Result ready / 2 of 2 contributions ready**."
+    },
+    {
+      "id": "S3",
+      "title": "Latest engineering check",
+      "path": "docs/epics/v5-reconciliation/sprints/october-1-coherent-workspace/resource-api-evidence-2026-10-05.md",
+      "start_line": 69,
+      "end_line": 72,
+      "sha256": "3c19bcc2aa68a0bdd7a3983cc2bd6b981b00503c5fe0e06ee07efa33cd552de3",
+      "excerpt": "The package engineering gate is green; this does not close OCT-101 or Sprint 1.\nThis run does not claim a fresh full-workspace test run, installer validation,\nengine-restart recovery, fresh-user usability results or new actual-model team\nevidence. The running UI/server was not restarted."
+    }
+  ]
+}

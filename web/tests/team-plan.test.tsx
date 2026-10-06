@@ -8,6 +8,7 @@ import {
   type HuddlePlan,
   type PlanView,
   type PlanExecutionView,
+  type WorkUsage,
 } from '../src/lib/localEngine';
 
 const content = {
@@ -58,6 +59,7 @@ function fixture(
     readiness: [],
     execution_available: false,
   },
+  usage: WorkUsage[] = [],
 ) {
   const client = new LocalEngine('test');
   let state = structuredClone(initial);
@@ -71,6 +73,7 @@ function fixture(
     model: 'test',
     input_limit: 12000,
     tasks: [],
+    usage,
     agents: ['worker', 'reviewer'].map((key) => ({
       key,
       id: key,
@@ -291,6 +294,130 @@ it('does not present a partial coordinator answer as a completed team result', a
   expect(screen.queryByText('UNVERIFIED_COMPLETION')).toBeNull();
   expect(screen.queryByRole('button', { name: 'Start agreed plan' })).toBeNull();
   expect(screen.getByText(/Recorded contributions are kept/)).toBeTruthy();
+  fireEvent.click(screen.getByText('What the team was given'));
+  expect(screen.getByText('The original brief is unavailable for this saved run.')).toBeTruthy();
+});
+
+it('shows the exact execution brief beside the result even after the working brief changes', async () => {
+  const f = fixture({
+    plans: [{ ...plan, status: 'agreed', brief_revision: 3 }],
+    generation: null,
+    brief_revision: 3,
+    readiness: [],
+    execution_available: false,
+    execution: {
+      receipt: {
+        source_work_id: 'shape',
+        request_id: 'start',
+        revision: 1,
+        brief_revision: 2,
+        brief: '## Source S1\nThe original supplied evidence.',
+        root_work_id: 'root',
+        content,
+        assignments: [],
+      },
+      state: 'completed',
+      assignments: [],
+      error: null,
+      root: {
+        id: 'root',
+        input: 'Host-composed context',
+        agent_key: 'coordinator',
+        agent_name: 'Coordinator',
+        state: 'completed',
+        run_id: 'run',
+        sequence: 2,
+        messages: [{ id: 1, role: 'assistant', content: 'A source-backed recommendation.' }],
+      },
+    },
+  });
+  f.render();
+  await screen.findByText('A source-backed recommendation.');
+  const disclosure = screen.getByText('What the team was given').closest('details')!;
+  expect(disclosure.open).toBe(false);
+  fireEvent.click(screen.getByText('What the team was given'));
+  expect(screen.getByText(/Brief 2, saved when this team started/)).toBeTruthy();
+  expect(screen.getByRole('heading', { name: 'Source S1' })).toBeTruthy();
+  expect(screen.getByText('The original supplied evidence.')).toBeTruthy();
+  expect(f.submit).not.toHaveBeenCalled();
+  expect(f.update).not.toHaveBeenCalled();
+});
+
+it('explains exhausted coordination even while the plan total has unused allowance', async () => {
+  const scopedContent = {
+    ...content,
+    token_budget: 11096,
+    assignments: content.assignments.map((a) => ({ ...a, token_budget: 3500 })),
+  };
+  const row = (
+    work_id: string,
+    used: number,
+    token_limit: number,
+    delegated_tokens: number,
+  ): WorkUsage => ({
+    work_id,
+    title: work_id,
+    purpose: 'work',
+    budget: {
+      token_limit,
+      delegated_tokens,
+      reserved_tokens: used,
+      available_tokens: 0,
+      root_work_id: 'root',
+    },
+    input_tokens: used,
+    output_tokens: 0,
+    calls: 1,
+    pending_calls: 0,
+    unknown_calls: 0,
+    held_tokens: 0,
+    released_tokens: 0,
+    over_limit: used > token_limit - delegated_tokens,
+  });
+  const f = fixture(
+    {
+      plans: [{ ...plan, content: scopedContent, status: 'agreed' }],
+      generation: null,
+      brief_revision: 2,
+      readiness: [],
+      execution_available: false,
+      execution: {
+        receipt: {
+          source_work_id: 'shape',
+          request_id: 'start',
+          revision: 1,
+          root_work_id: 'root',
+          content: scopedContent,
+          assignments: scopedContent.assignments.map((a) => ({
+            assignment_key: a.key,
+            work_id: a.key,
+            agent_key: a.agent_key,
+            definition_digest: 'pinned',
+          })),
+        },
+        state: 'failed',
+        assignments: [],
+        error: 'Work stopped at its token allowance.',
+        root: {
+          id: 'root',
+          input: 'Shared brief',
+          agent_key: 'coordinator',
+          agent_name: 'Coordinator',
+          state: 'failed',
+          run_id: 'run',
+          sequence: 2,
+          messages: [],
+        },
+      },
+    },
+    [row('root', 4681, 11096, 7000), row('compare', 1596, 3500, 0), row('review', 1983, 3500, 0)],
+  );
+  f.render();
+  await screen.findByText(/Coordination used 4,681 tokens against its 4,096 allowance/);
+  expect(screen.getByText(/8,260 \/ 11,096 tokens reported/)).toBeTruthy();
+  expect(screen.getByText(/4,681 reported \/ 4,096 allowed/)).toBeTruthy();
+  expect(screen.getByText(/1,596 reported \/ 3,500 allowed/)).toBeTruthy();
+  expect(f.submit).not.toHaveBeenCalled();
 });
 
 it('proposes, reviews and agrees to a plan without dispatching assignments', async () => {

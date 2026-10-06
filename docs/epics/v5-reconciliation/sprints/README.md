@@ -81,6 +81,14 @@ failures, four existing manual/live-proof tests ignored. This clears the recorde
 package-gate backlog; full-workspace tests, product usefulness, recovery and
 release-profile evidence are not implied, and the sprint remains in progress.
 
+October 5 document follow-up: [supplied-document trial evidence](october-1-coherent-workspace/document-team-evidence-2026-10-05.md)
+records three actual-model trials. Both contributors finished in each, but all
+coordinators exceeded their own allowance and neither solo comparison completed.
+The result inspector now exposes the pinned brief and participant allowances;
+coordination advertisements are leaner. The package gate and 206 application
+unit tests pass, but useful synthesis and independent review remain unproven.
+Coordination headroom and solo deadline diagnosis are the next execution work.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)

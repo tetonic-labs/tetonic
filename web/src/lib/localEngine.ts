@@ -40,6 +40,8 @@ export interface PlanExecutionView {
     source_work_id: string;
     request_id: string;
     revision: number;
+    brief?: string;
+    brief_revision?: number;
     root_work_id: string;
     content: PlanContent;
     assignments: {

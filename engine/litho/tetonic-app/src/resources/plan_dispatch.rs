@@ -185,14 +185,19 @@ impl ToolHost for RegisteredToolHost {
             .as_ref()
             .is_some_and(|d| !d.assignment_keys.is_empty())
         {
+            // Advertisements repeat on every inference call. Keep the plan
+            // completion instruction concise; validation still owns readiness.
+            if let Some(finish) = ads.iter_mut().find(|ad| ad.name == "finish") {
+                finish.description = "Return the final synthesis in summary after all contributions arrive. Preserve source citations and the requested length.".into();
+            }
             ads.push(ToolAdvertisement {
             name:DISPATCH.into(),
-            description:"Dispatch a ready key. Returns its result or waiting_human, plus other newly completed contributions and outstanding keys. Repeated keys never duplicate work.".into(),
-            parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_key"],"properties":{"assignment_key":{"type":"string","description":"Copy just the key from the agreed plan. Do not pass the assignment object or instructions.","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}),
+            description:"Dispatch a ready key; retries reuse work. Returns its result or waiting_human, also_completed, and outstanding_assignments.".into(),
+            parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_key"],"properties":{"assignment_key":{"type":"string","description":"Use the key, not an assignment object.","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}),
         });
         }
         if self.dispatch.as_ref().is_some_and(|d| d.human.is_some()) {
-            ads.push(ToolAdvertisement {name:ASK_HUMAN.into(),description:"Ask one concise question when missing information or judgment blocks progress. Waits for the owner within this attempt's time limit. Answers grant no new permissions or budget.".into(),parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["question","why"],"properties":{"question":{"type":"string","maxLength":800},"why":{"type":"string","maxLength":1200},"options":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":300}}}})});
+            ads.push(ToolAdvertisement {name:ASK_HUMAN.into(),description:"Ask a blocking question; waits within this attempt's deadline. Answers do not change permissions or budget.".into(),parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["question","why"],"properties":{"question":{"type":"string","maxLength":800},"why":{"type":"string","maxLength":1200},"options":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":300}}}})});
         }
         ads
     }

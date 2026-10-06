@@ -129,6 +129,7 @@
   padding: 8px 0 16px;
   font-size: 12px;
 }
+.tw-execution-brief,
 .tw-plan-usage,
 .tw-answered-questions {
   border-bottom: 1px solid var(--brand-rule);

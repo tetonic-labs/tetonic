@@ -1,0 +1,195 @@
+[
+  {
+    "trial": "a",
+    "scenario": "scenario-a.json",
+    "scenario_sha256": "e2db04fbd9c1e4d17d77fb21efcbed10d5a2be3dce56c1490c062e15ff4a3bf8",
+    "compact_tool_advertisements": false,
+    "source_work_id": "293e0181-c6b5-4cac-8dd9-7cfb9d4b119d",
+    "state": "failed",
+    "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "f0d5b9b6-3008-4d81-8064-d4f8ab6a02d6",
+        "state": "failed",
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 3923,
+        "output_tokens": 758,
+        "calls": 3,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "ed39e20c-361a-4970-84a5-63e6688b7240",
+        "state": "completed",
+        "accepted_answers": [
+          "**Observed behavior:** Handoff/synthesis established (S1, S2). Later trial completed with proper workflow; UI showed 2/2 contributions ready (S2). Engineering gate green (S3).\n\n**Unproven claims:** Model output factual correctness (S1: \"not verified research\"). Measured team advantage (S1). Full-workspace test run, installer validation, engine-restart recovery, fresh-user usability results (S3). OCT-101/Sprint 1 closure (S3).\n\n**Inference:** Green gate ≠ release readiness. S2 success shows process capability but not model accuracy or system resilience.\n\n**Next step:** Execute full-workspace test run with installer validation and engine-restart recovery before closing OCT-101/Sprint 1. Obtain fresh-user usability results and actual-model team evidence (S3 explicitly notes these are absent)."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 955,
+        "output_tokens": 641,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "90c637ab-8812-443c-8cab-201139dcc3d1",
+        "state": "completed",
+        "accepted_answers": [
+          "**Demonstrated:** Handoff/synthesis capability (S1, S2). Workflow completion with proper risk mitigation (S2). Engineering gate green (S3). UI shows 2/2 contributions ready (S2).\n\n**Unproven:** Model factual correctness (S1: \"not verified research\"). Measured team advantage (S1). Full-workspace test run, installer validation, engine-restart recovery, fresh-user usability results (S3). OCT-101/Sprint 1 closure (S3). Green gate ≠ release readiness (S3).\n\n**Next step:** Execute full-workspace test run with installer validation and engine-restart recovery before closing OCT-101/Sprint 1. Obtain fresh-user usability results and actual-model team evidence (S3 explicitly notes these are absent). This validates system resilience and model accuracy, not just process capability."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 1196,
+        "output_tokens": 787,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      }
+    ],
+    "solo": null,
+    "timing": null
+  },
+  {
+    "trial": "b",
+    "scenario": "scenario.json",
+    "scenario_sha256": "cfb5c5e49af66dde19e77cadaa3028f9a7112c8382a0d64818d0f9bdca52fcae",
+    "compact_tool_advertisements": false,
+    "source_work_id": "11f3b008-f16d-4c07-b03f-f871717371f5",
+    "state": "failed",
+    "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "c80ef9d3-7911-48d8-ae5b-15dc46b99224",
+        "state": "failed",
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 3536,
+        "output_tokens": 644,
+        "calls": 3,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "aef7b70d-0b17-400d-8c44-b63680bdd3b7",
+        "state": "completed",
+        "accepted_answers": [
+          "Excerpts demonstrate handoff/synthesis capability (S1, S2) and trial completion with engineering gate green (S2, S3). Unproven: factual correctness (S1), team advantage (S1), full-workspace tests, installer validation, engine-restart recovery, user usability, or new model evidence (S3)."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 949,
+        "output_tokens": 733,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "77daeabb-e917-48dd-8830-c4eda5eae970",
+        "state": "completed",
+        "accepted_answers": [
+          "Correction: S2/S3 show trial completion but NOT release readiness (S3 explicitly states gate green doesn't close OCT-101/Sprint 1). Handoff/synthesis proven; factual correctness, team advantage, full-workspace tests, installer validation, engine-restart recovery, user usability unproven.\n\nNext step: Execute full-workspace test run to validate model evidence and address S3's noted gaps."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 1082,
+        "output_tokens": 404,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      }
+    ],
+    "solo": {
+      "state": "failed",
+      "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+      "accepted_answers": [],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 1,
+        "pending_calls": 0,
+        "unknown_calls": 1,
+        "held_tokens": 4096,
+        "released_tokens": 0,
+        "over_limit": false
+      }
+    },
+    "timing": {
+      "solo_seconds": 120.1740451,
+      "team_seconds": 202.69935
+    }
+  },
+  {
+    "trial": "c",
+    "scenario": "scenario.json",
+    "scenario_sha256": "cfb5c5e49af66dde19e77cadaa3028f9a7112c8382a0d64818d0f9bdca52fcae",
+    "compact_tool_advertisements": true,
+    "source_work_id": "8378de83-c412-4797-930a-c85c87904bd3",
+    "state": "failed",
+    "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "ce467b43-ec9e-40a2-81cf-bbf53dfea5f5",
+        "state": "failed",
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 3485,
+        "output_tokens": 625,
+        "calls": 3,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "30d6a6f1-6b72-485a-bf25-50e05772a583",
+        "state": "completed",
+        "accepted_answers": [
+          "Excerpts demonstrate: handoff/synthesis occurred (S1), completed workflow with empty outstanding list (S2), green engineering gate (S3). Unproven: factual correctness (S1), team advantage (S1), OCT-101/Sprint 1 closure (S3), fresh test runs/installer validation/engine-restart recovery/usability results (S3). Next step: verify actual-model team evidence or close remaining gates."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 937,
+        "output_tokens": 800,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "01327378-abd0-464d-817c-55bdfd70ffc6",
+        "state": "completed",
+        "accepted_answers": [
+          "S1 proves handoff/synthesis but not factual correctness or team advantage. S2 confirms completed workflow with empty outstanding list. S3 shows green gate but explicitly does NOT close OCT-101/Sprint 1, nor validate fresh tests/installer/recovery/usability.\n\n**Next step:** Verify actual-model team evidence (S1 claims unsupported) or complete remaining gates per S3. Without factual correctness validation and gate closure confirmation, release readiness remains unproven despite workflow completion."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 1087,
+        "output_tokens": 259,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0
+      }
+    ],
+    "solo": {
+      "state": "failed",
+      "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+      "accepted_answers": [],
+      "usage": {
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 1,
+        "pending_calls": 0,
+        "unknown_calls": 1,
+        "held_tokens": 4096,
+        "released_tokens": 0,
+        "over_limit": false
+      }
+    },
+    "timing": {
+      "solo_seconds": 120.0486505,
+      "team_seconds": 191.426098
+    }
+  }
+]

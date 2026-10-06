@@ -150,6 +150,20 @@ the exact admitted input from its audit, and its own accepted result. The reserv
 coordinator has `plan_coordinator: true` and cannot receive ordinary solo requests.
 See the [current execution evidence and limitations](../../epics/v5-reconciliation/sprints/october-1-coherent-workspace/plan-execution-evidence-2026-10-05.md).
 
+The result inspector's collapsed **What the team was given** disclosure reads the
+brief and revision from the execution receipt, not the currently edited brief.
+Older responses without that content explicitly report it unavailable. This is
+the shared brief, not a reconstruction of every worker's complete prompt; exact
+admitted inputs remain available through the task projections above.
+
+Usage lists each participant's reported tokens against its own allowance. For a
+coordinator, this is the root allocation minus delegated allowances. Unused child
+allowances do not automatically become coordinator capacity. An exceeded
+coordinator allowance is explained even when the sum of reported team usage is
+below the plan total. These are provider-reported counts, not a precomputed hard
+cap on provider consumption or a financial bill. Failed coordination retains
+contributions without presenting them as an accepted combined result.
+
 The old `activate_team_work` fallback now refuses a stored delegation before
 submitting an independent root run. Governed child execution remains closed until
 shared allocation, inherited grants, parent stop and recovery are enforced.
