@@ -134,6 +134,11 @@ export function LocalAgentSetup({
         connectionRevision,
         refreshing,
         onRefresh: () => setRetry((value) => value + 1),
+        onDiscoverMcp: async (id) => {
+          await client.discoverMcp(id);
+          const updated = await client.agentCatalog();
+          if (active.current) setCatalog(updated);
+        },
         onSaveKey: async (provider, key) => {
           const saved = await client.saveProviderKey(provider, key);
           if (active.current) setConnectionRevision((value) => value + 1);

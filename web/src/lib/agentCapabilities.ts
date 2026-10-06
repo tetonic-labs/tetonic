@@ -22,10 +22,20 @@ function localModelTag(name: string) {
   return name.split('/').at(-1)?.includes(':') ? name : `${name}:latest`;
 }
 
-export function toolDescription(names: readonly string[]) {
+export function toolDescription(names: readonly string[], catalog?: AgentCatalog | null) {
+  const mcp =
+    catalog?.mcp_connections?.flatMap((c) =>
+      c.tools.map((t) => [t.id, `${c.name}: ${t.name}`] as const),
+    ) || [];
+  const labels = Object.fromEntries(mcp);
   return names
     .filter((name) => !internal.has(name))
-    .map((name) => toolDescriptions[name] || name)
+    .map(
+      (name) =>
+        labels[name] ||
+        toolDescriptions[name] ||
+        (name.startsWith('mcp_') ? 'Previously selected MCP tool (refresh connection)' : name),
+    )
     .join(' · ');
 }
 

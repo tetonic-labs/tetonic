@@ -29,7 +29,7 @@ impl LocalWorkspace {
                 provider: provider.into(),
                 harness: "general".into(),
                 tools: match provider {
-                    "ollama" => tools.clone(),
+                    "ollama" => tools.iter().cloned().chain(self.host.settings.mcp.as_ref().map(|m| m.tool_names()).unwrap_or_default()).collect(),
                     "openai" => tools.iter().filter(|tool| crate::resources::HOSTED_READ_TOOLS.contains(&tool.as_str())).cloned().collect(),
                     _ => vec![],
                 },

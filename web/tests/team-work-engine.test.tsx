@@ -105,6 +105,7 @@ function fixture(tasks: EngineTask[] = []) {
     models: [agent.model],
     harnesses: ['general'],
     tools: ['read_file'],
+    mcp_connections: [],
     max_steps: 8,
     max_seconds: 120,
     max_tokens: 4096,
@@ -426,10 +427,8 @@ describe('one connected team workspace', () => {
     const board = screen.getByRole('log', { name: 'Recorded team output' });
     expect(within(board).getByText('Observed file content.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
-    expect(screen.getByRole('heading', { name: 'read file' })).toBeTruthy();
-    expect(
-      screen.getByText(/Connecting a service is not available in this preview yet/),
-    ).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Read file contents' })).toBeTruthy();
+    expect(screen.getByText('No MCP servers are configured on this engine.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Manage GitHub' })).toBeNull();
   });
   it('keeps the last engine state visible but stops calling it live after disconnect', async () => {

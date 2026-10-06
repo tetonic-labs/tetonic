@@ -26,6 +26,7 @@ pub struct LocalAgent {
 
 #[derive(Serialize)]
 pub struct LocalAgentCatalog {
+    pub mcp_connections: Vec<crate::mcp::McpConnectionView>,
     pub workspace_root: Option<String>,
     pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
     pub providers: Vec<LocalProvider>,
@@ -82,7 +83,16 @@ impl LocalWorkspace {
             .cloned()
             .collect();
         tools.sort();
+        tools.extend(
+            self.host
+                .settings
+                .mcp
+                .as_ref()
+                .map(|m| m.tool_names())
+                .unwrap_or_default(),
+        );
         Ok(LocalAgentCatalog {
+            mcp_connections: self.mcp_connections(),
             workspace_root: self
                 .host
                 .settings

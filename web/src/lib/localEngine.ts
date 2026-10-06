@@ -171,6 +171,7 @@ export interface EngineAgent {
   tools?: string[];
 }
 export interface AgentCatalog {
+  mcp_connections?: McpConnection[];
   workspace_root?: string | null;
   runtime_profiles?: AgentRuntimeProfile[];
   providers?: EngineProvider[];
@@ -181,6 +182,20 @@ export interface AgentCatalog {
   max_steps: number;
   max_seconds: number;
   max_tokens: number;
+}
+export interface McpTool {
+  id: string;
+  name: string;
+  description: string;
+  input_schema: Record<string, unknown>;
+}
+export interface McpConnection {
+  id: string;
+  name: string;
+  endpoint: string;
+  status: 'unchecked' | 'discovered' | 'unavailable';
+  message: string;
+  tools: McpTool[];
 }
 export interface AgentRuntimeProfile {
   requires_tool_consent?: boolean;
@@ -345,6 +360,9 @@ export class LocalEngine {
   }
   agentCatalog(signal?: AbortSignal) {
     return this.request<AgentCatalog>('/agent-catalog', undefined, signal);
+  }
+  discoverMcp(id: string) {
+    return this.request<McpConnection>(`/mcp-discover/${encodeURIComponent(id)}`, {});
   }
   providerModels(provider: string, signal?: AbortSignal) {
     return this.request<ProviderModelCatalog>(

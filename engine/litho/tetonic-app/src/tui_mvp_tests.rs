@@ -16,7 +16,7 @@ pub(crate) async fn inference_server_with_finish(
 
 pub(crate) async fn inference_server_with_tool(
     finish_tool: bool,
-    tool: &'static str,
+    tool: &str,
     arguments: Value,
 ) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     inference_server_with_behavior(finish_tool, tool, arguments, false).await
@@ -24,7 +24,7 @@ pub(crate) async fn inference_server_with_tool(
 
 pub(crate) async fn inference_server_with_behavior(
     finish_tool: bool,
-    tool: &'static str,
+    tool: &str,
     arguments: Value,
     hang_chat: bool,
 ) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
@@ -33,11 +33,12 @@ pub(crate) async fn inference_server_with_behavior(
 
 pub(crate) async fn inference_server_with_usage(
     finish_tool: bool,
-    tool: &'static str,
+    tool: &str,
     arguments: Value,
     hang_chat: bool,
     usage: Option<(u64, u64)>,
 ) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    let tool = tool.to_owned();
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));

@@ -916,7 +916,12 @@ impl Agent {
             .map(|p| tetonic_domain::WorkspacePath::new(p.clone()))
             .into_iter()
             .collect();
-        let workspace_version = match &workspace_root {
+        // Network resources are not workspace paths. Their capability binds the
+        // exact endpoint/tool and arguments, without inventing a file version.
+        let workspace_version = match workspace_root
+            .as_ref()
+            .filter(|_| kind != ActionKind::NetworkRequest)
+        {
             Some(root) => match &self.capture_workspace_version {
                 Some(hook) => Some(hook(root, &relevant).map_err(|e| {
                     Box::new(ToolOutcome {

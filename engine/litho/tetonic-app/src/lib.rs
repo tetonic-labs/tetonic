@@ -461,4 +461,5 @@ mod tui_mvp_tests;
 
 mod recovery_api;
 
+pub mod mcp;
 mod session_control;

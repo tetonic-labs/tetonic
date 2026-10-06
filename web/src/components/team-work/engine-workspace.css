@@ -188,12 +188,14 @@
   padding: 14px 0;
 }
 .tw-settings details,
+.tw-tools details,
 .tw-agent-detail details,
 .tw-work-details details {
   margin: 16px 0;
   font-size: 12px;
 }
-.tw-work-details pre {
+.tw-work-details pre,
+.tw-tools pre {
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   padding: 12px;

@@ -14,6 +14,7 @@ import { AgentAdvancedSettings } from './AgentAdvancedSettings';
 import type { AgentCatalog, ProviderModelCatalog } from '../../lib/localEngine';
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
+import { AgentMcpTools } from './AgentMcpTools';
 import { agentToolGroups, supportedAgentTools, toolDescription } from '../../lib/agentCapabilities';
 
 export function AgentCreateForm({
@@ -43,6 +44,7 @@ export function AgentCreateForm({
     connectionRevision?: number;
     refreshing?: boolean;
     onRefresh?: () => void;
+    onDiscoverMcp?: (id: string) => Promise<void>;
   };
 }) {
   const [name, setName] = useState(''),
@@ -343,7 +345,12 @@ export function AgentCreateForm({
       <fieldset className="agent-tool-picker">
         <legend>
           Tools{' '}
-          <span>{configuration.toolIds.length + configuration.resourceIds.length} selected</span>
+          <span>
+            {configuration.toolIds.length +
+              configuration.resourceIds.length +
+              selectedTools.filter((name) => name.startsWith('mcp_')).length}{' '}
+            selected
+          </span>
         </legend>
         <div className="agent-tool-grid">
           {tools.map((tool) => {
@@ -412,6 +419,18 @@ export function AgentCreateForm({
             {compatibilityIssue}
           </p>
         )}
+        {connected &&
+          (!!connected.catalog.mcp_connections?.length ||
+            selectedTools.some((name) => name.startsWith('mcp_'))) && (
+            <AgentMcpTools
+              connections={connected.catalog.mcp_connections || []}
+              selected={selectedTools}
+              supported={supportedTools}
+              onSelect={setSelectedTools}
+              onDiscover={connected.onDiscoverMcp}
+              disabled={connected.saving}
+            />
+          )}
         {requiresToolConsent && !compatibilityIssue && (
           <label className="agent-hosted-consent">
             <input

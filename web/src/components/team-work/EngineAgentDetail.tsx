@@ -55,7 +55,7 @@ export function EngineAgentDetail({
       )}
       <p>{profile.purpose}</p>
       <p>
-        {toolDescription(profile.tools || []) ||
+        {toolDescription(profile.tools || [], engine.catalog) ||
           'Works with the information you supply. No file or external tools selected.'}
       </p>
       {setup.state !== 'configured' && <p role="status">{setup.message}</p>}
@@ -90,7 +90,9 @@ export function EngineAgentDetail({
         <p>Tetonic runtime · {setup.message}</p>
         {provider?.key_saved && connection}
         {!!profile.tools?.some(
-          (tool) => !['finish', 'dispatch_assignment', 'ask_human'].includes(tool),
+          (tool) =>
+            !tool.startsWith('mcp_') &&
+            !['finish', 'dispatch_assignment', 'ask_human'].includes(tool),
         ) && (
           <p>
             Working folder:{' '}

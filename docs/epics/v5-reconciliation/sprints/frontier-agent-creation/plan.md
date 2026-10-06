@@ -19,7 +19,7 @@ This is a dedicated implementation sprint, not an extra calendar week or an inde
 | [FAR-003](FAR-003-modern-inference-and-streaming.md) | In progress | L | Modern inference protocols, streaming and tool continuity |
 | [FAR-004](FAR-004-governed-tools.md) | In progress | L | Selected tools across frontier models |
 | [FAR-005](FAR-005-vendor-harnesses.md) | In progress | L | Frontier harness adapters inside managed execution |
-| [FAR-006](FAR-006-mcp-and-skills.md) | Planned | L | Real MCP connections, tool attachments and skills |
+| [FAR-006](FAR-006-mcp-and-skills.md) | In progress | L | Local MCP read-tool profile delivered; remote/auth/writes, harness attachment and skills open |
 | [FAR-007](FAR-007-team-dispatch-and-edits.md) | Planned | L | Mixed-runtime teams and versioned agent edits |
 | [FAR-008](FAR-008-conformance-and-product-proof.md) | In progress | L | Conformance, installation and end-to-end product evidence |
 
@@ -42,3 +42,4 @@ Each ticket records implementation, exact checks, limitations and evidence. Unit
 - [FAR-004 partial evidence](FAR-004-governed-tools.md#evidence): scoped OpenAI file reads through managed execution and existing tools; selected/unselected/path-escape/secret cases exercised with a fake provider and real files. 28 workspace, 47 core and 13 editor tests passed. Writes and vendor-harness execution are not enabled.
 - [FAR-005 feasibility evidence](FAR-005-vendor-harnesses.md#evidence): actual Codex 0.160.0 app-server against an offline provider; dynamic-tool success, unselected custom/native tool rejection, pending-tool interruption and cumulative usage passed. Integration into managed execution and a guarded inference gateway remains required before enabling the harness in the product.
 - [FAR-001 creation-to-use follow-up](FAR-001-creation-and-readiness.md#creation-to-first-assignment-follow-up): exact partial tool selections, setup refresh and known-problem status, same-agent credential repair, direct first assignment and pinned recipient retries. Hosted file approval now binds the folder actually displayed. Full web suite: 138 tests; production build, three provider application tests and package engineering gate passed. This does not close vendor-harness integration or live provider proof.
+- [FAR-006 first MCP profile](FAR-006-mcp-and-skills.md#delivered-slice--october-6-2026): operator-configured local HTTP read tools, discovery and individual selection in the current editor, pinned manifests, actual managed execution and stop behavior. Domain-neutral fixture proof; hosted/harness MCP, mutations, delegated child tools and skills remain open.

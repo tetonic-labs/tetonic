@@ -16,6 +16,7 @@ pub const INPUT_LIMIT: usize = 12_000;
 mod agents;
 mod bootstrap;
 mod conversations;
+mod mcp;
 mod plan_execution;
 mod plan_human;
 pub use plan_human::{AmendPlanAssignment, AnswerPlanQuestion};
@@ -366,12 +367,14 @@ impl LocalWorkspace {
             settings.response_schema = Some(plans::response_schema());
         }
         if purpose == WorkPurpose::Explore {
+            settings.mcp = None;
             settings.allowed_tools.clear();
             settings.workspace_root = None;
         }
         if agent.provider == "ollama" {
             self.require_installed_model(&agent.model).await?;
         } else {
+            settings.mcp = None;
             settings.hosted = Some(self.hosted_binding(&agent).await?);
             // A host's folder is not an agent grant. Only an explicitly pinned
             // disclosure root permits the selected read tools on this route.

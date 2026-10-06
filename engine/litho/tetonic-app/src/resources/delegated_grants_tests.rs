@@ -198,6 +198,7 @@ async fn delegation_scenario(scenario: Scenario) {
                     recovery_id: "job-lead".into(),
                 },
                 RegisteredExecutionSettings {
+                    mcp: None,
                     plan_dispatch: None,
                     response_schema: None,
                     hosted: None,
@@ -353,6 +354,7 @@ async fn delegation_scenario(scenario: Scenario) {
                 recovery_id: "job-worker".into(),
             };
             let settings = || RegisteredExecutionSettings {
+                mcp: None,
                 plan_dispatch: None,
                 response_schema: None,
                 hosted: None,

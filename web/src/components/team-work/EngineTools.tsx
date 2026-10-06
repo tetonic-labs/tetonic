@@ -1,9 +1,12 @@
 import { useLocalEngine } from '../../context/LocalEngineContext';
+import { McpConnections } from '../views/AgentMcpTools';
+import { toolDescription } from '../../lib/agentCapabilities';
 
 const internalTools = new Set(['finish', 'dispatch_assignment', 'ask_human']);
 
 export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
-  const { workspace, catalog, readErrors, isConnected } = useLocalEngine();
+  const engine = useLocalEngine();
+  const { workspace, catalog, readErrors, isConnected } = engine;
   const tools = [
     ...new Set([
       ...(catalog?.tools || []),
@@ -21,7 +24,7 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       )}
       {workTools.map((tool) => (
         <article className="px-team" key={tool}>
-          <h3>{tool.replaceAll('_', ' ')}</h3>
+          <h3>{toolDescription([tool], catalog)}</h3>
           <p>
             {catalog?.tools?.includes(tool)
               ? 'Available on this host'
@@ -47,10 +50,49 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
         </p>
       )}
       <h3>MCP connections</h3>
-      <p>
-        Connecting a service is not available in this preview yet. Asking an agent to use a service
-        does not connect it or grant access.
-      </p>
+      {!catalogReady ? (
+        <p>Reconnect to check configured services.</p>
+      ) : !catalog?.mcp_connections ? (
+        <p>Update and restart the engine to enable MCP connections.</p>
+      ) : (
+        <McpConnections
+          connections={catalog?.mcp_connections || []}
+          disabled={!catalogReady}
+          onDiscover={async (id) => {
+            await engine.client.discoverMcp(id);
+            await engine.refresh();
+          }}
+        />
+      )}
+      <details>
+        <summary>Add a connection to this engine</summary>
+        <p>
+          The engine operator can supply a JSON file with <code>--mcp-config</code>. Start an
+          approved local HTTP MCP server separately, then list its exact read tools in the
+          configuration. No server is installed or launched from this screen.
+        </p>
+        <pre>
+          {JSON.stringify(
+            {
+              connections: [
+                {
+                  id: 'knowledge',
+                  name: 'Knowledge library',
+                  endpoint: 'http://127.0.0.1:8765/mcp',
+                  read_tools: ['search', 'lookup'],
+                },
+              ],
+            },
+            null,
+            2,
+          )}
+        </pre>
+        <p>
+          Remote URLs, credentials, write tools and hosted-model MCP access are not supported yet.
+          Server read-only hints are checked but are not a security guarantee; the operator must vet
+          the server and its tools.
+        </p>
+      </details>
       {coordinationTools.length > 0 && (
         <details>
           <summary>Internal coordination</summary>

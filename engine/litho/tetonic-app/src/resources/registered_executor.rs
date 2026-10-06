@@ -10,6 +10,8 @@ use std::sync::atomic::{AtomicBool, Ordering};
 /// grants constrain requested tool names; they do not grant arbitrary host paths.
 #[derive(Clone)]
 pub struct RegisteredExecutionSettings {
+    /// Operator-configured MCP inventory, never supplied by an employee request.
+    pub mcp: Option<Arc<crate::mcp::McpRegistry>>,
     pub plan_dispatch: Option<super::plan_dispatch::PlanDispatch>,
     /// Host-only, output-only inference contract; not employee-controlled authority.
     pub response_schema: Option<serde_json::Value>,
@@ -124,10 +126,18 @@ impl crate::Application {
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
         request: RegisteredAgentJob,
-        settings: RegisteredExecutionSettings,
+        mut settings: RegisteredExecutionSettings,
         work: Option<(String, String)>,
         parent: Option<tetonic_run::managed::DelegationParent>,
     ) -> Result<RegisteredAgentSubmission, AppError> {
+        if let Some(mcp) = &settings.mcp {
+            if settings.hosted.is_some() {
+                return Err(AppError::PolicyDenied(
+                    "MCP results are not yet approved for hosted inference".into(),
+                ));
+            }
+            settings.allowed_tools.extend(mcp.tool_names());
+        }
         let wants_dispatch = settings
             .allowed_tools
             .contains(super::plan_dispatch::DISPATCH);
@@ -289,7 +299,10 @@ impl crate::Application {
             .job_spec
             .capability_bindings
             .iter()
-            .find(|tool| !supported_registered_tool(tool))
+            .find(|tool| {
+                !supported_registered_tool(tool)
+                    && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
+            })
         {
             return Err(AppError::PolicyDenied(format!(
                 "{tool} is not a supported registered isolation profile"
@@ -301,6 +314,7 @@ impl crate::Application {
             .chain(prepared.command.job_spec.capability_bindings.iter())
             .any(|tool| {
                 tool != "finish"
+                    && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
                     && tool != "recall"
                     && tool != super::plan_dispatch::DISPATCH
                     && tool != super::plan_dispatch::ASK_HUMAN
@@ -563,15 +577,32 @@ impl crate::Application {
         };
         // No global briefing, project digest, legacy conversation or coding
         // compiler is attached. Explicit scoped recall is available when granted.
-        let agent = tetonic_core::Agent::new(
-            provider,
-            super::plan_dispatch::RegisteredToolHost {
-                tools,
-                dispatch: settings.plan_dispatch.clone(),
-            },
-            config,
-        )
-        .with_abort_staged(Arc::new(move || {
+        let host = super::plan_dispatch::RegisteredToolHost {
+            tools,
+            dispatch: settings.plan_dispatch.clone(),
+        };
+        let agent = if let Some(registry) = settings.mcp {
+            tetonic_core::Agent::new(
+                provider,
+                crate::mcp::McpToolHost {
+                    inner: Box::new(host),
+                    registry,
+                    selected: prepared
+                        .command
+                        .job_spec
+                        .capability_bindings
+                        .iter()
+                        .cloned()
+                        .collect(),
+                    consumer: runtime.capability_store().clone(),
+                    runtime: tokio::runtime::Handle::current(),
+                },
+                config,
+            )
+        } else {
+            tetonic_core::Agent::new(provider, host, config)
+        };
+        let agent = agent.with_abort_staged(Arc::new(move || {
             let _ = abort_tools.abort_staged_if_any();
         }));
         let (post_edit_snapshot, resolve_under_root, capture_workspace_version) =

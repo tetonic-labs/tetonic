@@ -38,6 +38,9 @@ pub struct UiCli {
     /// Explicit folder grant for file tools. Omit to grant no filesystem tools.
     #[arg(long)]
     workspace_root: Option<PathBuf>,
+    /// Operator-approved local HTTP MCP servers and exact vetted read tool names.
+    #[arg(long)]
+    mcp_config: Option<PathBuf>,
 }
 
 struct State {
@@ -57,10 +60,16 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
     let address = listener.local_addr()?;
     // Opening a UI is not permission to grant the process working directory.
     let workspace_root = args.workspace_root;
-    let workspace =
+    let mut workspace =
         LocalWorkspace::open_with_workspace(args.database, args.model, ollama, workspace_root)
             .await
             .map_err(|error| anyhow::anyhow!(error.employee_message()))?;
+    if let Some(path) = args.mcp_config {
+        let bytes = tokio::fs::read(path).await?;
+        workspace = workspace
+            .with_mcp_config(&bytes)
+            .map_err(|e| anyhow::anyhow!(e.employee_message()))?;
+    }
     let token = format!(
         "{}{}",
         uuid::Uuid::new_v4().simple(),
@@ -193,6 +202,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
         state
             .workspace
             .agent_catalog()
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::POST && path.starts_with("/api/local/mcp-discover/") {
+        state
+            .workspace
+            .discover_mcp(&path["/api/local/mcp-discover/".len()..])
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path.starts_with("/api/local/provider-models/") {

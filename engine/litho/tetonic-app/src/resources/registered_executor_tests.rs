@@ -103,6 +103,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             recovery_id: "job".into(),
         };
         let settings = || RegisteredExecutionSettings {
+            mcp: None,
             plan_dispatch: None,
             response_schema: None,
             hosted: None,
@@ -573,6 +574,7 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
             local.credentials().clone(),
             request,
             RegisteredExecutionSettings {
+                mcp: None,
                 plan_dispatch: None,
                 response_schema: None,
                 hosted: None,
@@ -793,6 +795,7 @@ async fn noncoding_recall_job_runs_without_a_repository() {
         recovery_id: "job".into(),
     };
     let settings = |tools: &[&str]| RegisteredExecutionSettings {
+        mcp: None,
         plan_dispatch: None,
         response_schema: None,
         hosted: None,
@@ -961,6 +964,7 @@ async fn registered_shell_is_rejected_before_inference() {
                 recovery_id: "job".into(),
             },
             RegisteredExecutionSettings {
+                mcp: None,
                 plan_dispatch: None,
                 response_schema: None,
                 hosted: None,

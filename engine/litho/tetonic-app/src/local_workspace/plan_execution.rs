@@ -433,6 +433,7 @@ impl LocalWorkspace {
             remaining: remaining.clone(),
         };
         let mut settings = self.host.settings.clone();
+        settings.mcp = None;
         settings.workspace_root = None;
         settings.hosted = None;
         settings.allowed_tools = ["finish".into(), DISPATCH.into(), ASK_HUMAN.into()]
@@ -683,6 +684,7 @@ impl LocalWorkspace {
             .ok_or(AppError::InferenceUnavailable)?;
         let agent = self.agent_profile(pin.agent_key.clone(), &stored)?;
         let mut settings = self.host.settings.clone();
+        settings.mcp = None;
         let (sender, _unused) = tokio::sync::mpsc::channel(1);
         settings.plan_dispatch = Some(PlanDispatch {
             human: Some(self.human_handoff(&pin.work_id)),

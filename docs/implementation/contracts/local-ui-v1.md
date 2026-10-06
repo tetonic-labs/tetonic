@@ -20,7 +20,7 @@ The database is dedicated to this local profile. Startup bootstraps its owner, P
 
 The server binds only to IPv4 loopback. Every endpoint checks the random session token, exact Host header, and any supplied Origin against the configured UI origin. There is no wildcard CORS, unauthenticated bootstrap endpoint, client-selected principal, tool ceiling, or workspace path. The owner may select an installed local model or explicitly opt into a hosted provider, and lower run limits within host ceilings. Task/registration/credential/brief JSON transport is bounded to 64 KiB with a five-second read deadline, plus operation-specific field limits. Connections are bounded. The adapter uses the application's managed run path and the same durable store, never the deprecated fleet dispatcher.
 
-Input is stored independently of the compact work title, up to 12,000 UTF-8 bytes per turn. Optional `parent_id` continues a conversation with the same agent. The server loads authorized ancestors and includes their user messages and completed answers in the next run; failed/stopped attempts carry a status placeholder. Clients cannot supply assistant history. Each turn retains its own managed run, stop action, and idempotent request ID. Stale branches and replies to active runs are rejected. History is bounded to 64 ancestors and 12,000 UTF-8 bytes including the new prompt and any saved brief; exceeding either returns an explicit error rather than silently dropping context. A new thought starts without earlier conversation context. Without an explicit `--workspace-root`, agents have only `finish`; the local owner can grant a jailed workspace and supported file tools. Exploration always removes file/tool access regardless of that grant. Host defaults are 120 seconds, four steps without a workspace (eight with one), and 4096 provider-reported tokens per turn. The local model profile uses Secret placement and a loopback Ollama endpoint. Shared organization transport, external CLI harnesses, live MCP installation and unrestricted recursive delegation are not supplied by this adapter. Finite agreed-plan child execution is described below.
+Input is stored independently of the compact work title, up to 12,000 UTF-8 bytes per turn. Optional `parent_id` continues a conversation with the same agent. The server loads authorized ancestors and includes their user messages and completed answers in the next run; failed/stopped attempts carry a status placeholder. Clients cannot supply assistant history. Each turn retains its own managed run, stop action, and idempotent request ID. Stale branches and replies to active runs are rejected. History is bounded to 64 ancestors and 12,000 UTF-8 bytes including the new prompt and any saved brief; exceeding either returns an explicit error rather than silently dropping context. A new thought starts without earlier conversation context. By default, agents have only `finish`; the local owner can grant a jailed workspace with `--workspace-root` and separately configure selected local MCP read tools as described below. Exploration always removes file/tool access regardless of that grant. Host defaults are 120 seconds, four steps without a workspace (eight with one), and 4096 provider-reported tokens per turn. The local model profile uses Secret placement and a loopback Ollama endpoint. Shared organization transport, external CLI harnesses, live MCP installation and unrestricted recursive delegation are not supplied by this adapter. Finite agreed-plan child execution is described below.
 
 ## Exploration and working briefs — October 5, 2026
 
@@ -232,6 +232,90 @@ Tool cards support partial host toolkits and preserve the exact selected names a
 
 OpenAI uses Responses with `stream: true`, `store: false`, `max_output_tokens` and no temperature override. Bounded SSE text deltas feed existing token callbacks; tool execution waits for a validated complete response. Call IDs and opaque continuation remain correlated across tool results. Continuation is private in-memory state, excluded from ordinary serialization; durable frontier session resumption is not implemented. Anthropic still uses buffered Messages. The existing local UI task reader exposes durable results; adding this streaming transport does not itself add a new browser token subscription. Reference: [OpenAI Responses streaming](https://developers.openai.com/api/docs/guides/streaming-responses).
 
+### Local MCP connections
+
+The operator can attach an existing local Streamable HTTP MCP server to this local
+UI host. Start and configure the approved server separately. Save a configuration
+file such as:
+
+```json
+{
+  "connections": [
+    {
+      "id": "knowledge",
+      "name": "Knowledge library",
+      "endpoint": "http://127.0.0.1:8765/mcp",
+      "read_tools": ["search", "lookup"]
+    }
+  ]
+}
+```
+
+```powershell
+cargo run -p tetonic-cli -- ui --database ../.lokai/ui/workspace.db --model <installed-ollama-model> --mcp-config <path-to-config.json>
+```
+
+Names in `read_tools` must be exact native tool names vetted by the operator.
+Endpoints accept only numeric `127.0.0.1` or `[::1]` HTTP, without userinfo,
+query credentials or fragments. Redirects and process/system proxies are disabled
+for MCP traffic. The configuration is read at startup, limited to 64 KiB/eight
+connections/32 approved tools per connection. IDs must be unique, 1–20 ASCII
+letters/digits/underscores. Tetonic does not install or launch an MCP server.
+
+In **Tools & MCPs**, choose **Discover** for the named service. This contacts only
+the configured endpoint; normal catalog polling does not probe MCP servers.
+Create an Ollama/general agent and select individual tools under **Connected
+services**. Then assign work directly to that agent. No folder is needed for
+MCP-only work. Discovery exposes inventory; creation persists only chosen
+capability IDs. Existing agents never acquire new tools from discovery.
+
+```mermaid
+flowchart LR
+    Config[Operator's MCP config] --> Inventory[Explicit discovery]
+    Inventory --> Select[User selects tools for an agent]
+    Select --> Definition[Existing immutable agent definition]
+    Definition --> Managed[Existing managed execution and grants]
+    Managed --> Broker[ActionBroker and one-use capability]
+    Broker --> Egress[EgressGuard: configured loopback endpoint]
+    Egress --> Server[MCP server]
+    Server --> Result[Tool result, model continuation and work history]
+```
+
+Discovered tools must advertise `annotations.readOnlyHint: true`. That flag is
+not authority or proof that a server is safe; the explicit operator allowlist
+and vetted server are required. Tool IDs bind endpoint, connection ID and the
+complete manifest, including input schema. Every invocation re-lists tools in a
+fresh session and refuses changed/missing manifests before `tools/call`. Refresh
+discovery and create a new agent with the reviewed tool version to change its
+selection; editing existing agent definitions is not implemented. Restarting the
+engine clears discovery inventory; rediscover unchanged tools to restore their
+availability. Discovery failures clear the connection's available tools.
+
+The transport negotiates MCP `2025-11-25` (also accepts `2025-06-18` and
+`2025-03-26`), sends `notifications/initialized`, session/version headers, and
+handles JSON or bounded SSE responses. Discovery is bounded to 15 seconds,
+four pages and 128 total advertised tools. HTTP requests are bounded to eight
+seconds/128 KiB; recheck and invocation to 20 seconds after initialization.
+Individual manifests/arguments are capped at 16 KiB and results at 32 KiB. Arguments
+must be JSON objects; full domain schema validation is the server's responsibility.
+Only text and structured results are supported. Server error bodies are not
+copied into user/model errors. Sessions are separate per discovery/call and
+closed best effort. No automatic call retry, reconnect or session resumption.
+
+Managed stop prevents further inference and requests `notifications/cancelled`
+for an in-flight tool; this is **not confirmation** that the server stopped its
+own work. Server-initiated requests, background tasks, sampling, elicitation,
+resources/prompts, remote/authenticated connections and mutations are unsupported.
+Hosted OpenAI/Anthropic MCP disclosure and vendor-harness MCP are not enabled.
+Agreed-plan child execution retains its existing prompt-only/human-escalation
+profile; MCP selection does not implicitly widen delegated grants. Skills remain
+separate future work.
+
+Protocol references: [Streamable HTTP](https://modelcontextprotocol.io/specification/2025-11-25/basic/transports),
+[lifecycle](https://modelcontextprotocol.io/specification/2025-11-25/basic/lifecycle),
+[tools and annotations](https://modelcontextprotocol.io/specification/2025-11-25/server/tools).
+Fixture and integration evidence: [FAR-006](../../epics/v5-reconciliation/sprints/frontier-agent-creation/FAR-006-mcp-and-skills.md).
+
 ## API
 
 All responses are JSON with `Cache-Control: no-store`. Errors have `{ "error": "..." }`; secrets and raw storage errors are not returned.
@@ -239,7 +323,8 @@ All responses are JSON with `Cache-Control: no-store`. Errors have `{ "error": "
 | Method | Path | Behavior |
 |---|---|---|
 | GET | `/api/local/workspace` | Durable local team, agent roster, input limit, and task projections. Legacy default-agent fields remain available. |
-| GET | `/api/local/agent-catalog` | Compatible installed model IDs, provider key status, connected harnesses, canonical `workspace_root`, `runtime_profiles`, and host ceilings. A local discovery failure appears in `local_error` with an empty local model list; hosted setup remains usable. No sample local models are substituted. |
+| GET | `/api/local/agent-catalog` | Compatible installed model IDs, provider key status, connected harnesses, canonical `workspace_root`, `runtime_profiles`, cached `mcp_connections` and host ceilings. MCP states are `unchecked`, `discovered` or `unavailable`, with explanatory messages and currently discovered tool manifests. A local model discovery failure appears in `local_error` with an empty local model list; hosted setup remains usable. No sample local models are substituted. |
+| POST | `/api/local/mcp-discover/{id}` | Explicit discovery of an operator-configured connection ID; no endpoint or credentials accepted. Returns the connection's state and individual approved read tools. Connection/protocol failures return `unavailable` and clear tool availability; unknown IDs fail. Discovery is not an agent grant. |
 | GET | `/api/local/provider-models/{provider}` | OpenAI/Anthropic account catalog via the saved OS-vault key and guarded provider endpoint. Returns `provider`, model IDs and `capabilities_verified: false`. No inference or model download. Pagination, response size and time are bounded; errors do not reveal provider response bodies or credentials. |
 | POST | `/api/local/agents` | `{ "request_id": "UUID", "name": "...", "purpose": "...", "model": "installed-id", "harness": "general", "max_steps": 4, "max_seconds": 120, "max_tokens": 4096 }`. Returns the durable agent. Optional `tools` selects supported tool names. Hosted selection additionally accepts `provider` and `hosted_consent`; hosted tools require `hosted_tools_consent` and `expected_workspace_root` matching the displayed canonical host folder. Unknown fields (including keys, arbitrary permissions, principals, and root overrides) are rejected. |
 | POST | `/api/local/provider-key` | `{ "provider": "openai", "api_key": "..." }`; saves/replaces an OS-vault key. Returns provider ID/name and `key_saved`, never the key. No paid verification request. |

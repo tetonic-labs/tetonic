@@ -161,6 +161,7 @@ impl LocalWorkspace {
                 audience: AUDIENCE.into(),
                 ollama,
                 settings: RegisteredExecutionSettings {
+                    mcp: None,
                     plan_dispatch: None,
                     response_schema: None,
                     hosted: None,
