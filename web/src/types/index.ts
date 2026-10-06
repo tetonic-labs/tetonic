@@ -1,3 +1,5 @@
+import type { AgentConfiguration } from '../lib/agentConfiguration';
+
 export type AgentStatus = 'idle' | 'thinking' | 'executing' | 'waiting_approval' | 'paused';
 
 export interface Agent {
@@ -8,6 +10,7 @@ export interface Agent {
   status: AgentStatus;
   decisionIntervalMs: number;
   capabilities: string[];
+  configuration?: AgentConfiguration;
   tokensProcessed: number;
   memoryItemsCount: number;
   isLocalToCastle: boolean;

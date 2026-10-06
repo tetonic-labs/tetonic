@@ -4,7 +4,27 @@ import path from 'path';
 
 // https://vitejs.dev/config/
 export default defineConfig({
-  plugins: [react()],
+  plugins: [
+    react(),
+    {
+      name: 'workspace-production-boundary',
+      apply: 'build',
+      generateBundle(_options, bundle) {
+        const excluded =
+          /\/dev\/|\/tests\/|\/store\/(mockData|graphMockData|workloadPresets|sampleLineageMissions|largeWorkspaces|workroomExamples)\.|\/components\/work\/(MissionDeck|DirectorExperimentView|Workroom|LocalWorkspace)\.|\/components\/workspace\/(Workspace|WorkspaceMap|WorkspacePanels|WorkFocus)\./;
+        for (const output of Object.values(bundle)) {
+          if (output.type !== 'chunk') continue;
+          const forbidden = output.moduleIds.filter((id) =>
+            excluded.test(id.replaceAll('\\', '/')),
+          );
+          if (forbidden.length)
+            this.error(
+              `The public workspace imports a preview-only module: ${forbidden.join(', ')}`,
+            );
+        }
+      },
+    },
+  ],
   resolve: {
     preserveSymlinks: true,
     alias: {

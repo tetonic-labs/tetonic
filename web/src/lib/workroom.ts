@@ -5,7 +5,7 @@ export const kindLabels = {
   responsibility: 'Ongoing responsibility',
   response: 'Event response',
 };
-export const statusLabels = {
+export const statusLabels: Record<string, string> = {
   draft: 'Shaping',
   active: 'In motion',
   needs_input: 'Your judgment',
@@ -13,12 +13,14 @@ export const statusLabels = {
   paused: 'Paused',
   awaiting_ack: 'Awaiting acknowledgment',
   review: 'Ready to review',
+  done: 'Completed',
 };
 export const needsJudgment = (item: WorkItem) =>
   item.status === 'needs_input' || item.status === 'review';
 export type WorkAction =
   | { type: 'add'; item: WorkItem }
   | { type: 'edit'; id: string; patch: Partial<WorkItem> }
+  | { type: 'patch'; id: string; patch: Partial<WorkItem> }
   | { type: 'decide'; id: string; optionId: string; note: string }
   | { type: 'advance'; id: string }
   | { type: 'dispatch'; id: string }
@@ -28,7 +30,7 @@ export function workroomReducer(items: WorkItem[], action: WorkAction): WorkItem
   if (action.type === 'add') return [...items, action.item];
   return items.map((item) => {
     if (item.id !== action.id) return item;
-    if (action.type === 'edit') return { ...item, ...action.patch };
+    if (action.type === 'edit' || action.type === 'patch') return { ...item, ...action.patch };
     if (action.type === 'decide') {
       if (item.status !== 'needs_input' || item.receipt) return item;
       const option = item.decision?.options.find((o) => o.id === action.optionId);

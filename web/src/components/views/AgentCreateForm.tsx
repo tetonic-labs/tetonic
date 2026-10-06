@@ -1,0 +1,463 @@
+import { useState } from 'react';
+import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database } from 'lucide-react';
+import type { Team } from '../../types';
+import type { WorkspaceResource } from '../../lib/toolLibrary';
+import {
+  agentTools,
+  availableAgentResources,
+  configurationForTeam,
+  defaultAgentConfiguration,
+  harnesses,
+  type AgentDraft,
+} from '../../lib/agentConfiguration';
+import { AgentAdvancedSettings } from './AgentAdvancedSettings';
+import type { AgentCatalog } from '../../lib/localEngine';
+import { AgentProviderKey } from './AgentProviderKey';
+
+export function AgentCreateForm({
+  teams,
+  currentTeamId,
+  resources,
+  models,
+  defaultModel,
+  onCreate,
+  onBack,
+  connected,
+}: {
+  teams: Team[];
+  currentTeamId: string;
+  resources: WorkspaceResource[];
+  models: string[];
+  defaultModel: string;
+  onCreate: (draft: AgentDraft) => void;
+  onBack?: () => void;
+  connected?: {
+    catalog: AgentCatalog;
+    saving: boolean;
+    error: string;
+    onSaveKey?: (provider: string, key: string) => Promise<void>;
+    onRemoveKey?: (provider: string) => Promise<void>;
+  };
+}) {
+  const [name, setName] = useState(''),
+    [purpose, setPurpose] = useState('');
+  const [teamId, setTeamId] = useState(
+    teams.some((team) => team.id === currentTeamId) ? currentTeamId : '',
+  );
+  const [model, setModel] = useState(''),
+    [customModel, setCustomModel] = useState('');
+  const [provider, setProvider] = useState('ollama');
+  const [hostedConsent, setHostedConsent] = useState(false);
+  const hosted = provider !== 'ollama';
+  const lab = connected?.catalog.providers?.find((value) => value.id === provider);
+  const [configuration, setConfiguration] = useState(() => {
+    const value = defaultAgentConfiguration();
+    if (connected)
+      value.limits = {
+        maxSteps: connected.catalog.max_steps,
+        maxSeconds: connected.catalog.max_seconds,
+        maxTokens: connected.catalog.max_tokens,
+      };
+    return value;
+  });
+  const [query, setQuery] = useState(''),
+    [notice, setNotice] = useState('');
+  const available = availableAgentResources(resources, teamId);
+  const matching = available.filter((resource) =>
+    `${resource.name} ${resource.description}`.toLowerCase().includes(query.toLowerCase().trim()),
+  );
+  const resolvedModel =
+    model === 'custom' ? customModel.trim() : model || (hosted ? '' : defaultModel);
+  const providerReady = !hosted || (!!lab?.key_saved && hostedConsent);
+  const connectedToolGroups: Record<string, string[]> = {
+    read_file: ['read_file', 'list_dir', 'grep', 'glob'],
+    write_file: ['write_file', 'edit_file'],
+  };
+  const tools = connected
+    ? agentTools.filter(
+        (tool) =>
+          !hosted &&
+          connectedToolGroups[tool.id]?.every((id) => connected.catalog.tools?.includes(id)),
+      )
+    : agentTools;
+  const choices = [...new Set([defaultModel, ...models])].filter(
+    (name) => name && name !== 'Not connected' && name !== 'Workspace default',
+  );
+  function changeTeam(id: string) {
+    const next = configurationForTeam(configuration, resources, id);
+    setNotice(
+      next.resourceIds.length !== configuration.resourceIds.length
+        ? 'Tool selections outside this team’s toolkit were cleared.'
+        : '',
+    );
+    setConfiguration(next);
+    setTeamId(id);
+    setQuery('');
+  }
+  return (
+    <form
+      className="simple-form agent-create-form"
+      onInvalid={(event) => {
+        const disclosure = (event.target as HTMLElement).closest('details');
+        if (disclosure) disclosure.open = true;
+      }}
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (!name.trim() || !resolvedModel || !providerReady || connected?.saving) return;
+        onCreate({
+          ...(connected ? { provider, hostedConsent } : {}),
+          name: name.trim(),
+          purpose: purpose.trim(),
+          teamId,
+          model: resolvedModel,
+          configuration: configurationForTeam(
+            {
+              ...configuration,
+              scope: {
+                ...configuration.scope,
+                workspacePath: configuration.scope.workspacePath.trim(),
+              },
+            },
+            resources,
+            teamId,
+          ),
+        });
+      }}
+    >
+      {onBack && (
+        <button type="button" className="quiet-back" onClick={onBack}>
+          <ArrowLeft size={16} />
+          {connected ? 'Back to work' : 'Agents'}
+        </button>
+      )}
+      <header className="agent-create-heading">
+        <h2>
+          A new <i>teammate.</i>
+        </h2>
+        <p>Give them a purpose. Choose how they work.</p>
+      </header>
+      <div className="agent-create-basics">
+        <div className="agent-identity-fields">
+          <label>
+            Name
+            <input
+              autoFocus
+              required
+              maxLength={60}
+              placeholder="What should we call them?"
+              value={name}
+              onChange={(event) => setName(event.target.value)}
+            />
+          </label>
+          <label>
+            What will they help with?
+            <textarea
+              rows={2}
+              maxLength={4000}
+              placeholder="Research ideas, improve our project…"
+              value={purpose}
+              onChange={(event) => setPurpose(event.target.value)}
+            />
+          </label>
+          <label>
+            Team
+            <select value={teamId} onChange={(event) => changeTeam(event.target.value)}>
+              {!connected && <option value="">No team yet</option>}
+              {teams.map((team) => (
+                <option key={team.id} value={team.id}>
+                  {team.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="agent-runtime-fields">
+          <span className="agent-runtime-title">
+            <Cpu size={17} />
+            How they work
+          </span>
+          {!!connected?.catalog.providers?.length && (
+            <label>
+              Model provider
+              <select
+                value={provider}
+                disabled={connected.saving}
+                onChange={(event) => {
+                  setProvider(event.target.value);
+                  setModel('');
+                  setCustomModel('');
+                  setHostedConsent(false);
+                  setConfiguration((value) => ({ ...value, toolIds: [], resourceIds: [] }));
+                }}
+              >
+                <option value="ollama">On this machine · Ollama</option>
+                {connected.catalog.providers.map((value) => (
+                  <option key={value.id} value={value.id}>
+                    {value.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          <label>
+            Model
+            <select value={model} onChange={(event) => setModel(event.target.value)}>
+              <option value="">
+                {hosted
+                  ? 'Choose a model'
+                  : defaultModel
+                    ? `Workspace default · ${defaultModel}`
+                    : 'No local models available'}
+              </option>
+              {(hosted
+                ? provider === 'openai'
+                  ? ['gpt-4.1', 'gpt-4.1-mini']
+                  : ['claude-sonnet-4-6', 'claude-haiku-4-5']
+                : choices
+              ).map((choice) => (
+                <option key={choice} value={choice}>
+                  {choice}
+                </option>
+              ))}
+              {(!connected || hosted) && <option value="custom">Specify a model…</option>}
+            </select>
+          </label>
+          {model === 'custom' && (
+            <label>
+              Model identifier
+              <input
+                required
+                maxLength={160}
+                value={customModel}
+                onChange={(event) => setCustomModel(event.target.value)}
+                placeholder="Provider’s exact model ID"
+              />
+            </label>
+          )}
+          {hosted && lab && connected?.onSaveKey && (
+            <AgentProviderKey
+              key={provider}
+              provider={lab}
+              onSave={connected.onSaveKey}
+              onRemove={connected.onRemoveKey}
+            />
+          )}
+          {hosted && (
+            <>
+              <label className="agent-hosted-consent">
+                <input
+                  type="checkbox"
+                  checked={hostedConsent}
+                  onChange={(event) => setHostedConsent(event.target.checked)}
+                />
+                <span>
+                  Allow this agent’s instructions, prompts, and conversation history to be sent to{' '}
+                  {lab?.name}. Provider usage charges apply.
+                </span>
+              </label>
+              <p>Hosted agents currently work with your prompts and conversation only.</p>
+              <p>Choose a text model with tool calling available to your provider account.</p>
+            </>
+          )}
+          {!hosted && connected?.catalog.local_error && (
+            <p role="status">{connected.catalog.local_error}</p>
+          )}
+          <label>
+            Harness
+            <select
+              value={configuration.harness}
+              onChange={(event) =>
+                setConfiguration({
+                  ...configuration,
+                  harness: event.target.value as 'general' | 'coding',
+                })
+              }
+            >
+              {harnesses
+                .filter((harness) => !connected || connected.catalog.harnesses.includes(harness.id))
+                .map((harness) => (
+                  <option key={harness.id} value={harness.id}>
+                    {harness.name}
+                  </option>
+                ))}
+            </select>
+          </label>
+          <p>
+            {connected
+              ? 'Tetonic runs the agent on your machine using the model you choose.'
+              : harnesses.find((harness) => harness.id === configuration.harness)?.description}
+          </p>
+          {!connected && (
+            <span className="agent-runtime-caption">
+              Model = intelligence. Harness = how it works.
+            </span>
+          )}
+        </div>
+      </div>
+      <fieldset className="agent-tool-picker">
+        <legend>
+          Tools{' '}
+          <span>{configuration.toolIds.length + configuration.resourceIds.length} selected</span>
+        </legend>
+        <div className="agent-tool-grid">
+          {tools.map((tool) => (
+            <label
+              className="agent-tool-choice"
+              key={tool.id}
+              data-selected={configuration.toolIds.includes(tool.id)}
+            >
+              <input
+                type="checkbox"
+                aria-label={tool.name}
+                checked={configuration.toolIds.includes(tool.id)}
+                onChange={(event) =>
+                  setConfiguration({
+                    ...configuration,
+                    toolIds: event.target.checked
+                      ? [...configuration.toolIds, tool.id]
+                      : configuration.toolIds.filter((id) => id !== tool.id),
+                  })
+                }
+              />
+              <span>
+                <strong>{tool.name}</strong>
+                <small>{tool.description}</small>
+              </span>
+            </label>
+          ))}
+        </div>
+        {connected && (
+          <p className="agent-field-note">
+            {tools.length
+              ? 'Only selected tools are granted, within the engine’s configured folder.'
+              : 'No workspace tools are available for this provider and host.'}
+          </p>
+        )}
+        {!connected && (
+          <details className="agent-resource-picker">
+            <summary>
+              Workspace tools & MCPs{' '}
+              <span>
+                {configuration.resourceIds.length
+                  ? `${configuration.resourceIds.length} selected`
+                  : `${available.length} available`}
+              </span>
+            </summary>
+            <p className="agent-field-note">
+              {teamId
+                ? 'From the selected team’s toolkit.'
+                : 'Unassigned resources. Choose a team to see its toolkit.'}{' '}
+              Setup drafts still need connecting.
+            </p>
+            {available.length > 4 && (
+              <label className="agent-tool-search">
+                <Search size={15} aria-hidden="true" />
+                <input
+                  type="search"
+                  aria-label="Find tools and MCPs"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  placeholder="Find a tool or MCP…"
+                />
+              </label>
+            )}
+            <div className="agent-resource-options">
+              {matching.map((resource) => {
+                const Icon =
+                  resource.kind === 'mcp'
+                    ? Plug
+                    : resource.kind === 'storage'
+                      ? Database
+                      : Terminal;
+                return (
+                  <label
+                    className="agent-tool-choice"
+                    key={resource.id}
+                    data-selected={configuration.resourceIds.includes(resource.id)}
+                  >
+                    <input
+                      type="checkbox"
+                      aria-label={resource.name}
+                      checked={configuration.resourceIds.includes(resource.id)}
+                      onChange={(event) =>
+                        setConfiguration({
+                          ...configuration,
+                          resourceIds: event.target.checked
+                            ? [...configuration.resourceIds, resource.id]
+                            : configuration.resourceIds.filter((id) => id !== resource.id),
+                        })
+                      }
+                    />
+                    <Icon size={16} aria-hidden="true" />
+                    <span>
+                      <strong>{resource.name}</strong>
+                      <small>
+                        {resource.kind === 'mcp'
+                          ? 'MCP'
+                          : resource.kind === 'storage'
+                            ? 'Storage'
+                            : 'Tool'}{' '}
+                        · {resource.source === 'draft' ? 'Setup draft' : 'Preview resource'}
+                      </small>
+                    </span>
+                  </label>
+                );
+              })}
+              {!matching.length && (
+                <p className="agent-field-note">
+                  {query
+                    ? 'No matching resources.'
+                    : 'No resources assigned here yet. Add or assign them in Tools & MCPs.'}
+                </p>
+              )}
+            </div>
+          </details>
+        )}
+        {notice && (
+          <p className="agent-field-note" role="status">
+            {notice}
+          </p>
+        )}
+      </fieldset>
+      <AgentAdvancedSettings
+        value={configuration}
+        onChange={setConfiguration}
+        hasTeam={!!teamId}
+        enforcedLimits={
+          connected
+            ? {
+                maxSteps: connected.catalog.max_steps,
+                maxSeconds: connected.catalog.max_seconds,
+                maxTokens: connected.catalog.max_tokens,
+              }
+            : undefined
+        }
+      />
+      {connected?.error && (
+        <p className="local-notice" role="alert">
+          {connected.error}
+        </p>
+      )}
+      <footer className="agent-create-footer">
+        <p className="preview-footnote">
+          {connected ? (
+            'Agents and their work are saved in your local engine.'
+          ) : (
+            <>
+              Preview configuration.
+              <br />
+              Model, tools, and access aren’t connected yet.
+            </>
+          )}
+        </p>
+        <button
+          type="submit"
+          className="canvas-primary"
+          disabled={!name.trim() || !resolvedModel || !providerReady || connected?.saving}
+        >
+          {connected?.saving ? 'Saving…' : 'Create agent'} <Plus size={16} />
+        </button>
+      </footer>
+    </form>
+  );
+}

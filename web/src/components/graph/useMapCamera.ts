@@ -16,6 +16,7 @@ export function useMapCamera(
   reduced: boolean,
   world = WORLD,
   scopeBounds?: { x: number; y: number; width: number; height: number },
+  insets?: { top: number; bottom: number },
 ) {
   const views = useRef(new Map<string, Camera>());
   const previousScope = useRef(scope);
@@ -33,8 +34,8 @@ export function useMapCamera(
   const pointers = useRef(new Map<number, Point>()),
     gesture = useRef<{ center: Point; distance: number; camera: Camera } | null>(null);
   // Team headings sit above their neighborhood; reserve space below the header.
-  const topInset = size.width < 700 ? 170 : 140;
-  const bottomInset = size.width < 700 ? 250 : 150;
+  const topInset = insets?.top ?? (size.width < 700 ? 170 : 140);
+  const bottomInset = insets?.bottom ?? (size.width < 700 ? 250 : 150);
   const availableHeight = Math.max(80, size.height - topInset - bottomInset);
   const centerY = (topInset + size.height - bottomInset) / 2;
   const base = Math.min(size.width / world.width, availableHeight / world.height);
@@ -239,6 +240,7 @@ export function useMapCamera(
   }, [base, size, world.width, world.height]);
   return {
     viewport,
+    ready: measured,
     scale,
     overviewScale: geometry(overview()).scale,
     organizationScale: base,
@@ -257,8 +259,9 @@ export function useMapCamera(
       bounds?: { width: number; height: number },
       space?: FocusSpace,
       context?: string,
+      replaceContext = false,
     ) => {
-      remember();
+      if (!replaceContext || !context || target.current.context !== context) remember();
       move({ ...framed(point, bounds, space), context });
     },
     zoomBy,

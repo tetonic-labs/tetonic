@@ -35,6 +35,33 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 describe('continuous map camera', () => {
+  it('returns to the original map after inspecting several assignments in the same panel', () => {
+    render(<Harness />);
+    const start = { scale: camera.scale, offset: { ...camera.offset } };
+    act(() =>
+      camera.focus(
+        { x: 400, y: 300 },
+        { width: 500, height: 400 },
+        { right: 420 },
+        'inspector',
+        true,
+      ),
+    );
+    act(() =>
+      camera.focus(
+        { x: 900, y: 600 },
+        { width: 500, height: 400 },
+        { right: 420 },
+        'inspector',
+        true,
+      ),
+    );
+    act(() => camera.back());
+    expect(camera.scale).toBeCloseTo(start.scale, 6);
+    expect(camera.offset.x).toBeCloseTo(start.offset.x, 6);
+    expect(camera.offset.y).toBeCloseTo(start.offset.y, 6);
+    expect(camera.canGoBack).toBe(false);
+  });
   it('frames a team clear of the resource shelf on wide and narrow viewports', () => {
     render(<Harness />);
     const point = { x: 700, y: 600 },

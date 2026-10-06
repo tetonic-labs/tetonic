@@ -1,0 +1,332 @@
+import { useRef, useState } from 'react';
+import { useLocalEngine } from '../../context/LocalEngineContext';
+import type { LocalApproval } from '../../lib/localEngine';
+import { needsHelp, stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
+import { workJourneys, journeyStatus, journeyPriority } from '../../lib/workJourneys';
+import { HumanQuestion } from './HumanQuestion';
+import { Portrait } from '../ui/Portrait';
+import { LocalAgentSetup } from '../work/LocalAgentSetup';
+
+export type TeamPanel = 'work' | 'agents' | 'teams' | 'attention' | 'settings';
+
+function Decision({ approval, onWork }: { approval: LocalApproval; onWork: (id: string) => void }) {
+  const { resolveApproval, isConnected, readErrors } = useLocalEngine();
+  const locked = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [receipt, setReceipt] = useState(false);
+  async function decline() {
+    if (locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      const result = await resolveApproval(approval.approval_id, false, approval.proposal_digest);
+      if (
+        result.approval_id !== approval.approval_id ||
+        result.proposal_digest !== approval.proposal_digest ||
+        result.status !== 'rejected'
+      )
+        throw new Error('Your decision was not confirmed. Refresh to check this request.');
+      setReceipt(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Your decision could not be confirmed.');
+    } finally {
+      locked.current = false;
+      setBusy(false);
+    }
+  }
+  return (
+    <article className="tw-decision">
+      <h3>{receipt ? 'Request declined' : 'An action needs your permission'}</h3>
+      {receipt ? (
+        <p>The engine confirmed your decision.</p>
+      ) : (
+        <>
+          <p>
+            The proposed action hasn’t been included with this request. You can’t approve it until
+            its effects are available to review.
+          </p>
+          {approval.work_id && (
+            <button onClick={() => onWork(approval.work_id!)}>Open related work</button>
+          )}
+          <details>
+            <summary>Request details</summary>
+            <p>Reference: {approval.approval_id}</p>
+            <p>Proposal: {approval.proposal_digest}</p>
+            <p>Expires: {new Date(approval.expires_at * 1000).toLocaleString()}</p>
+          </details>
+          <div className="tw-decision-actions">
+            <button disabled title="The exact action must be available to review">
+              Approve unavailable
+            </button>
+            <button
+              disabled={
+                !isConnected ||
+                !!readErrors.Decisions ||
+                busy ||
+                approval.expires_at * 1000 <= Date.now()
+              }
+              onClick={() => void decline()}
+            >
+              {busy ? 'Confirming…' : 'Decline request'}
+            </button>
+          </div>
+        </>
+      )}
+      {error && <p role="alert">{error}</p>}
+    </article>
+  );
+}
+
+export function TeamPanels({
+  panel,
+  records,
+  onWork,
+  onAgent,
+  dark,
+  setDark,
+  initialAgentId,
+}: {
+  panel: TeamPanel;
+  records: WorkRecord[];
+  onWork: (id: string) => void;
+  onAgent: (key: string) => void;
+  dark: boolean;
+  setDark: (value: boolean) => void;
+  initialAgentId?: string;
+}) {
+  const engine = useLocalEngine();
+  const { workspace, client, uiAgents, teams, approvals, readErrors } = engine;
+  const [creating, setCreating] = useState(false);
+  const [agentId, setAgentId] = useState<string | null>(initialAgentId || null);
+  const [query, setQuery] = useState('');
+  if (panel === 'work')
+    return (
+      <>
+        <label className="tw-search">
+          Find work
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="A title or something you asked…"
+          />
+        </label>
+        <div className="tw-record-list">
+          {workJourneys(records)
+            .reverse()
+            .sort((a, b) => journeyPriority(a, records) - journeyPriority(b, records))
+            .filter((work) =>
+              `${work.title} ${work.turns.map((turn) => turn.input).join(' ')}`
+                .toLowerCase()
+                .includes(query.toLowerCase()),
+            )
+            .map((work) => (
+              <button key={work.id} onClick={() => onWork(work.id)}>
+                <strong>{work.title}</strong>
+                <span>
+                  {journeyStatus(work, records)}
+                  {work.latest ? ` · ${work.latest.agent_name}` : ''}
+                </span>
+              </button>
+            ))}
+        </div>
+        {!records.length && <p>Your work will be here once you send your first request.</p>}
+      </>
+    );
+  if (panel === 'attention')
+    return (
+      <>
+        {readErrors.Decisions && (
+          <p className="tw-notice">
+            We couldn’t refresh decisions. Any requests shown below may have changed.
+          </p>
+        )}
+        {!readErrors.Decisions &&
+          !approvals?.pending_approvals.length &&
+          !records.some(needsHelp) && <p>Nothing is waiting for your input.</p>}
+        {(approvals?.pending_approvals || []).map((approval) => (
+          <Decision key={approval.approval_id} approval={approval} onWork={onWork} />
+        ))}
+        <div className="tw-record-list">
+          {records.filter(needsHelp).map((work) =>
+            work.latest?.state === 'waiting_human' &&
+            work.latest.human_questions?.some((q) => !q.answer) ? (
+              <div key={work.id}>
+                <p>{work.title}</p>
+                {work.latest.human_questions
+                  .filter((q) => !q.answer)
+                  .map((question) => (
+                    <HumanQuestion
+                      key={question.id}
+                      task={work.latest!}
+                      question={question}
+                      refresh={engine.refresh}
+                    />
+                  ))}
+                <button onClick={() => onWork(work.id)}>Open related work →</button>
+              </div>
+            ) : (
+              <button key={work.id} onClick={() => onWork(work.id)}>
+                <strong>{work.title}</strong>
+                <span>{stateLabel(work)} · Open to see what happened</span>
+              </button>
+            ),
+          )}
+        </div>
+      </>
+    );
+  if (panel === 'agents') {
+    if (creating && workspace)
+      return (
+        <LocalAgentSetup
+          client={client}
+          workspace={workspace}
+          onBack={() => setCreating(false)}
+          onCreated={() => {
+            setCreating(false);
+            void engine.refresh();
+          }}
+        />
+      );
+    const agent = uiAgents.find((entry) => entry.id === agentId);
+    const profile = workspace?.agents.find((entry) => entry.key === agentId);
+    if (agent && profile)
+      return (
+        <div className="tw-agent-detail">
+          <button onClick={() => setAgentId(null)}>Back to agents</button>
+          <Portrait agent={agent} size={76} square={false} />
+          <h3>{agent.name}</h3>
+          <p>{profile.purpose}</p>
+          {!profile.plan_coordinator && (
+            <button className="tw-primary" onClick={() => onAgent(profile.key)}>
+              Ask {agent.name}
+            </button>
+          )}
+          <div className="tw-record-list">
+            {records
+              .filter((work) => work.latest?.agent_key === profile.key)
+              .map((work) => (
+                <button key={work.id} onClick={() => onWork(work.id)}>
+                  <strong>{work.title}</strong>
+                  <span>{stateLabel(work)}</span>
+                </button>
+              ))}
+          </div>
+          <details>
+            <summary>Access and limits</summary>
+            <p>
+              Model: {profile.model} · {profile.provider || 'Local provider'}
+            </p>
+            <p>Tools: {profile.tools?.join(', ') || 'No file or external tools'}</p>
+            {profile.plan_coordinator ? (
+              <p>
+                The agreed plan sets the shared allowance and whole-plan time limit. Review them in
+                Shape work.
+              </p>
+            ) : (
+              <p>
+                Up to {profile.max_steps} steps, {profile.max_seconds} seconds and{' '}
+                {profile.max_tokens} reported tokens per run.
+              </p>
+            )}
+            <p>
+              Files are limited to the workspace configured by the host. No other access is implied.
+            </p>
+          </details>
+        </div>
+      );
+    return (
+      <>
+        <p>Choose someone to work with, or add an assistant for a different purpose.</p>
+        <div className="tw-agent-list">
+          {uiAgents.map((entry) => (
+            <button key={entry.id} onClick={() => setAgentId(entry.id)}>
+              <Portrait agent={entry} size={52} square={false} />
+              <strong>{entry.name}</strong>
+              <span>
+                {entry.status === 'executing' && engine.isConnected
+                  ? 'Working'
+                  : !engine.isConnected
+                    ? 'Connection lost'
+                    : 'Available'}
+              </span>
+            </button>
+          ))}
+        </div>
+        <button
+          className="tw-primary"
+          disabled={!workspace || !engine.isConnected}
+          onClick={() => setCreating(true)}
+        >
+          Add an assistant
+        </button>
+      </>
+    );
+  }
+  if (panel === 'teams')
+    return (
+      <>
+        <p>Your connected workspace is {workspace?.team_name || 'not available yet'}.</p>
+        {readErrors.Teams && <p className="tw-notice">Team information couldn’t be refreshed.</p>}
+        {teams.map((team) => (
+          <article className="tw-team" key={team.id}>
+            <h3>{team.name}</h3>
+            {team.id === workspace?.team_id && (
+              <p>{uiAgents.map((agent) => agent.name).join(', ') || 'No assistants yet'}</p>
+            )}
+          </article>
+        ))}
+        <p>
+          Team creation and membership changes aren’t available in this local connection yet. You
+          can start work directly with an assistant.
+        </p>
+      </>
+    );
+  return (
+    <div className="tw-settings">
+      <label>
+        <input type="checkbox" checked={dark} onChange={(event) => setDark(event.target.checked)} />{' '}
+        Dark appearance
+      </label>
+      <h3>Connection</h3>
+      <p>
+        {engine.isConnected
+          ? `Connected to ${workspace?.organization}.`
+          : 'Open the connection link printed by your local Tetonic engine.'}
+      </p>
+      <button onClick={engine.reconnect}>Reconnect</button>
+      <details>
+        <summary>Connection details</summary>
+        <p>{engine.error || 'The workspace is receiving engine state.'}</p>
+        {Object.entries(readErrors).map(([name, error]) => (
+          <p key={name}>
+            {name}: {error}
+          </p>
+        ))}
+      </details>
+      <h3>Who can see this work?</h3>
+      <p>
+        This is the local owner workspace. Requests and replies are saved in its engine storage. A
+        configured hosted model may receive the conversation; inspect the assistant’s settings for
+        its provider. This is not a separate private chat boundary.
+      </p>
+      <h3>Stopping work</h3>
+      <p>
+        Open a running request and choose Stop this request. That asks the engine to stop that
+        execution; it does not undo completed actions. Workspace-wide emergency stop is not exposed
+        by this connection yet.
+      </p>
+      {!!approvals?.active_stops.length && (
+        <div className="tw-notice">
+          <h3>Active restrictions</h3>
+          {approvals.active_stops.map((stop) => (
+            <p key={`${stop.scope_kind}:${stop.scope_id}`}>
+              {stop.mode}: {stop.reason} ({stop.scope_kind})
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

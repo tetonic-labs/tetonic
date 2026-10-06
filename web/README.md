@@ -1,66 +1,79 @@
-# Tetonic workspace preview
+# Tetonic team workspace
 
-A full-screen agent map with floating Teams, Agents, human decisions, and chat.
-Agents have distinct portraits. Services are destinations; active interactions
-capture agents into an orbit, then release them when an explicit end event arrives.
+There is one product UI: `src/components/team-work/TeamWorkspace.tsx`.
+Both `/` and the compatibility address `/dev/team-work/` load `src/main.tsx`.
+Connection links and saved `#work=` / `#shape=` links open this same interface.
+The older workspace, workroom, mission deck, director experiment and preview
+shells have been removed. Do not add a second UI or restore an example fallback.
 
-**This is a local, fixture-backed UI. No engine is connected.** Creating agents,
-team membership, decisions, policies and messages change this tab's React state.
-They reset on reload. Messages are addressed to a team or individual agent; the
-preview never fabricates an agent reply or executes tools. Client-side filtering
-is not an authorization or privacy boundary.
-
-## Run and verify
+## Run locally
 
 ```sh
 npm ci
 npm run dev -- --host 127.0.0.1
+```
+
+From `engine`:
+
+```sh
+cargo run -p tetonic-cli -- ui --database ../.lokai/ui/workspace.db --model <installed-ollama-model>
+```
+
+Open the connection URL printed by the engine. Its credential is removed from
+the address and held in tab session storage. A server restart requires its new
+connection link. `--ui-origin` can select another Vite origin. File access needs
+an explicit host `--workspace-root`; opening the UI does not grant it.
+
+## Connected experience
+
+- The map projects authorized engine work, conversation lineage and registered
+  agent identities. An existing `goal_id` groups work; replies are not dependency
+  edges. Without a goal reference, work belongs to the connected team.
+- The floating composer submits actual work to the chosen registered agent.
+  The inspector exposes responses, recorded tool output, run identifiers,
+  follow-ups and acknowledged cancellation. Unknown sends retry their original ID.
+- Shape work opens the registered Guide and durable revisioned working briefs.
+  Saving a brief does not authorize execution or dispatch assignments.
+  Its Work plan tab generates a real proposal from the saved brief, shows tasks,
+  proposed agents, dependencies and effort, and supports revision and agreement.
+  Proposals use existing huddle records. Agreement does not start team execution.
+- Agents supports actual model discovery, registration and profile inspection.
+  Teams reads the connected team. Needs you reads approvals and failed/interrupted
+  work. Requests without inspectable proposed effects cannot be approved.
+- Blackboard renders the returned owner-workspace transcript in conversation/turn
+  order. The current reader returns up to 100 records per run; this is neither an
+  unlimited audit export nor a shared human room. Find work searches these same
+  records with links back to the source; it is not a generated status answer.
+- Tools & MCPs shows the host tool catalog and recorded per-agent tool profiles.
+  No sample MCP connector or local setup draft is presented as a connected service.
+- Disconnection preserves last-seen records, marks the loss, and disables sends.
+  It never substitutes sample agents or activity.
+
+## Engine gaps kept explicit
+
+This connection does not yet expose team creation/membership editing, MCP
+connection management, skills, structured live tool destinations, or accepted-plan
+multi-agent dispatch. The map does not invent dependency graphs, external-service
+activity, or agent collaboration to fill those gaps. A completed run means the
+execution finished, not that the result was independently verified.
+
+See [the local UI contract](../docs/implementation/contracts/local-ui-v1.md) and
+[cutover evidence](../docs/epics/v5-reconciliation/sprints/october-1-coherent-workspace/team-view-cutover-2026-10-05.md).
+
+## Verify and maintain
+
+```sh
 npm test
 npm run typecheck
-npm run format:check
 npm run build
 ```
 
-Open `http://127.0.0.1:5173/`. The existing `/api` and `/ws` proxy configuration is
-retained but unused by this preview. Do not connect the UI directly to the legacy
-unauthenticated, in-memory fleet API as a substitute for authenticated integration.
+`team-work.css` preserves the agreed map/inspector/composer design and `brand.css`
+provides common tokens. `teamWorkspace.ts` projects authorized engine state.
+`LocalEngineContext`, `localEngine`, `workspaceRecords`, `WorkingBrief`,
+`useWorkspaceDraft`, `LocalAgentSetup`, `ProjectMap`, `useMapCamera` and `Portrait`
+reuse existing integration and interaction code.
 
-## Try the motion
-
-Use Play at the lower left. The adjacent settings icon offers:
-
-- **Sample trace:** existing fixture trace targets and outcomes, with compressed
-  playback timing. Running steps have no invented completion and remain attached.
-- **Dock, work & release:** a synthetic sequence through services and a peer handoff.
-- **A shared orbit:** three arrivals, an explicit wait/resume, independent releases.
-- **Failure, cancellation & redirect:** synthetic interruptions, including during travel.
-
-Previous/Next show semantic states without requiring precise playback timing.
-Reduce motion removes drift, travel and spring capture, preserving attachment and
-outcome states. The OS preference is honored and cannot be overridden to force
-animation. Opening an inspector or switching browser tabs pauses playback.
-
-The bottom composer addresses the selected team or one of its agents. Enter sends,
-Shift+Enter inserts a line break. The conversation expands above the composer;
-Escape collapses it. Drafts are retained separately for each team/recipient.
-
-## Implementation
-
-- `lib/mapActivity.ts`: projects existing agents, graph destinations and trace targets.
-- `lib/graphMotion.ts`: persistent bodies, fixed-step springs, stable orbit slots,
-  bounded ambient drift, soft separation, tool satellites and explicit interaction events.
-- `lib/motionPlayback.ts`: clearly labeled fixture/synthetic event schedules.
-- `components/graph/useGraphMotion.ts`: playback, pause, visibility and reduced motion.
-- `components/graph/useMapCamera.ts`: anchored wheel/pinch zoom, drag and keyboard camera.
-- `components/graph/TeamActivityMap.tsx`: renders positions and relationships from that state.
-- `components/graph/FloatingChat.tsx`: team/agent chat, scoped drafts and local history.
-- `App.tsx`: reuses existing agents, teams, approval handlers and detailed inspectors.
-
-`canvas.css` owns the map and floating controls. Existing `index.css`,
-`workspace.css` and `brand.css` supply shared components and paper/terracotta/ink
-branding. Fonts remain locally bundled Fontsource assets. No new dependency was
-added for motion.
-
-See [the motion review](../docs/epics/v5-reconciliation/sprints/mvp-6-product-cutover/ui-review/fluid-motion.md)
-for rules, validation and current limitations. This work does not mark the engine
-MVP or its authenticated product integration complete.
+The production build rejects imports from `dev`, tests, sample stores and retired
+shell names. Authenticated `/api/local` remains the engine boundary. Do not use
+the legacy unauthenticated fleet API as a shortcut.

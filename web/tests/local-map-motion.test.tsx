@@ -7,7 +7,7 @@ import {
 } from '../src/lib/localMapMotion';
 import type { Entity, Interaction } from '../src/lib/graphMotion';
 import type { WorkState } from '../src/lib/workScene';
-import { workExceptions } from '../src/components/views/AttentionView';
+import { workExceptions } from '../src/lib/workExceptions';
 
 const entities: Entity[] = [
   { id: 'a', kind: 'agent', home: { x: 0, y: 800 } },

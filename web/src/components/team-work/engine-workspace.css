@@ -1,0 +1,441 @@
+/* Live data, in the established team-work shell. */
+.tw-live .px-header {
+  gap: 14px;
+}
+.tw-connection-label {
+  max-width: 190px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  border-left: 1px solid var(--muted-on-ink);
+  padding: 7px 12px;
+  font: 10px var(--font-mono) !important;
+  color: var(--muted-on-ink) !important;
+}
+.tw-live .px-header nav button[aria-pressed='true'] {
+  background: #ffffff12;
+}
+.tw-live .px-composer {
+  width: min(650px, calc(100% - 48px));
+}
+.tw-live .pm-map {
+  top: 200px;
+  bottom: 225px;
+}
+.tw-live:has(.px-inspector) .pm-map {
+  bottom: 35px;
+}
+.tw-live .px-overview {
+  right: 28px;
+}
+.tw-live .px-overview h1 {
+  max-width: 700px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.tw-live .pm-stream-heading strong {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  font-size: 20px;
+}
+.tw-live .pm-stream > p {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tw-live .px-inspector h2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  flex-shrink: 0;
+}
+.tw-live .px-inspector-body {
+  flex: 1;
+}
+.tw-live .px-inspector[data-wide='true'] {
+  width: min(620px, calc(100% - 36px));
+}
+.tw-connection {
+  position: absolute;
+  top: 168px;
+  left: 36px;
+  right: 36px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 11px;
+}
+.tw-connection button {
+  border: 0;
+  background: var(--bg-surface);
+  padding: 5px 10px;
+}
+.tw-recipient {
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+.px-composer .tw-recipient label,
+.tw-reply .tw-recipient label {
+  display: block;
+  font-size: 11px;
+}
+.tw-recipient select {
+  max-width: 180px;
+  margin-left: 5px;
+  padding: 4px 6px;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border: 1px solid var(--muted-on-ink);
+  border-radius: 3px;
+  font: inherit;
+}
+.tw-record-list,
+.tw-agent-list {
+  display: grid;
+  gap: 0;
+}
+.px-inspector .tw-record-list > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  text-align: left;
+  padding: 15px 0;
+  width: 100%;
+  border-bottom: 1px solid var(--brand-rule);
+  gap: 7px;
+}
+.tw-record-list strong {
+  font-weight: 550;
+  overflow-wrap: anywhere;
+}
+.tw-record-list span {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.tw-search {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  margin-bottom: 12px;
+}
+.tw-search input {
+  border: 1px solid var(--brand-rule);
+  background: var(--bg-ground);
+  color: inherit;
+  padding: 9px;
+  font: inherit;
+}
+.tw-agent-list {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+.px-inspector .tw-agent-list > button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 18px;
+  background: var(--bg-ground);
+  border: 1px solid var(--brand-rule);
+  border-radius: 3px 3px 18px 3px;
+  gap: 12px;
+}
+.tw-agent-list span {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.tw-agent-detail > svg,
+.tw-agent-detail > img {
+  display: block;
+  margin: 14px 0;
+}
+.tw-agent-detail p,
+.tw-team p,
+.tw-settings p,
+.tw-tools p,
+.tw-work-details p,
+.tw-decision p {
+  font-size: 13px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.tw-team {
+  padding: 15px 0;
+  border-bottom: 1px solid var(--brand-rule);
+}
+.px-inspector .tw-primary,
+.px-inspector .tw-decision-actions button {
+  display: inline-flex;
+  padding: 10px 14px;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-radius: 3px 3px 12px 3px;
+}
+.tw-decision-actions {
+  display: flex;
+  gap: 10px;
+}
+.tw-decision {
+  border-top: 2px solid var(--brand-field);
+  padding: 14px 0;
+}
+.tw-settings details,
+.tw-agent-detail details,
+.tw-work-details details {
+  margin: 16px 0;
+  font-size: 12px;
+}
+.tw-work-details pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  padding: 12px;
+  background: var(--bg-ground);
+  font-size: 11px;
+}
+
+.tw-human-question {
+  border: 1px solid var(--brand-rule);
+  border-top: 3px solid var(--brand-field);
+  background: var(--bg-ground);
+  padding: 20px;
+  margin: 20px 0;
+  border-radius: 3px 3px 18px 3px;
+}
+.tw-human-question h3 {
+  font-size: 18px;
+  line-height: 1.45;
+  margin: 10px 0;
+}
+.tw-human-question p,
+.tw-plan-direction p {
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.tw-human-question label,
+.tw-plan-direction label {
+  display: grid;
+  gap: 8px;
+  margin: 16px 0;
+  font-size: 12px;
+}
+.tw-human-question textarea,
+.tw-plan-direction textarea,
+.tw-plan-direction select {
+  width: 100%;
+  box-sizing: border-box;
+  font: inherit;
+  line-height: 1.65;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border: 1px solid var(--brand-rule);
+  border-radius: 4px;
+  padding: 10px 12px;
+}
+.tw-human-question textarea,
+.tw-plan-direction textarea {
+  resize: vertical;
+  min-height: 90px;
+}
+.tw-human-choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+.px-inspector .tw-human-choices button {
+  border: 1px solid var(--brand-rule);
+  padding: 8px 12px;
+  border-radius: 20px;
+}
+.tw-human-actions {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+}
+.tw-human-actions small {
+  color: var(--text-secondary);
+  line-height: 1.6;
+}
+.px-inspector .tw-human-question .cw-primary,
+.px-inspector .tw-plan-direction .cw-primary {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  padding: 10px 15px;
+  border-radius: 4px;
+}
+.tw-plan-direction {
+  margin: 20px 0;
+  border-top: 1px solid var(--brand-rule);
+  padding-top: 16px;
+}
+.tw-plan-direction summary {
+  cursor: pointer;
+}
+.tw-work-status {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+}
+.tw-work-status span {
+  padding: 6px 9px;
+  background: var(--bg-ground);
+  border-radius: 3px;
+}
+.tw-turns > article {
+  border-bottom: 1px solid var(--brand-rule);
+  padding: 18px 0;
+}
+.tw-small {
+  font-size: 11px !important;
+  color: var(--text-secondary);
+}
+.tw-reply {
+  position: sticky;
+  bottom: 0;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  padding: 12px 16px;
+  border-top: 3px solid var(--brand-field);
+  border-radius: 3px 3px 18px 3px;
+}
+.tw-reply form > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+}
+.tw-reply textarea {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  resize: vertical;
+  font: inherit;
+  font-size: 13px;
+}
+.px-inspector .tw-reply form button {
+  background: var(--brand-field);
+  color: var(--brand-ink);
+  padding: 8px;
+}
+.tw-reply small {
+  font-size: 10px;
+  color: var(--muted-on-ink);
+}
+.tw-live [role='alert'] {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.tw-live .px-inspector .agent-create-form button {
+  padding: 10px 14px;
+}
+.tw-live .px-inspector .agent-create-form .canvas-primary {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+}
+.tw-live .px-inspector .simple-form label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+}
+.tw-live .px-inspector .simple-form input,
+.tw-live .px-inspector .simple-form textarea,
+.tw-live .px-inspector .simple-form select {
+  border: 1px solid var(--control-border);
+  background: var(--bg-surface);
+  color: inherit;
+  border-radius: 4px;
+  padding: 9px;
+  font: inherit;
+  width: 100%;
+}
+.tw-live .px-inspector .simple-form input[type='checkbox'] {
+  width: auto;
+}
+.tw-live .px-inspector .simple-form .agent-setting-toggle {
+  display: flex;
+}
+.tw-live .skip-link {
+  position: fixed;
+  top: -80px;
+  left: 20px;
+  z-index: 30;
+  padding: 12px;
+  background: var(--bg-surface);
+}
+.tw-live .skip-link:focus {
+  top: 10px;
+}
+@media (max-width: 1000px) {
+  .tw-live .px-header {
+    flex-wrap: wrap;
+    padding: 12px 18px;
+    gap: 8px;
+  }
+  .tw-live .px-header nav {
+    width: 100%;
+    margin: 0;
+    overflow: auto;
+    justify-content: space-between;
+    white-space: nowrap;
+    gap: 0;
+  }
+  .tw-live .px-header nav button {
+    padding: 7px;
+    flex-shrink: 0;
+    font-size: 12px;
+  }
+  .tw-connection-label {
+    margin-left: auto;
+  }
+  .tw-live .px-overview {
+    top: 125px;
+  }
+  .tw-live .px-inspector,
+  .tw-live .px-inspector[data-shaping='true'] {
+    top: 116px;
+  }
+  .tw-live .pm-map {
+    top: 225px;
+  }
+  .tw-connection {
+    top: 203px;
+    left: 20px;
+    right: 20px;
+  }
+}
+@media (max-width: 760px) {
+  .tw-live .px-inspector,
+  .tw-live .px-inspector[data-wide='true'] {
+    width: auto;
+  }
+  .tw-live .px-composer {
+    width: calc(100% - 24px);
+  }
+  .tw-live .pm-zoom {
+    bottom: 235px;
+  }
+  .tw-live:has(.px-inspector) .pm-zoom {
+    bottom: 20px;
+  }
+  .tw-live .px-composer .px-composer-modes {
+    gap: 4px;
+  }
+  .tw-live .px-composer .px-composer-modes button {
+    font-size: 11px;
+  }
+  .tw-connection span {
+    display: none;
+  }
+}

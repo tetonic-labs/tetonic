@@ -6,7 +6,8 @@ export type WorkStatus =
   | 'watching'
   | 'paused'
   | 'awaiting_ack'
-  | 'review';
+  | 'review'
+  | 'done';
 export interface WorkOption {
   id: string;
   title: string;

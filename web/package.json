@@ -8,6 +8,7 @@
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check src tests *.ts *.mjs *.json index.html",
     "dev": "vite",
+    "dev:live": "powershell -ExecutionPolicy Bypass -File ../scripts/dev-live.ps1",
     "build": "tsc && vite build",
     "preview": "vite preview"
   },

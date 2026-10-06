@@ -1,0 +1,643 @@
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { readFileSync, existsSync } from 'node:fs';
+import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
+import { LocalEngineProvider } from '../src/context/LocalEngineContext';
+import {
+  LocalEngine,
+  EngineRequestError,
+  type EngineTask,
+  type EngineWorkspace,
+  type PlanView,
+} from '../src/lib/localEngine';
+import { teamWorkspace } from '../src/lib/teamWorkspace';
+import { layoutProject } from '../src/lib/projectLayout';
+
+const agent = {
+  key: 'mira',
+  id: 'mira-id',
+  name: 'Mira',
+  purpose: 'Understand problems',
+  model: 'installed-model',
+  provider: 'ollama',
+  harness: 'general',
+  max_steps: 6,
+  max_seconds: 120,
+  max_tokens: 4096,
+  tools: ['read_file'],
+};
+const saved: EngineTask = {
+  id: 'first',
+  input: 'Compare two approaches',
+  agent_key: agent.key,
+  agent_name: agent.name,
+  state: 'completed',
+  run_id: 'run-first',
+  sequence: 10,
+  messages: [{ id: 1, role: 'assistant', content: 'The first approach needs less time.' }],
+};
+
+it('groups an executed plan and draws only its recorded assignment dependencies', () => {
+  const link = {
+    source_work_id: 'shape',
+    root_work_id: 'root',
+    assignment_key: null,
+    title: 'Compare workshops',
+    depends_on: [],
+  };
+  const root = { ...saved, id: 'root', plan: link };
+  const compare = {
+    ...saved,
+    id: 'compare',
+    plan: { ...link, assignment_key: 'compare', title: 'Compare formats' },
+  };
+  const review = {
+    ...saved,
+    id: 'review',
+    plan: {
+      ...link,
+      assignment_key: 'review',
+      title: 'Check assumptions',
+      depends_on: ['compare'],
+    },
+  };
+  const result = teamWorkspace(
+    {
+      organization: 'Our workspace',
+      team_id: 'team',
+      team_name: 'Team',
+      agent_id: agent.id,
+      agent_name: agent.name,
+      model: agent.model,
+      input_limit: 12000,
+      agents: [agent],
+      tasks: [root, compare, review],
+    },
+    [],
+  );
+  expect(result.projects).toHaveLength(1);
+  expect(result.projects[0].id).toBe('plan:root');
+  expect(result.projects[0].title).toBe('Compare workshops');
+  expect(result.projects[0].streams.find((s) => s.id === 'review')?.dependencies).toEqual([
+    { id: 'compare', reason: 'Uses the recorded contribution' },
+  ]);
+  expect(
+    result.entries.filter((e) => e.kind === 'direction').every((e) => e.author === 'Agreed plan'),
+  ).toBe(true);
+});
+function fixture(tasks: EngineTask[] = []) {
+  const client = new LocalEngine('test');
+  let data: EngineWorkspace = {
+    organization: 'Our workspace',
+    team_id: 'our-team',
+    team_name: 'Our team',
+    agent_id: agent.id,
+    agent_name: agent.name,
+    model: agent.model,
+    input_limit: 12000,
+    agents: [agent],
+    tasks,
+  };
+  const snapshot = vi.spyOn(client, 'snapshot').mockImplementation(async () => data);
+  vi.spyOn(client, 'agentCatalog').mockResolvedValue({
+    models: [agent.model],
+    harnesses: ['general'],
+    tools: ['read_file'],
+    max_steps: 8,
+    max_seconds: 120,
+    max_tokens: 4096,
+  });
+  vi.spyOn(client, 'workItems').mockResolvedValue([]);
+  vi.spyOn(client, 'teams').mockResolvedValue([
+    { id: data.team_id, name: data.team_name, org_id: 'org' },
+  ]);
+  const approvals = vi
+    .spyOn(client, 'approvals')
+    .mockResolvedValue({ active_stops: [], pending_approvals: [], effort: [] });
+  const submit = vi
+    .spyOn(client, 'submit')
+    .mockImplementation(async (id, input, key, parent, purpose) => {
+      const task = { ...saved, id, input, agent_key: key, parent_id: parent, purpose };
+      data = { ...data, tasks: [...data.tasks, task] };
+      return task;
+    });
+  const cancel = vi.spyOn(client, 'cancel').mockImplementation(async (id) => {
+    const task = {
+      ...data.tasks.find((t) => t.id === id)!,
+      state: 'canceling' as const,
+      sequence: 11,
+    };
+    data = { ...data, tasks: data.tasks.map((t) => (t.id === id ? task : t)) };
+    return task;
+  });
+  const view = () =>
+    render(
+      <LocalEngineProvider client={client}>
+        <TeamWorkspace />
+      </LocalEngineProvider>,
+    );
+  return {
+    client,
+    snapshot,
+    submit,
+    cancel,
+    approvals,
+    view,
+    getData: () => data,
+    setData: (value: EngineWorkspace) => {
+      data = value;
+    },
+  };
+}
+afterEach(() => {
+  vi.restoreAllMocks();
+  sessionStorage.clear();
+  history.replaceState(null, '', '/');
+});
+
+describe('one connected team workspace', () => {
+  it('shows real planning activity at its source work without inventing a second outcome', () => {
+    const f = fixture([{ ...saved, purpose: 'explore' }]);
+    const data = f.getData();
+    data.planning_tasks = [
+      {
+        ...saved,
+        id: 'planning',
+        planning_for: saved.id,
+        state: 'running',
+        messages: [{ id: 8, role: 'assistant', content: 'Actual proposed assignments' }],
+      },
+    ];
+    const result = teamWorkspace(data, []);
+    expect(result.records).toHaveLength(1);
+    expect(result.projects[0].streams).toHaveLength(1);
+    expect(result.projects[0].streams[0].stateLabel).toBe('Preparing a work plan');
+    expect(result.projects[0].people[0].doing).toBe('Preparing a work plan');
+    expect(result.entries.some((e) => e.content === 'Actual proposed assignments')).toBe(true);
+    expect(result.projects[0].streams[0].dependencies).toEqual([]);
+  });
+  it('makes the root and former team-work URL use the same production entry and retires old shells', () => {
+    for (const file of ['index.html', 'dev/team-work/index.html'])
+      expect(readFileSync(file, 'utf8')).toContain('src="/src/main.tsx"');
+    for (const file of [
+      'dev/PreviewApp.tsx',
+      'dev/team-work/TeamWorkExample.tsx',
+      'src/components/workspace/Workspace.tsx',
+      'src/components/work/MissionDeck.tsx',
+      'src/components/work/Workroom.tsx',
+      'src/components/work/LocalWorkspace.tsx',
+    ])
+      expect(existsSync(file)).toBe(false);
+  });
+  it('shows only actual records and groups replies without manufacturing dependencies or destinations', () => {
+    const f = fixture([
+      saved,
+      { ...saved, id: 'reply', parent_id: saved.id, input: 'Explain the risks.' },
+    ]);
+    const model = teamWorkspace(f.getData(), [], []);
+    expect(model.records).toHaveLength(1);
+    expect(model.projects[0].streams).toHaveLength(1);
+    expect(model.projects[0].streams[0].dependencies).toEqual([]);
+    expect(model.projects[0].places).toEqual([]);
+    expect(model.projects[0].people[0].destination).toBeUndefined();
+    expect(model.entries.map((e) => e.content)).toContain('Explain the risks.');
+    expect(model.entries.some((e) => e.content.includes('customer portal'))).toBe(false);
+  });
+  it('places idle agents separately even when the connected team has no work', () => {
+    const f = fixture();
+    const data = {
+      ...f.getData(),
+      agents: Array.from({ length: 12 }, (_, i) => ({
+        ...agent,
+        key: `agent-${i}`,
+        id: `id-${i}`,
+      })),
+    };
+    const layout = layoutProject(teamWorkspace(data, []).projects[0]);
+    expect(new Set(layout.people.map((p) => `${p.point.x}:${p.point.y}`)).size).toBe(12);
+  });
+  it('does not present stopped work as waiting and respects explicit recorded goal grouping', () => {
+    const f = fixture([{ ...saved, state: 'canceled' }]);
+    const model = teamWorkspace(
+      f.getData(),
+      [
+        {
+          id: saved.id,
+          title: saved.input,
+          status: 'open',
+          goal_id: 'goal-one',
+          request_id: saved.id,
+          version: 1,
+        },
+      ],
+      [],
+    );
+    expect(model.projects[0].id).toBe('goal:goal-one');
+    expect(model.projects[0].streams[0].tasks[0].status).toBe('stopped');
+  });
+  it('starts real work from the floating composer, restores it by URL, and replies to its recorded parent', async () => {
+    const f = fixture();
+    const page = f.view();
+    const input = screen.getByRole('textbox', { name: 'What would you like done?' });
+    fireEvent.change(input, { target: { value: saved.input } });
+    const send = screen.getByRole('button', { name: 'Start work' });
+    await waitFor(() => expect(send).toHaveProperty('disabled', false));
+    fireEvent.click(send);
+    const detail = await screen.findByRole('region', { name: 'Work details' });
+    expect(within(detail).getAllByText(saved.messages[0].content).length).toBeGreaterThan(0);
+    const root = f.submit.mock.calls[0][0];
+    expect(location.hash).toBe(`#work=${root}`);
+    expect(f.submit).toHaveBeenCalledWith(root, saved.input, agent.key, undefined);
+    page.unmount();
+    f.view();
+    await screen.findByRole('region', { name: 'Work details' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'Follow up on this work' }), {
+      target: { value: 'What are the risks?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send follow-up' }));
+    await waitFor(() =>
+      expect(f.submit).toHaveBeenLastCalledWith(
+        expect.any(String),
+        'What are the risks?',
+        agent.key,
+        root,
+      ),
+    );
+    expect(f.submit).toHaveBeenCalledTimes(2);
+  });
+  it('retains uncertain sends across navigation and retries the identical request', async () => {
+    const f = fixture();
+    f.submit.mockRejectedValueOnce(new Error('Response lost'));
+    f.view();
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like done?' }), {
+      target: { value: 'Keep this request.' },
+    });
+    const send = screen.getByRole('button', { name: 'Start work' });
+    await waitFor(() => expect(send).toHaveProperty('disabled', false));
+    fireEvent.click(send);
+    await screen.findByText(/Response lost/);
+    fireEvent.click(screen.getByRole('button', { name: 'Teams', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
+    expect(screen.getByRole('textbox', { name: 'What would you like done?' })).toHaveProperty(
+      'value',
+      'Keep this request.',
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Retry work request' }));
+    await screen.findByRole('region', { name: 'Work details' });
+    expect(f.submit.mock.calls[1]).toEqual(f.submit.mock.calls[0]);
+  });
+  it('keeps validation failures editable and never records rejected work as accepted', async () => {
+    const f = fixture();
+    f.submit.mockRejectedValue(new EngineRequestError('Too much context', 400));
+    f.view();
+    const input = screen.getByRole('textbox', { name: 'What would you like done?' });
+    fireEvent.change(input, { target: { value: 'Request' } });
+    const send = screen.getByRole('button', { name: 'Start work' });
+    await waitFor(() => expect(send).toHaveProperty('disabled', false));
+    fireEvent.click(send);
+    await screen.findByText(/Too much context/);
+    expect(input).toHaveProperty('readOnly', false);
+    expect(screen.queryByRole('region', { name: 'Work details' })).toBeNull();
+  });
+  it('keeps a pending plan assignment within its coordinator and exposes its context on demand', async () => {
+    const f = fixture([
+      {
+        ...saved,
+        state: 'not_started',
+        messages: [],
+        plan: {
+          source_work_id: 'shape',
+          root_work_id: 'root',
+          assignment_key: 'compare',
+          title: 'Compare formats',
+          depends_on: [],
+        },
+      },
+    ]);
+    history.replaceState(null, '', '/#work=first');
+    f.view();
+    await screen.findByRole('region', { name: 'Work details' });
+    expect(screen.queryByRole('button', { name: 'Retry saved request' })).toBeNull();
+    expect(screen.queryByRole('textbox', { name: 'Follow up on this work' })).toBeNull();
+    expect(screen.getByText('Shared context received by Mira')).toBeTruthy();
+    expect(
+      screen
+        .getByRole('link', { name: 'Open this team’s plan and contributions' })
+        .getAttribute('href'),
+    ).toBe('#shape=shape');
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+  it('does not invent completion after a stop request', async () => {
+    const f = fixture([{ ...saved, state: 'running', messages: [] }]);
+    history.replaceState(null, '', '/#work=first');
+    f.view();
+    fireEvent.click(await screen.findByRole('button', { name: 'Stop this request' }));
+    await screen.findByRole('button', { name: 'Stopping…' });
+    expect(f.cancel).toHaveBeenCalledWith(saved.id);
+    expect(screen.queryByText('Result ready')).toBeNull();
+  });
+  it('opens actual team output and tools without imaginary connectors or shared rooms', async () => {
+    const f = fixture([
+      {
+        ...saved,
+        messages: [...saved.messages, { id: 2, role: 'tool', content: 'Observed file content.' }],
+      },
+    ]);
+    f.view();
+    await screen.findByRole('button', { name: `Open ${saved.input}` });
+    fireEvent.click(screen.getByRole('button', { name: 'Blackboard', exact: true }));
+    const board = screen.getByRole('log', { name: 'Recorded team output' });
+    expect(within(board).getByText('Observed file content.')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
+    expect(screen.getByRole('heading', { name: 'read file' })).toBeTruthy();
+    expect(
+      screen.getByText(/Connecting a service is not available in this preview yet/),
+    ).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Manage GitHub' })).toBeNull();
+  });
+  it('keeps the last engine state visible but stops calling it live after disconnect', async () => {
+    const f = fixture([saved]);
+    f.view();
+    await screen.findByRole('button', { name: `Open ${saved.input}` });
+    f.snapshot.mockRejectedValue(new Error('Offline'));
+    fireEvent.click(screen.getByRole('button', { name: 'Workspace settings' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Reconnect', exact: true }));
+    await screen.findByText('Connection lost · showing last recorded state');
+    fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
+    expect(screen.getByRole('button', { name: `Open ${saved.input}` })).toBeTruthy();
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like done?' }), {
+      target: { value: 'Do not send' },
+    });
+    expect(screen.getByRole('button', { name: 'Start work' })).toHaveProperty('disabled', true);
+  });
+  it('requires inspectable effects before approval and sends a scoped decline', async () => {
+    const f = fixture();
+    const approval = {
+      org_id: 'org',
+      team_id: 'our-team',
+      approval_id: 'approval',
+      proposal_digest: 'digest',
+      status: 'pending',
+      request_id: 'r',
+      expires_at: 4102444800,
+    };
+    f.approvals.mockResolvedValue({ active_stops: [], pending_approvals: [approval], effort: [] });
+    const resolve = vi
+      .spyOn(f.client, 'resolveApproval')
+      .mockResolvedValue({ ...approval, status: 'rejected' });
+    f.view();
+    fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
+    expect(screen.getByRole('button', { name: 'Approve unavailable' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Decline request' }));
+    await screen.findByText('Request declined');
+    expect(resolve).toHaveBeenCalledExactlyOnceWith('approval', false, 'digest');
+  });
+  it('creates an engine agent through the team panel and reads its saved profile back', async () => {
+    const f = fixture();
+    const create = vi.spyOn(f.client, 'createAgent').mockImplementation(async (input) => {
+      const added = { ...input, key: 'new-agent', id: 'new-id' };
+      f.setData({ ...f.getData(), agents: [agent, added] });
+      return added;
+    });
+    f.view();
+    fireEvent.click(screen.getByRole('button', { name: 'Agents', exact: true }));
+    const add = screen.getByRole('button', { name: 'Add an assistant' });
+    await waitFor(() => expect(add).toHaveProperty('disabled', false));
+    fireEvent.click(add);
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Name', exact: true }), {
+      target: { value: 'June' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Create agent', exact: true }));
+    fireEvent.click(await screen.findByRole('button', { name: 'June Available' }));
+    expect(screen.getByRole('heading', { name: 'June' })).toBeTruthy();
+    expect(create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'June',
+        harness: 'general',
+        tools: [],
+        model: agent.model,
+        request_id: expect.any(String),
+      }),
+    );
+  });
+});
+
+function journeyFixture(waiting = false) {
+  const link = {
+    source_work_id: 'source',
+    root_work_id: 'team-result',
+    assignment_key: null,
+    title: 'Workshop options',
+    depends_on: [],
+  };
+  const source = {
+    ...saved,
+    id: 'source',
+    purpose: 'explore' as const,
+    state: 'not_started' as const,
+    input: 'Explore workshops',
+    messages: [],
+  };
+  const root = {
+    ...saved,
+    id: 'team-result',
+    plan: link,
+    state: waiting ? ('running' as const) : ('completed' as const),
+    messages: waiting
+      ? []
+      : [
+          {
+            id: 12,
+            role: 'assistant' as const,
+            content: 'The team recommends three shorter sessions.',
+          },
+        ],
+  };
+  const question = {
+    id: 'q',
+    work_id: 'contribution',
+    source_work_id: 'source',
+    attempt_id: 'attempt',
+    content: {
+      question: 'Who is this for?',
+      why: 'The audience changes our comparison.',
+      options: ['Beginners', 'Experts'],
+    },
+    deadline: Math.floor(Date.now() / 1000) + 300,
+    answer: null,
+    response_id: null,
+  };
+  const child = {
+    ...saved,
+    id: 'contribution',
+    plan: { ...link, assignment_key: 'compare', title: 'Compare formats' },
+    state: waiting ? ('waiting_human' as const) : ('completed' as const),
+    human_questions: waiting ? [question] : [],
+    messages: waiting
+      ? []
+      : [
+          {
+            id: 13,
+            role: 'assistant' as const,
+            content: 'This is the full comparison contribution.',
+          },
+        ],
+  };
+  const f = fixture([source, root, child]);
+  const content = {
+    title: 'Workshop options',
+    summary: 'Compare workshop options.',
+    token_budget: 3000,
+    open_questions: [],
+    assignments: [
+      {
+        key: 'compare',
+        title: 'Compare formats',
+        instructions: 'Compare the options.',
+        agent_key: agent.key,
+        depends_on: [],
+        tools: [],
+        deliverable: 'A comparison',
+        token_budget: 1000,
+      },
+    ],
+  };
+  const view: PlanView = {
+    plans: [
+      {
+        work_id: 'source',
+        revision: 1,
+        brief_revision: 1,
+        request_id: 'proposal',
+        generation_id: 'generation',
+        status: 'agreed',
+        content,
+        created_by: 'owner',
+        agreed_by: 'owner',
+        agreement_id: 'agreement',
+      },
+    ],
+    generation: null,
+    brief_revision: 1,
+    readiness: [],
+    execution_available: false,
+    execution: {
+      receipt: {
+        source_work_id: 'source',
+        root_work_id: root.id,
+        request_id: 'start',
+        revision: 1,
+        content,
+        assignments: [
+          {
+            assignment_key: 'compare',
+            work_id: child.id,
+            agent_key: agent.key,
+            definition_digest: 'digest',
+          },
+        ],
+      },
+      state: root.state,
+      root,
+      assignments: [child],
+      error: null,
+    },
+  };
+  vi.spyOn(f.client, 'plan').mockResolvedValue(view);
+  vi.spyOn(f.client, 'briefs').mockResolvedValue([]);
+  return { ...f, source, root, child, planView: view, question };
+}
+
+it('keeps launched work together without discarding its discussion or inventing a stale alert', () => {
+  const f = journeyFixture();
+  const model = teamWorkspace(f.getData(), []);
+  expect(model.projects).toHaveLength(1);
+  expect(model.projects[0].streams.map((s) => s.id)).toEqual(['team-result', 'contribution']);
+  expect(model.projects[0].decision).toBeUndefined();
+  expect(model.records).toHaveLength(3);
+  expect(model.entries.find((e) => e.id === 'source:input')?.projectId).toBe('plan:team-result');
+});
+
+it('opens the team result in one click and reads contributions without navigating away', async () => {
+  const f = journeyFixture();
+  f.view();
+  fireEvent.click(await screen.findByRole('button', { name: 'Result ready Workshop options' }));
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  expect(screen.queryByRole('combobox', { name: 'Your discussions' })).toBeNull();
+  expect(screen.queryByRole('button', { name: /Needs you/ })).toBeNull();
+  expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe(
+    'true',
+  );
+  const url = location.hash;
+  fireEvent.click(
+    within(screen.getByRole('region', { name: 'Team execution' })).getByText('Compare formats', {
+      selector: 'strong',
+    }),
+  );
+  expect(screen.getByText('This is the full comparison contribution.')).toBeTruthy();
+  expect(location.hash).toBe(url);
+  fireEvent.click(screen.getByRole('link', { name: 'Inspect Compare formats' }));
+  await screen.findByRole('region', { name: 'Work details' });
+  fireEvent.click(screen.getByRole('button', { name: 'Back to previous view' }));
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  expect(location.hash).toBe(url);
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('lets the operator answer a waiting team directly from Needs you', async () => {
+  const f = journeyFixture(true);
+  const answer = vi
+    .spyOn(f.client, 'answerPlanQuestion')
+    .mockImplementation(async (_, command) => ({
+      ...f.question,
+      answer: command.answer,
+      response_id: command.request_id,
+    }));
+  f.view();
+  fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
+  expect(screen.getByRole('heading', { name: 'Who is this for?' })).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Beginners' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send answer' }));
+  await screen.findByText('Your answer to Mira');
+  expect(answer).toHaveBeenCalledWith(
+    'contribution',
+    expect.objectContaining({ question_id: 'q', answer: 'Beginners' }),
+  );
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('opens bookmarked team work at its overview and keeps raw coordination inspectable', async () => {
+  const f = journeyFixture();
+  history.replaceState(null, '', '/#work=team-result');
+  f.view();
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  fireEvent.click(screen.getByRole('link', { name: 'Inspect coordination activity →' }));
+  await screen.findByRole('region', { name: 'Work details' });
+  expect(location.hash).toBe('#work=team-result&inspect=1');
+  fireEvent.click(screen.getByRole('button', { name: 'Back to previous view' }));
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('keeps a team result accessible when its original discussion is absent from the snapshot', async () => {
+  const f = journeyFixture();
+  f.setData({ ...f.getData(), tasks: [f.root, f.child] });
+  history.replaceState(null, '', '/#work=team-result');
+  f.view();
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  expect(screen.getByText('The team recommends three shorter sessions.')).toBeTruthy();
+  expect(screen.queryByText('This discussion is unavailable.')).toBeNull();
+});
+
+it('starts a new shaping discussion even when earlier team work already exists', async () => {
+  const f = journeyFixture();
+  f.view();
+  await screen.findByRole('button', { name: 'Result ready Workshop options' });
+  fireEvent.click(screen.getByRole('button', { name: 'Shape work together →' }));
+  expect(screen.getByRole('textbox', { name: 'What are you working through?' })).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Your team’s result' })).toBeNull();
+  expect(f.submit).not.toHaveBeenCalled();
+});
