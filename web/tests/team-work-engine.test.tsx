@@ -202,7 +202,7 @@ describe('one connected team workspace', () => {
       </LocalEngineProvider>,
     );
     await screen.findByRole('option', { name: 'Mira' });
-    fireEvent.change(screen.getByLabelText('What would you like done?'), {
+    fireEvent.change(screen.getByLabelText('What would you like to work on?'), {
       target: { value: 'Private research for the selected agent' },
     });
     expect(screen.getByLabelText('Assign to agent')).toHaveProperty('value', 'missing-agent');
@@ -345,7 +345,7 @@ describe('one connected team workspace', () => {
   it('starts real work from the floating composer, restores it by URL, and replies to its recorded parent', async () => {
     const f = fixture();
     const page = f.view();
-    const input = screen.getByRole('textbox', { name: 'What would you like done?' });
+    const input = screen.getByRole('textbox', { name: 'What would you like to work on?' });
     fireEvent.change(input, { target: { value: saved.input } });
     const send = screen.getByRole('button', { name: 'Start work' });
     await waitFor(() => expect(send).toHaveProperty('disabled', false));
@@ -376,7 +376,7 @@ describe('one connected team workspace', () => {
     const f = fixture();
     f.submit.mockRejectedValueOnce(new Error('Response lost'));
     f.view();
-    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like done?' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like to work on?' }), {
       target: { value: 'Keep this request.' },
     });
     const send = screen.getByRole('button', { name: 'Start work' });
@@ -390,7 +390,7 @@ describe('one connected team workspace', () => {
     await screen.findByRole('option', { name: 'Someone else' }, { timeout: 3000 });
     fireEvent.click(screen.getByRole('button', { name: 'Teams', exact: true }));
     fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
-    expect(screen.getByRole('textbox', { name: 'What would you like done?' })).toHaveProperty(
+    expect(screen.getByRole('textbox', { name: 'What would you like to work on?' })).toHaveProperty(
       'value',
       'Keep this request.',
     );
@@ -403,7 +403,7 @@ describe('one connected team workspace', () => {
     const f = fixture();
     f.submit.mockRejectedValue(new EngineRequestError('Too much context', 400));
     f.view();
-    const input = screen.getByRole('textbox', { name: 'What would you like done?' });
+    const input = screen.getByRole('textbox', { name: 'What would you like to work on?' });
     fireEvent.change(input, { target: { value: 'Request' } });
     const send = screen.getByRole('button', { name: 'Start work' });
     await waitFor(() => expect(send).toHaveProperty('disabled', false));
@@ -566,7 +566,7 @@ describe('one connected team workspace', () => {
     await screen.findByText('Connection lost · showing last recorded state');
     fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
     expect(screen.getByRole('button', { name: `Open ${saved.input}` })).toBeTruthy();
-    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like done?' }), {
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like to work on?' }), {
       target: { value: 'Do not send' },
     });
     expect(screen.getByRole('button', { name: 'Start work' })).toHaveProperty('disabled', true);
@@ -661,7 +661,7 @@ describe('one connected team workspace', () => {
     await waitFor(() => expect(start).toHaveProperty('disabled', false));
     fireEvent.click(start);
     expect(screen.getByLabelText('Assign to agent')).toHaveProperty('value', 'new-agent');
-    fireEvent.change(screen.getByLabelText('What would you like done?'), {
+    fireEvent.change(screen.getByLabelText('What would you like to work on?'), {
       target: { value: 'Read our project notes' },
     });
     fireEvent.click(screen.getByRole('button', { name: 'Start work', exact: true }));
@@ -813,9 +813,7 @@ it('opens the team result in one click and reads contributions without navigatin
   await screen.findByRole('heading', { name: 'Your team’s result' });
   expect(screen.queryByRole('combobox', { name: 'Your discussions' })).toBeNull();
   expect(screen.queryByRole('button', { name: /Needs you/ })).toBeNull();
-  expect((await screen.findByRole('tab', { name: 'Overview' })).getAttribute('aria-selected')).toBe(
-    'true',
-  );
+  expect(screen.queryByRole('tablist')).toBeNull();
   const url = location.hash;
   fireEvent.click(
     within(screen.getByRole('region', { name: 'Team execution' })).getByText('Compare formats', {

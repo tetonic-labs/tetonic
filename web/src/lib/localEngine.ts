@@ -73,6 +73,13 @@ export interface PlanView {
   execution_available: boolean;
 }
 export type PlanCommand =
+  | {
+      action: 'prepare';
+      request_id: string;
+      expected_revision: number;
+      expected_brief_revision: number;
+      body: string;
+    }
   | { action: 'generate'; request_id: string; expected_revision: number; brief_revision: number }
   | { action: 'capture'; revision: number }
   | {

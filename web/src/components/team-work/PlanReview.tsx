@@ -23,11 +23,15 @@ export function PlanReview({
   onView,
   onWork,
   onBrief,
+  suggestion,
+  conversationActive = false,
 }: {
   workId: string;
   onView?: (view: PlanView) => void;
   onWork?: (id: string, inspect?: boolean) => void;
   onBrief?: () => void;
+  suggestion?: string;
+  conversationActive?: boolean;
 }) {
   const { client, isConnected, workspace, cancelTask } = useLocalEngine();
   const key = `tetonic_plan:${connectionDraftScope()}:${workId}`;
@@ -40,6 +44,9 @@ export function PlanReview({
   });
   const [pending, setPending] = useState<PlanCommand | undefined>(retained.pending);
   const [edit, setEdit] = useState<Edit | undefined>(retained.edit);
+  const [direction, setDirection] = useState<string | undefined>(retained.direction);
+  const [reworking, setReworking] = useState(false);
+  const captureAttempt = useRef<string>('');
   const [view, setView] = useState<PlanView>();
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -58,13 +65,13 @@ export function PlanReview({
     !!edit && (edit.base !== current?.revision || edit.brief !== view?.brief_revision);
   useEffect(() => {
     try {
-      sessionStorage.setItem(key, JSON.stringify({ pending, edit }));
+      sessionStorage.setItem(key, JSON.stringify({ pending, edit, direction }));
     } catch {
       setError(
         'This tab cannot retain edits or an uncertain request. Keep a copy until it is saved.',
       );
     }
-  }, [key, pending, edit]);
+  }, [key, pending, edit, direction]);
   useEffect(() => {
     mounted.current = true;
     const controller = new AbortController();
@@ -118,7 +125,7 @@ export function PlanReview({
     setError('');
     // Persist synchronously before dispatch, including when navigation follows immediately.
     try {
-      sessionStorage.setItem(key, JSON.stringify({ pending: command, edit }));
+      sessionStorage.setItem(key, JSON.stringify({ pending: command, edit, direction }));
     } catch {
       setError('The request cannot be retained in this tab. Nothing was sent.');
       gate.current = false;
@@ -129,7 +136,7 @@ export function PlanReview({
     try {
       const result = await client.updatePlan(workId, command);
       const expected =
-        command.action === 'generate' || command.action === 'revise'
+        command.action === 'generate' || command.action === 'revise' || command.action === 'prepare'
           ? command.expected_revision + 1
           : command.revision;
       if (
@@ -140,6 +147,9 @@ export function PlanReview({
         ((command.action === 'generate' || command.action === 'revise') &&
           (result.request_id !== command.request_id ||
             result.brief_revision !== command.brief_revision)) ||
+        (command.action === 'prepare' &&
+          (result.request_id !== command.request_id ||
+            result.brief_revision !== command.expected_brief_revision + 1)) ||
         (command.action === 'capture' && !result.content) ||
         (command.action === 'revise' && canonical(result.content) !== canonical(command.content))
       )
@@ -147,11 +157,12 @@ export function PlanReview({
       // Clear durable pending state even if the overlay closed during the request.
       sessionStorage.setItem(
         key,
-        JSON.stringify({ edit: command.action === 'revise' ? undefined : edit }),
+        JSON.stringify({ edit: command.action === 'revise' ? undefined : edit, direction }),
       );
       if (!mounted.current) return;
       setPending(undefined);
       if (command.action === 'revise') setEdit(undefined);
+      if (command.action === 'prepare') setReworking(false);
       setView((old) =>
         old
           ? {
@@ -183,52 +194,107 @@ export function PlanReview({
       expected_revision: current?.revision || 0,
       brief_revision: view.brief_revision,
     });
-  const disabled = !isConnected || busy || !!pending || !!view?.execution;
+  // Capturing a structured reply validates and stores a proposal, never launches it.
+  // Do it once automatically; malformed replies remain inspectable and retryable.
+  useEffect(() => {
+    const identity = `${current?.revision}:${view?.generation?.id}`;
+    if (
+      isConnected &&
+      !busy &&
+      !pending &&
+      current?.status === 'drafting' &&
+      view?.generation?.state === 'completed' &&
+      captureAttempt.current !== identity
+    ) {
+      captureAttempt.current = identity;
+      void perform({ action: 'capture', revision: current.revision });
+    }
+  }, [
+    current?.revision,
+    current?.status,
+    view?.generation?.id,
+    view?.generation?.state,
+    isConnected,
+    busy,
+    pending,
+  ]);
+  const disabled = !isConnected || busy || !!pending || !!view?.execution || conversationActive;
+  const proposedDirection = direction ?? suggestion ?? '';
+  const prepare = () =>
+    view &&
+    perform({
+      action: 'prepare',
+      request_id: crypto.randomUUID(),
+      expected_revision: current?.revision || 0,
+      expected_brief_revision: view.brief_revision,
+      body: proposedDirection,
+    });
   function change(value: Partial<PlanContent>) {
     if (edit) setEdit({ ...edit, content: { ...edit.content, ...value } });
   }
   const content = edit?.content || current?.content;
+  if (conversationActive && !current) return null;
   return (
     <section className="tw-plan" aria-label="Work plan">
-      {!view?.execution && (
-        <p>
-          Turn the saved brief into proposed assignments. Review the approach before putting work in
-          motion.
-        </p>
-      )}
       {!view ? (
         <button disabled={!isConnected || busy} onClick={() => void refresh()}>
           Load work plan
         </button>
       ) : (
         <>
-          {!current && (
+          {(!current || reworking) && (
             <div className="tw-plan-empty">
-              <h3>A plan you can shape.</h3>
+              <h3>{current ? 'Refine the approach' : 'Ready to put a team on it?'}</h3>
               <p>
-                The Guide will use your saved brief and available agents to suggest the work, who
-                could do it, and what depends on what.
+                We’ll suggest who can help and what they should do. You review it before anyone
+                starts.
               </p>
-              <p>
-                Teams can currently work with information you supply and return written results.
-                Team execution cannot yet use file tools or connected services.
-              </p>
+              {(suggestion || direction !== undefined) && (
+                <details className="tw-direction-preview" open={reworking || undefined}>
+                  <summary>Direction to share with the team</summary>
+                  <label>
+                    Direction for the team
+                    <textarea
+                      rows={5}
+                      value={proposedDirection}
+                      readOnly={disabled}
+                      onChange={(event) => setDirection(event.target.value)}
+                    />
+                  </label>
+                  <small>
+                    Only this direction is passed into planning. Your full conversation stays here.
+                  </small>
+                  {direction !== undefined && suggestion && direction !== suggestion && (
+                    <button
+                      type="button"
+                      disabled={disabled}
+                      onClick={() => setDirection(undefined)}
+                    >
+                      Use the latest discussion
+                    </button>
+                  )}
+                </details>
+              )}
               <button
                 className="cw-primary"
-                disabled={disabled || !view.brief_revision}
-                onClick={() => void generate()}
+                disabled={
+                  disabled ||
+                  (!proposedDirection.trim() && !view.brief_revision) ||
+                  new TextEncoder().encode(proposedDirection).length > 12000
+                }
+                onClick={() => void (proposedDirection.trim() ? prepare() : generate())}
               >
-                Propose a plan
+                {current ? 'Update proposal' : 'Prepare a plan'}
               </button>
-              {!view.brief_revision && (
+              {!view.brief_revision && !proposedDirection && !conversationActive && (
                 <>
-                  <small>Save the direction you want the team to use.</small>
+                  <small>Continue the conversation to settle on a direction.</small>
                   {onBrief && <button onClick={onBrief}>Write the working brief →</button>}
                 </>
               )}
             </div>
           )}
-          {current && !view.execution && (
+          {current && !view.execution && !reworking && (
             <>
               <div className="tw-plan-state">
                 <strong>
@@ -244,9 +310,6 @@ export function PlanReview({
                           : 'Proposal not ready'
                       : 'Proposed · not started'}
                 </strong>
-                <small>
-                  Plan {current.revision} · brief {current.brief_revision}
-                </small>
               </div>
               {current.status === 'drafting' && (
                 <div>
@@ -669,28 +732,9 @@ export function PlanReview({
                         >
                           Adjust plan
                         </button>
-                        {current.status === 'draft' && (
-                          <button
-                            className="cw-primary"
-                            disabled={disabled || stale}
-                            onClick={() =>
-                              void perform({
-                                action: 'agree',
-                                request_id: crypto.randomUUID(),
-                                revision: current.revision,
-                              })
-                            }
-                          >
-                            Agree to this direction
-                          </button>
-                        )}
                       </>
                     )}
                   </div>
-                  <small>
-                    Agreement saves this direction. It does not reserve budget, grant tools, or
-                    start agents. Starting the agreed plan is a separate action below.
-                  </small>
                   {view.generation && (
                     <details>
                       <summary>Planning reply and run</summary>
@@ -708,15 +752,23 @@ export function PlanReview({
                 </fieldset>
               )}
               {!running && !edit && (
-                <button disabled={disabled || !view.brief_revision} onClick={() => void generate()}>
-                  Try another proposal
+                <button disabled={disabled} onClick={() => setReworking(true)}>
+                  Refine this proposal
                 </button>
               )}
             </>
           )}
         </>
       )}
-      {view && <PlanExecution workId={workId} view={view} refresh={refresh} onWork={onWork} />}
+      {view && !edit && !reworking && (
+        <PlanExecution
+          workId={workId}
+          view={view}
+          refresh={refresh}
+          onWork={onWork}
+          disabled={disabled || stale}
+        />
+      )}
       {pending && (
         <div role="status">
           <p>
@@ -731,7 +783,7 @@ export function PlanReview({
       )}
       {error && <p role="alert">{error}</p>}
       {!isConnected && <p>Reconnect to load or change the plan. Your local edits are kept.</p>}
-      {view && !view.execution && (
+      {error && view && !view.execution && (
         <button disabled={!isConnected || busy} onClick={() => void refresh()}>
           Reload saved plan
         </button>
@@ -742,8 +794,9 @@ export function PlanReview({
           {view.plans.map((p) => (
             <article key={p.revision}>
               <strong>
-                Plan {p.revision} · {p.status} · brief {p.brief_revision}
+                Plan {p.revision} · brief {p.brief_revision}
               </strong>
+              <small>{p.status}</small>
               {p.content && (
                 <>
                   <h4>{p.content.title}</h4>

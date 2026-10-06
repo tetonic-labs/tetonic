@@ -17,15 +17,6 @@
 .tw-live .px-inspector[data-shaping='true'] > .px-inspector-body {
   overflow: hidden;
 }
-.tw-live .px-shaping-tabs {
-  gap: 22px;
-  flex-shrink: 0;
-  margin-bottom: 14px;
-}
-.tw-live .px-shaping-tabs button {
-  padding: 10px 0;
-  font-size: 13px;
-}
 .tw-live .px-shaping-body {
   padding-right: 10px;
 }

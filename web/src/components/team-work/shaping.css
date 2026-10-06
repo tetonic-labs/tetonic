@@ -202,17 +202,22 @@
   font-size: 11px;
   margin-top: 3px;
 }
-.px-shaping-tabs {
-  display: flex;
-  gap: 24px;
-  border-bottom: 1px solid var(--brand-rule);
+.tw-conversation-plan {
+  margin-top: 20px;
+  border-top: 1px solid var(--brand-rule);
+  padding-top: 20px;
 }
-.px-inspector .px-shaping-tabs button {
-  border-bottom: 2px solid transparent;
-  border-radius: 0;
+.tw-direction-preview {
+  margin-bottom: 14px;
 }
-.px-inspector .px-shaping-tabs button[aria-selected='true'] {
-  border-color: var(--brand-field);
+.tw-saved-direction {
+  margin-top: 16px;
+  color: var(--text-secondary);
+}
+.tw-saved-direction > summary {
+  cursor: pointer;
+  padding: 8px 0;
+  font-size: 12px;
 }
 .px-shaping-body {
   flex: 1;

@@ -87,7 +87,9 @@ function ConnectedTeamWorkspace() {
       ? panel.id
       : selected?.latest?.plan && !selected.latest.plan.assignment_key && !panel?.inspect
         ? selected.latest.plan.source_work_id
-        : undefined;
+        : selected?.latest?.purpose === 'explore'
+          ? selected.id
+          : undefined;
   const journey = panel?.kind === 'shaping' || !!focusSource;
   const focusRoot = records.find(
     (r) =>
@@ -183,9 +185,9 @@ function ConnectedTeamWorkspace() {
       open({ kind: 'detail', id: root, inspect });
     }
   }
-  function shape() {
-    url('');
-    open({ kind: 'shaping' });
+  function shape(id?: string) {
+    url(id ? `#shape=${encodeURIComponent(id)}` : '');
+    open({ kind: 'shaping', id });
   }
   function readSource(source: WorkContextSource) {
     setProjectId(source.projectId);

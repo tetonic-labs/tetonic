@@ -61,7 +61,7 @@ function fixture(tasks: EngineTask[] = []) {
   vi.spyOn(client, 'plan').mockResolvedValue({
     plans: [],
     generation: null,
-    brief_revision: 0,
+    brief_revision: tasks.length ? 1 : 0,
     readiness: [],
     execution_available: false,
   });
@@ -94,14 +94,14 @@ describe('shaping in the team-work map', () => {
   it('uses the configured live Guide without passing example projects or assignments', async () => {
     const f = fixture();
     f.view();
-    fireEvent.click(screen.getByRole('button', { name: 'Shape work together →', exact: true }));
-    const send = screen.getByRole('button', { name: 'Start exploring with the Guide' });
-    fireEvent.change(screen.getByRole('textbox', { name: 'What are you working through?' }), {
+    const send = await screen.findByRole('button', { name: 'Send to the Guide' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like to work on?' }), {
       target: { value: 'I need to understand our options before deciding.' },
     });
     await waitFor(() => expect(send).toHaveProperty('disabled', false));
     fireEvent.click(send);
-    await screen.findByRole('tab', { name: 'Working brief' });
+    await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    expect(screen.queryByRole('tablist')).toBeNull();
     expect(f.submit).toHaveBeenCalledExactlyOnceWith(
       expect.any(String),
       'I need to understand our options before deciding.',
@@ -133,7 +133,7 @@ describe('shaping in the team-work map', () => {
     }));
     f.view();
     fireEvent.click(await screen.findByRole('button', { name: `Open ${saved.input}` }));
-    fireEvent.click(screen.getByRole('tab', { name: 'Working brief' }));
+    fireEvent.click(await screen.findByText('Saved direction & history'));
     const editor = await screen.findByRole('textbox', { name: 'Current understanding' });
     await waitFor(() => expect(editor).toHaveProperty('value', original.body));
     fireEvent.change(editor, {
@@ -153,23 +153,24 @@ describe('shaping in the team-work map', () => {
   it('retains an uncertain send across closing and reopening, then retries the same identity', async () => {
     const f = fixture();
     f.submit.mockRejectedValueOnce(new Error('Response lost'));
-    f.view();
-    fireEvent.click(screen.getByRole('button', { name: 'Shape work together →', exact: true }));
-    fireEvent.change(screen.getByRole('textbox', { name: 'What are you working through?' }), {
+    const page = f.view();
+    const send = await screen.findByRole('button', { name: 'Send to the Guide' });
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like to work on?' }), {
       target: { value: 'What should we learn first?' },
     });
-    const send = screen.getByRole('button', { name: 'Start exploring with the Guide' });
     await waitFor(() => expect(send).toHaveProperty('disabled', false));
     fireEvent.click(send);
     await screen.findByText(/Response lost/);
-    fireEvent.click(screen.getByRole('button', { name: 'Close project details' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Shape work together →', exact: true }));
-    expect(screen.getByRole('textbox', { name: 'What are you working through?' })).toHaveProperty(
+    page.unmount();
+    f.view();
+    const retry = await screen.findByRole('button', { name: 'Retry work request' });
+    await waitFor(() => expect(retry).toHaveProperty('disabled', false));
+    expect(screen.getByRole('textbox', { name: 'What would you like to work on?' })).toHaveProperty(
       'value',
       'What should we learn first?',
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Retry exploration message' }));
-    await screen.findByRole('tab', { name: 'Working brief' });
+    fireEvent.click(retry);
+    await screen.findByRole('textbox', { name: 'Continue the conversation' });
     expect(f.submit).toHaveBeenCalledTimes(2);
     expect(f.submit.mock.calls[1]).toEqual(f.submit.mock.calls[0]);
   });

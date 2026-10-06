@@ -47,6 +47,13 @@ const saved: EngineTask = {
 };
 function fixture(tasks: EngineTask[] = []) {
   const client = new LocalEngine('test-token');
+  vi.spyOn(client, 'plan').mockResolvedValue({
+    plans: [],
+    generation: null,
+    brief_revision: 1,
+    readiness: [],
+    execution_available: false,
+  });
   const snapshot = vi.spyOn(client, 'snapshot').mockResolvedValue({ ...base, tasks });
   vi.spyOn(client, 'agentCatalog').mockResolvedValue({
     models: [agent.model],
@@ -116,7 +123,7 @@ it('saves a brief without launching work and retries an uncertain save with the 
     }));
   window.history.replaceState(null, '', `/#shape=${saved.id}`);
   const page = f.view();
-  fireEvent.click(await screen.findByRole('tab', { name: 'Working brief' }));
+  fireEvent.click(await screen.findByText('Saved direction & history'));
   const editor = await screen.findByRole('textbox', { name: 'Current understanding' });
   await waitFor(() => expect(editor).toHaveProperty('value', original.body));
   fireEvent.change(editor, {
@@ -130,7 +137,7 @@ it('saves a brief without launching work and retries an uncertain save with the 
   briefs.mockResolvedValue([{ ...original, revision: 3, body: 'A later decision' }, original]);
   page.unmount();
   f.view();
-  fireEvent.click(await screen.findByRole('tab', { name: 'Working brief' }));
+  fireEvent.click(await screen.findByText('Saved direction & history'));
   await screen.findByText(/A newer revision is saved/);
   fireEvent.click(screen.getByRole('button', { name: 'Retry save' }));
   await screen.findByText('Saved · revision 2');
@@ -157,7 +164,7 @@ it('preserves a conflicting brief draft and requires review before applying it t
     .mockRejectedValue(new EngineRequestError('Brief changed', 400));
   window.history.replaceState(null, '', `/#shape=${saved.id}`);
   f.view();
-  fireEvent.click(await screen.findByRole('tab', { name: 'Working brief' }));
+  fireEvent.click(await screen.findByText('Saved direction & history'));
   const editor = await screen.findByRole('textbox', { name: 'Current understanding' });
   fireEvent.change(editor, { target: { value: 'My unsaved decision' } });
   fireEvent.click(screen.getByRole('button', { name: 'Save brief' }));

@@ -15,7 +15,7 @@ export function WorkComposer({
   work?: WorkRecord;
   recipient?: string;
   onAccepted: (id: string) => void;
-  onShape?: () => void;
+  onShape?: (id?: string) => void;
 }) {
   const engine = useLocalEngine();
   const [choice, setChoice] = useState(recipient || '');
@@ -26,8 +26,14 @@ export function WorkComposer({
   const writer = useWorkspaceDraft(`team-work:${connectionDraftScope()}`);
   const draft = writer.drafts[key] || { text: '' };
   const agentKey =
-    draft.pending?.agent || work?.latest?.agent_key || choice || agents[0]?.key || '';
-  const selectedAgent = agents.find((agent) => agent.key === agentKey);
+    draft.pending?.agent ||
+    work?.latest?.agent_key ||
+    choice ||
+    engine.workspace?.shaping_agent_key ||
+    agents[0]?.key ||
+    '';
+  const directing = !work && agentKey === engine.workspace?.shaping_agent_key;
+  const selectedAgent = engine.workspace?.agents.find((agent) => agent.key === agentKey);
   const setup =
     selectedAgent &&
     agentSetup(
@@ -59,14 +65,23 @@ export function WorkComposer({
         event.preventDefault();
         if (!enabled) return;
         const sentKey = key;
-        void writer.send(key, agentKey, work?.latest?.id, engine.submitTask, (task) => {
-          if (current.current === sentKey) onAccepted(work?.id || task.id);
-        });
+        void writer.send(
+          key,
+          agentKey,
+          work?.latest?.id,
+          engine.submitTask,
+          (task) => {
+            if (current.current !== sentKey) return;
+            if (task.purpose === 'explore' && onShape) onShape(task.id);
+            else onAccepted(work?.id || task.id);
+          },
+          directing ? 'explore' : undefined,
+        );
       }}
     >
       <div className="tw-recipient">
         <label htmlFor={`request-${key}`}>
-          {work ? 'Follow up on this work' : 'What would you like done?'}
+          {work ? 'Follow up on this work' : 'What would you like to work on?'}
         </label>
         {!work && (
           <label>
@@ -77,7 +92,13 @@ export function WorkComposer({
               disabled={!!draft.pending || !!writer.busyKey}
               onChange={(event) => setChoice(event.target.value)}
             >
-              {!agents.length && <option value="">No agent available</option>}
+              {engine.workspace?.shaping_agent_key ? (
+                <option value={engine.workspace.shaping_agent_key}>
+                  The Guide · coordinate with me
+                </option>
+              ) : (
+                <option value="">Connect your engine</option>
+              )}
               {agentKey && !selectedAgent && (
                 <option value={agentKey}>Selected agent unavailable</option>
               )}
@@ -98,23 +119,33 @@ export function WorkComposer({
           placeholder={
             work
               ? 'Share guidance or ask a follow-up…'
-              : 'Give an agent something worth working on…'
+              : directing
+                ? 'Ask a question, explore an idea, or put your team to work…'
+                : 'Give this agent something worth working on…'
           }
           readOnly={!!writer.busyKey || (!!draft.pending && !draft.editable)}
           onChange={(event) => writer.edit(key, event.target.value)}
         />
         <button
           disabled={!enabled}
-          aria-label={draft.pending ? 'Retry work request' : work ? 'Send follow-up' : 'Start work'}
+          aria-label={
+            draft.pending
+              ? 'Retry work request'
+              : work
+                ? 'Send follow-up'
+                : directing
+                  ? 'Send to the Guide'
+                  : 'Start work'
+          }
         >
           <ArrowUp size={16} />
-          {!work && <span>Start work</span>}
+          {!work && <span>{directing ? 'Send' : 'Start work'}</span>}
         </button>
       </div>
-      {onShape && (
+      {onShape && !directing && (
         <div className="tw-composer-alternatives">
           <span>Still figuring it out?</span>
-          <button type="button" onClick={onShape}>
+          <button type="button" onClick={() => onShape()}>
             Shape work together →
           </button>
         </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope, EngineRequestError, type PlanView } from '../../lib/localEngine';
 import { stateLabels } from '../../lib/workspaceRecords';
@@ -11,11 +11,13 @@ export function PlanExecution({
   view,
   refresh,
   onWork,
+  disabled = false,
 }: {
   workId: string;
   view: PlanView;
   refresh: () => Promise<void>;
   onWork?: (id: string, inspect?: boolean) => void;
+  disabled?: boolean;
 }) {
   const { client, isConnected, cancelTask, workspace } = useLocalEngine();
   const key = `tetonic_plan_start:${connectionDraftScope()}:${workId}`;
@@ -27,22 +29,34 @@ export function PlanExecution({
     }
   });
   const [busy, setBusy] = useState(false);
+  const gate = useRef(false);
   const [error, setError] = useState('');
   const execution = view.execution;
   const plan = view.plans[0];
-  if (!execution && plan?.status !== 'agreed') return null;
+  if (!execution && !['draft', 'agreed'].includes(plan?.status || '')) return null;
   const content = execution?.receipt.content || plan?.content;
   if (!content) return null;
   const coordination =
     content.token_budget - content.assignments.reduce((total, a) => total + a.token_budget, 0);
   async function start() {
-    if (busy || !plan || !isConnected) return;
+    if (gate.current || !plan || !isConnected || disabled) return;
+    gate.current = true;
     setBusy(true);
     setError('');
     const request = pending || { request_id: crypto.randomUUID(), revision: plan.revision };
     try {
       sessionStorage.setItem(key, JSON.stringify(request));
       setPending(request);
+      if (plan.status !== 'agreed') {
+        const agreed = await client.updatePlan(workId, { action: 'agree', ...request });
+        if (
+          agreed.work_id !== workId ||
+          agreed.revision !== request.revision ||
+          agreed.agreement_id !== request.request_id ||
+          agreed.status !== 'agreed'
+        )
+          throw new Error('Agreement was not confirmed. Retry the same start.');
+      }
       const result = await client.startPlan(workId, request);
       if (
         result.receipt.request_id !== request.request_id ||
@@ -62,6 +76,7 @@ export function PlanExecution({
       setError(e instanceof Error ? e.message : 'Could not confirm plan start.');
       await refresh();
     } finally {
+      gate.current = false;
       setBusy(false);
     }
   }
@@ -110,42 +125,49 @@ export function PlanExecution({
   };
   return (
     <section className="cw-plan-execution" data-started={!!execution} aria-label="Team execution">
-      <h3>
-        {execution
-          ? result
-            ? 'Your team’s result'
-            : active
-              ? 'Your team at work'
-              : 'Your team’s work'
-          : 'Ready for your team'}
-      </h3>
+      {execution && (
+        <h3>
+          {execution
+            ? result
+              ? 'Your team’s result'
+              : active
+                ? 'Your team at work'
+                : 'Your team’s work'
+            : 'Ready for your team'}
+        </h3>
+      )}
       {!execution ? (
         <>
-          <p>
-            {content.assignments.length} assignments share a {content.token_budget.toLocaleString()}{' '}
-            token allowance, including {coordination.toLocaleString()} for coordination and the
-            combined result.
-          </p>
-          {view.execution_max_seconds && (
+          <details>
+            <summary>Budget & time limit</summary>
             <p>
-              Up to {Math.ceil(view.execution_max_seconds / 60)} minutes for the whole plan,
-              including time waiting for each agent.
+              {content.assignments.length} assignments share a{' '}
+              {content.token_budget.toLocaleString()} token allowance, including{' '}
+              {coordination.toLocaleString()} for coordination and the combined result.
             </p>
-          )}
+            {view.execution_max_seconds && (
+              <p>
+                Up to {Math.ceil(view.execution_max_seconds / 60)} minutes for the whole plan,
+                including time waiting for each agent.
+              </p>
+            )}
+            <small>Reported token usage is tracked; this is not a billing cap.</small>
+          </details>
           <button
             className="cw-primary"
-            disabled={busy || !isConnected || (!view.execution_available && !pending)}
+            disabled={
+              busy ||
+              disabled ||
+              !isConnected ||
+              (!pending &&
+                (view.readiness.length > 0 || plan?.brief_revision !== view.brief_revision))
+            }
             onClick={() => void start()}
           >
-            {busy
-              ? 'Starting your team…'
-              : pending
-                ? 'Check this start again'
-                : 'Start agreed plan'}
+            {busy ? 'Starting your team…' : pending ? 'Check this start again' : 'Start this plan'}
           </button>
           <small>
-            Starts the agreed assignments. Reported token usage is tracked; this is not a billing
-            cap.
+            Approves this direction and starts the assignments with their saved permissions.
           </small>
         </>
       ) : (

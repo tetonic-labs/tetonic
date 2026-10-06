@@ -105,8 +105,18 @@ function fixture(
   const submit = vi.spyOn(client, 'submit');
   const update = vi.spyOn(client, 'updatePlan').mockImplementation(async (_id, command) => {
     const next =
-      command.action === 'generate'
-        ? { ...plan, request_id: command.request_id, status: 'drafting' as const, content: null }
+      command.action === 'generate' || command.action === 'prepare'
+        ? {
+            ...plan,
+            revision: command.expected_revision + 1,
+            brief_revision:
+              command.action === 'prepare'
+                ? command.expected_brief_revision + 1
+                : command.brief_revision,
+            request_id: command.request_id,
+            status: 'drafting' as const,
+            content: null,
+          }
         : command.action === 'capture'
           ? { ...state.plans[0], content, status: 'draft' as const }
           : command.action === 'agree'
@@ -126,8 +136,9 @@ function fixture(
     state = {
       ...state,
       plans: [next],
+      brief_revision: next.brief_revision,
       generation:
-        command.action === 'generate'
+        command.action === 'generate' || command.action === 'prepare'
           ? {
               id: 'generation',
               input: 'Host-composed prompt',
@@ -149,10 +160,10 @@ function fixture(
     set: (v: Partial<PlanView>) => {
       state = { ...state, ...v };
     },
-    render: () =>
+    render: (suggestion?: string) =>
       render(
         <LocalEngineProvider client={client}>
-          <PlanReview workId="shape" />
+          <PlanReview workId="shape" suggestion={suggestion} />
         </LocalEngineProvider>,
       ),
   };
@@ -174,7 +185,7 @@ it('starts the agreed plan through its own engine door and reuses an uncertain r
     .spyOn(f.client, 'startPlan')
     .mockRejectedValueOnce(new Error('Start response lost'));
   const first = f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Start agreed plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Start this plan' }));
   await screen.findByText('Start response lost');
   const request = start.mock.calls[0][1];
   first.unmount();
@@ -235,18 +246,18 @@ it('allows a corrected start after an explicit rejection and shows the whole-pla
     .spyOn(f.client, 'startPlan')
     .mockRejectedValue(new EngineRequestError('The brief changed. Review it again.', 400));
   f.render();
-  const button = await screen.findByRole('button', { name: 'Start agreed plan' });
+  const button = await screen.findByRole('button', { name: 'Start this plan' });
   expect(screen.getByText(/Up to 6 minutes for the whole plan/)).toBeTruthy();
   fireEvent.click(button);
   await screen.findByText('The brief changed. Review it again.');
   const first = start.mock.calls[0][1].request_id;
   await waitFor(() =>
-    expect(screen.getByRole('button', { name: 'Start agreed plan' })).toHaveProperty(
+    expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
       'disabled',
       false,
     ),
   );
-  fireEvent.click(screen.getByRole('button', { name: 'Start agreed plan' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Start this plan' }));
   await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
   expect(start.mock.calls[1][1].request_id).not.toBe(first);
 });
@@ -292,7 +303,7 @@ it('does not present a partial coordinator answer as a completed team result', a
   f.render();
   await screen.findByText('A contribution did not complete.');
   expect(screen.queryByText('UNVERIFIED_COMPLETION')).toBeNull();
-  expect(screen.queryByRole('button', { name: 'Start agreed plan' })).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
   expect(screen.getByText(/Recorded contributions are kept/)).toBeTruthy();
   fireEvent.click(screen.getByText('What the team was given'));
   expect(screen.getByText('The original brief is unavailable for this saved run.')).toBeTruthy();
@@ -420,16 +431,14 @@ it('explains exhausted coordination even while the plan total has unused allowan
   expect(f.submit).not.toHaveBeenCalled();
 });
 
-it('proposes, reviews and agrees to a plan without dispatching assignments', async () => {
+it('prepares and captures a proposal inline without dispatching assignments', async () => {
   const f = fixture();
   f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Propose a plan' }));
-  fireEvent.click(await screen.findByRole('button', { name: 'Review proposed plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
   await screen.findByRole('heading', { name: 'Compare formats' });
   expect(screen.getByText('After: Compare formats')).toBeTruthy();
-  fireEvent.click(screen.getByRole('button', { name: 'Agree to this direction' }));
-  await screen.findByText('Direction agreed · not started');
-  expect(f.update.mock.calls.map((c) => c[1].action)).toEqual(['generate', 'capture', 'agree']);
+  expect(f.update.mock.calls.map((c) => c[1].action)).toEqual(['generate', 'capture']);
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toBeTruthy();
   expect(f.submit).not.toHaveBeenCalled();
 });
 
@@ -437,15 +446,15 @@ it('retains an uncertain operation across closing the overlay and retries its id
   const f = fixture();
   f.update.mockRejectedValueOnce(new Error('Lost response'));
   const first = f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Propose a plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
   await screen.findByText('Lost response');
   const original = f.update.mock.calls[0][1];
   first.unmount();
   f.render();
   fireEvent.click(await screen.findByRole('button', { name: 'Retry plan operation' }));
-  await waitFor(() => expect(f.update).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(f.update.mock.calls.length).toBeGreaterThanOrEqual(2));
   expect(f.update.mock.calls[1][1]).toEqual(original);
-  await screen.findByRole('button', { name: 'Review proposed plan' });
+  await screen.findByRole('heading', { name: 'Compare formats' });
 });
 
 it('keeps edits and blocks stale agreement until current brief and plan are reviewed', async () => {
@@ -495,11 +504,13 @@ it('does not treat a mismatched agreement receipt as success', async () => {
     execution_available: false,
   });
   f.update.mockResolvedValueOnce({ ...plan, status: 'agreed', agreement_id: 'wrong' });
+  const start = vi.spyOn(f.client, 'startPlan');
   f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Agree to this direction' }));
-  await screen.findByText('The engine has not confirmed this operation. Retry the same request.');
+  fireEvent.click(await screen.findByRole('button', { name: 'Start this plan' }));
+  await screen.findByText('Agreement was not confirmed. Retry the same start.');
   expect(screen.queryByText('Direction agreed · not started')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Retry plan operation' })).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Check this start again' })).toBeTruthy();
+  expect(start).not.toHaveBeenCalled();
 });
 
 it('requires a saved brief and performs no planning on read', async () => {
@@ -511,10 +522,93 @@ it('requires a saved brief and performs no planning on read', async () => {
     execution_available: false,
   });
   f.render();
-  expect(await screen.findByRole('button', { name: 'Propose a plan' })).toHaveProperty(
+  expect(await screen.findByRole('button', { name: 'Prepare a plan' })).toHaveProperty(
     'disabled',
     true,
   );
   expect(f.update).not.toHaveBeenCalled();
   expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('carries reviewed direction into planning and agrees and dispatches with one recoverable start', async () => {
+  const f = fixture({
+    plans: [],
+    generation: null,
+    brief_revision: 0,
+    readiness: [],
+    execution_available: false,
+  });
+  const start = vi
+    .spyOn(f.client, 'startPlan')
+    .mockRejectedValueOnce(new Error('Start response lost'));
+  const first = f.render('Investigate the supplied options with two independent contributors.');
+  fireEvent.click(await screen.findByText('Direction to share with the team'));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Direction for the team' }), {
+    target: {
+      value: 'Use only the supplied evidence. Compare options and independently check constraints.',
+    },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare a plan' }));
+  await screen.findByRole('heading', { name: 'Compare formats' });
+  expect(f.update.mock.calls[0][1]).toMatchObject({
+    action: 'prepare',
+    expected_revision: 0,
+    expected_brief_revision: 0,
+    body: 'Use only the supplied evidence. Compare options and independently check constraints.',
+  });
+  expect(start).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Start this plan' }));
+  await screen.findByText('Start response lost');
+  const request = start.mock.calls[0][1];
+  expect(f.update.mock.calls.map((c) => c[1].action)).toEqual(['prepare', 'capture', 'agree']);
+  expect(f.update.mock.calls[2][1]).toEqual({ action: 'agree', ...request });
+  first.unmount();
+  start.mockImplementationOnce(async () => {
+    const execution: PlanExecutionView = {
+      receipt: {
+        source_work_id: 'shape',
+        ...request,
+        root_work_id: 'root',
+        content,
+        assignments: content.assignments.map((a) => ({
+          assignment_key: a.key,
+          work_id: a.key,
+          agent_key: a.agent_key,
+          definition_digest: 'saved-agent-revision',
+        })),
+      },
+      state: 'running',
+      root: null,
+      assignments: [],
+      error: null,
+    };
+    f.set({ execution });
+    return execution;
+  });
+  f.render();
+  fireEvent.click(await screen.findByRole('button', { name: 'Check this start again' }));
+  await screen.findByRole('heading', { name: 'Your team at work' });
+  expect(start.mock.calls[1][1]).toEqual(request);
+  expect(f.update.mock.calls.filter((c) => c[1].action === 'agree')).toHaveLength(1);
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('keeps an unconfirmed prepared direction pinned across closing and reopening', async () => {
+  const f = fixture({
+    plans: [],
+    generation: null,
+    brief_revision: 0,
+    readiness: [],
+    execution_available: false,
+  });
+  f.update.mockRejectedValueOnce(new Error('Preparation response lost'));
+  const first = f.render('First direction');
+  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
+  await screen.findByText('Preparation response lost');
+  const original = f.update.mock.calls[0][1];
+  first.unmount();
+  f.render('A later response must not overwrite the pending operation');
+  fireEvent.click(await screen.findByRole('button', { name: 'Retry plan operation' }));
+  await screen.findByRole('heading', { name: 'Compare formats' });
+  expect(f.update.mock.calls[1][1]).toEqual(original);
 });
