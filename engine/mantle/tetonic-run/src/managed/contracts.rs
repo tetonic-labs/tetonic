@@ -100,13 +100,13 @@ pub struct ActivationReceipt {
 
 #[derive(Debug)]
 pub enum ManagedAdmission {
-    Admitted(ManagedBinding),
+    Admitted(Box<ManagedBinding>),
     Existing(ActivationReceipt),
 }
 
 pub enum ManagedSubmission {
     Started {
-        binding: ManagedBinding,
+        binding: Box<ManagedBinding>,
         completion: tokio::sync::oneshot::Receiver<StartIdentityJobResult>,
     },
     Existing(ActivationReceipt),

@@ -234,7 +234,7 @@ fn new_context(key: &str) -> AdmissionContext {
 
 fn admitted(result: ManagedAdmission) -> tetonic_run::ManagedBinding {
     match result {
-        ManagedAdmission::Admitted(binding) => binding,
+        ManagedAdmission::Admitted(binding) => *binding,
         _ => panic!("expected a new activation"),
     }
 }

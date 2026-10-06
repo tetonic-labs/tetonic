@@ -28,7 +28,7 @@ impl super::service::ManagedRunService {
         context: AdmissionContext,
     ) -> Result<ManagedBinding, ManagedRunError> {
         match self.admit_submission(id, job, context).await? {
-            ManagedAdmission::Admitted(binding) => Ok(binding),
+            ManagedAdmission::Admitted(binding) => Ok(*binding),
             ManagedAdmission::Existing(_) => Err(ManagedRunError::InvalidRequest(
                 "activation already exists; use submission receipts".into(),
             )),
@@ -339,7 +339,7 @@ impl super::service::ManagedRunService {
                 };
                 if let Some(binding) = existing {
                     self.dispatches.lock_recover().remove(id);
-                    return Ok(ManagedAdmission::Admitted(binding));
+                    return Ok(ManagedAdmission::Admitted(Box::new(binding)));
                 }
                 return Err(ManagedRunError::InvalidRequest(
                     "child delivery already admitted; retry requires a new authorized task".into(),
@@ -736,7 +736,7 @@ impl super::service::ManagedRunService {
         // Spawn heartbeat driver
         self.spawn_heartbeat_driver(attempt_id.clone(), heartbeat_cancel);
 
-        Ok(ManagedAdmission::Admitted(binding))
+        Ok(ManagedAdmission::Admitted(Box::new(binding)))
     }
 
     pub(crate) async fn current_sequence(&self, run_id: &RunId) -> u64 {
