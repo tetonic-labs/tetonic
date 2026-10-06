@@ -68,25 +68,33 @@ fn seed(db: &Store, shared: bool) -> Fixture {
         expires_at: 1000,
     };
     db.issue_execution_grant("alice", &parent, 100).unwrap();
-    db.create_team_work_item("alice", "org", "team", "root", "Lead", "root-request", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "root",
+        title: "Lead",
+        request_id: "root-request",
+        goal_id: None,
+    })
+    .unwrap();
     db.authorize_work_budget("alice", "org", "team", "root", "fund", 100)
         .unwrap();
-    db.create_work_delegation(
-        "alice",
-        "org",
-        "team",
-        "delegation",
-        "root",
-        "child",
-        "Help",
-        "delegate",
-        100,
-        40,
-        "inherit",
-        None,
-        None,
-    )
+    db.create_work_delegation(crate::CreateWorkDelegation {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        delegation_id: "delegation",
+        parent_work_id: "root",
+        child_work_id: "child",
+        child_title: "Help",
+        request_id: "delegate",
+        parent_budget_tokens: 100,
+        child_budget_tokens: 40,
+        stop_scope: "inherit",
+        peer_org: None,
+        peer_team: None,
+    })
     .unwrap();
     // Durable managed records, deliberately constructed as storage fixtures.
     let binding = TaskInputBinding {
@@ -540,21 +548,21 @@ fn ancestor_revocation_traverses_multiple_delegations_without_resetting_payer_or
     let child = db
         .derive_execution_grant("alice", "org", "team", &f.request, 101)
         .unwrap();
-    db.create_work_delegation(
-        "alice",
-        "org",
-        "team",
-        "grand-delegation",
-        "child",
-        "grandchild",
-        "Contribute",
-        "grand-request",
-        40,
-        20,
-        "inherit",
-        None,
-        None,
-    )
+    db.create_work_delegation(crate::CreateWorkDelegation {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        delegation_id: "grand-delegation",
+        parent_work_id: "child",
+        child_work_id: "grandchild",
+        child_title: "Contribute",
+        request_id: "grand-request",
+        parent_budget_tokens: 40,
+        child_budget_tokens: 20,
+        stop_scope: "inherit",
+        peer_org: None,
+        peer_team: None,
+    })
     .unwrap();
     let mut run = db.load_run_snapshot("run").unwrap().unwrap();
     let mut task = run.tasks[&TaskId::new("parent-task")].clone();

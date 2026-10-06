@@ -208,13 +208,15 @@ impl crate::Application {
                 .ok_or_else(|| resource_error(ResourceError::StorageRequired))?
                 .read(move |db| {
                     db.require_delegated_execution_binding(
-                        &grant,
-                        &scope,
-                        &job,
-                        &binding.run_id.0,
-                        &binding.attempt_id.0,
-                        &request,
-                        chrono::Utc::now().timestamp(),
+                        tetonic_memory::DelegatedExecutionBinding {
+                            id: &grant,
+                            scope: &scope,
+                            job: &job,
+                            parent_run: &binding.run_id.0,
+                            parent_attempt: &binding.attempt_id.0,
+                            request: &request,
+                            now: chrono::Utc::now().timestamp(),
+                        },
                     )
                 })
                 .await

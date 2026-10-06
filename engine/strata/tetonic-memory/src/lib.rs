@@ -39,6 +39,13 @@ mod context_recall;
 mod context_scope;
 mod control_bootstrap;
 mod control_credentials;
+mod control_requests;
+pub use control_requests::{
+    ActivateWorkCursor, AmendPlanAssignment, AnswerWorkHuman, AskWorkHuman, BeginHuddleExecution,
+    BeginWorkInference, ClaimWorkerAssignment, CreateTeamWorkItem, CreateWorkDelegation,
+    DelegatedExecutionBinding, EnrollWorkstation, ProposeEffectApproval, PublishContextMessage,
+    RecordTeamEffort, ResolveEffectApproval, SaveHuddlePlan, SaveWorkBrief,
+};
 mod membership_admin;
 mod membership_store;
 mod team_admin;

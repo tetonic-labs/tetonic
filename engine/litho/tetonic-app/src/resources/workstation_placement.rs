@@ -25,15 +25,15 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.enroll_workstation(
-                    &actor.principal_id,
-                    &org,
-                    &workstation_id,
-                    &label,
-                    &platform,
-                    &device_secret,
+                db.enroll_workstation(tetonic_memory::EnrollWorkstation {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    workstation_id: &workstation_id,
+                    label: &label,
+                    platform: &platform,
+                    device_secret: &device_secret,
                     shared_assignment,
-                )
+                })
             })
             .await??)
     }
@@ -203,15 +203,15 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.claim_worker_assignment(
-                    &org,
-                    &workstation_id,
-                    &device_secret,
-                    &assignment_id,
-                    &request_id,
-                    work_id.as_deref(),
+                db.claim_worker_assignment(tetonic_memory::ClaimWorkerAssignment {
+                    org: &org,
+                    workstation_id: &workstation_id,
+                    device_secret: &device_secret,
+                    assignment_id: &assignment_id,
+                    request_id: &request_id,
+                    work_id: work_id.as_deref(),
                     claimed_generation,
-                )
+                })
             })
             .await??)
     }

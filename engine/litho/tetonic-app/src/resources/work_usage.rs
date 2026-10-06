@@ -47,11 +47,26 @@ impl InferenceProvider for WorkUsageProvider {
         let key = call.clone();
         let model = req.model.clone();
         let own_limit = self.own_limit.map(|v| i64::try_from(v).unwrap_or(i64::MAX));
-        let remaining=self.store.write(move |db| db.begin_work_inference_with_limit(&actor,&org,&team,&work,&run,&task,&attempt,&key,&model,chrono::Utc::now().timestamp().max(0) as u64,own_limit)).await
-            .map_err(|_|unavailable())?.map_err(|error| match error {
-                StoreError::InvalidControlResource(_) => InferenceError::Provider("Work token allowance reached, or earlier usage is unconfirmed. Review Usage before starting more work.".into()),
-                _=>unavailable(),
-            })?;
+        let remaining = self.store.write(move |db| {
+            db.begin_work_inference_with_limit(
+                tetonic_memory::BeginWorkInference {
+                    actor: &actor,
+                    org: &org,
+                    team: &team,
+                    work: &work,
+                    run: &run,
+                    task: &task,
+                    attempt: &attempt,
+                    call: &key,
+                    model: &model,
+                    now: chrono::Utc::now().timestamp().max(0) as u64,
+                },
+                own_limit,
+            )
+        }).await.map_err(|_| unavailable())?.map_err(|error| match error {
+            StoreError::InvalidControlResource(_) => InferenceError::Provider("Work token allowance reached, or earlier usage is unconfirmed. Review Usage before starting more work.".into()),
+            _ => unavailable(),
+        })?;
         if let Some(remaining) = remaining {
             let cap = u32::try_from(remaining).unwrap_or(u32::MAX);
             req.max_tokens = Some(req.max_tokens.map_or(cap, |v| v.min(cap)));

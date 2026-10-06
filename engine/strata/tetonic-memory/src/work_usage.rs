@@ -149,38 +149,30 @@ impl Store {
     /// arguments. A durable pending record precedes every provider invocation.
     pub fn begin_work_inference(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        run: &str,
-        task: &str,
-        attempt: &str,
-        call: &str,
-        model: &str,
-        now: u64,
+        command: crate::BeginWorkInference<'_>,
     ) -> Result<Option<i64>> {
-        self.begin_work_inference_with_limit(
-            actor, org, team, work, run, task, attempt, call, model, now, None,
-        )
+        self.begin_work_inference_with_limit(command, None)
     }
 
     /// A host ceiling limits the attempt's own share, leaving unreserved capacity
     /// for children. It never enlarges the durable work allocation.
     pub fn begin_work_inference_with_limit(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        run: &str,
-        task: &str,
-        attempt: &str,
-        call: &str,
-        model: &str,
-        now: u64,
+        command: crate::BeginWorkInference<'_>,
         own_limit: Option<i64>,
     ) -> Result<Option<i64>> {
+        let crate::BeginWorkInference {
+            actor,
+            org,
+            team,
+            work,
+            run,
+            task,
+            attempt,
+            call,
+            model,
+            now,
+        } = command;
         if own_limit.is_some_and(|v| v <= 0) {
             return Err(StoreError::InvalidControlResource(
                 "work token allowance".into(),

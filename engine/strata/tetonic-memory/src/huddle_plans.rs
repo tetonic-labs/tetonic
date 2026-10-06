@@ -143,26 +143,28 @@ mod tests {
         })
         .unwrap();
         db.create_team_work_item_for_purpose(
-            "owner",
-            "org",
-            "team",
-            "shape",
-            "Question",
-            "request",
-            None,
+            crate::CreateTeamWorkItem {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work_id: "shape",
+                title: "Question",
+                request_id: "request",
+                goal_id: None,
+            },
             Some("private discussion"),
             crate::WorkPurpose::Explore,
         )
         .unwrap();
-        db.save_work_brief(
-            "owner",
-            "org",
-            "team",
-            "shape",
-            "brief",
-            0,
-            "shared direction",
-        )
+        db.save_work_brief(crate::SaveWorkBrief {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            work: "shape",
+            request: "brief",
+            expected: 0,
+            body: "shared direction",
+        })
         .unwrap();
         db
     }
@@ -201,73 +203,82 @@ mod tests {
         let path = dir.path().join("plans.db");
         let db = seed(&path);
         let generated = db
-            .save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "gen",
-                0,
-                1,
-                "gen",
-                "only shared brief",
-                None,
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "gen",
+                expected: 0,
+                brief_revision: 1,
+                generation_id: "gen",
+                generation_input: "only shared brief",
+                content: None,
+            })
             .unwrap();
         assert_eq!(generated.status, "drafting");
         assert!(db.huddle_plans("outsider", "org", "team", "shape").is_err());
         assert!(db
-            .save_huddle_plan(
-                "outsider", "org", "team", "shape", "bad", 0, 1, "bad", "prompt", None
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "outsider",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "bad",
+                expected: 0,
+                brief_revision: 1,
+                generation_id: "bad",
+                generation_input: "prompt",
+                content: None
+            })
             .is_err());
         let captured = db
             .capture_huddle_plan("owner", "org", "team", "shape", 1, &content())
             .unwrap();
         assert_eq!(captured.status, "draft");
         assert_eq!(
-            db.save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "gen",
-                0,
-                1,
-                "gen",
-                "only shared brief",
-                None
-            )
+            db.save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "gen",
+                expected: 0,
+                brief_revision: 1,
+                generation_id: "gen",
+                generation_input: "only shared brief",
+                content: None
+            })
             .unwrap(),
             captured
         );
         assert!(db
-            .save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "gen",
-                0,
-                1,
-                "gen",
-                "changed prompt",
-                None
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "gen",
+                expected: 0,
+                brief_revision: 1,
+                generation_id: "gen",
+                generation_input: "changed prompt",
+                content: None
+            })
             .is_err());
         assert!(db
-            .save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "stale",
-                0,
-                1,
-                "gen",
-                "only shared brief",
-                Some(&content())
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "stale",
+                expected: 0,
+                brief_revision: 1,
+                generation_id: "gen",
+                generation_input: "only shared brief",
+                content: Some(&content())
+            })
             .is_err());
         let agreed = db
             .agree_huddle_plan("owner", "org", "team", "shape", 1, "agree")
@@ -281,43 +292,43 @@ mod tests {
         assert!(db
             .agree_huddle_plan("owner", "org", "team", "shape", 1, "other")
             .is_err());
-        db.save_work_brief(
-            "owner",
-            "org",
-            "team",
-            "shape",
-            "brief-2",
-            1,
-            "changed direction",
-        )
+        db.save_work_brief(crate::SaveWorkBrief {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            work: "shape",
+            request: "brief-2",
+            expected: 1,
+            body: "changed direction",
+        })
         .unwrap();
         assert!(db
-            .save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "edit",
-                1,
-                1,
-                "gen",
-                "only shared brief",
-                Some(&content())
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "edit",
+                expected: 1,
+                brief_revision: 1,
+                generation_id: "gen",
+                generation_input: "only shared brief",
+                content: Some(&content())
+            })
             .is_err());
         let edited = db
-            .save_huddle_plan(
-                "owner",
-                "org",
-                "team",
-                "shape",
-                "edit",
-                1,
-                2,
-                "gen",
-                "only shared brief",
-                Some(&content()),
-            )
+            .save_huddle_plan(crate::SaveHuddlePlan {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "shape",
+                request: "edit",
+                expected: 1,
+                brief_revision: 2,
+                generation_id: "gen",
+                generation_input: "only shared brief",
+                content: Some(&content()),
+            })
             .unwrap();
         assert_eq!(edited.status, "draft");
         assert_eq!(edited.revision, 2);
@@ -327,15 +338,15 @@ mod tests {
                 .unwrap(),
             agreed
         );
-        db.save_work_brief(
-            "owner",
-            "org",
-            "team",
-            "shape",
-            "brief-3",
-            2,
-            "another change",
-        )
+        db.save_work_brief(crate::SaveWorkBrief {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            work: "shape",
+            request: "brief-3",
+            expected: 2,
+            body: "another change",
+        })
         .unwrap();
         assert!(db
             .agree_huddle_plan("owner", "org", "team", "shape", 2, "agree-2")
@@ -548,19 +559,19 @@ impl Store {
 
     /// Append a generation request or a human-edited draft to the existing huddle.
     /// A source brief is mandatory; stale direction cannot silently replace it.
-    pub fn save_huddle_plan(
-        &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        request: &str,
-        expected: i64,
-        brief_revision: i64,
-        generation_id: &str,
-        generation_input: &str,
-        content: Option<&PlanContent>,
-    ) -> Result<HuddlePlan> {
+    pub fn save_huddle_plan(&self, command: crate::SaveHuddlePlan<'_>) -> Result<HuddlePlan> {
+        let crate::SaveHuddlePlan {
+            actor,
+            org,
+            team,
+            work,
+            request,
+            expected,
+            brief_revision,
+            generation_id,
+            generation_input,
+            content,
+        } = command;
         text(request, 128)?;
         text(generation_id, 128)?;
         text(generation_input, 12_000)?;

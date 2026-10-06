@@ -145,17 +145,17 @@ impl Store {
             .collect()
     }
 
-    pub fn ask_work_human(
-        &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        attempt: &str,
-        id: &str,
-        content: HumanQuestionContent,
-        now: u64,
-    ) -> Result<WorkHumanQuestion> {
+    pub fn ask_work_human(&self, command: crate::AskWorkHuman<'_>) -> Result<WorkHumanQuestion> {
+        let crate::AskWorkHuman {
+            actor,
+            org,
+            team,
+            work,
+            attempt,
+            id,
+            content,
+            now,
+        } = command;
         content.validate()?;
         if !text_ok(id, 128) {
             return Err(StoreError::ControlResourceConflict);
@@ -200,15 +200,18 @@ impl Store {
 
     pub fn answer_work_human(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        id: &str,
-        request: &str,
-        answer: &str,
-        now: u64,
+        command: crate::AnswerWorkHuman<'_>,
     ) -> Result<WorkHumanQuestion> {
+        let crate::AnswerWorkHuman {
+            actor,
+            org,
+            team,
+            work,
+            id,
+            request,
+            answer,
+            now,
+        } = command;
         if !text_ok(answer, 6000) || !text_ok(request, 128) {
             return Err(StoreError::InvalidControlResource("human answer".into()));
         }
@@ -261,16 +264,19 @@ impl Store {
     /// every affected work binding to close the last-read/activation race.
     pub fn amend_plan_assignment(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        source: &str,
-        expected: i64,
-        request: &str,
-        key: &str,
-        instructions: &str,
-        now: u64,
+        command: crate::AmendPlanAssignment<'_>,
     ) -> Result<PlanDirection> {
+        let crate::AmendPlanAssignment {
+            actor,
+            org,
+            team,
+            source,
+            expected,
+            request,
+            key,
+            instructions,
+            now,
+        } = command;
         if !(0..=12).contains(&expected) || !text_ok(instructions, 6000) || !text_ok(request, 128) {
             return Err(StoreError::InvalidControlResource("plan direction".into()));
         }

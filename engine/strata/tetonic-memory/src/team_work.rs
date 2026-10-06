@@ -382,33 +382,28 @@ impl Store {
     /// Quick task: no huddle required. `request_id` makes retries idempotent.
     pub fn create_team_work_item(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work_id: &str,
-        title: &str,
-        request_id: &str,
-        goal_id: Option<&str>,
+        command: crate::CreateTeamWorkItem<'_>,
     ) -> Result<TeamWorkItem> {
-        self.create_team_work_item_with_input(
-            actor, org, team, work_id, title, request_id, goal_id, None,
-        )
+        self.create_team_work_item_with_input(command, None)
     }
 
     /// Store accepted input in the same transaction as work creation. Retries
     /// must match its complete contents, not just a potentially shortened title.
     pub fn create_team_work_item_with_input(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work_id: &str,
-        title: &str,
-        request_id: &str,
-        goal_id: Option<&str>,
+        command: crate::CreateTeamWorkItem<'_>,
         input: Option<&str>,
     ) -> Result<TeamWorkItem> {
-        self.create_team_work_item_for_purpose(
+        self.create_team_work_item_for_purpose(command, input, WorkPurpose::Work)
+    }
+
+    pub fn create_team_work_item_for_purpose(
+        &self,
+        command: crate::CreateTeamWorkItem<'_>,
+        input: Option<&str>,
+        purpose: WorkPurpose,
+    ) -> Result<TeamWorkItem> {
+        let crate::CreateTeamWorkItem {
             actor,
             org,
             team,
@@ -416,23 +411,7 @@ impl Store {
             title,
             request_id,
             goal_id,
-            input,
-            WorkPurpose::Work,
-        )
-    }
-
-    pub fn create_team_work_item_for_purpose(
-        &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work_id: &str,
-        title: &str,
-        request_id: &str,
-        goal_id: Option<&str>,
-        input: Option<&str>,
-        purpose: WorkPurpose,
-    ) -> Result<TeamWorkItem> {
+        } = command;
         validate_id(org, "org_id")?;
         validate_id(team, "team_id")?;
         validate_id(work_id, "work_id")?;
@@ -764,14 +743,17 @@ impl Store {
     /// Duplicate deliveries with the same event_id do not backlog additional work.
     pub fn activate_from_cursor(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        source: &str,
-        cursor_key: &str,
-        event_id: &str,
-        work_title: &str,
+        command: crate::ActivateWorkCursor<'_>,
     ) -> Result<(WorkActivationCursor, Option<TeamWorkItem>)> {
+        let crate::ActivateWorkCursor {
+            actor,
+            org,
+            team,
+            source,
+            cursor_key,
+            event_id,
+            work_title,
+        } = command;
         validate_id(source, "source")?;
         validate_id(cursor_key, "cursor_key")?;
         validate_id(event_id, "event_id")?;
@@ -863,20 +845,23 @@ impl Store {
     /// Allocation is not authority to execute; the governed launch gate remains.
     pub fn create_work_delegation(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        delegation_id: &str,
-        parent_work_id: &str,
-        child_work_id: &str,
-        child_title: &str,
-        request_id: &str,
-        parent_budget_tokens: i64,
-        child_budget_tokens: i64,
-        stop_scope: &str,
-        peer_org: Option<&str>,
-        peer_team: Option<&str>,
+        command: crate::CreateWorkDelegation<'_>,
     ) -> Result<WorkDelegation> {
+        let crate::CreateWorkDelegation {
+            actor,
+            org,
+            team,
+            delegation_id,
+            parent_work_id,
+            child_work_id,
+            child_title,
+            request_id,
+            parent_budget_tokens,
+            child_budget_tokens,
+            stop_scope,
+            peer_org,
+            peer_team,
+        } = command;
         validate_id(delegation_id, "delegation_id")?;
         validate_id(parent_work_id, "parent_work_id")?;
         validate_id(child_work_id, "child_work_id")?;
@@ -1095,15 +1080,15 @@ mod tests {
     #[test]
     fn input_migration_preserves_legacy_work_and_is_repeatable() {
         let db = primed();
-        db.create_team_work_item(
-            "alice",
-            "org",
-            "team",
-            "legacy",
-            "Old work",
-            "old-request",
-            None,
-        )
+        db.create_team_work_item(crate::CreateTeamWorkItem {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            work_id: "legacy",
+            title: "Old work",
+            request_id: "old-request",
+            goal_id: None,
+        })
         .unwrap();
         db.conn.execute_batch("ALTER TABLE team_work_items DROP COLUMN input; DELETE FROM schema_versions WHERE version=52;").unwrap();
         db.migrate_team_work_input_v52().unwrap();
@@ -1131,27 +1116,31 @@ mod tests {
         );
         let first = db
             .create_team_work_item_with_input(
-                "alice",
-                "org",
-                "team",
-                "w-input",
-                "Short title",
-                "req-input",
-                None,
+                crate::CreateTeamWorkItem {
+                    actor: "alice",
+                    org: "org",
+                    team: "team",
+                    work_id: "w-input",
+                    title: "Short title",
+                    request_id: "req-input",
+                    goal_id: None,
+                },
                 Some(&input),
             )
             .unwrap();
         assert_eq!(first.input.as_deref(), Some(input.as_str()));
         assert_eq!(
             db.create_team_work_item_with_input(
-                "alice",
-                "org",
-                "team",
-                "w-input",
-                "Short title",
-                "req-input",
-                None,
-                Some(&input),
+                crate::CreateTeamWorkItem {
+                    actor: "alice",
+                    org: "org",
+                    team: "team",
+                    work_id: "w-input",
+                    title: "Short title",
+                    request_id: "req-input",
+                    goal_id: None
+                },
+                Some(&input)
             )
             .unwrap(),
             first
@@ -1159,38 +1148,44 @@ mod tests {
         let different = format!("{}different suffix", input);
         assert!(db
             .create_team_work_item_with_input(
-                "alice",
-                "org",
-                "team",
-                "w-input",
-                "Short title",
-                "req-input",
-                None,
-                Some(&different),
+                crate::CreateTeamWorkItem {
+                    actor: "alice",
+                    org: "org",
+                    team: "team",
+                    work_id: "w-input",
+                    title: "Short title",
+                    request_id: "req-input",
+                    goal_id: None
+                },
+                Some(&different)
             )
             .is_err());
         assert!(db
             .create_team_work_item_with_input(
-                "outsider",
-                "org",
-                "team",
-                "w-other",
-                "Short title",
-                "req-other",
-                None,
-                Some(&input),
+                crate::CreateTeamWorkItem {
+                    actor: "outsider",
+                    org: "org",
+                    team: "team",
+                    work_id: "w-other",
+                    title: "Short title",
+                    request_id: "req-other",
+                    goal_id: None
+                },
+                Some(&input)
             )
             .is_err());
         assert!(db
             .create_team_work_item_with_input(
-                "alice",
-                "org",
-                "team",
-                "w-large",
-                "Short title",
-                "req-large",
-                None,
-                Some(&"x".repeat(12_001)),
+                crate::CreateTeamWorkItem {
+                    actor: "alice",
+                    org: "org",
+                    team: "team",
+                    work_id: "w-large",
+                    title: "Short title",
+                    request_id: "req-large",
+                    goal_id: None
+                },
+                Some(&"x".repeat(12_001))
             )
             .is_err());
         assert_eq!(
@@ -1211,31 +1206,39 @@ mod tests {
     fn quick_task_does_not_require_a_huddle_and_retries_are_idempotent() {
         let db = primed();
         let first = db
-            .create_team_work_item(
-                "alice",
-                "org",
-                "team",
-                "w1",
-                "Ship the preview",
-                "req-1",
-                None,
-            )
+            .create_team_work_item(crate::CreateTeamWorkItem {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                work_id: "w1",
+                title: "Ship the preview",
+                request_id: "req-1",
+                goal_id: None,
+            })
             .unwrap();
         let again = db
-            .create_team_work_item(
-                "alice",
-                "org",
-                "team",
-                "w1",
-                "Ship the preview",
-                "req-1",
-                None,
-            )
+            .create_team_work_item(crate::CreateTeamWorkItem {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                work_id: "w1",
+                title: "Ship the preview",
+                request_id: "req-1",
+                goal_id: None,
+            })
             .unwrap();
         assert_eq!(first, again);
         assert_eq!(first.status, "open");
         assert!(db
-            .create_team_work_item("alice", "org", "team", "w2", "Different", "req-1", None,)
+            .create_team_work_item(crate::CreateTeamWorkItem {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                work_id: "w2",
+                title: "Different",
+                request_id: "req-1",
+                goal_id: None
+            })
             .is_err());
     }
 
@@ -1276,10 +1279,26 @@ mod tests {
     #[test]
     fn parked_work_survives_and_independent_work_stays_open() {
         let db = primed();
-        db.create_team_work_item("alice", "org", "team", "a", "A", "ra", None)
-            .unwrap();
-        db.create_team_work_item("alice", "org", "team", "b", "B", "rb", None)
-            .unwrap();
+        db.create_team_work_item(crate::CreateTeamWorkItem {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            work_id: "a",
+            title: "A",
+            request_id: "ra",
+            goal_id: None,
+        })
+        .unwrap();
+        db.create_team_work_item(crate::CreateTeamWorkItem {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            work_id: "b",
+            title: "B",
+            request_id: "rb",
+            goal_id: None,
+        })
+        .unwrap();
         db.park_team_work_item("alice", "org", "team", "a").unwrap();
         let listed = db.list_team_work_items("alice", "org", "team").unwrap();
         assert_eq!(
@@ -1318,12 +1337,28 @@ mod tests {
     fn event_cursor_duplicates_do_not_backlog_work() {
         let db = primed();
         let (cursor, first) = db
-            .activate_from_cursor("alice", "org", "team", "event", "inbox", "e1", "Handle e1")
+            .activate_from_cursor(crate::ActivateWorkCursor {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                source: "event",
+                cursor_key: "inbox",
+                event_id: "e1",
+                work_title: "Handle e1",
+            })
             .unwrap();
         assert_eq!(cursor.last_event_id, "e1");
         assert_eq!(first.unwrap().work_id, "event/inbox/e1");
         let (again_cursor, again_work) = db
-            .activate_from_cursor("alice", "org", "team", "event", "inbox", "e1", "Handle e1")
+            .activate_from_cursor(crate::ActivateWorkCursor {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                source: "event",
+                cursor_key: "inbox",
+                event_id: "e1",
+                work_title: "Handle e1",
+            })
             .unwrap();
         assert_eq!(again_cursor.last_event_id, "e1");
         assert!(again_work.is_none());
@@ -1334,9 +1369,15 @@ mod tests {
             1
         );
         let (_, next) = db
-            .activate_from_cursor(
-                "alice", "org", "team", "schedule", "nightly", "tick-2", "Nightly",
-            )
+            .activate_from_cursor(crate::ActivateWorkCursor {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                source: "schedule",
+                cursor_key: "nightly",
+                event_id: "tick-2",
+                work_title: "Nightly",
+            })
             .unwrap();
         assert!(next.is_some());
         assert_eq!(
@@ -1352,48 +1393,89 @@ mod tests {
         let db = primed();
         db.create_team_goal("alice", "org", "team", "g1", "Goal")
             .unwrap();
-        db.create_team_work_item("alice", "org", "team", "parent", "Parent", "rp", Some("g1"))
-            .unwrap();
+        db.create_team_work_item(crate::CreateTeamWorkItem {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            work_id: "parent",
+            title: "Parent",
+            request_id: "rp",
+            goal_id: Some("g1"),
+        })
+        .unwrap();
         db.authorize_work_budget("alice", "org", "team", "parent", "budget-parent", 100)
             .unwrap();
         assert!(db
-            .create_work_delegation(
-                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 150,
-                "inherit", None, None,
-            )
+            .create_work_delegation(crate::CreateWorkDelegation {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                delegation_id: "d1",
+                parent_work_id: "parent",
+                child_work_id: "child",
+                child_title: "Help",
+                request_id: "del-1",
+                parent_budget_tokens: 100,
+                child_budget_tokens: 150,
+                stop_scope: "inherit",
+                peer_org: None,
+                peer_team: None
+            })
             .is_err());
         let first = db
-            .create_work_delegation(
-                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 40,
-                "inherit", None, None,
-            )
+            .create_work_delegation(crate::CreateWorkDelegation {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                delegation_id: "d1",
+                parent_work_id: "parent",
+                child_work_id: "child",
+                child_title: "Help",
+                request_id: "del-1",
+                parent_budget_tokens: 100,
+                child_budget_tokens: 40,
+                stop_scope: "inherit",
+                peer_org: None,
+                peer_team: None,
+            })
             .unwrap();
         assert_eq!(first.child_budget_tokens, 40);
         assert_eq!(first.stop_scope, "work/parent");
         assert_eq!(first.goal_id.as_deref(), Some("g1"));
         let again = db
-            .create_work_delegation(
-                "alice", "org", "team", "d1", "parent", "child", "Help", "del-1", 100, 40,
-                "inherit", None, None,
-            )
+            .create_work_delegation(crate::CreateWorkDelegation {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                delegation_id: "d1",
+                parent_work_id: "parent",
+                child_work_id: "child",
+                child_title: "Help",
+                request_id: "del-1",
+                parent_budget_tokens: 100,
+                child_budget_tokens: 40,
+                stop_scope: "inherit",
+                peer_org: None,
+                peer_team: None,
+            })
             .unwrap();
         assert_eq!(first, again);
         let err = db
-            .create_work_delegation(
-                "alice",
-                "org",
-                "team",
-                "d2",
-                "parent",
-                "peer-child",
-                "Leak",
-                "del-2",
-                100,
-                10,
-                "inherit",
-                Some("other-org"),
-                Some("other-team"),
-            )
+            .create_work_delegation(crate::CreateWorkDelegation {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                delegation_id: "d2",
+                parent_work_id: "parent",
+                child_work_id: "peer-child",
+                child_title: "Leak",
+                request_id: "del-2",
+                parent_budget_tokens: 100,
+                child_budget_tokens: 10,
+                stop_scope: "inherit",
+                peer_org: Some("other-org"),
+                peer_team: Some("other-team"),
+            })
             .unwrap_err();
         assert!(matches!(err, StoreError::ControlAccessDenied));
         assert!(!format!("{err}").contains("Parent"));

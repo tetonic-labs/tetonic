@@ -428,14 +428,17 @@ impl Store {
     /// The runtime additionally requires a live parent handle from its registry.
     pub fn require_delegated_execution_binding(
         &self,
-        id: &str,
-        scope: &ExecutionScope,
-        job: &AgentJobSpec,
-        parent_run: &str,
-        parent_attempt: &str,
-        request: &str,
-        now: i64,
+        command: crate::DelegatedExecutionBinding<'_>,
     ) -> Result<DelegatedGrantLineage> {
+        let crate::DelegatedExecutionBinding {
+            id,
+            scope,
+            job,
+            parent_run,
+            parent_attempt,
+            request,
+            now,
+        } = command;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
         let lineage = self
             .delegated_grant_lineage(id)?

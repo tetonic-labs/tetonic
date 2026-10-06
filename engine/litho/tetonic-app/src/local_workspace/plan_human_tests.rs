@@ -253,33 +253,40 @@ async fn human_wait_and_direction(scenario: u8) {
                         .work_human_questions("outsider", ORG, TEAM, &q.work_id)
                         .is_err());
                     assert!(db
-                        .answer_work_human(
-                            "outsider", ORG, TEAM, &q.work_id, &q.id, "bad", "answer", 0
-                        )
+                        .answer_work_human(tetonic_memory::AnswerWorkHuman {
+                            actor: "outsider",
+                            org: ORG,
+                            team: TEAM,
+                            work: &q.work_id,
+                            id: &q.id,
+                            request: "bad",
+                            answer: "answer",
+                            now: 0
+                        })
                         .is_err());
                     assert!(db
-                        .answer_work_human(
-                            OWNER,
-                            ORG,
-                            TEAM,
-                            &q.work_id,
-                            &q.id,
-                            "expired",
-                            "answer",
-                            q.deadline + 1
-                        )
+                        .answer_work_human(tetonic_memory::AnswerWorkHuman {
+                            actor: OWNER,
+                            org: ORG,
+                            team: TEAM,
+                            work: &q.work_id,
+                            id: &q.id,
+                            request: "expired",
+                            answer: "answer",
+                            now: q.deadline + 1
+                        })
                         .is_err());
                     assert!(db
-                        .answer_work_human(
-                            OWNER,
-                            ORG,
-                            "another-team",
-                            &q.work_id,
-                            &q.id,
-                            "wrong-scope",
-                            "answer",
-                            0
-                        )
+                        .answer_work_human(tetonic_memory::AnswerWorkHuman {
+                            actor: OWNER,
+                            org: ORG,
+                            team: "another-team",
+                            work: &q.work_id,
+                            id: &q.id,
+                            request: "wrong-scope",
+                            answer: "answer",
+                            now: 0
+                        })
                         .is_err());
                 })
                 .await
@@ -487,16 +494,16 @@ async fn coordinator_answers_reach_workers_through_scoped_plan_context() {
                 .store
                 .write(move |db| {
                     assert!(db
-                        .ask_work_human(
-                            OWNER,
-                            ORG,
-                            TEAM,
-                            &q.work_id,
-                            &q.attempt_id,
-                            "second-simultaneous-question",
-                            q.content.clone(),
-                            chrono::Utc::now().timestamp() as u64
-                        )
+                        .ask_work_human(tetonic_memory::AskWorkHuman {
+                            actor: OWNER,
+                            org: ORG,
+                            team: TEAM,
+                            work: &q.work_id,
+                            attempt: &q.attempt_id,
+                            id: "second-simultaneous-question",
+                            content: q.content.clone(),
+                            now: chrono::Utc::now().timestamp() as u64
+                        })
                         .is_err());
                 })
                 .await

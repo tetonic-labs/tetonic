@@ -95,17 +95,20 @@ impl Store {
     /// never permission to replay admission after a crash or lost response.
     pub fn begin_huddle_execution(
         &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        source: &str,
-        revision: i64,
-        request: &str,
-        root: &str,
-        coordinator_digest: &str,
-        pins: &[PlanAgentPin],
-        max_elapsed_seconds: u64,
+        command: crate::BeginHuddleExecution<'_>,
     ) -> Result<(HuddleExecution, bool)> {
+        let crate::BeginHuddleExecution {
+            actor,
+            org,
+            team,
+            source,
+            revision,
+            request,
+            root,
+            coordinator_digest,
+            pins,
+            max_elapsed_seconds,
+        } = command;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         if !self.control_access(actor, ControlPermission::ManageTeam, org, team)? {
             return Err(StoreError::ControlAccessDenied);

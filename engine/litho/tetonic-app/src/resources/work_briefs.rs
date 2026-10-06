@@ -44,15 +44,15 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.save_work_brief(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &work,
-                    &request,
+                db.save_work_brief(tetonic_memory::SaveWorkBrief {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    work: &work,
+                    request: &request,
                     expected,
-                    &body,
-                )
+                    body: &body,
+                })
             })
             .await??)
     }

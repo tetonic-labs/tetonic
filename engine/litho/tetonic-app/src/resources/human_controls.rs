@@ -103,16 +103,16 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.propose_effect_approval(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &approval_id,
-                    &proposal_digest,
-                    &request_id,
+                db.propose_effect_approval(tetonic_memory::ProposeEffectApproval {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    approval_id: &approval_id,
+                    proposal_digest: &proposal_digest,
+                    request_id: &request_id,
                     expires_at,
-                    work_id.as_deref(),
-                )
+                    work_id: work_id.as_deref(),
+                })
             })
             .await??)
     }
@@ -140,15 +140,15 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.resolve_effect_approval(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &approval_id,
-                    &proposal_digest,
+                db.resolve_effect_approval(tetonic_memory::ResolveEffectApproval {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    approval_id: &approval_id,
+                    proposal_digest: &proposal_digest,
                     allow,
                     now_unix,
-                )
+                })
             })
             .await??)
     }
@@ -210,16 +210,16 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.record_team_effort(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &entry_id,
-                    &request_id,
+                db.record_team_effort(tetonic_memory::RecordTeamEffort {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    entry_id: &entry_id,
+                    request_id: &request_id,
                     measured_tokens,
-                    goal_id.as_deref(),
-                    work_id.as_deref(),
-                )
+                    goal_id: goal_id.as_deref(),
+                    work_id: work_id.as_deref(),
+                })
             })
             .await??)
     }

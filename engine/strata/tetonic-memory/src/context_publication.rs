@@ -55,14 +55,17 @@ impl Store {
     /// source coordinates conflicts.
     pub fn publish_context_message(
         &self,
-        actor: &str,
-        source_context: &str,
-        source_session: &str,
-        source_seq: i64,
-        destination_context: &str,
-        destination_session: &str,
-        request_id: &str,
+        command: crate::PublishContextMessage<'_>,
     ) -> Result<ContextPublication> {
+        let crate::PublishContextMessage {
+            actor,
+            source_context,
+            source_session,
+            source_seq,
+            destination_context,
+            destination_session,
+            request_id,
+        } = command;
         validate_request(request_id)?;
         if source_context == destination_context {
             return Err(StoreError::InvalidControlResource(
@@ -224,41 +227,75 @@ mod tests {
             )
             .unwrap();
         assert!(db
-            .publish_context_message("bob", "private", "private", seq, "shared", "shared", "share")
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "bob",
+                source_context: "private",
+                source_session: "private",
+                source_seq: seq,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "share"
+            })
             .is_err());
         assert!(db
-            .publish_context_message(
-                "admin", "private", "private", seq, "shared", "shared", "share"
-            )
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "admin",
+                source_context: "private",
+                source_session: "private",
+                source_seq: seq,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "share"
+            })
             .is_err());
         assert!(db
             .recall_context_messages("bob", "shared", "PRIVATECANARY", 10)
             .unwrap()
             .is_empty());
         let first = db
-            .publish_context_message(
-                "alice", "private", "private", seq, "shared", "shared", "share",
-            )
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "alice",
+                source_context: "private",
+                source_session: "private",
+                source_seq: seq,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "share",
+            })
             .unwrap();
         let again = db
-            .publish_context_message(
-                "alice", "private", "private", seq, "shared", "shared", "share",
-            )
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "alice",
+                source_context: "private",
+                source_session: "private",
+                source_seq: seq,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "share",
+            })
             .unwrap();
         assert_eq!(first, again);
         assert!(db
-            .publish_context_message(
-                "alice",
-                "private",
-                "private",
-                seq + 1,
-                "shared",
-                "shared",
-                "share"
-            )
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "alice",
+                source_context: "private",
+                source_session: "private",
+                source_seq: seq + 1,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "share"
+            })
             .is_err());
         assert!(db
-            .publish_context_message("bob", "private", "private", 99, "shared", "shared", "guess")
+            .publish_context_message(crate::PublishContextMessage {
+                actor: "bob",
+                source_context: "private",
+                source_session: "private",
+                source_seq: 99,
+                destination_context: "shared",
+                destination_session: "shared",
+                request_id: "guess"
+            })
             .is_err());
         let hits = db
             .recall_context_messages("bob", "shared", "PRIVATECANARY", 10)

@@ -23,10 +23,26 @@ fn parent_stop_blocks_descendants_and_parks_siblings_independently() {
     let db = primed();
     db.create_team_goal("alice", "org", "team", "g1", "Goal")
         .unwrap();
-    db.create_team_work_item("alice", "org", "team", "a", "A", "ra", Some("g1"))
-        .unwrap();
-    db.create_team_work_item("alice", "org", "team", "b", "B", "rb", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "a",
+        title: "A",
+        request_id: "ra",
+        goal_id: Some("g1"),
+    })
+    .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "b",
+        title: "B",
+        request_id: "rb",
+        goal_id: None,
+    })
+    .unwrap();
     let stop = db
         .request_control_stop("alice", "org", "goal", "g1", "pause", "wait")
         .unwrap();
@@ -59,23 +75,31 @@ fn parent_stop_blocks_descendants_and_parks_siblings_independently() {
 fn rejected_expired_and_changed_approvals_never_dispatch() {
     let db = primed();
     let proposed = db
-        .propose_effect_approval(
-            "alice",
-            "org",
-            "team",
-            "ap1",
-            "digest-a",
-            "req-a",
-            2_000_000_000,
-            None,
-        )
+        .propose_effect_approval(crate::ProposeEffectApproval {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            approval_id: "ap1",
+            proposal_digest: "digest-a",
+            request_id: "req-a",
+            expires_at: 2_000_000_000,
+            work_id: None,
+        })
         .unwrap();
     assert_eq!(proposed.status, "pending");
     assert!(!db
         .effect_approval_allows_dispatch("org", "team", "ap1", "digest-a", 1_000)
         .unwrap());
-    db.resolve_effect_approval("bob", "org", "team", "ap1", "digest-a", true, 1_000)
-        .unwrap();
+    db.resolve_effect_approval(crate::ResolveEffectApproval {
+        actor: "bob",
+        org: "org",
+        team: "team",
+        approval_id: "ap1",
+        proposal_digest: "digest-a",
+        allow: true,
+        now_unix: 1_000,
+    })
+    .unwrap();
     assert!(db
         .effect_approval_allows_dispatch("org", "team", "ap1", "digest-a", 1_000)
         .unwrap());
@@ -83,28 +107,61 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
         .effect_approval_allows_dispatch("org", "team", "ap1", "digest-b", 1_000)
         .unwrap());
     assert!(db
-        .resolve_effect_approval("bob", "org", "team", "ap1", "digest-b", true, 1_000)
+        .resolve_effect_approval(crate::ResolveEffectApproval {
+            actor: "bob",
+            org: "org",
+            team: "team",
+            approval_id: "ap1",
+            proposal_digest: "digest-b",
+            allow: true,
+            now_unix: 1_000
+        })
         .is_err());
-    db.propose_effect_approval(
-        "alice",
-        "org",
-        "team",
-        "ap2",
-        "digest-c",
-        "req-c",
-        2_000_000_000,
-        None,
-    )
+    db.propose_effect_approval(crate::ProposeEffectApproval {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        approval_id: "ap2",
+        proposal_digest: "digest-c",
+        request_id: "req-c",
+        expires_at: 2_000_000_000,
+        work_id: None,
+    })
     .unwrap();
-    db.resolve_effect_approval("alice", "org", "team", "ap2", "digest-c", false, 1_000)
-        .unwrap();
+    db.resolve_effect_approval(crate::ResolveEffectApproval {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        approval_id: "ap2",
+        proposal_digest: "digest-c",
+        allow: false,
+        now_unix: 1_000,
+    })
+    .unwrap();
     assert!(!db
         .effect_approval_allows_dispatch("org", "team", "ap2", "digest-c", 1_000)
         .unwrap());
-    db.propose_effect_approval("alice", "org", "team", "ap3", "digest-d", "req-d", 50, None)
-        .unwrap();
+    db.propose_effect_approval(crate::ProposeEffectApproval {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        approval_id: "ap3",
+        proposal_digest: "digest-d",
+        request_id: "req-d",
+        expires_at: 50,
+        work_id: None,
+    })
+    .unwrap();
     assert!(db
-        .resolve_effect_approval("alice", "org", "team", "ap3", "digest-d", true, 100)
+        .resolve_effect_approval(crate::ResolveEffectApproval {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            approval_id: "ap3",
+            proposal_digest: "digest-d",
+            allow: true,
+            now_unix: 100
+        })
         .is_err());
     assert!(!db
         .effect_approval_allows_dispatch("org", "team", "ap3", "digest-d", 100)
@@ -115,12 +172,30 @@ fn rejected_expired_and_changed_approvals_never_dispatch() {
 fn effort_unknown_is_not_zero_and_team_inspection_has_no_private_bodies() {
     let db = primed();
     let unknown = db
-        .record_team_effort("alice", "org", "team", "e1", "er1", None, None, None)
+        .record_team_effort(crate::RecordTeamEffort {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            entry_id: "e1",
+            request_id: "er1",
+            measured_tokens: None,
+            goal_id: None,
+            work_id: None,
+        })
         .unwrap();
     assert_eq!(unknown.status, "unknown");
     assert!(unknown.measured_tokens.is_none());
     let measured = db
-        .record_team_effort("alice", "org", "team", "e2", "er2", Some(40), None, None)
+        .record_team_effort(crate::RecordTeamEffort {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            entry_id: "e2",
+            request_id: "er2",
+            measured_tokens: Some(40),
+            goal_id: None,
+            work_id: None,
+        })
         .unwrap();
     assert_eq!(measured.measured_tokens, Some(40));
     let view = db.inspect_team_work("bob", "org", "team").unwrap();

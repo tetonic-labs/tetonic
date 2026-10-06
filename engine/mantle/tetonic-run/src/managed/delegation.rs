@@ -93,15 +93,15 @@ impl super::ExecutionAuthority for DelegatedAuthority {
         );
         self.store
             .read(move |db| {
-                db.require_delegated_execution_binding(
-                    &grant,
-                    &scope,
-                    &job,
-                    &parent.run_id.0,
-                    &parent.attempt_id.0,
-                    &request,
-                    chrono::Utc::now().timestamp(),
-                )
+                db.require_delegated_execution_binding(tetonic_memory::DelegatedExecutionBinding {
+                    id: &grant,
+                    scope: &scope,
+                    job: &job,
+                    parent_run: &parent.run_id.0,
+                    parent_attempt: &parent.attempt_id.0,
+                    request: &request,
+                    now: chrono::Utc::now().timestamp(),
+                })
             })
             .await
             .map_err(|_| ())?

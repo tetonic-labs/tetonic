@@ -297,18 +297,18 @@ impl LocalWorkspace {
             .keys
             .store
             .write(move |db| {
-                db.begin_huddle_execution(
-                    OWNER,
-                    ORG,
-                    TEAM,
-                    &source_owned,
+                db.begin_huddle_execution(tetonic_memory::BeginHuddleExecution {
+                    actor: OWNER,
+                    org: ORG,
+                    team: TEAM,
+                    source: &source_owned,
                     revision,
-                    &request_id,
-                    &root,
-                    &digest,
-                    &pins,
+                    request: &request_id,
+                    root: &root,
+                    coordinator_digest: &digest,
+                    pins: &pins,
                     max_elapsed_seconds,
-                )
+                })
             })
             .await
             .map_err(|_| AppError::InferenceUnavailable)?

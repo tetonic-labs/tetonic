@@ -768,15 +768,15 @@ impl ContextService {
         Ok(self
             .store
             .write(move |db| {
-                db.publish_context_message(
-                    &actor.principal_id,
-                    &source_context,
-                    &source_session,
+                db.publish_context_message(tetonic_memory::PublishContextMessage {
+                    actor: &actor.principal_id,
+                    source_context: &source_context,
+                    source_session: &source_session,
                     source_seq,
-                    &destination_context,
-                    &destination_session,
-                    &request_id,
-                )
+                    destination_context: &destination_context,
+                    destination_session: &destination_session,
+                    request_id: &request_id,
+                })
             })
             .await??)
     }

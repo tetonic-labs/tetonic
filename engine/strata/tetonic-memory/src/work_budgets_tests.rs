@@ -14,8 +14,16 @@ fn seed(db: &Store) {
     })
     .unwrap();
     db.add_team_member("org", "team", "bob").unwrap();
-    db.create_team_work_item("alice", "org", "team", "root", "Root", "root-request", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "root",
+        title: "Root",
+        request_id: "root-request",
+        goal_id: None,
+    })
+    .unwrap();
 }
 
 fn primed() -> Store {
@@ -27,21 +35,21 @@ fn primed() -> Store {
 }
 
 fn child(db: &Store, id: &str, tokens: i64) -> Result<crate::WorkDelegation> {
-    db.create_work_delegation(
-        "alice",
-        "org",
-        "team",
-        id,
-        "root",
-        &format!("{id}-work"),
-        "Help",
-        &format!("{id}-request"),
-        100,
-        tokens,
-        "inherit",
-        None,
-        None,
-    )
+    db.create_work_delegation(crate::CreateWorkDelegation {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        delegation_id: id,
+        parent_work_id: "root",
+        child_work_id: &format!("{id}-work"),
+        child_title: "Help",
+        request_id: &format!("{id}-request"),
+        parent_budget_tokens: 100,
+        child_budget_tokens: tokens,
+        stop_scope: "inherit",
+        peer_org: None,
+        peer_team: None,
+    })
 }
 
 #[test]
@@ -67,10 +75,21 @@ fn allowance_is_explicit_immutable_and_requires_current_manager() {
             .is_err());
     }
     assert!(db
-        .create_work_delegation(
-            "alice", "org", "team", "inflated", "root", "c", "Help", "inflated", 1000, 40,
-            "inherit", None, None
-        )
+        .create_work_delegation(crate::CreateWorkDelegation {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            delegation_id: "inflated",
+            parent_work_id: "root",
+            child_work_id: "c",
+            child_title: "Help",
+            request_id: "inflated",
+            parent_budget_tokens: 1000,
+            child_budget_tokens: 40,
+            stop_scope: "inherit",
+            peer_org: None,
+            peer_team: None
+        })
         .is_err());
     assert!(db
         .reserve_work_budget("bob", "org", "team", "root", "spend", 1)
@@ -133,21 +152,21 @@ fn nested_delegation_inherits_payer_and_root_stop_and_cannot_fund_itself() {
     db.set_organization_member("org", "bob", OrganizationRole::Administrator)
         .unwrap();
     let nested = db
-        .create_work_delegation(
-            "bob",
-            "org",
-            "team",
-            "nested",
-            "first-work",
-            "grandchild",
-            "Investigate",
-            "nested",
-            60,
-            40,
-            "inherit",
-            None,
-            None,
-        )
+        .create_work_delegation(crate::CreateWorkDelegation {
+            actor: "bob",
+            org: "org",
+            team: "team",
+            delegation_id: "nested",
+            parent_work_id: "first-work",
+            child_work_id: "grandchild",
+            child_title: "Investigate",
+            request_id: "nested",
+            parent_budget_tokens: 60,
+            child_budget_tokens: 40,
+            stop_scope: "inherit",
+            peer_org: None,
+            peer_team: None,
+        })
         .unwrap();
     assert_eq!(nested.payer_principal_id, "alice");
     assert_eq!(nested.created_by, "bob");
@@ -156,21 +175,21 @@ fn nested_delegation_inherits_payer_and_root_stop_and_cannot_fund_itself() {
         .authorize_work_budget("bob", "org", "team", "grandchild", "new-payer", 100)
         .is_err());
     assert!(db
-        .create_work_delegation(
-            "bob",
-            "org",
-            "team",
-            "overflow",
-            "first-work",
-            "extra",
-            "Investigate",
-            "overflow",
-            60,
-            21,
-            "inherit",
-            None,
-            None
-        )
+        .create_work_delegation(crate::CreateWorkDelegation {
+            actor: "bob",
+            org: "org",
+            team: "team",
+            delegation_id: "overflow",
+            parent_work_id: "first-work",
+            child_work_id: "extra",
+            child_title: "Investigate",
+            request_id: "overflow",
+            parent_budget_tokens: 60,
+            child_budget_tokens: 21,
+            stop_scope: "inherit",
+            peer_org: None,
+            peer_team: None
+        })
         .is_err());
     let budget = db.work_budget("bob", "org", "team", "grandchild").unwrap();
     assert_eq!(budget.token_limit, 40);
@@ -255,10 +274,21 @@ fn retries_are_exact_and_ids_cannot_attach_existing_work_or_spoof_stop_scope() {
         ),
     ] {
         assert!(
-            db.create_work_delegation(
-                "alice", "org", "team", id, parent, target, title, request, 100, 40, stop,
-                peer_org, peer_team
-            )
+            db.create_work_delegation(crate::CreateWorkDelegation {
+                actor: "alice",
+                org: "org",
+                team: "team",
+                delegation_id: id,
+                parent_work_id: parent,
+                child_work_id: target,
+                child_title: title,
+                request_id: request,
+                parent_budget_tokens: 100,
+                child_budget_tokens: 40,
+                stop_scope: stop,
+                peer_org,
+                peer_team
+            })
             .is_err(),
             "{id}"
         );
@@ -327,16 +357,16 @@ fn reservations_survive_restart_stop_and_unknown_usage() {
         db.reserve_work_budget("alice", "org", "team", "root", "before-call", 30)
             .unwrap();
         child(&db, "first", 60).unwrap();
-        db.record_team_effort(
-            "alice",
-            "org",
-            "team",
-            "unknown",
-            "usage",
-            None,
-            None,
-            Some("root"),
-        )
+        db.record_team_effort(crate::RecordTeamEffort {
+            actor: "alice",
+            org: "org",
+            team: "team",
+            entry_id: "unknown",
+            request_id: "usage",
+            measured_tokens: None,
+            goal_id: None,
+            work_id: Some("root"),
+        })
         .unwrap();
         db.request_control_stop("alice", "org", "work", "root", "estop", "Stop")
             .unwrap();
@@ -364,24 +394,32 @@ fn reservations_survive_restart_stop_and_unknown_usage() {
 fn work_stop_reaches_descendants_and_does_not_park_unrelated_work() {
     let db = primed();
     child(&db, "first", 60).unwrap();
-    db.create_work_delegation(
-        "alice",
-        "org",
-        "team",
-        "nested",
-        "first-work",
-        "grandchild",
-        "Investigate",
-        "nested",
-        60,
-        40,
-        "inherit",
-        None,
-        None,
-    )
+    db.create_work_delegation(crate::CreateWorkDelegation {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        delegation_id: "nested",
+        parent_work_id: "first-work",
+        child_work_id: "grandchild",
+        child_title: "Investigate",
+        request_id: "nested",
+        parent_budget_tokens: 60,
+        child_budget_tokens: 40,
+        stop_scope: "inherit",
+        peer_org: None,
+        peer_team: None,
+    })
     .unwrap();
-    db.create_team_work_item("alice", "org", "team", "other", "Other", "other", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "other",
+        title: "Other",
+        request_id: "other",
+        goal_id: None,
+    })
+    .unwrap();
     for work in ["root", "first-work", "grandchild", "other"] {
         db.activate_team_work_item(
             "alice",

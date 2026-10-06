@@ -135,16 +135,16 @@ impl Store {
 
     /// Enroll a workstation under an org. Device credential is distinct from
     /// the owner employee credential. Supported platforms are explicit.
-    pub fn enroll_workstation(
-        &self,
-        actor: &str,
-        org: &str,
-        workstation_id: &str,
-        label: &str,
-        platform: &str,
-        device_secret: &str,
-        shared_assignment: bool,
-    ) -> Result<Workstation> {
+    pub fn enroll_workstation(&self, command: crate::EnrollWorkstation<'_>) -> Result<Workstation> {
+        let crate::EnrollWorkstation {
+            actor,
+            org,
+            workstation_id,
+            label,
+            platform,
+            device_secret,
+            shared_assignment,
+        } = command;
         validate_id(org, "org_id")?;
         validate_id(workstation_id, "workstation_id")?;
         validate_id(label, "label")?;
@@ -548,14 +548,17 @@ impl Store {
     /// draining/revoked/offline devices cannot obtain new mediated effects.
     pub fn claim_worker_assignment(
         &self,
-        org: &str,
-        workstation_id: &str,
-        device_secret: &str,
-        assignment_id: &str,
-        request_id: &str,
-        work_id: Option<&str>,
-        claimed_generation: i64,
+        command: crate::ClaimWorkerAssignment<'_>,
     ) -> Result<WorkerAssignmentClaim> {
+        let crate::ClaimWorkerAssignment {
+            org,
+            workstation_id,
+            device_secret,
+            assignment_id,
+            request_id,
+            work_id,
+            claimed_generation,
+        } = command;
         validate_id(assignment_id, "assignment_id")?;
         validate_id(request_id, "request_id")?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;

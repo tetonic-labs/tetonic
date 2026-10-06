@@ -28,13 +28,13 @@ pub enum EndpointTier {
 
 impl EndpointTier {
     pub fn matches(&self, required: EndpointTier) -> bool {
-        match (self, required) {
-            (Self::Universal, _) => true,
-            (_, Self::Universal) => true,
-            (Self::Reflexive, Self::Reflexive) => true,
-            (Self::Deliberative, Self::Deliberative) => true,
-            _ => false,
-        }
+        matches!(
+            (self, required),
+            (Self::Universal, _)
+                | (_, Self::Universal)
+                | (Self::Reflexive, Self::Reflexive)
+                | (Self::Deliberative, Self::Deliberative)
+        )
     }
 }
 

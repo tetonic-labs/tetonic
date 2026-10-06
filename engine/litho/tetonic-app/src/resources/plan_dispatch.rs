@@ -38,16 +38,16 @@ impl HumanHandoff {
         let saved = self
             .store
             .write(move |db| {
-                db.ask_work_human(
-                    &h.actor,
-                    &h.org,
-                    &h.team,
-                    &h.work,
-                    &attempt,
-                    &question_id,
+                db.ask_work_human(tetonic_memory::AskWorkHuman {
+                    actor: &h.actor,
+                    org: &h.org,
+                    team: &h.team,
+                    work: &h.work,
+                    attempt: &attempt,
+                    id: &question_id,
                     content,
-                    chrono::Utc::now().timestamp() as u64,
-                )
+                    now: chrono::Utc::now().timestamp() as u64,
+                })
             })
             .await;
         let Ok(Ok(saved)) = saved else {

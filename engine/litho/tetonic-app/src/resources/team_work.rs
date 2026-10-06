@@ -98,13 +98,15 @@ impl ResourceService {
             .store
             .write(move |db| {
                 db.create_team_work_item_for_purpose(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &work_id,
-                    &title,
-                    &request_id,
-                    goal_id.as_deref(),
+                    tetonic_memory::CreateTeamWorkItem {
+                        actor: &actor.principal_id,
+                        org: &org,
+                        team: &team,
+                        work_id: &work_id,
+                        title: &title,
+                        request_id: &request_id,
+                        goal_id: goal_id.as_deref(),
+                    },
                     input.as_deref(),
                     purpose,
                 )
@@ -284,15 +286,15 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.activate_from_cursor(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &source,
-                    &cursor_key,
-                    &event_id,
-                    &work_title,
-                )
+                db.activate_from_cursor(tetonic_memory::ActivateWorkCursor {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    source: &source,
+                    cursor_key: &cursor_key,
+                    event_id: &event_id,
+                    work_title: &work_title,
+                })
             })
             .await??)
     }
@@ -326,21 +328,21 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.create_work_delegation(
-                    &actor.principal_id,
-                    &org,
-                    &team,
-                    &delegation_id,
-                    &parent_work_id,
-                    &child_work_id,
-                    &child_title,
-                    &request_id,
+                db.create_work_delegation(tetonic_memory::CreateWorkDelegation {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    delegation_id: &delegation_id,
+                    parent_work_id: &parent_work_id,
+                    child_work_id: &child_work_id,
+                    child_title: &child_title,
+                    request_id: &request_id,
                     parent_budget_tokens,
                     child_budget_tokens,
-                    &stop_scope,
-                    peer_org.as_deref(),
-                    peer_team.as_deref(),
-                )
+                    stop_scope: &stop_scope,
+                    peer_org: peer_org.as_deref(),
+                    peer_team: peer_team.as_deref(),
+                })
             })
             .await??)
     }

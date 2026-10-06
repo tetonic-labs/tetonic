@@ -22,15 +22,15 @@ fn primed() -> Store {
 fn team_membership_does_not_grant_workstation_and_shared_is_opt_in() {
     let db = primed();
     let ws = db
-        .enroll_workstation(
-            "alice",
-            "org",
-            "laptop",
-            "Alice laptop",
-            "linux",
-            "device-secret",
-            false,
-        )
+        .enroll_workstation(crate::EnrollWorkstation {
+            actor: "alice",
+            org: "org",
+            workstation_id: "laptop",
+            label: "Alice laptop",
+            platform: "linux",
+            device_secret: "device-secret",
+            shared_assignment: false,
+        })
         .unwrap();
     assert!(!ws.shared_assignment);
     assert!(db
@@ -38,8 +38,16 @@ fn team_membership_does_not_grant_workstation_and_shared_is_opt_in() {
         .is_err());
     db.approve_workstation_grant("alice", "org", "laptop", "g1", "path", "/home/alice/proj")
         .unwrap();
-    db.create_team_work_item("alice", "org", "team", "w1", "Ship", "r1", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "w1",
+        title: "Ship",
+        request_id: "r1",
+        goal_id: None,
+    })
+    .unwrap();
     assert!(db
         .pin_work_to_workstation("bob", "org", "team", "w1", "laptop")
         .is_err());
@@ -50,20 +58,36 @@ fn team_membership_does_not_grant_workstation_and_shared_is_opt_in() {
 #[test]
 fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
     let db = primed();
-    db.enroll_workstation(
-        "alice",
-        "org",
-        "laptop",
-        "Alice laptop",
-        "macos",
-        "device-secret",
-        true,
-    )
+    db.enroll_workstation(crate::EnrollWorkstation {
+        actor: "alice",
+        org: "org",
+        workstation_id: "laptop",
+        label: "Alice laptop",
+        platform: "macos",
+        device_secret: "device-secret",
+        shared_assignment: true,
+    })
     .unwrap();
-    db.create_team_work_item("alice", "org", "team", "w1", "Ship", "r1", None)
-        .unwrap();
-    db.create_team_work_item("alice", "org", "team", "w2", "Other", "r2", None)
-        .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "w1",
+        title: "Ship",
+        request_id: "r1",
+        goal_id: None,
+    })
+    .unwrap();
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "alice",
+        org: "org",
+        team: "team",
+        work_id: "w2",
+        title: "Other",
+        request_id: "r2",
+        goal_id: None,
+    })
+    .unwrap();
     db.pin_work_to_workstation("bob", "org", "team", "w1", "laptop")
         .unwrap();
     let (offline, parked) = db
@@ -101,27 +125,27 @@ fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
     );
 
     let claim = db
-        .claim_worker_assignment(
-            "org",
-            "laptop",
-            "device-secret",
-            "a1",
-            "areq",
-            Some("w1"),
-            again.assignment_generation,
-        )
+        .claim_worker_assignment(crate::ClaimWorkerAssignment {
+            org: "org",
+            workstation_id: "laptop",
+            device_secret: "device-secret",
+            assignment_id: "a1",
+            request_id: "areq",
+            work_id: Some("w1"),
+            claimed_generation: again.assignment_generation,
+        })
         .unwrap();
     assert_eq!(claim.status, "claimed");
     assert_eq!(
-        db.claim_worker_assignment(
-            "org",
-            "laptop",
-            "device-secret",
-            "a1",
-            "areq",
-            Some("w1"),
-            again.assignment_generation,
-        )
+        db.claim_worker_assignment(crate::ClaimWorkerAssignment {
+            org: "org",
+            workstation_id: "laptop",
+            device_secret: "device-secret",
+            assignment_id: "a1",
+            request_id: "areq",
+            work_id: Some("w1"),
+            claimed_generation: again.assignment_generation
+        })
         .unwrap(),
         claim
     );
@@ -132,15 +156,15 @@ fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
         again.assignment_generation + 1
     );
     assert!(db
-        .claim_worker_assignment(
-            "org",
-            "laptop",
-            "device-secret",
-            "a2",
-            "areq2",
-            None,
-            again.assignment_generation,
-        )
+        .claim_worker_assignment(crate::ClaimWorkerAssignment {
+            org: "org",
+            workstation_id: "laptop",
+            device_secret: "device-secret",
+            assignment_id: "a2",
+            request_id: "areq2",
+            work_id: None,
+            claimed_generation: again.assignment_generation
+        })
         .is_err());
     assert!(db
         .accept_worker_assignment_result(
@@ -160,8 +184,16 @@ fn offline_parks_pins_reconnect_does_not_duplicate_and_revoke_fences() {
 #[test]
 fn drain_blocks_new_claims_and_generation_survives_reopen() {
     let db = primed();
-    db.enroll_workstation("alice", "org", "box", "Box", "windows", "secret", true)
-        .unwrap();
+    db.enroll_workstation(crate::EnrollWorkstation {
+        actor: "alice",
+        org: "org",
+        workstation_id: "box",
+        label: "Box",
+        platform: "windows",
+        device_secret: "secret",
+        shared_assignment: true,
+    })
+    .unwrap();
     let gen = db
         .get_workstation("org", "box")
         .unwrap()
@@ -169,7 +201,15 @@ fn drain_blocks_new_claims_and_generation_survives_reopen() {
         .assignment_generation;
     db.drain_workstation("alice", "org", "box").unwrap();
     assert!(db
-        .claim_worker_assignment("org", "box", "secret", "x", "xr", None, gen)
+        .claim_worker_assignment(crate::ClaimWorkerAssignment {
+            org: "org",
+            workstation_id: "box",
+            device_secret: "secret",
+            assignment_id: "x",
+            request_id: "xr",
+            work_id: None,
+            claimed_generation: gen
+        })
         .is_err());
     // Re-open the same database file semantics: generation is durable in-row.
     let gen_again = db

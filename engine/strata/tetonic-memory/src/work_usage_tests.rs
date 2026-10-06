@@ -20,15 +20,15 @@ fn seed(db: &Store) {
         },
     )
     .unwrap();
-    db.create_team_work_item(
-        "owner",
-        "org",
-        "team",
-        "work",
-        "Work",
-        "request@agent",
-        None,
-    )
+    db.create_team_work_item(crate::CreateTeamWorkItem {
+        actor: "owner",
+        org: "org",
+        team: "team",
+        work_id: "work",
+        title: "Work",
+        request_id: "request@agent",
+        goal_id: None,
+    })
     .unwrap();
     db.authorize_work_budget("owner", "org", "team", "work", "fund", 100)
         .unwrap();
@@ -70,18 +70,18 @@ fn seed(db: &Store) {
     db.persist_run_projection(&run).unwrap();
 }
 fn begin(db: &Store, call: &str) -> Result<Option<i64>> {
-    db.begin_work_inference(
-        "owner",
-        "org",
-        "team",
-        "work",
-        "run",
-        "task",
-        "attempt",
+    db.begin_work_inference(crate::BeginWorkInference {
+        actor: "owner",
+        org: "org",
+        team: "team",
+        work: "work",
+        run: "run",
+        task: "task",
+        attempt: "attempt",
         call,
-        "test-model",
-        100,
-    )
+        model: "test-model",
+        now: 100,
+    })
 }
 fn stop(db: &Store) {
     let mut run = db.load_run_snapshot("run").unwrap().unwrap();
@@ -94,36 +94,38 @@ fn stop(db: &Store) {
 
 fn limited(db: &Store, call: &str, limit: i64) -> Result<Option<i64>> {
     db.begin_work_inference_with_limit(
-        "owner",
-        "org",
-        "team",
-        "work",
-        "run",
-        "task",
-        "attempt",
-        call,
-        "model",
-        100,
+        crate::BeginWorkInference {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            work: "work",
+            run: "run",
+            task: "task",
+            attempt: "attempt",
+            call,
+            model: "model",
+            now: 100,
+        },
         Some(limit),
     )
 }
 
 fn add_child(db: &Store) -> RunSnapshot {
-    db.create_work_delegation(
-        "owner",
-        "org",
-        "team",
-        "delegation",
-        "work",
-        "child",
-        "Help",
-        "child-request",
-        100,
-        50,
-        "inherit",
-        None,
-        None,
-    )
+    db.create_work_delegation(crate::CreateWorkDelegation {
+        actor: "owner",
+        org: "org",
+        team: "team",
+        delegation_id: "delegation",
+        parent_work_id: "work",
+        child_work_id: "child",
+        child_title: "Help",
+        request_id: "child-request",
+        parent_budget_tokens: 100,
+        child_budget_tokens: 50,
+        stop_scope: "inherit",
+        peer_org: None,
+        peer_team: None,
+    })
     .unwrap();
     let mut run = db.load_run_snapshot("run").unwrap().unwrap();
     let mut task = run.tasks[&TaskId::new("task")].clone();
@@ -151,18 +153,18 @@ fn add_child(db: &Store) -> RunSnapshot {
 }
 
 fn begin_child(db: &Store, call: &str) -> Result<Option<i64>> {
-    db.begin_work_inference(
-        "owner",
-        "org",
-        "team",
-        "child",
-        "run",
-        "child-task",
-        "child-attempt",
+    db.begin_work_inference(crate::BeginWorkInference {
+        actor: "owner",
+        org: "org",
+        team: "team",
+        work: "child",
+        run: "run",
+        task: "child-task",
+        attempt: "child-attempt",
         call,
-        "model",
-        100,
-    )
+        model: "model",
+        now: 100,
+    })
 }
 
 #[test]
@@ -206,21 +208,21 @@ fn one_branch_overrun_stops_new_tree_spend_but_keeps_inflight_reports() {
         .reserve_work_budget("owner", "org", "team", "child", "new-reservation", 1)
         .is_err());
     assert!(db
-        .create_work_delegation(
-            "owner",
-            "org",
-            "team",
-            "more",
-            "work",
-            "more-work",
-            "Help",
-            "more-request",
-            100,
-            1,
-            "inherit",
-            None,
-            None
-        )
+        .create_work_delegation(crate::CreateWorkDelegation {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            delegation_id: "more",
+            parent_work_id: "work",
+            child_work_id: "more-work",
+            child_title: "Help",
+            request_id: "more-request",
+            parent_budget_tokens: 100,
+            child_budget_tokens: 1,
+            stop_scope: "inherit",
+            peer_org: None,
+            peer_team: None
+        })
         .is_err());
     let usage = db.team_work_usage("owner", "org", "team").unwrap();
     assert!(

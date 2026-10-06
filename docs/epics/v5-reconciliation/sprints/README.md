@@ -49,6 +49,13 @@ the file-size and fixture-model findings. Formatting, architecture, and static
 quality checks now pass; the overall package gate still fails on existing Clippy
 debt. No gate was relaxed, and the remaining storage API findings are inventoried.
 
+October 5 storage follow-up: [named request API evidence](october-1-coherent-workspace/storage-api-evidence-2026-10-05.md)
+replaces the 20 flagged storage signatures and updates their existing callers.
+The workspace compiles; storage/inference Clippy and all six tested library suites
+pass. The broader integration run exposes 19 failures, recorded in the evidence.
+Later Clippy findings also remain, including fleet registry locks held across
+asynchronous steering delivery. This does not close the release baseline.
+
 ## Work levels and tracking
 
 October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)

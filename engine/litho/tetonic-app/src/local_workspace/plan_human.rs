@@ -69,7 +69,18 @@ impl LocalWorkspace {
             return Err(AppError::InvalidRequest("This wait ended. Your text has not been sent; inspect the plan before starting more work.".into()));
         }
         let work = work.to_owned();
-        self.keys.store.write(move|db|db.answer_work_human(OWNER,ORG,TEAM,&work,&request.question_id,&request.request_id,&request.answer,chrono::Utc::now().timestamp() as u64)).await.map_err(|_|AppError::InferenceUnavailable)?.map_err(|_|AppError::InvalidRequest("This answer conflicted with a saved response or the wait ended. Reload the plan.".into()))
+        self.keys.store.write(move |db| {
+            db.answer_work_human(tetonic_memory::AnswerWorkHuman {
+                actor: OWNER,
+                org: ORG,
+                team: TEAM,
+                work: &work,
+                id: &request.question_id,
+                request: &request.request_id,
+                answer: &request.answer,
+                now: chrono::Utc::now().timestamp() as u64
+            })
+        }).await.map_err(|_|AppError::InferenceUnavailable)?.map_err(|_|AppError::InvalidRequest("This answer conflicted with a saved response or the wait ended. Reload the plan.".into()))
     }
     pub async fn amend_plan_assignment(
         &self,
@@ -94,6 +105,18 @@ impl LocalWorkspace {
             ));
         }
         let source = source.to_owned();
-        self.keys.store.write(move|db|db.amend_plan_assignment(OWNER,ORG,TEAM,&source,request.expected_revision,&request.request_id,&request.assignment_key,&request.instructions,chrono::Utc::now().timestamp() as u64)).await.map_err(|_|AppError::InferenceUnavailable)?.map_err(|_|AppError::InvalidRequest("The direction changed or affected work already started. Reload before changing upcoming work.".into()))
+        self.keys.store.write(move |db| {
+            db.amend_plan_assignment(tetonic_memory::AmendPlanAssignment {
+                actor: OWNER,
+                org: ORG,
+                team: TEAM,
+                source: &source,
+                expected: request.expected_revision,
+                request: &request.request_id,
+                key: &request.assignment_key,
+                instructions: &request.instructions,
+                now: chrono::Utc::now().timestamp() as u64
+            })
+        }).await.map_err(|_|AppError::InferenceUnavailable)?.map_err(|_|AppError::InvalidRequest("The direction changed or affected work already started. Reload before changing upcoming work.".into()))
     }
 }

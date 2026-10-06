@@ -77,16 +77,16 @@ impl Store {
         Ok(rows)
     }
 
-    pub fn save_work_brief(
-        &self,
-        actor: &str,
-        org: &str,
-        team: &str,
-        work: &str,
-        request: &str,
-        expected: i64,
-        body: &str,
-    ) -> Result<WorkBrief> {
+    pub fn save_work_brief(&self, command: crate::SaveWorkBrief<'_>) -> Result<WorkBrief> {
+        let crate::SaveWorkBrief {
+            actor,
+            org,
+            team,
+            work,
+            request,
+            expected,
+            body,
+        } = command;
         if request.is_empty()
             || request.len() > 128
             || request.contains('\0')
@@ -155,13 +155,15 @@ mod tests {
         })
         .unwrap();
         db.create_team_work_item_for_purpose(
-            "owner",
-            "org",
-            "team",
-            "exploration",
-            "Understand the problem",
-            "request",
-            None,
+            crate::CreateTeamWorkItem {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work_id: "exploration",
+                title: "Understand the problem",
+                request_id: "request",
+                goal_id: None,
+            },
             Some("Original words"),
             crate::WorkPurpose::Explore,
         )
@@ -172,74 +174,74 @@ mod tests {
     fn brief_revisions_are_scoped_idempotent_and_never_launch_work() {
         let db = seed(":memory:");
         let first = db
-            .save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-1",
-                0,
-                "We need evidence",
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-1",
+                expected: 0,
+                body: "We need evidence",
+            })
             .unwrap();
         assert_eq!(first.revision, 1);
         assert_eq!(
-            db.save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-1",
-                0,
-                "We need evidence"
-            )
+            db.save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-1",
+                expected: 0,
+                body: "We need evidence"
+            })
             .unwrap(),
             first
         );
         assert!(db
-            .save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-1",
-                0,
-                "Changed retry"
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-1",
+                expected: 0,
+                body: "Changed retry"
+            })
             .is_err());
         assert!(db
-            .save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-2",
-                0,
-                "Stale edit"
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-2",
+                expected: 0,
+                body: "Stale edit"
+            })
             .is_err());
         let second = db
-            .save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-2",
-                1,
-                "Compare two approaches",
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-2",
+                expected: 1,
+                body: "Compare two approaches",
+            })
             .unwrap();
         assert_eq!(second.revision, 2);
         assert_eq!(
-            db.save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "save-1",
-                0,
-                "We need evidence"
-            )
+            db.save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "save-1",
+                expected: 0,
+                body: "We need evidence"
+            })
             .unwrap(),
             first
         );
@@ -250,15 +252,15 @@ mod tests {
             .work_briefs("owner", "other-org", "team", "exploration")
             .is_err());
         assert!(db
-            .save_work_brief(
-                "stranger",
-                "org",
-                "team",
-                "exploration",
-                "forged",
-                2,
-                "Secret"
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "stranger",
+                org: "org",
+                team: "team",
+                work: "exploration",
+                request: "forged",
+                expected: 2,
+                body: "Secret"
+            })
             .is_err());
         let work = db
             .get_team_work_item("org", "team", "exploration")
@@ -269,13 +271,15 @@ mod tests {
         assert_eq!(work.status, "open");
         assert!(db
             .create_team_work_item_with_input(
-                "owner",
-                "org",
-                "team",
-                "exploration",
-                "Understand the problem",
-                "request",
-                None,
+                crate::CreateTeamWorkItem {
+                    actor: "owner",
+                    org: "org",
+                    team: "team",
+                    work_id: "exploration",
+                    title: "Understand the problem",
+                    request_id: "request",
+                    goal_id: None
+                },
                 Some("Original words")
             )
             .is_err());
@@ -301,27 +305,29 @@ mod tests {
             crate::WorkPurpose::Work
         );
         db.create_team_work_item_for_purpose(
-            "owner",
-            "org",
-            "team",
-            "new",
-            "New exploration",
-            "new-request",
-            None,
+            crate::CreateTeamWorkItem {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work_id: "new",
+                title: "New exploration",
+                request_id: "new-request",
+                goal_id: None,
+            },
             Some("Question"),
             crate::WorkPurpose::Explore,
         )
         .unwrap();
         let saved = db
-            .save_work_brief(
-                "owner",
-                "org",
-                "team",
-                "new",
-                "save",
-                0,
-                "Retained decision",
-            )
+            .save_work_brief(crate::SaveWorkBrief {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work: "new",
+                request: "save",
+                expected: 0,
+                body: "Retained decision",
+            })
             .unwrap();
         drop(db);
         let reopened = Store::open(&path).unwrap();

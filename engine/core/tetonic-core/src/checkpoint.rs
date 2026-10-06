@@ -167,7 +167,7 @@ impl CheckpointManager {
             }
         }
 
-        headers.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+        headers.sort_by_key(|header| std::cmp::Reverse(header.created_at));
         Ok(headers)
     }
 
