@@ -1,3 +1,4 @@
+#![cfg(test)]
 use super::*;
 use serde_json::{json, Value};
 use std::sync::{
@@ -6,6 +7,8 @@ use std::sync::{
 };
 use tetonic_domain::key_storage::{KeyStorageError, SecretBytes};
 use tetonic_inference::hosted::HostedTransport;
+
+mod tools;
 
 #[derive(Default)]
 struct Vault {
@@ -49,10 +52,10 @@ impl HostedTransport for Transport {
     ) -> Result<Value, InferenceError> {
         assert!(cursor.is_none());
         let model = if endpoint == "https://api.openai.com/v1/models" {
-            "gpt-4.1"
+            "openai-test-text-model"
         } else {
             assert_eq!(endpoint, "https://api.anthropic.com/v1/models");
-            "claude-sonnet-4-6"
+            "anthropic-test-text-model"
         };
         Ok(json!({"data":[{"id":model}],"has_more":false}))
     }
@@ -61,7 +64,11 @@ impl HostedTransport for Transport {
         if self.wait.load(Ordering::SeqCst) {
             std::future::pending::<()>().await;
         }
-        if body["model"].as_str().unwrap().starts_with("claude") {
+        if body["model"]
+            .as_str()
+            .unwrap()
+            .starts_with("anthropic-test")
+        {
             Ok(
                 json!({"role":"assistant","type":"message","content":[{"type":"tool_use","id":"finish-1","name":"finish","input":{"summary":"Hosted answer"}}],"usage":{"input_tokens":10,"output_tokens":20},"stop_reason":"tool_use"}),
             )
@@ -125,7 +132,10 @@ async fn hosted_agent_round_trip(with_folder: bool) {
             assert!(catalog.local_error.is_some());
             assert_eq!(catalog.providers.len(), 2);
             assert_eq!(!catalog.tools.is_empty(), with_folder);
-            for (provider, model) in [("openai", "gpt-4.1"), ("anthropic", "claude-sonnet-4-6")] {
+            for (provider, model) in [
+                ("openai", "openai-test-text-model"),
+                ("anthropic", "anthropic-test-text-model"),
+            ] {
                 let input = CreateLocalAgent {
                     provider: provider.into(),
                     hosted_consent: true,

@@ -4,6 +4,7 @@ use super::*;
 
 #[derive(Serialize)]
 pub struct LocalAgentRuntimeProfile {
+    pub requires_tool_consent: bool,
     pub provider: String,
     pub harness: String,
     pub tools: Vec<String>,
@@ -24,12 +25,19 @@ impl LocalWorkspace {
         ["ollama", "openai", "anthropic"]
             .into_iter()
             .map(|provider| LocalAgentRuntimeProfile {
+                requires_tool_consent: provider != "ollama",
                 provider: provider.into(),
                 harness: "general".into(),
-                tools: if provider == "ollama" { tools.clone() } else { vec![] },
-                tool_restriction: (provider != "ollama").then(|| {
-                    "Workspace tools are not supported for hosted models on this host. Choose a local model or remove the selected tools.".into()
-                }),
+                tools: match provider {
+                    "ollama" => tools.clone(),
+                    "openai" => tools.iter().filter(|tool| crate::resources::HOSTED_READ_TOOLS.contains(&tool.as_str())).cloned().collect(),
+                    _ => vec![],
+                },
+                tool_restriction: match provider {
+                    "openai" => Some("This profile supports selected file reads. Writes and other tools are not enabled yet. Choose another provider or remove those tools.".into()),
+                    "anthropic" => Some("Workspace tools are not supported for this provider yet. Choose another provider or remove the selected tools.".into()),
+                    _ => None,
+                },
             })
             .collect()
     }

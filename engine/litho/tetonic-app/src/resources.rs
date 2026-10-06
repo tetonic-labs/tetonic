@@ -268,6 +268,7 @@ pub use activation::RegisteredAgentJob;
 pub(crate) mod plan_dispatch;
 mod registered_executor;
 pub use plan_dispatch::PlanDispatch;
+pub(crate) use registered_executor::HOSTED_READ_TOOLS;
 pub use registered_executor::{
     RegisteredAgentExecution, RegisteredAgentSubmission, RegisteredExecutionSettings,
     RegisteredHostedInference,

@@ -16,7 +16,10 @@ const workspace: EngineWorkspace = {
   tasks: [],
 };
 
-function setup(tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', 'edit_file']) {
+function setup(
+  tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', 'edit_file'],
+  hostedReads = false,
+) {
   const client = new LocalEngine('test');
   vi.spyOn(client, 'providerModels').mockResolvedValue({
     provider: 'openai',
@@ -24,6 +27,19 @@ function setup(tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', '
     capabilities_verified: false,
   });
   vi.spyOn(client, 'agentCatalog').mockResolvedValue({
+    workspace_root: 'C:/approved-work',
+    runtime_profiles: hostedReads
+      ? [
+          { provider: 'ollama', harness: 'general', tools, tool_restriction: null },
+          {
+            provider: 'openai',
+            harness: 'general',
+            tools: ['read_file', 'list_dir', 'grep', 'glob'],
+            requires_tool_consent: true,
+            tool_restriction: 'Writes are not supported.',
+          },
+        ]
+      : undefined,
     models: ['installed-model'],
     harnesses: ['general'],
     tools,
@@ -46,6 +62,32 @@ function setup(tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', '
 afterEach(() => vi.restoreAllMocks());
 
 describe('connected agent permissions', () => {
+  it('attaches selected hosted read tools only after explicit folder disclosure consent', async () => {
+    const create = setup(undefined, true);
+    fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {
+      target: { value: 'Lab reader' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
+    fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+      target: { value: 'gpt-4.1' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    expect(screen.getByRole('button', { name: /Create agent/ })).toHaveProperty('disabled', true);
+    expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
+    expect(screen.getByRole('checkbox', { name: 'Write files' })).toHaveProperty('disabled', true);
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Allow selected file results from C:\/approved-work/ }),
+    );
+    await userEvent.click(screen.getByRole('button', { name: /Create agent/ }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(create.mock.calls[0][0]).toMatchObject({
+      provider: 'openai',
+      hosted_tools_consent: true,
+      tools: ['read_file', 'list_dir', 'grep', 'glob'],
+    });
+  });
   it('sends an explicit empty tool grant when no tools are selected', async () => {
     const create = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {

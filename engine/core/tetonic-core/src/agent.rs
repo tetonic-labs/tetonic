@@ -1776,7 +1776,9 @@ Fix the JSON to match the tool schema and call the tool again."
                             ok: false,
                             summary: "invalid arguments".into(),
                         });
-                        convo.messages.push(Message::tool(name.clone(), feedback));
+                        convo.messages.push(
+                            Message::tool(name.clone(), feedback).with_tool_call_id(&call_id),
+                        );
                         continue 'steps;
                     }
                 }
@@ -1929,7 +1931,9 @@ Fix the JSON to match the tool schema and call the tool again."
                         ok: false,
                         summary: "spawn disabled".into(),
                     });
-                    convo.messages.push(Message::tool(name.clone(), feedback));
+                    convo
+                        .messages
+                        .push(Message::tool(name.clone(), feedback).with_tool_call_id(&call_id));
                     continue 'steps;
                 }
 
@@ -2019,7 +2023,10 @@ Fix the JSON to match the tool schema and call the tool again."
                                     ok: false,
                                     summary: e.clone(),
                                 });
-                                convo.messages.push(Message::tool(name.clone(), feedback));
+                                convo.messages.push(
+                                    Message::tool(name.clone(), feedback)
+                                        .with_tool_call_id(&call_id),
+                                );
                                 continue 'steps;
                             }
                         }
@@ -2048,7 +2055,9 @@ Fix the JSON to match the tool schema and call the tool again."
                             ok: false,
                             summary: "context compiler not configured".into(),
                         });
-                        convo.messages.push(Message::tool(name.clone(), feedback));
+                        convo.messages.push(
+                            Message::tool(name.clone(), feedback).with_tool_call_id(&call_id),
+                        );
                         continue 'steps;
                     }
                 }
@@ -2092,7 +2101,9 @@ Fix the JSON to match the tool schema and call the tool again."
                         ok: false,
                         summary: format!("{name} blocked on explain turn"),
                     });
-                    convo.messages.push(Message::tool(name.clone(), feedback));
+                    convo
+                        .messages
+                        .push(Message::tool(name.clone(), feedback).with_tool_call_id(&call_id));
                     continue 'steps;
                 }
 
@@ -2123,7 +2134,9 @@ Fix the JSON to match the tool schema and call the tool again."
                                 ok: false,
                                 summary: format!("duplicate read: {p}"),
                             });
-                            convo.messages.push(Message::tool(name.clone(), feedback));
+                            convo.messages.push(
+                                Message::tool(name.clone(), feedback).with_tool_call_id(&call_id),
+                            );
                             monitor.record_no_progress_event();
                             continue;
                         }
@@ -2165,7 +2178,10 @@ Fix the JSON to match the tool schema and call the tool again."
                                             ok: false,
                                             summary: format!("{clean_p} too large ({file_len})"),
                                         });
-                                        convo.messages.push(Message::tool(name.clone(), feedback));
+                                        convo.messages.push(
+                                            Message::tool(name.clone(), feedback)
+                                                .with_tool_call_id(&call_id),
+                                        );
                                         monitor.record_no_progress_event();
                                         continue 'steps;
                                     }
@@ -2195,7 +2211,9 @@ Fix the JSON to match the tool schema and call the tool again."
                                 ok: false,
                                 summary: format!("too many writes to {p}"),
                             });
-                            convo.messages.push(Message::tool(name.clone(), feedback));
+                            convo.messages.push(
+                                Message::tool(name.clone(), feedback).with_tool_call_id(&call_id),
+                            );
                             monitor.record_no_progress_event();
                             continue;
                         }
@@ -2285,7 +2303,9 @@ Fix the JSON to match the tool schema and call the tool again."
                     ok: outcome.ok,
                     summary: outcome.summary.clone(),
                 });
-                convo.messages.push(Message::tool(name, model_str));
+                convo
+                    .messages
+                    .push(Message::tool(name, model_str).with_tool_call_id(&call_id));
 
                 if progress.stuck {
                     let note = monitor.stuck_reason();

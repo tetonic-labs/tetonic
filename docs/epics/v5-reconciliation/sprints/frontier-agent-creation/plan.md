@@ -17,7 +17,7 @@ This is a dedicated implementation sprint, not an extra calendar week or an inde
 | [FAR-001](FAR-001-creation-and-readiness.md) | Verified for current profiles | M | Creation contracts and honest readiness |
 | [FAR-002](FAR-002-model-discovery-and-connections.md) | In progress | L | Account-aware model discovery and connections |
 | [FAR-003](FAR-003-modern-inference-and-streaming.md) | In progress | L | Modern inference protocols, streaming and tool continuity |
-| [FAR-004](FAR-004-governed-tools.md) | Planned | L | Selected tools across frontier models |
+| [FAR-004](FAR-004-governed-tools.md) | In progress | L | Selected tools across frontier models |
 | [FAR-005](FAR-005-vendor-harnesses.md) | Planned | L | Frontier harness adapters inside managed execution |
 | [FAR-006](FAR-006-mcp-and-skills.md) | Planned | L | Real MCP connections, tool attachments and skills |
 | [FAR-007](FAR-007-team-dispatch-and-edits.md) | Planned | L | Mixed-runtime teams and versioned agent edits |
@@ -38,3 +38,5 @@ Each ticket records implementation, exact checks, limitations and evidence. Unit
 - Source audit: implementation tracing plus nine UI tests and one mocked backend test at baseline. No vendor harness or real MCP integration was proven.
 - [FAR-001 evidence](FAR-001-creation-and-readiness.md#evidence): compatibility and preserved selections, invalid-profile rejection, hosted execution on file-enabled hosts; 25 Rust and nine UI tests passed, plus TypeScript. Mocked provider evidence only.
 - [FAR-002 partial evidence](FAR-002-model-discovery-and-connections.md#evidence): account catalog discovery and current-editor refresh/error paths; four application, six egress and twelve UI tests passed; TypeScript and CLI compilation passed. OAuth and full capability qualification remain open.
+- [FAR-003 partial evidence](FAR-003-modern-inference-and-streaming.md#evidence): OpenAI Responses streaming, complete-call validation and private in-memory continuation. Durable resumption and other vendor protocols remain open.
+- [FAR-004 partial evidence](FAR-004-governed-tools.md#evidence): scoped OpenAI file reads through managed execution and existing tools; selected/unselected/path-escape/secret cases exercised with a fake provider and real files. 28 workspace, 47 core and 13 editor tests passed. Writes and vendor-harness execution are not enabled.

@@ -13,7 +13,7 @@ pub struct RegisteredExecutionSettings {
     pub plan_dispatch: Option<super::plan_dispatch::PlanDispatch>,
     /// Host-only, output-only inference contract; not employee-controlled authority.
     pub response_schema: Option<serde_json::Value>,
-    /// Explicit owner-approved, prompt-only hosted route. Not deserializable.
+    /// Explicit owner-approved hosted route. Not deserializable.
     pub hosted: Option<RegisteredHostedInference>,
     /// Host ceiling, including preparation and managed execution/finalization.
     /// Persisted as a Unix-seconds deadline; resolution can shorten this by <1s.
@@ -33,7 +33,11 @@ pub struct RegisteredExecutionSettings {
 pub struct RegisteredHostedInference {
     pub(crate) provider: Arc<tetonic_inference::hosted::HostedChatProvider>,
     pub(crate) binding: String,
+    /// Canonical owner-approved disclosure root for selected read tools only.
+    pub(crate) workspace_disclosure: Option<String>,
 }
+
+pub(crate) const HOSTED_READ_TOOLS: &[&str] = &["read_file", "list_dir", "grep", "glob"];
 
 pub struct RegisteredAgentSubmission {
     pub run_id: tetonic_domain::RunId,
@@ -338,22 +342,32 @@ impl crate::Application {
         // Governed private and team prompts stay on this machine. The operator's
         // requested class remains part of the fingerprint so two host classes
         // do not alias to the same activation.
-        let data_class = if settings.hosted.is_some() {
-            // Only the local owner composition can construct this binding. It
-            // authorizes this explicit prompt and agent instructions, never
-            // implicit team history, recall, repository contents or tool output.
-            if settings.workspace_root.is_some()
-                || !settings.allowed_tools.is_empty()
-                || !prepared.command.job_spec.artifact_bindings.is_empty()
-                || prepared
-                    .command
-                    .job_spec
-                    .capability_bindings
-                    .iter()
-                    .any(|tool| tool != "finish")
-            {
+        let data_class = if let Some(hosted) = &settings.hosted {
+            // Disclosure is scoped to the exact root approved at creation, and
+            // only selected read tools. Recall, team handoffs, writes, processes
+            // and artifacts need their own disclosure/authority contracts.
+            let capabilities = &prepared.command.job_spec.capability_bindings;
+            let valid = match &hosted.workspace_disclosure {
+                Some(disclosure) => {
+                    root_key.as_ref() == Some(disclosure)
+                        && settings
+                            .allowed_tools
+                            .iter()
+                            .all(|tool| HOSTED_READ_TOOLS.contains(&tool.as_str()))
+                        && capabilities.iter().all(|tool| {
+                            tool == "finish" || HOSTED_READ_TOOLS.contains(&tool.as_str())
+                        })
+                }
+                None => {
+                    root_key.is_none()
+                        && settings.allowed_tools.is_empty()
+                        && capabilities.iter().all(|tool| tool == "finish")
+                }
+            };
+            if !valid || !prepared.command.job_spec.artifact_bindings.is_empty() {
                 return Err(AppError::PolicyDenied(
-                    "Hosted agents currently support explicit prompts only.".into(),
+                    "Hosted execution exceeds the approved prompt and workspace disclosure scope."
+                        .into(),
                 ));
             }
             settings.data_class

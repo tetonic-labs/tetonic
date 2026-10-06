@@ -8,6 +8,7 @@ pub use profiles::LocalAgentRuntimeProfile;
 
 #[derive(Clone, Serialize)]
 pub struct LocalAgent {
+    pub hosted_workspace: Option<String>,
     pub plan_coordinator: bool,
     pub provider: String,
     pub hosted_consent: bool,
@@ -25,6 +26,7 @@ pub struct LocalAgent {
 
 #[derive(Serialize)]
 pub struct LocalAgentCatalog {
+    pub workspace_root: Option<String>,
     pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
     pub providers: Vec<LocalProvider>,
     pub local_error: Option<String>,
@@ -78,6 +80,13 @@ impl LocalWorkspace {
             .collect();
         tools.sort();
         Ok(LocalAgentCatalog {
+            workspace_root: self
+                .host
+                .settings
+                .workspace_root
+                .as_ref()
+                .and_then(|path| tetonic_tools::Workspace::new(path).ok())
+                .map(|workspace| workspace.root().to_string_lossy().into_owned()),
             runtime_profiles: self.agent_runtime_profiles(),
             models,
             local_error,
@@ -197,10 +206,32 @@ impl LocalWorkspace {
                     .unwrap_or_else(|| "A requested tool is not available on this host.".into()),
             ));
         }
+        let hosted_workspace = if input.provider != "ollama" && !requested_tools.is_empty() {
+            if !input.hosted_tools_consent {
+                return Err(AppError::InvalidRequest("Allow selected file results to be sent to this provider, or remove the selected tools.".into()));
+            }
+            let root = self
+                .host
+                .settings
+                .workspace_root
+                .as_ref()
+                .ok_or(AppError::WorkspaceUnavailable)?;
+            Some(
+                tetonic_tools::Workspace::new(root)
+                    .map_err(|_| AppError::WorkspaceUnavailable)?
+                    .root()
+                    .to_str()
+                    .ok_or(AppError::WorkspaceUnavailable)?
+                    .to_owned(),
+            )
+        } else {
+            None
+        };
         let config = serde_json::json!({
             "instructions": if input.purpose.is_empty() { "Help the owner think through their request. Inspect the workspace with available tools and call finish with your complete answer as the summary." } else { &input.purpose },
             "requested_tools": requested_tools, "max_steps": input.max_steps,
             "preferences": GeneralAgentPreferences {
+                hosted_workspace,
                 provider: (input.provider != "ollama").then_some(input.provider.clone()),
                 hosted_consent: input.provider != "ollama" && input.hosted_consent,
                 display_name: input.name, model: input.model.clone(),
@@ -307,6 +338,7 @@ impl LocalWorkspace {
         let config = &value["configuration"];
         let prefs: GeneralAgentPreferences = if key == AGENT {
             GeneralAgentPreferences {
+                hosted_workspace: None,
                 provider: None,
                 hosted_consent: false,
                 display_name: AGENT.into(),
@@ -320,6 +352,7 @@ impl LocalWorkspace {
             })?
         } else {
             GeneralAgentPreferences {
+                hosted_workspace: None,
                 provider: None,
                 hosted_consent: false,
                 display_name: key.clone(),
@@ -335,6 +368,7 @@ impl LocalWorkspace {
             .map_err(|_| AppError::InvalidRequest("Invalid stored agent tools.".into()))?
             .unwrap_or_default();
         Ok(LocalAgent {
+            hosted_workspace: prefs.hosted_workspace,
             plan_coordinator: key == plan_execution::COORDINATOR,
             provider: prefs.provider.unwrap_or_else(local_provider),
             hosted_consent: prefs.hosted_consent,

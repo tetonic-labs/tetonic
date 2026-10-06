@@ -51,6 +51,7 @@ export function AgentCreateForm({
     [customModel, setCustomModel] = useState('');
   const [provider, setProvider] = useState('ollama');
   const [hostedConsent, setHostedConsent] = useState(false);
+  const [hostedToolsConsent, setHostedToolsConsent] = useState(false);
   const hosted = provider !== 'ollama';
   const lab = connected?.catalog.providers?.find((value) => value.id === provider);
   const [configuration, setConfiguration] = useState(() => {
@@ -71,7 +72,6 @@ export function AgentCreateForm({
   );
   const resolvedModel =
     model === 'custom' ? customModel.trim() : model || (hosted ? '' : defaultModel);
-  const providerReady = !hosted || (!!lab?.key_saved && hostedConsent);
   const connectedToolGroups: Record<string, string[]> = {
     read_file: ['read_file', 'list_dir', 'grep', 'glob'],
     write_file: ['write_file', 'edit_file'],
@@ -80,6 +80,10 @@ export function AgentCreateForm({
     (profile) => profile.provider === provider && profile.harness === configuration.harness,
   );
   const supportedTools = runtimeProfile?.tools ?? (hosted ? [] : (connected?.catalog.tools ?? []));
+  const requiresToolConsent =
+    hosted && !!runtimeProfile?.requires_tool_consent && configuration.toolIds.length > 0;
+  const providerReady =
+    !hosted || (!!lab?.key_saved && hostedConsent && (!requiresToolConsent || hostedToolsConsent));
   const tools = connected
     ? agentTools.filter((tool) =>
         connectedToolGroups[tool.id]?.every((id) => connected.catalog.tools?.includes(id)),
@@ -129,7 +133,13 @@ export function AgentCreateForm({
         )
           return;
         onCreate({
-          ...(connected ? { provider, hostedConsent } : {}),
+          ...(connected
+            ? {
+                provider,
+                hostedConsent,
+                hostedToolsConsent: requiresToolConsent && hostedToolsConsent,
+              }
+            : {}),
           name: name.trim(),
           purpose: purpose.trim(),
           teamId,
@@ -211,6 +221,7 @@ export function AgentCreateForm({
                   setModel('');
                   setCustomModel('');
                   setHostedConsent(false);
+                  setHostedToolsConsent(false);
                 }}
               >
                 <option value="ollama">On this machine · Ollama</option>
@@ -257,7 +268,11 @@ export function AgentCreateForm({
                   {lab?.name}. Provider usage charges apply.
                 </span>
               </label>
-              <p>Hosted agents currently work with your prompts and conversation only.</p>
+              <p>
+                {runtimeProfile?.tools.length
+                  ? 'This profile can also read files you explicitly allow below.'
+                  : 'This profile works with your prompts and conversation only.'}
+              </p>
               <p>Choose a text model with tool calling available to your provider account.</p>
             </>
           )}
@@ -346,6 +361,20 @@ export function AgentCreateForm({
           <p className="local-notice" role="alert">
             {compatibilityIssue}
           </p>
+        )}
+        {requiresToolConsent && !compatibilityIssue && (
+          <label className="agent-hosted-consent">
+            <input
+              type="checkbox"
+              checked={hostedToolsConsent}
+              onChange={(event) => setHostedToolsConsent(event.target.checked)}
+            />
+            <span>
+              Allow selected file results from{' '}
+              {connected?.catalog.workspace_root || 'the engine’s configured folder'} to be sent to{' '}
+              {lab?.name}. Files outside this folder and unselected tools stay unavailable.
+            </span>
+          </label>
         )}
         {!connected && (
           <details className="agent-resource-picker">

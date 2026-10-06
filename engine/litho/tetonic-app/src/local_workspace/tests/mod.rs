@@ -156,6 +156,10 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 assert_eq!(profile.harness, "general");
                 if profile.provider == "ollama" {
                     assert_eq!(profile.tools, catalog.tools);
+                } else if profile.provider == "openai" {
+                    assert!(profile.tools.contains(&"read_file".into()));
+                    assert!(!profile.tools.contains(&"write_file".into()));
+                    assert!(profile.requires_tool_consent);
                 } else {
                     assert!(profile.tools.is_empty());
                     assert!(profile.tool_restriction.is_some());
@@ -210,7 +214,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 .create_agent(CreateLocalAgent {
                     provider: "openai".into(),
                     hosted_consent: true,
-                    hosted_tools_consent: true,
+                    hosted_tools_consent: false,
                     tools: Some(vec!["read_file".into()]),
                     ..input.clone()
                 })

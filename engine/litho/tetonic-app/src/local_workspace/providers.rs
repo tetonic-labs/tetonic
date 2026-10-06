@@ -207,6 +207,28 @@ impl LocalWorkspace {
         agent: &LocalAgent,
     ) -> Result<crate::resources::RegisteredHostedInference, AppError> {
         let (_, endpoint) = provider_info(&agent.provider)?;
+        let workspace_disclosure = if let Some(disclosure) = &agent.hosted_workspace {
+            let root = self
+                .host
+                .settings
+                .workspace_root
+                .as_ref()
+                .ok_or(AppError::WorkspaceUnavailable)?;
+            let workspace =
+                tetonic_tools::Workspace::new(root).map_err(|_| AppError::WorkspaceUnavailable)?;
+            if agent.provider != "openai"
+                || workspace.root().to_str() != Some(disclosure)
+                || agent
+                    .tools
+                    .iter()
+                    .any(|tool| !crate::resources::HOSTED_READ_TOOLS.contains(&tool.as_str()))
+            {
+                return Err(AppError::PolicyDenied("The agent's approved hosted workspace no longer matches this host or its selected tools.".into()));
+            }
+            Some(disclosure.clone())
+        } else {
+            None
+        };
         if !agent.hosted_consent || !self.keys.ready(&agent.provider).await {
             return Err(AppError::InvalidRequest(
                 "Save a provider key and allow prompts to be sent to this provider in agent setup."
@@ -244,7 +266,13 @@ impl LocalWorkspace {
         .map_err(|_| AppError::InvalidRequest("Could not configure hosted model.".into()))?;
         Ok(crate::resources::RegisteredHostedInference {
             provider: Arc::new(provider),
-            binding: format!("prompt-only-v1:{}:{}", agent.provider, endpoint),
+            binding: format!(
+                "hosted-v2:{}:{}:{}",
+                agent.provider,
+                endpoint,
+                serde_json::to_string(&workspace_disclosure).unwrap_or_default()
+            ),
+            workspace_disclosure,
         })
     }
 }

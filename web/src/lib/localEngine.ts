@@ -155,6 +155,7 @@ export interface WorkUsage {
   over_limit: boolean;
 }
 export interface EngineAgent {
+  hosted_workspace?: string | null;
   plan_coordinator?: boolean;
   provider?: string;
   hosted_consent?: boolean;
@@ -170,6 +171,7 @@ export interface EngineAgent {
   tools?: string[];
 }
 export interface AgentCatalog {
+  workspace_root?: string | null;
   runtime_profiles?: AgentRuntimeProfile[];
   providers?: EngineProvider[];
   local_error?: string | null;
@@ -181,6 +183,7 @@ export interface AgentCatalog {
   max_tokens: number;
 }
 export interface AgentRuntimeProfile {
+  requires_tool_consent?: boolean;
   provider: string;
   harness: string;
   tools: string[];
