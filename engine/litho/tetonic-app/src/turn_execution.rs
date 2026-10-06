@@ -634,7 +634,8 @@ fn compile_build_agent_config(
     config
 }
 
-pub(crate) fn composition_capability_hooks() -> (PostEditSnapshot, ResolveUnderRoot, CaptureWorkspaceVersion) {
+pub(crate) fn composition_capability_hooks(
+) -> (PostEditSnapshot, ResolveUnderRoot, CaptureWorkspaceVersion) {
     (
         Arc::new(tetonic_tools::format_post_edit_snapshot),
         Arc::new(|root, rel| {
@@ -665,7 +666,10 @@ fn reserved_markers(reserved: &[std::path::PathBuf], root: &Path) -> Vec<String>
             }
         }
         if let Ok(rel) = path.strip_prefix(root) {
-            let rel = rel.to_string_lossy().replace('\\', "/").to_ascii_lowercase();
+            let rel = rel
+                .to_string_lossy()
+                .replace('\\', "/")
+                .to_ascii_lowercase();
             if !rel.is_empty() {
                 markers.push(rel);
             }
@@ -709,9 +713,8 @@ pub(crate) fn without_reserved_git_output(
     root: &Path,
 ) -> String {
     let markers = reserved_markers(reserved, root);
-    let hidden = |line: &str| {
-        line_mentions_reserved(line, &markers) || git_line_names_sqlite(line, root)
-    };
+    let hidden =
+        |line: &str| line_mentions_reserved(line, &markers) || git_line_names_sqlite(line, root);
     if !output.contains("diff --git") {
         return output
             .lines()
@@ -1128,9 +1131,7 @@ async fn execute_turn_scoped(
         &turn_plan.run_id.0,
         Some(turn_plan.task_id.0.as_str()),
     );
-    if host.cancel.load(Ordering::Relaxed)
-        || runs.attempt_must_not_infer(&turn_plan.attempt_id)
-    {
+    if host.cancel.load(Ordering::Relaxed) || runs.attempt_must_not_infer(&turn_plan.attempt_id) {
         host.runtime
             .action_broker()
             .unregister_attempt_approval(&turn_plan.attempt_id);
@@ -1653,6 +1654,10 @@ pub(crate) async fn execute_spawn(
     let outcome = run_spawned_specialist(
         conversation,
         tetonic_core::SpawnRequest {
+            tool_name: String::new(),
+            call_id: String::new(),
+            arguments: serde_json::Value::Null,
+            attempt_id: None,
             role: cmd.role.clone(),
             task: cmd.task.clone(),
             parent_agent_id: cmd.parent_agent_id.clone(),
@@ -1814,13 +1819,7 @@ mod projection_audit_tests {
             plan_user: String::new(),
             skipped_plan_user: Arc::new(AtomicBool::new(false)),
         };
-        audit.persist(
-            "assistant",
-            "PRIVATECANARY projection",
-            None,
-            None,
-            None,
-        );
+        audit.persist("assistant", "PRIVATECANARY projection", None, None, None);
         let raw = rusqlite::Connection::open(&path).unwrap();
         let hits: i64 = raw
             .query_row(

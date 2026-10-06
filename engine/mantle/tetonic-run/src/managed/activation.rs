@@ -40,13 +40,13 @@ pub(super) fn validate_activation(
         let authorization = context.authorization.as_ref().ok_or_else(|| {
             ManagedRunError::InvalidRequest("activation requires verified scope".into())
         })?;
-        if job.parent_attempt.is_some()
+        if job.parent_attempt.is_some() != context.delegation_parent.is_some()
             || context.session_id.is_some()
             || context.task_id.is_some()
             || context.speculation.is_some()
         {
             return Err(ManagedRunError::InvalidRequest(
-                "activation must be a scoped root job".into(),
+                "activation requires a scoped root or live delegated job".into(),
             ));
         }
         activation_run_id(&authorization.scope, &activation.request_id)?;

@@ -84,7 +84,7 @@ pub use result_integrity::{
     WorkerOperationalState,
 };
 pub use run::{
-    ActivationBinding,
+    ActivationBinding, DelegatedTaskBinding,
     AcceptArtifact, AddDependency, AddTask, ArtifactRef, AttemptRecord, AttemptState, CancelRun,
     CancelTask, ClaimFinalization, CommandEnvelope, CompleteAttempt, CreateAttempt, CreateRun,
     DependencyPolicy, EventActor, EventType, ExpireLease, FailAttempt, FinishRun, LeaseAttempt,

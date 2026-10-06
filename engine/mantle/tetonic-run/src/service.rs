@@ -60,11 +60,21 @@ pub struct DurableRunSupervisor {
 
 impl DurableRunSupervisor {
     pub fn new(store: Option<SharedStore>) -> Self {
+        let sup = Self::without_recovery(store);
+        if let Err(e) = sup.recover_at_startup() {
+            sup.migration
+                .enter_safe_mode(&format!("startup recovery failed, not self-clearing: {e}"));
+        }
+        sup
+    }
+
+    // Read-only observers must never run startup recovery against a live writer.
+    pub(crate) fn without_recovery(store: Option<SharedStore>) -> Self {
         let migration = Arc::new(crate::migration::MigrationManager::new());
         if let Some(ref s) = store {
             migration.set_db_path(s.path().to_path_buf());
         }
-        let sup = Self {
+        Self {
             store,
             memory: Mutex::new(HashMap::new()),
             command_dedup: Mutex::new(HashMap::new()),
@@ -72,16 +82,7 @@ impl DurableRunSupervisor {
             hooks: Vec::new(),
             quotas: Arc::new(crate::quotas::StorageQuotaManager::default()),
             migration,
-        };
-        if let Err(e) = sup.recover_at_startup() {
-            // Fail-closed (M6, INV-RUN-003). The reason names the run because
-            // `RunState::RecoveryRequired` has no code path that clears it
-            // (M6 CONVERGE C-B): an operator seeing Safe Mode needs to know
-            // which run provoked it and that it will not resolve itself.
-            sup.migration
-                .enter_safe_mode(&format!("startup recovery failed, not self-clearing: {e}"));
         }
-        sup
     }
 
     pub fn with_hook(mut self, hook: Arc<dyn RunEventHook>) -> Self {
@@ -157,9 +158,15 @@ impl DurableRunSupervisor {
                             idempotency.as_ref().map(|(k, v)| (k.as_str(), v)),
                         )
                         .map_err(|e| match e {
-                            tetonic_memory::StoreError::OrganizationCapacityExceeded => RunSupervisorError::OrganizationCapacityExceeded,
-                            tetonic_memory::StoreError::TeamCapacityExceeded => RunSupervisorError::TeamCapacityExceeded,
-                            tetonic_memory::StoreError::PrincipalCapacityExceeded => RunSupervisorError::PrincipalCapacityExceeded,
+                            tetonic_memory::StoreError::OrganizationCapacityExceeded => {
+                                RunSupervisorError::OrganizationCapacityExceeded
+                            }
+                            tetonic_memory::StoreError::TeamCapacityExceeded => {
+                                RunSupervisorError::TeamCapacityExceeded
+                            }
+                            tetonic_memory::StoreError::PrincipalCapacityExceeded => {
+                                RunSupervisorError::PrincipalCapacityExceeded
+                            }
                             tetonic_memory::StoreError::ExecutionCapacityExceeded => {
                                 RunSupervisorError::ExecutionCapacityExceeded
                             }

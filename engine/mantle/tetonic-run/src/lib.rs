@@ -10,6 +10,7 @@ pub mod metrics;
 pub mod migration;
 pub mod payload_digest;
 pub mod quotas;
+mod reader;
 pub mod recovery;
 pub mod replay;
 pub mod retry;
@@ -23,12 +24,13 @@ pub use dag::{
     task_is_locked, topo_sort_tasks, would_create_cycle,
 };
 pub use idempotency::{binding_input_digest, job_input_digest, task_idempotency_digest};
-pub use identity::{get_identity_revision, get_identity, put_identity, IdentityError};
+pub use identity::{get_identity, get_identity_revision, put_identity, IdentityError};
 pub use infer_admission::{
     add_hop_task, cancel_hop, create_hop_attempt, ensure_hop_run, fail_hop,
     hop_job_spec_must_be_none, hop_run_classified, hop_task_leaseable, lease_hop, start_hop,
 };
 pub use lease::{is_lease_current, validate_lease_proof};
+pub use reader::DurableRunReader;
 pub use recovery::{detect_recovery_required, recover_expired_leases};
 pub use replay::{empty_snapshot, replay_from_events};
 pub use service::{command_envelope, DurableRunSupervisor, RunEventHook, RunSupervisor};

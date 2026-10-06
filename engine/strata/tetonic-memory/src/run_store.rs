@@ -203,7 +203,8 @@ impl Store {
         if new_seq == 1 && execution_held {
             let occupied: bool = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM run_projections WHERE registered_identity_id=?1
-                    AND execution_held=1 AND run_id<>?2)",
+                    AND execution_held=1 AND run_id<>?2
+                    UNION ALL SELECT 1 FROM registered_child_capacity WHERE identity_id=?1 AND execution_held=1)",
                 params![registered_identity, snapshot.run_id.0],
                 |r| r.get(0),
             )?;
@@ -216,8 +217,14 @@ impl Store {
             let principal = principal_id.as_deref().ok_or_else(|| {
                 StoreError::InvalidControlResource("registered run scope missing".into())
             })?;
-            self.enforce_registered_capacity(org, principal, team_id.as_deref(), &snapshot.run_id.0)?;
+            self.enforce_registered_capacity(
+                org,
+                principal,
+                team_id.as_deref(),
+                &snapshot.run_id.0,
+            )?;
         }
+        self.sync_child_capacity(snapshot, true)?;
         let existing_floor: i64 = tx
             .query_row(
                 "SELECT replay_floor FROM run_projections WHERE run_id = ?1",
@@ -355,6 +362,7 @@ impl Store {
             None => None,
         };
         let tx = self.conn.unchecked_transaction()?;
+        self.sync_child_capacity(snapshot, false)?;
         let existing_floor: i64 = tx
             .query_row(
                 "SELECT replay_floor FROM run_projections WHERE run_id = ?1",

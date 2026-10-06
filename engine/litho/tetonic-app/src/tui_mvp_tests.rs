@@ -28,6 +28,16 @@ pub(crate) async fn inference_server_with_behavior(
     arguments: Value,
     hang_chat: bool,
 ) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
+    inference_server_with_usage(finish_tool, tool, arguments, hang_chat, Some((10, 20))).await
+}
+
+pub(crate) async fn inference_server_with_usage(
+    finish_tool: bool,
+    tool: &'static str,
+    arguments: Value,
+    hang_chat: bool,
+    usage: Option<(u64, u64)>,
+) -> (String, Arc<Mutex<Vec<Value>>>, tokio::task::JoinHandle<()>) {
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let url = format!("http://{}", listener.local_addr().unwrap());
     let requests = Arc::new(Mutex::new(Vec::new()));
@@ -74,14 +84,21 @@ pub(crate) async fn inference_server_with_behavior(
                     serde_json::from_slice(&bytes[header_end..header_end + length]).unwrap();
                 let mut requests = captured.lock().unwrap();
                 requests.push(request);
-                let message = if requests.len() == 1 {
+                let message = if tool == "structured" {
+                    json!({"role":"assistant","content":arguments["summary"]})
+                } else if requests.len() == 1 {
                     json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":tool,"arguments":arguments.clone()}}]})
                 } else if finish_tool {
                     json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":"finish","arguments":{"summary":"The fixture contains cobalt orchard."}}}]})
                 } else {
                     json!({"role":"assistant", "content":"The fixture contains cobalt orchard."})
                 };
-                json!({"model":"qwen3.5:latest", "message":message, "done":true})
+                let mut reply = json!({"model":"qwen3.5:latest", "message":message, "done":true});
+                if let Some((input, output)) = usage {
+                    reply["prompt_eval_count"] = json!(input);
+                    reply["eval_count"] = json!(output);
+                }
+                reply
             } else if header.starts_with("POST /api/generate ") {
                 json!({"model":"qwen3.5:latest", "done":true, "response":""})
             } else {

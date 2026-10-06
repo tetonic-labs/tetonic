@@ -3602,13 +3602,19 @@ dependencies = [
  "clap",
  "crossterm",
  "directories",
+ "http-body-util",
+ "hyper",
+ "hyper-util",
  "ratatui",
+ "serde",
  "serde_json",
  "tempfile",
  "tetonic-app",
  "tokio",
  "tracing",
  "tracing-subscriber",
+ "url",
+ "uuid",
 ]
 
 [[package]]

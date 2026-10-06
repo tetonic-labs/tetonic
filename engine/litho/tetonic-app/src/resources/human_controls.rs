@@ -1,8 +1,6 @@
 //! Hierarchical stops, effect approvals and team effort (MVP-401/402).
 use super::*;
-use tetonic_memory::{
-    ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection,
-};
+use tetonic_memory::{ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection};
 
 impl ResourceService {
     pub async fn request_control_stop(
@@ -14,6 +12,20 @@ impl ResourceService {
         mode: String,
         reason: String,
     ) -> Result<ControlStop, ResourceError> {
+        self.request_control_stop_with_runs(credential, org, scope_kind, scope_id, mode, reason)
+            .await
+            .map(|(stop, _)| stop)
+    }
+
+    pub(crate) async fn request_control_stop_with_runs(
+        &self,
+        credential: &str,
+        org: String,
+        scope_kind: String,
+        scope_id: String,
+        mode: String,
+        reason: String,
+    ) -> Result<(ControlStop, Vec<String>), ResourceError> {
         let action = match scope_kind.as_str() {
             "org" | "agent" => ResourceAction::ManageOrganization {
                 org_id: org.clone(),
@@ -30,7 +42,7 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.request_control_stop(
+                db.request_control_stop_with_runs(
                     &actor.principal_id,
                     &org,
                     &scope_kind,
@@ -317,19 +329,17 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(approval.status, "pending");
-        assert!(
-            !resources
-                .effect_approval_allows_dispatch(
-                    secret,
-                    "org".into(),
-                    "team".into(),
-                    "ap1".into(),
-                    "digest-a".into(),
-                    1_000,
-                )
-                .await
-                .unwrap()
-        );
+        assert!(!resources
+            .effect_approval_allows_dispatch(
+                secret,
+                "org".into(),
+                "team".into(),
+                "ap1".into(),
+                "digest-a".into(),
+                1_000,
+            )
+            .await
+            .unwrap());
         resources
             .resolve_effect_approval(
                 secret,
@@ -342,19 +352,17 @@ mod tests {
             )
             .await
             .unwrap();
-        assert!(
-            resources
-                .effect_approval_allows_dispatch(
-                    secret,
-                    "org".into(),
-                    "team".into(),
-                    "ap1".into(),
-                    "digest-a".into(),
-                    1_000,
-                )
-                .await
-                .unwrap()
-        );
+        assert!(resources
+            .effect_approval_allows_dispatch(
+                secret,
+                "org".into(),
+                "team".into(),
+                "ap1".into(),
+                "digest-a".into(),
+                1_000,
+            )
+            .await
+            .unwrap());
         let effort = resources
             .record_team_effort(
                 secret,

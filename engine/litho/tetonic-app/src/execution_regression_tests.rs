@@ -45,11 +45,21 @@ async fn lost_launch_response_does_not_strand_the_admission_owner() {
     let service = manager(&tmp, Arc::new(Events::default()), false);
     let paused = Arc::new(tokio::sync::Notify::new());
     let resume = Arc::new(tokio::sync::Notify::new());
-    service.managed().set_post_admission_hook(paused.clone(), resume.clone());
+    service
+        .managed()
+        .set_post_admission_hook(paused.clone(), resume.clone());
     let (entered, mut requests) = tokio::sync::mpsc::unbounded_channel();
     let calls = Arc::new(AtomicUsize::new(0));
-    let tools = tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false);
-    let agent = Agent::new(Arc::new(PendingProvider { entered, calls: calls.clone() }), tools, AgentConfig::default());
+    let tools =
+        tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false);
+    let agent = Agent::new(
+        Arc::new(PendingProvider {
+            entered,
+            calls: calls.clone(),
+        }),
+        tools,
+        AgentConfig::default(),
+    );
     tokio::task::LocalSet::new().run_until(async {
         {
             let submitting = service.managed().submit_identity_job(command(), agent);
@@ -362,9 +372,10 @@ async fn scoped_attempt_does_not_send_a_carried_conversation() {
         tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false),
         AgentConfig::default(),
     );
-    let mut conversation = Conversation::from_audit_messages(vec![
-        tetonic_inference::Message::user("PRIVATECANARY prior turn"),
-    ]);
+    let mut conversation =
+        Conversation::from_audit_messages(vec![tetonic_inference::Message::user(
+            "PRIVATECANARY prior turn",
+        )]);
     let mut on_step = |_| {};
     let execution = runs.managed.execute_attempt(
         binding.attempt_id,
@@ -656,7 +667,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
             "agent".into(),
             registered.identity.bound_definition_digest.clone(),
             "A question".into(),
-            crate::resources::HarnessPreparationLimits {
+            crate::resources::HarnessPreparationLimits { human_handoff: false,
                 max_steps: 2,
                 max_input_bytes: 1024,
             },
@@ -744,7 +755,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         execution_grant_id: "job-grant".into(), input: "A question".into(),
         recovery_id: "general-job".into(),
     };
-    let limits = || crate::resources::HarnessPreparationLimits { max_steps: 2, max_input_bytes: 1024 };
+    let limits = || crate::resources::HarnessPreparationLimits { human_handoff: false, max_steps: 2, max_input_bytes: 1024 };
     let executor = |extra_tool: bool| {
         let tools = tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
             .with_allowed_tools(if extra_tool { ["finish", "read_file"].into_iter().map(str::to_owned).collect() }

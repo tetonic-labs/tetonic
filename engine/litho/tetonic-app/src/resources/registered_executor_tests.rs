@@ -38,6 +38,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         let registered = resources.register_agent(credential.expose_secret(), "org".into(), "agent".into(), "general".into(),
             serde_json::json!({"instructions":"Perform the requested workspace task", "requested_tools":[tool]})).await.unwrap();
         let limits = || HarnessPreparationLimits {
+            human_handoff: false,
             max_steps: 3,
             max_input_bytes: 1024,
         };
@@ -102,6 +103,9 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             recovery_id: "job".into(),
         };
         let settings = || RegisteredExecutionSettings {
+            plan_dispatch: None,
+            response_schema: None,
+            hosted: None,
             max_elapsed_seconds: if scenario == "deadline" { 5 } else { 30 },
             reported_token_ceiling: None,
             workspace_root: Some(workspace.clone()),
@@ -493,6 +497,7 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
     let registered = resources.register_agent(secret,"org".into(),"agent".into(),"general".into(),
         serde_json::json!({"instructions":"Look up prior notes","requested_tools":["recall"],"max_steps":4})).await.unwrap();
     let limits = || HarnessPreparationLimits {
+        human_handoff: false,
         max_steps: 4,
         max_input_bytes: 1024,
     };
@@ -567,6 +572,9 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
             local.credentials().clone(),
             request,
             RegisteredExecutionSettings {
+                plan_dispatch: None,
+                response_schema: None,
+                hosted: None,
                 max_elapsed_seconds: 30,
                 reported_token_ceiling: None,
                 workspace_root: Some(workspace.clone()),
@@ -706,6 +714,7 @@ async fn noncoding_recall_job_runs_without_a_repository() {
     let registered = resources.register_agent(secret,"org".into(),"agent".into(),"general".into(),
         serde_json::json!({"instructions":"Use recall","requested_tools":["recall"],"max_steps":3})).await.unwrap();
     let limits = || HarnessPreparationLimits {
+        human_handoff: false,
         max_steps: 3,
         max_input_bytes: 1024,
     };
@@ -778,6 +787,9 @@ async fn noncoding_recall_job_runs_without_a_repository() {
         recovery_id: "job".into(),
     };
     let settings = |tools: &[&str]| RegisteredExecutionSettings {
+        plan_dispatch: None,
+        response_schema: None,
+        hosted: None,
         max_elapsed_seconds: 30,
         reported_token_ceiling: None,
         workspace_root: None,
@@ -831,13 +843,11 @@ async fn noncoding_recall_job_runs_without_a_repository() {
                 .await
                 .unwrap();
             let execution = submission.execution.expect("launch owns execution");
-            let result = tokio::time::timeout(
-                std::time::Duration::from_secs(20),
-                execution.completion,
-            )
-            .await
-            .unwrap()
-            .unwrap();
+            let result =
+                tokio::time::timeout(std::time::Duration::from_secs(20), execution.completion)
+                    .await
+                    .unwrap()
+                    .unwrap();
             (submission.audit_session_id, result.outcome)
         })
         .await;
@@ -884,6 +894,7 @@ async fn registered_shell_is_rejected_before_inference() {
         .await
         .unwrap();
     let limits = HarnessPreparationLimits {
+        human_handoff: false,
         max_steps: 2,
         max_input_bytes: 1024,
     };
@@ -944,6 +955,9 @@ async fn registered_shell_is_rejected_before_inference() {
                 recovery_id: "job".into(),
             },
             RegisteredExecutionSettings {
+                plan_dispatch: None,
+                response_schema: None,
+                hosted: None,
                 max_elapsed_seconds: 30,
                 reported_token_ceiling: None,
                 workspace_root: None,
@@ -952,6 +966,7 @@ async fn registered_shell_is_rejected_before_inference() {
                 data_class: tetonic_domain::DataClass::RepositorySource,
                 allowed_tools: ["run_shell".into()].into_iter().collect(),
                 limits: HarnessPreparationLimits {
+                    human_handoff: false,
                     max_steps: 2,
                     max_input_bytes: 1024,
                 },
@@ -973,5 +988,8 @@ async fn registered_shell_is_rejected_before_inference() {
             |row| row.get(0),
         )
         .unwrap();
-    assert_eq!(count, 0, "unsupported shell must not create an execution audit");
+    assert_eq!(
+        count, 0,
+        "unsupported shell must not create an execution audit"
+    );
 }

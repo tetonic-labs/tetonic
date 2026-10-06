@@ -81,3 +81,9 @@ hop placement, leased failover/additional attempts, Pooled preferred /
 `fallback_order` / Secret placement, H1-1 outbound redaction (PEM plant,
 remote typed refusal, audit fail-closed), local hop skipping the remote
 capability cache, and CreateRun+StartRun when hop lease finds no journal run.
+
+Explicit hosted inference can share broker admission through
+`BrokerInferenceProvider::for_hosted`. It reserves local HTTP orchestration
+capacity without routing a hosted API through the fabric pool. The concrete
+HostedChatProvider retains endpoint/disclosure/secret checks. A drop guard releases
+the reservation if the calling managed run cancels or drops its future.

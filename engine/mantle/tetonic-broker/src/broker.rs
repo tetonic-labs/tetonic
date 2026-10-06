@@ -34,6 +34,8 @@ use crate::types::{
     CancellationReason, ComputeBrokerError, ComputeHandle, ComputeRequest, ComputeStatus,
 };
 
+mod hosted;
+
 #[async_trait]
 pub trait ComputeBroker: Send + Sync {
     async fn submit(&self, request: ComputeRequest) -> Result<ComputeHandle, ComputeBrokerError>;

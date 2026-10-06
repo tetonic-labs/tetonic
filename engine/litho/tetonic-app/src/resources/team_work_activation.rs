@@ -21,14 +21,40 @@ pub struct TeamWorkLaunch {
 
 impl crate::Application {
     /// Submit through `submit_registered_job`, then bind the resulting run/attempt
-    /// onto the work item. Child delegations inherit a reported-token ceiling from
-    /// the stored child budget and cannot activate while the parent is parked.
+    /// onto the work item. Delegated work requires the separate host entry with
+    /// a live parent proof; it may never fall back to an independent root.
     pub async fn activate_team_work(
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
         launch: TeamWorkLaunch,
-        mut settings: RegisteredExecutionSettings,
+        settings: RegisteredExecutionSettings,
+    ) -> Result<(TeamWorkItem, RegisteredAgentSubmission), AppError> {
+        self.activate_team_work_with_parent(credential, verifier, launch, settings, None)
+            .await
+    }
+
+    /// Trusted host entry for a funded child, using the existing managed task
+    /// runner, provider broker and usage ledger. The parent proof is not an API ID.
+    pub async fn activate_delegated_team_work(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        launch: TeamWorkLaunch,
+        settings: RegisteredExecutionSettings,
+        parent: tetonic_run::managed::DelegationParent,
+    ) -> Result<(TeamWorkItem, RegisteredAgentSubmission), AppError> {
+        self.activate_team_work_with_parent(credential, verifier, launch, settings, Some(parent))
+            .await
+    }
+
+    async fn activate_team_work_with_parent(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        launch: TeamWorkLaunch,
+        settings: RegisteredExecutionSettings,
+        parent: Option<tetonic_run::managed::DelegationParent>,
     ) -> Result<(TeamWorkItem, RegisteredAgentSubmission), AppError> {
         let store = self
             .run_manager
@@ -53,19 +79,6 @@ impl crate::Application {
             .await
             .map_err(resource_error)?
             .ok_or_else(|| AppError::InvalidRequest("team work item not found".into()))?;
-        if work.status == "running" {
-            if let (Some(_attempt), Some(run)) = (&work.attempt_id, &work.run_id) {
-                return Ok((
-                    work.clone(),
-                    RegisteredAgentSubmission {
-                        run_id: tetonic_domain::RunId::new(run.clone()),
-                        task_id: tetonic_domain::TaskId::new(format!("task_root_{run}")),
-                        audit_session_id: String::new(),
-                        execution: None,
-                    },
-                ));
-            }
-        }
         if work.status != "open" && work.status != "parked" && work.status != "running" {
             return Err(AppError::InvalidRequest(
                 "team work item is not activatable".into(),
@@ -128,20 +141,21 @@ impl crate::Application {
                 "parent work is parked; child activation denied".into(),
             ));
         }
-        if let Some(delegation) = &delegation {
-            let child_ceiling = u64::try_from(delegation.child_budget_tokens).unwrap_or(0);
-            settings.reported_token_ceiling = Some(match settings.reported_token_ceiling {
-                Some(host) => host.min(child_ceiling),
-                None => child_ceiling,
-            });
+        if delegation.is_some() && parent.is_none() {
+            return Err(AppError::PolicyDenied(
+                "Governed delegation requires a live parent. A delegated work item cannot launch as an independent root run.".into(),
+            ));
+        }
+        if parent.is_some() && delegation.is_none() {
+            return Err(AppError::PolicyDenied(
+                "Delegated execution requires an allocated child work item.".into(),
+            ));
         }
         // Durable retries share the work request id with the managed activation key.
         let request_id = sanitize_activation_request_id(&work.request_id)?;
-        let input = launch
-            .input
-            .unwrap_or_else(|| work.title.clone());
+        let input = launch.input.unwrap_or_else(|| work.title.clone());
         let submission = self
-            .submit_registered_job(
+            .submit_registered_job_for_work(
                 credential,
                 verifier,
                 RegisteredAgentJob {
@@ -155,29 +169,82 @@ impl crate::Application {
                     recovery_id: launch.recovery_id,
                 },
                 settings,
+                Some((launch.team_id.clone(), launch.work_id.clone())),
+                parent,
             )
             .await?;
         let attempt_id = match &submission.execution {
             Some(execution) => execution.attempt_id.0.clone(),
             None => {
-                // Existing activation: prefer a prior bind, else the root attempt
-                // naming convention used by managed activation.
-                work.attempt_id.clone().unwrap_or_else(|| {
-                    format!("attempt_root_{}", submission.run_id)
-                })
+                // Receipts locate durable tasks; they never invent attempt IDs or
+                // resume a partially admitted task after a lost response.
+                let run = submission.run_id.0.clone();
+                let task = submission.task_id.clone();
+                store.read(move |db| {
+                    let snapshot=db.load_run_snapshot(&run)?.ok_or(tetonic_memory::StoreError::ControlAccessDenied)?;
+                    Ok::<_,tetonic_memory::StoreError>(snapshot.attempts.values().find(|attempt|attempt.task_id==task).map(|attempt|attempt.attempt_id.0.clone()))
+                }).await.map_err(|_|resource_error(ResourceError::Storage))?
+                    .map_err(|_|resource_error(ResourceError::Storage))?
+                    .ok_or_else(||AppError::InvalidRequest("Activation has an incomplete admission; inspect the run before retrying.".into()))?
             }
         };
         let bound = resources
             .activate_team_work_item(
                 credential,
-                launch.organization_id,
-                launch.team_id,
-                launch.work_id,
+                launch.organization_id.clone(),
+                launch.team_id.clone(),
+                launch.work_id.clone(),
                 attempt_id,
                 submission.run_id.0.clone(),
             )
-            .await
-            .map_err(resource_error)?;
+            .await;
+        let bound = match bound {
+            Ok(bound) => bound,
+            Err(error) => {
+                // A stop or permission change can win after managed admission.
+                // Do not strand the fresh execution when its work binding loses.
+                if submission.execution.is_some() {
+                    if self
+                        .run_manager
+                        .managed()
+                        .cancel_run(&submission.run_id)
+                        .await
+                        .is_err()
+                    {
+                        let run = submission.run_id.0.clone();
+                        let org = launch.organization_id;
+                        let team = launch.team_id;
+                        let goal = work.goal_id.clone();
+                        let work = launch.work_id;
+                        let _ = store
+                            .write(move |db| {
+                                if let Some(stop) = db.activation_blocked_by_stop(
+                                    &org,
+                                    &team,
+                                    &work,
+                                    goal.as_deref(),
+                                    None,
+                                )? {
+                                    db.record_unresolved_stop_effect(
+                                        &org,
+                                        &stop.scope_kind,
+                                        &stop.scope_id,
+                                        stop.generation,
+                                        &run,
+                                        "work binding lost; managed cancellation unconfirmed",
+                                    )?;
+                                }
+                                Ok::<_, tetonic_memory::StoreError>(())
+                            })
+                            .await;
+                        return Err(AppError::InvalidRequest(
+                            "Work could not be activated; cancellation is unconfirmed. Inspect the managed run before retrying.".into(),
+                        ));
+                    }
+                }
+                return Err(resource_error(error));
+            }
+        };
         Ok((bound, submission))
     }
 
@@ -206,16 +273,8 @@ impl crate::Application {
                 verifier,
             }),
         };
-        let org_runs = org.clone();
-        let kind_runs = scope_kind.clone();
-        let id_runs = scope_id.clone();
-        let run_ids = store
-            .read(move |db| db.run_ids_under_stop(&org_runs, &kind_runs, &id_runs))
-            .await
-            .map_err(|_| resource_error(ResourceError::Storage))?
-            .map_err(|e| resource_error(e.into()))?;
-        let stop = resources
-            .request_control_stop(
+        let (stop, run_ids) = resources
+            .request_control_stop_with_runs(
                 credential,
                 org.clone(),
                 scope_kind.clone(),
@@ -261,37 +320,19 @@ impl crate::Application {
 }
 
 fn sanitize_activation_request_id(request_id: &str) -> Result<String, AppError> {
-    if request_id.is_empty()
-        || request_id.len() > 128
-        || !request_id
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
-    {
-        // Work request ids may include '/', which activation keys reject.
-        let digest = {
-            use sha2::Digest;
-            format!(
-                "tw_{:x}",
-                sha2::Sha256::digest(request_id.as_bytes())
-            )
-        };
-        return Ok(digest.chars().take(128).collect());
-    }
-    Ok(request_id.to_string())
+    Ok(tetonic_memory::work_activation_request_id(request_id))
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::resources::{
-        HarnessPreparationLimits, LocalControl, RegisteredExecutionSettings,
-    };
+    use crate::resources::{HarnessPreparationLimits, LocalControl, RegisteredExecutionSettings};
     use crate::{Application, ComputePlaneRequest};
     use tetonic_domain::ExecutionScope;
     use tetonic_memory::ContextOwner;
 
     #[tokio::test]
-    async fn activate_team_work_binds_managed_run_and_respects_delegation_ceiling() {
+    async fn activate_team_work_binds_root_and_denies_ungoverned_child_fallback() {
         let dir = tempfile::tempdir().unwrap();
         let workspace = dir.path().join("workspace");
         std::fs::create_dir(&workspace).unwrap();
@@ -341,6 +382,7 @@ mod tests {
             .await
             .unwrap();
         let limits = || HarnessPreparationLimits {
+            human_handoff: false,
             max_steps: 2,
             max_input_bytes: 1024,
         };
@@ -385,6 +427,17 @@ mod tests {
             .await
             .unwrap();
         resources
+            .authorize_work_budget(
+                secret,
+                "org".into(),
+                "team".into(),
+                "w1".into(),
+                "budget-w1".into(),
+                100,
+            )
+            .await
+            .unwrap();
+        resources
             .create_work_delegation(
                 secret,
                 "org".into(),
@@ -408,8 +461,7 @@ mod tests {
             .unwrap();
         let store = tetonic_memory::SharedStore::open(database, 1).unwrap();
         let (sink, _) = crate::events::RecordingEventSink::new();
-        let app =
-            Application::bootstrap_mock_with_store(dir.path(), Some(store), sink, vec![]);
+        let app = Application::bootstrap_mock_with_store(dir.path(), Some(store), sink, vec![]);
         let (url, _, server) = crate::tui_mvp_tests::inference_server_with_behavior(
             true,
             "finish",
@@ -433,6 +485,9 @@ mod tests {
         .await;
         app.install_compute_services(&plane);
         let settings = || RegisteredExecutionSettings {
+            plan_dispatch: None,
+            response_schema: None,
+            hosted: None,
             max_elapsed_seconds: 30,
             reported_token_ceiling: Some(200),
             workspace_root: None,
@@ -469,6 +524,39 @@ mod tests {
             .unwrap();
         let (bound, submission) = tokio::task::LocalSet::new()
             .run_until(async {
+                let error=app.activate_team_work(secret,local.credentials().clone(),TeamWorkLaunch {
+                    organization_id:"org".into(),team_id:"team".into(),work_id:"child".into(),information_context_id:"shared".into(),agent_key:"agent".into(),definition_digest:registered.identity.bound_definition_digest.clone(),execution_grant_id:"grant".into(),input:None,recovery_id:"child-bypass".into()
+                },settings()).await.err().expect("an unparked child must not become an independent root run");
+                assert!(matches!(error,AppError::PolicyDenied(ref reason) if reason.contains("Governed delegation")));
+                assert!(resources.get_team_work_item(secret,"org".into(),"team".into(),"child".into()).await.unwrap().unwrap().run_id.is_none());
+                // Force a stop after durable admission but before the work bind.
+                // The fresh attempt must be canceled, releasing this agent's slot
+                // so the unrelated root submission below can still proceed.
+                resources.create_team_work_item(secret, "org".into(), "team".into(),
+                    "racing".into(), "Ship preview".into(), "racing-request".into(), None).await.unwrap();
+                let paused = Arc::new(tokio::sync::Notify::new());
+                let resume = Arc::new(tokio::sync::Notify::new());
+                app.run_manager.managed().set_post_admission_hook(paused.clone(), resume.clone());
+                let racing = app.activate_team_work(secret, local.credentials().clone(), TeamWorkLaunch {
+                    organization_id: "org".into(), team_id: "team".into(), work_id: "racing".into(),
+                    information_context_id: "shared".into(), agent_key: "agent".into(),
+                    definition_digest: registered.identity.bound_definition_digest.clone(),
+                    execution_grant_id: "grant".into(), input: None, recovery_id: "job".into(),
+                }, settings());
+                let stop = async {
+                    paused.notified().await;
+                    resources.request_control_stop(secret, "org".into(), "work".into(),
+                        "racing".into(), "cancel".into(), "Stop before binding".into()).await.unwrap();
+                    resume.notify_one();
+                };
+                let (raced, ()) = tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                    tokio::join!(racing, stop)
+                }).await.expect("admission/stop race must finish");
+                assert!(raced.is_err());
+                let parked = resources.get_team_work_item(secret, "org".into(), "team".into(), "racing".into()).await.unwrap().unwrap();
+                assert_eq!(parked.status, "parked");
+                assert!(parked.run_id.is_none());
+                resume.notify_one(); // Let the normal root admission pass the test hook.
                 app.activate_team_work(
                     secret,
                     local.credentials().clone(),
@@ -527,4 +615,3 @@ mod tests {
         drop(server);
     }
 }
-

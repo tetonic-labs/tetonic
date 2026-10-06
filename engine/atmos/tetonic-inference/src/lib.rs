@@ -13,6 +13,7 @@ pub const DEFAULT_MODEL: &str = "qwen3.5:latest";
 
 mod attempt;
 mod compute_registry;
+pub mod decoupled;
 mod dispatch;
 mod fabric;
 mod fabric_node_provider;
@@ -22,7 +23,6 @@ mod placement_engine;
 mod pooled;
 mod residency;
 mod worker_eligibility;
-pub mod decoupled;
 
 pub use decoupled::{
     CircuitState, DecoupledInferenceRouter, EndpointLease, EndpointTier, InferenceEndpoint,
@@ -1360,7 +1360,13 @@ impl InferenceProvider for OllamaProvider {
             Some(req.tools.as_slice())
         };
         let mut body = OllamaChatRequestBody {
-            think: self.thinking,
+            // Output-only structured requests need a bounded, usable answer.
+            // Some local models otherwise spend the entire deadline reasoning
+            // before emitting any schema-constrained content. Preserve an
+            // explicit host preference and ordinary chat defaults.
+            think: self.thinking.or_else(|| {
+                (req.tools.is_empty() && req.response_format.is_some()).then_some(false)
+            }),
             model: &req.model,
             messages: &req.messages,
             stream: true,
@@ -1467,7 +1473,10 @@ impl InferenceProvider for OllamaProvider {
             }
             if chunk.get("done").and_then(|d| d.as_bool()).unwrap_or(false) {
                 received_done = true;
-                usage.finish_reason = chunk.get("done_reason").and_then(Value::as_str).map(str::to_owned);
+                usage.finish_reason = chunk
+                    .get("done_reason")
+                    .and_then(Value::as_str)
+                    .map(str::to_owned);
                 // Final chunk carries the generation accounting. Durations are
                 // nanoseconds; convert to ms here so callers don't have to.
                 usage.prompt_tokens = chunk.get("prompt_eval_count").and_then(|v| v.as_u64());

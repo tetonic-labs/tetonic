@@ -2,6 +2,13 @@
 
 Application kernel: workflow decisions for sessions, runs, estate, capacity, policy, and approvals. Transport adapters (`tetonicd`, `tetonic-cli`) hold `Arc<Application>` and must not reimplement owned workflows.
 
+`local_workspace::LocalWorkspace` composes the first single-owner web connection:
+durable local work and agent registration, guarded local model discovery, bounded
+execution of a selected agent, authorized result inspection, and cancellation.
+Agent preferences can lower host limits but never grant capabilities. It reuses
+this kernel and its store; it is not a fleet dispatcher.
+See [the local UI contract](../../../docs/implementation/contracts/local-ui-v1.md).
+
 Live model/provider changes use the shared application operation described in
 [inference selection](INFERENCE-SELECTION.md). Changes are revision-checked and
 accepted between turns; portals select registered profiles and never construct providers.
@@ -57,3 +64,10 @@ cargo run -p lokai-arch-gate -- verify package
 |----|--------|
 | M1-2 Application kernel ownership | **Complete** (R26 exception inventory + enrollment helper collapse) |
 | R26 M1-2 exception closeout | **Done** |
+
+The local UI also supports explicit prompt-only OpenAI/Anthropic agents, native
+vault credential setup/rotation/removal, and provider-specific failure messages.
+Hosted calls share broker admission and managed-run lifecycle; they never enter
+local/worker model routing. See the local UI contract for disclosure boundaries.
+
+LocalWorkspace::submit_in_conversation accepts an optional parent task ID. Follow-ups reuse authorized same-agent history within a bounded prompt, preserving per-turn execution grants, cancellation, and idempotency.

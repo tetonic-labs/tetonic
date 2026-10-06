@@ -67,6 +67,9 @@ pub struct AgentConfig {
     /// Stop before another model call once provider-reported tokens reach this
     /// ceiling. `None` does not count. Unreported usage is not treated as spend.
     pub reported_token_ceiling: Option<u64>,
+    /// Host-selected structured answer contract. Suppresses inference tool
+    /// advertisement and rejects tool calls; it never grants execution authority.
+    pub response_schema: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -128,6 +131,7 @@ impl Default for AgentConfig {
             draft_count: None,
             limits: EngineLimits::default(),
             reported_token_ceiling: None,
+            response_schema: None,
         }
     }
 }

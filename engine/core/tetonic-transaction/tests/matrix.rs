@@ -420,26 +420,30 @@ fn concurrent_commit_threads() {
     let service = Arc::new(svc(&root));
     let svc1 = service.clone();
     let svc2 = service.clone();
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (tx_start, rx_start) = std::sync::mpsc::channel();
+    let (tx_done, rx_done) = std::sync::mpsc::channel();
     let t1 = thread::spawn(move || {
         let mut txn = svc1.begin().unwrap();
         txn.stage_write_file("a.txt", "from1", false).unwrap();
         let res = txn.commit("t1", DataClass::RepositorySource);
-        let _ = tx.send(());
-        thread::sleep(std::time::Duration::from_millis(150));
+        let _ = tx_start.send(());
+        let _ = rx_done.recv();
         res
     });
     let t2 = thread::spawn(move || {
         let mut txn = svc2.begin().unwrap();
         txn.stage_write_file("b.txt", "from2", false).unwrap();
-        let _ = rx.recv();
-        txn.commit("t2", DataClass::RepositorySource)
+        let _ = rx_start.recv();
+        let res = txn.commit("t2", DataClass::RepositorySource);
+        let _ = tx_done.send(());
+        res
     });
     let r1 = t1.join().unwrap();
     let r2 = t2.join().unwrap();
     let ok_count = [r1.is_ok(), r2.is_ok()].into_iter().filter(|x| *x).count();
     assert_eq!(ok_count, 1, "exactly one concurrent commit should succeed");
 }
+
 
 #[test]
 fn non_git_workspace() {

@@ -64,12 +64,25 @@ impl crate::services::DefaultRunService {
         }
     }
 
+    #[cfg(test)]
     pub(super) async fn prepare_registered_job(
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
         request: RegisteredAgentJob,
         limits: HarnessPreparationLimits,
+    ) -> Result<PreparedRegisteredJob, AppError> {
+        self.prepare_registered_job_with_parent(credential, verifier, request, limits, None)
+            .await
+    }
+
+    pub(super) async fn prepare_registered_job_with_parent(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        request: RegisteredAgentJob,
+        limits: HarnessPreparationLimits,
+        parent: Option<tetonic_run::managed::DelegationParent>,
     ) -> Result<PreparedRegisteredJob, AppError> {
         let store = self
             .managed()
@@ -101,23 +114,39 @@ impl crate::services::DefaultRunService {
             .start_command(request.recovery_id)
             .map_err(resource_error)?;
         let policy = prepared.execution_policy().map_err(resource_error)?;
-        let authorization = contexts
-            .bind_stored_execution_grant(
-                credential,
-                request.organization_id,
-                request.information_context_id,
-                request.agent_key,
-                request.definition_digest,
-                request.execution_grant_id,
-            )
-            .await
-            .map_err(resource_error)?;
+        let authorization = if let Some(parent) = parent.clone() {
+            contexts
+                .bind_delegated_execution_grant(
+                    credential,
+                    request.organization_id,
+                    request.information_context_id,
+                    request.agent_key,
+                    request.definition_digest,
+                    request.execution_grant_id,
+                    parent,
+                )
+                .await
+                .map_err(resource_error)?
+        } else {
+            contexts
+                .bind_stored_execution_grant(
+                    credential,
+                    request.organization_id,
+                    request.information_context_id,
+                    request.agent_key,
+                    request.definition_digest,
+                    request.execution_grant_id,
+                )
+                .await
+                .map_err(resource_error)?
+        };
         authorization
             .authority
             .authorize(&authorization.scope, &command.identity, &command.job_spec)
             .await
             .map_err(|_| resource_error(ResourceError::Denied))?;
         Ok(PreparedRegisteredJob {
+            delegation_parent: parent,
             command,
             policy,
             authorization,
@@ -140,6 +169,7 @@ impl crate::services::DefaultRunService {
             finalization,
             deadline,
             activation,
+            delegation_parent,
             ..
         } = prepared;
         // Preparation failures must not create a run or report an active attempt.
@@ -164,6 +194,7 @@ impl crate::services::DefaultRunService {
                 agent,
                 AdmissionContext {
                     activation,
+                    delegation_parent,
                     deadline,
                     authorization: Some(authorization),
                     ..Default::default()
@@ -177,6 +208,7 @@ impl crate::services::DefaultRunService {
 
 /// In-memory preparation owned by the application, not a new lifecycle record.
 pub(super) struct PreparedRegisteredJob {
+    pub delegation_parent: Option<tetonic_run::managed::DelegationParent>,
     pub activation: Option<tetonic_domain::ActivationBinding>,
     pub deadline: Option<u64>,
     pub command: tetonic_run::StartIdentityJobCommand,

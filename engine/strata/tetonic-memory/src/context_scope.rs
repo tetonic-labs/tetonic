@@ -74,6 +74,7 @@ impl Store {
     #[cfg(test)]
     pub(crate) fn remove_context_schema_for_test(&self) {
         self.remove_run_capacity_schema_for_test();
+        self.conn.execute_batch("DROP TABLE IF EXISTS execution_grant_lineage;").unwrap();
         self.conn.execute_batch("DROP TABLE execution_grant_events; DROP TABLE execution_grants; DROP TABLE organization_agents; DROP TABLE agent_definition_revisions; DROP TABLE context_publications; DROP TABLE context_artifacts; DROP INDEX idx_messages_client_id; ALTER TABLE messages DROP COLUMN client_message_id; ALTER TABLE messages DROP COLUMN author_principal_id; DROP TRIGGER IF EXISTS project_memory_context_exists; DROP TRIGGER IF EXISTS project_memory_context_immutable; DROP TRIGGER IF EXISTS project_memory_blocks_context_delete; DROP INDEX IF EXISTS idx_project_memory_scope; ALTER TABLE project_memory DROP COLUMN context_id; DROP TRIGGER session_context_exists; DROP TRIGGER session_context_immutable; DROP TRIGGER information_context_immutable; DROP TRIGGER information_context_in_use; DROP INDEX idx_sessions_context; ALTER TABLE sessions DROP COLUMN context_id; DROP TABLE information_contexts;").unwrap();
     }
 }

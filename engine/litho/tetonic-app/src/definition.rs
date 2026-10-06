@@ -434,6 +434,7 @@ the completion tool when done."
                 .to_string()
         }),
         spawn_tool: Some("spawn_agent".into()),
+        handoff_tool: None,
         expand_tool: Some("expand_context".into()),
         whole_file_tools: vec!["read_file".into()],
         search_tools: vec!["search_code".into()],

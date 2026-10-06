@@ -58,6 +58,32 @@ impl ResourceService {
         goal_id: Option<String>,
         input: Option<String>,
     ) -> Result<TeamWorkItem, ResourceError> {
+        self.create_team_work_item_for_purpose(
+            credential,
+            org,
+            team,
+            work_id,
+            title,
+            request_id,
+            goal_id,
+            input,
+            tetonic_memory::WorkPurpose::Work,
+        )
+        .await
+    }
+
+    pub async fn create_team_work_item_for_purpose(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        work_id: String,
+        title: String,
+        request_id: String,
+        goal_id: Option<String>,
+        input: Option<String>,
+        purpose: tetonic_memory::WorkPurpose,
+    ) -> Result<TeamWorkItem, ResourceError> {
         let actor = self
             .authority
             .authorize(
@@ -71,7 +97,7 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.create_team_work_item_with_input(
+                db.create_team_work_item_for_purpose(
                     &actor.principal_id,
                     &org,
                     &team,
@@ -80,6 +106,7 @@ impl ResourceService {
                     &request_id,
                     goal_id.as_deref(),
                     input.as_deref(),
+                    purpose,
                 )
             })
             .await??)
@@ -371,6 +398,17 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(work.status, "open");
+        resources
+            .authorize_work_budget(
+                issued.expose_secret(),
+                "org".into(),
+                "team".into(),
+                "w1".into(),
+                "budget-w1".into(),
+                50,
+            )
+            .await
+            .unwrap();
         let proposal = HuddleProposal {
             org_id: "org".into(),
             team_id: "team".into(),
@@ -474,6 +512,35 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(delegation.child_budget_tokens, 20);
+        let reserved = resources
+            .reserve_work_budget(
+                issued.expose_secret(),
+                "org".into(),
+                "team".into(),
+                "w1".into(),
+                "orchestrator-effort".into(),
+                5,
+            )
+            .await
+            .unwrap();
+        assert_eq!(reserved.tokens, 5);
+        let budget = resources
+            .work_budget(
+                issued.expose_secret(),
+                "org".into(),
+                "team".into(),
+                "w1".into(),
+            )
+            .await
+            .unwrap();
+        assert_eq!(
+            (
+                budget.delegated_tokens,
+                budget.reserved_tokens,
+                budget.available_tokens
+            ),
+            (20, 5, 25)
+        );
         assert!(resources
             .create_work_delegation(
                 issued.expose_secret(),

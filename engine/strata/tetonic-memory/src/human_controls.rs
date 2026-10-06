@@ -160,6 +160,22 @@ impl Store {
         mode: &str,
         reason: &str,
     ) -> Result<ControlStop> {
+        self.request_control_stop_with_runs(actor, org, scope_kind, scope_id, mode, reason)
+            .map(|(stop, _)| stop)
+    }
+
+    /// Capture cancellation targets and stop new admissions in one transaction.
+    /// Parking clears the live binding, so target discovery must precede that
+    /// update without leaving an interleaving window for another writer.
+    pub fn request_control_stop_with_runs(
+        &self,
+        actor: &str,
+        org: &str,
+        scope_kind: &str,
+        scope_id: &str,
+        mode: &str,
+        reason: &str,
+    ) -> Result<(ControlStop, Vec<String>)> {
         validate_id(org, "org_id")?;
         validate_id(scope_id, "scope_id")?;
         validate_scope_kind(scope_kind)?;
@@ -169,6 +185,7 @@ impl Store {
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_stop_authority(actor, org, scope_kind, scope_id)?;
+        let runs = self.run_ids_under_stop(org, scope_kind, scope_id)?;
         let generation: i64 = self.conn.query_row(
             "SELECT COALESCE(MAX(generation),0)+1 FROM control_stop_scopes
              WHERE org_id=?1 AND scope_kind=?2 AND scope_id=?3",
@@ -203,7 +220,7 @@ impl Store {
             .active_control_stop(org, scope_kind, scope_id)?
             .ok_or(StoreError::ControlResourceConflict)?;
         tx.commit()?;
-        Ok(row)
+        Ok((row, runs))
     }
 
     fn require_stop_authority(
@@ -289,9 +306,17 @@ impl Store {
             }
             "work" => {
                 self.conn.execute(
-                    "UPDATE team_work_items
+                    "WITH RECURSIVE affected(team_id,work_id) AS (
+                        SELECT team_id,work_id FROM team_work_items WHERE org_id=?1 AND work_id=?2
+                        UNION
+                        SELECT d.team_id,d.child_work_id FROM work_delegations d
+                        JOIN affected a ON a.team_id=d.team_id AND a.work_id=d.parent_work_id
+                        WHERE d.org_id=?1
+                     )
+                     UPDATE team_work_items
                      SET status='parked', attempt_id=NULL, run_id=NULL, version=version+1
-                     WHERE org_id=?1 AND work_id=?2 AND status IN ('open','running')",
+                     WHERE org_id=?1 AND (team_id,work_id) IN (SELECT team_id,work_id FROM affected)
+                     AND status IN ('open','running')",
                     params![org, scope_id],
                 )?;
             }
@@ -351,8 +376,10 @@ impl Store {
                 return Ok(Some(stop));
             }
         }
-        if let Some(stop) = self.active_control_stop(org, "work", work_id)? {
-            return Ok(Some(stop));
+        for ancestor in self.work_ancestors(org, team, work_id)? {
+            if let Some(stop) = self.active_control_stop(org, "work", &ancestor)? {
+                return Ok(Some(stop));
+            }
         }
         if let Some(agent) = agent_key {
             if let Some(stop) = self.active_control_stop(org, "agent", agent)? {
@@ -379,27 +406,25 @@ impl Store {
         if updated == 0 {
             return Err(StoreError::ControlAccessDenied);
         }
-        let row = self
-            .conn
-            .query_row(
-                "SELECT org_id,scope_kind,scope_id,mode,generation,reason,created_by,cleared_at
+        let row = self.conn.query_row(
+            "SELECT org_id,scope_kind,scope_id,mode,generation,reason,created_by,cleared_at
                  FROM control_stop_scopes
                  WHERE org_id=?1 AND scope_kind=?2 AND scope_id=?3
                  ORDER BY generation DESC LIMIT 1",
-                params![org, scope_kind, scope_id],
-                |r| {
-                    Ok(ControlStop {
-                        org_id: r.get(0)?,
-                        scope_kind: r.get(1)?,
-                        scope_id: r.get(2)?,
-                        mode: r.get(3)?,
-                        generation: r.get(4)?,
-                        reason: r.get(5)?,
-                        created_by: r.get(6)?,
-                        cleared_at: r.get(7)?,
-                    })
-                },
-            )?;
+            params![org, scope_kind, scope_id],
+            |r| {
+                Ok(ControlStop {
+                    org_id: r.get(0)?,
+                    scope_kind: r.get(1)?,
+                    scope_id: r.get(2)?,
+                    mode: r.get(3)?,
+                    generation: r.get(4)?,
+                    reason: r.get(5)?,
+                    created_by: r.get(6)?,
+                    cleared_at: r.get(7)?,
+                })
+            },
+        )?;
         tx.commit()?;
         Ok(row)
     }
@@ -412,10 +437,7 @@ impl Store {
     ) -> Result<Vec<ControlStop>> {
         self.require_team_participant(actor, org, team)?;
         let mut stops = Vec::new();
-        for (kind, id) in [
-            ("org", org),
-            ("team", team),
-        ] {
+        for (kind, id) in [("org", org), ("team", team)] {
             if let Some(stop) = self.active_control_stop(org, kind, id)? {
                 stops.push(stop);
             }
@@ -506,9 +528,7 @@ impl Store {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
         if let Some(existing) = self.effect_approval_by_request(org, team, request_id)? {
-            if existing.approval_id != approval_id
-                || existing.proposal_digest != proposal_digest
-            {
+            if existing.approval_id != approval_id || existing.proposal_digest != proposal_digest {
                 return Err(StoreError::ControlResourceConflict);
             }
             tx.commit()?;
@@ -610,9 +630,7 @@ impl Store {
             return Err(StoreError::ControlResourceConflict);
         }
         if current.status != "pending" {
-            if current.status == "approved" && allow
-                || current.status == "rejected" && !allow
-            {
+            if current.status == "approved" && allow || current.status == "rejected" && !allow {
                 tx.commit()?;
                 return Ok(current);
             }
@@ -850,8 +868,16 @@ impl Store {
                  WHERE org_id=?1 AND goal_id=?2 AND run_id IS NOT NULL",
             )?,
             "work" => self.conn.prepare(
-                "SELECT DISTINCT run_id FROM team_work_items
-                 WHERE org_id=?1 AND work_id=?2 AND run_id IS NOT NULL",
+                "WITH RECURSIVE affected(team_id,work_id) AS (
+                    SELECT team_id,work_id FROM team_work_items WHERE org_id=?1 AND work_id=?2
+                    UNION
+                    SELECT d.team_id,d.child_work_id FROM work_delegations d
+                    JOIN affected a ON a.team_id=d.team_id AND a.work_id=d.parent_work_id
+                    WHERE d.org_id=?1
+                 )
+                 SELECT DISTINCT run_id FROM team_work_items
+                 WHERE org_id=?1 AND (team_id,work_id) IN (SELECT team_id,work_id FROM affected)
+                 AND run_id IS NOT NULL",
             )?,
             _ => return Ok(Vec::new()),
         };

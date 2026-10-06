@@ -10,7 +10,8 @@ pub struct OrganizationExecutionLimits {
     pub max_active_runs_per_principal: u32,
 }
 
-/// Concurrent admitted runs for one team. This is not cumulative token spend.
+/// Concurrent admitted execution slots for one team (roots plus governed child
+/// tasks). The persisted `max_active_runs` name remains wire compatible.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct TeamExecutionLimits {
     pub revision: u64,
@@ -43,8 +44,9 @@ impl Store {
     ) -> Result<()> {
         let limits = self.execution_limits(org)?;
         let (org_count, principal_count): (u64, u64) = self.conn.query_row(
-            "SELECT count(*),coalesce(sum(execution_principal_id=?2),0) FROM run_projections
-             WHERE execution_org_id=?1 AND execution_held=1 AND run_id<>?3",
+            "SELECT count(*),coalesce(sum(execution_principal_id=?2),0) FROM (
+                SELECT execution_principal_id FROM run_projections WHERE execution_org_id=?1 AND execution_held=1 AND run_id<>?3
+                UNION ALL SELECT execution_principal_id FROM registered_child_capacity WHERE execution_org_id=?1 AND execution_held=1 AND run_id<>?3)",
             params![org, principal, exclude_run],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )?;
@@ -57,8 +59,9 @@ impl Store {
         if let Some(team) = team {
             let team_limits = self.team_execution_limits(org, team)?;
             let team_count: u64 = self.conn.query_row(
-                "SELECT count(*) FROM run_projections
-                 WHERE execution_org_id=?1 AND execution_team_id=?2 AND execution_held=1 AND run_id<>?3",
+                "SELECT count(*) FROM (
+                    SELECT run_id FROM run_projections WHERE execution_org_id=?1 AND execution_team_id=?2 AND execution_held=1 AND run_id<>?3
+                    UNION ALL SELECT run_id FROM registered_child_capacity WHERE execution_org_id=?1 AND execution_team_id=?2 AND execution_held=1 AND run_id<>?3)",
                 params![org, team, exclude_run],
                 |r| r.get(0),
             )?;

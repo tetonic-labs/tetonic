@@ -10,16 +10,25 @@ use tetonic_sandbox::{
 };
 
 fn runner_path() -> PathBuf {
-    PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+    let debug = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("..")
         .join("..")
         .join("target")
-        .join("debug")
-        .join(if cfg!(windows) {
-            "lokai-sandbox-adv.exe"
-        } else {
-            "lokai-sandbox-adv"
-        })
+        .join("debug");
+    let name = if cfg!(windows) {
+        "tetonic-sandbox-adv.exe"
+    } else {
+        "tetonic-sandbox-adv"
+    };
+    let candidate = debug.join(name);
+    if candidate.exists() {
+        return candidate;
+    }
+    debug.join(if cfg!(windows) {
+        "lokai-sandbox-adv.exe"
+    } else {
+        "lokai-sandbox-adv"
+    })
 }
 
 fn workspace() -> PathBuf {

@@ -11,6 +11,7 @@ mod event_queue;
 mod help;
 mod job;
 mod job_view;
+mod local_ui;
 mod offline;
 mod printer;
 mod session;
@@ -49,6 +50,11 @@ fn main() -> anyhow::Result<()> {
 }
 
 async fn run_cli() -> anyhow::Result<()> {
+    if std::env::args().nth(1).as_deref() == Some("ui") {
+        let mut argv: Vec<String> = std::env::args().collect();
+        argv.remove(1);
+        return local_ui::dispatch(local_ui::UiCli::parse_from(argv)).await;
+    }
     if std::env::args().nth(1).as_deref() == Some("help") && std::env::args().len() == 2 {
         return help::print_cli_help();
     }

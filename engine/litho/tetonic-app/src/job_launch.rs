@@ -79,6 +79,9 @@ pub fn host_settings_from_json(
         audience,
         ollama: file.ollama,
         settings: RegisteredExecutionSettings {
+            plan_dispatch: None,
+            response_schema: None,
+            hosted: None,
             max_elapsed_seconds: file.max_elapsed_seconds,
             reported_token_ceiling: file.reported_token_ceiling,
             workspace_root: file.workspace,
@@ -87,6 +90,7 @@ pub fn host_settings_from_json(
             data_class: file.data_class,
             allowed_tools: file.allowed_tools.into_iter().collect(),
             limits: crate::resources::HarnessPreparationLimits {
+                human_handoff: false,
                 max_steps: file.max_steps,
                 max_input_bytes: file.max_input_bytes,
             },
@@ -140,14 +144,14 @@ pub async fn launch_team_work(
         .await
 }
 
-struct PreparedLaunch {
-    app: Arc<Application>,
-    credential: String,
-    verifier: Arc<dyn crate::resources::CredentialVerifier>,
-    settings: RegisteredExecutionSettings,
+pub(crate) struct PreparedLaunch {
+    pub(crate) app: Arc<Application>,
+    pub(crate) credential: String,
+    pub(crate) verifier: Arc<dyn crate::resources::CredentialVerifier>,
+    pub(crate) settings: RegisteredExecutionSettings,
 }
 
-async fn prepare_launch(
+pub(crate) async fn prepare_launch(
     credential: &str,
     host: RegisteredLaunchHost,
 ) -> Result<PreparedLaunch, AppError> {
@@ -399,6 +403,9 @@ mod tests {
             audience: "test".into(),
             ollama: "http://127.0.0.1:9".into(),
             settings: RegisteredExecutionSettings {
+                plan_dispatch: None,
+                response_schema: None,
+                hosted: None,
                 max_elapsed_seconds: 0,
                 reported_token_ceiling: None,
                 workspace_root: Some(PathBuf::from(".")),
@@ -407,6 +414,7 @@ mod tests {
                 data_class: tetonic_domain::DataClass::RepositorySource,
                 allowed_tools: ["read_file".into()].into_iter().collect(),
                 limits: HarnessPreparationLimits {
+                    human_handoff: false,
                     max_steps: 3,
                     max_input_bytes: 1024,
                 },
@@ -457,6 +465,7 @@ mod tests {
         let registered = resources.register_agent(secret, "org".into(), "agent".into(), "general".into(),
             serde_json::json!({"instructions":"Read the fixture","requested_tools":["read_file"],"max_steps":3})).await.unwrap();
         let limits = || HarnessPreparationLimits {
+            human_handoff: false,
             max_steps: 3,
             max_input_bytes: 1024,
         };
@@ -522,6 +531,9 @@ mod tests {
             audience: "test".into(),
             ollama: url.clone(),
             settings: RegisteredExecutionSettings {
+                plan_dispatch: None,
+                response_schema: None,
+                hosted: None,
                 max_elapsed_seconds: 30,
                 reported_token_ceiling: None,
                 workspace_root: Some(workspace.clone()),
@@ -541,7 +553,10 @@ mod tests {
         assert!(!retry.launched);
         assert_eq!(retry.run_id, receipt.run_id);
         assert_eq!(retry.outcome.as_deref(), Some("completed"));
-        assert!(!receipt.events.is_empty(), "a completed job must record events");
+        assert!(
+            !receipt.events.is_empty(),
+            "a completed job must record events"
+        );
         assert_eq!(retry.events, receipt.events);
         for encoded in [
             serde_json::to_string(&receipt).unwrap(),

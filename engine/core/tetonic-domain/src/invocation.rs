@@ -27,6 +27,8 @@ pub struct LoopDiscipline {
     pub finish_min_chars: Option<usize>,
     pub empty_tool_nudge_text: Option<String>,
     pub spawn_tool: Option<String>,
+    /// An additional host-bound asynchronous control tool, such as a human handoff.
+    pub handoff_tool: Option<String>,
     pub expand_tool: Option<String>,
     pub whole_file_tools: Vec<String>,
     pub search_tools: Vec<String>,

@@ -18,6 +18,7 @@ pub struct TeamGoal {
 
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct TeamWorkItem {
+    pub purpose: WorkPurpose,
     pub org_id: String,
     pub team_id: String,
     pub work_id: String,
@@ -33,6 +34,23 @@ pub struct TeamWorkItem {
     pub run_id: Option<String>,
     pub created_by: String,
     pub version: i64,
+}
+
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum WorkPurpose {
+    #[default]
+    Work,
+    Explore,
+}
+
+impl WorkPurpose {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            Self::Work => "work",
+            Self::Explore => "explore",
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -270,6 +288,11 @@ impl Store {
             created_by: r.get(10)?,
             version: r.get(11)?,
             input: r.get(12)?,
+            purpose: match r.get::<_, String>(13)?.as_str() {
+                "work" => WorkPurpose::Work,
+                "explore" => WorkPurpose::Explore,
+                _ => return Err(rusqlite::Error::InvalidQuery),
+            },
         })
     }
 
@@ -385,6 +408,31 @@ impl Store {
         goal_id: Option<&str>,
         input: Option<&str>,
     ) -> Result<TeamWorkItem> {
+        self.create_team_work_item_for_purpose(
+            actor,
+            org,
+            team,
+            work_id,
+            title,
+            request_id,
+            goal_id,
+            input,
+            WorkPurpose::Work,
+        )
+    }
+
+    pub fn create_team_work_item_for_purpose(
+        &self,
+        actor: &str,
+        org: &str,
+        team: &str,
+        work_id: &str,
+        title: &str,
+        request_id: &str,
+        goal_id: Option<&str>,
+        input: Option<&str>,
+        purpose: WorkPurpose,
+    ) -> Result<TeamWorkItem> {
         validate_id(org, "org_id")?;
         validate_id(team, "team_id")?;
         validate_id(work_id, "work_id")?;
@@ -410,6 +458,7 @@ impl Store {
                 || existing.title != title
                 || existing.goal_id.as_deref() != goal_id
                 || existing.input.as_deref() != input
+                || existing.purpose != purpose
             {
                 return Err(StoreError::ControlResourceConflict);
             }
@@ -419,8 +468,8 @@ impl Store {
         self.conn.execute(
             "INSERT INTO team_work_items(
                 org_id,team_id,work_id,goal_id,title,status,owner_principal_id,
-                request_id,created_by,created_at,version,input
-             ) VALUES(?1,?2,?3,?4,?5,'open',NULL,?6,?7,?8,1,?9)",
+                request_id,created_by,created_at,version,input,purpose
+             ) VALUES(?1,?2,?3,?4,?5,'open',NULL,?6,?7,?8,1,?9,?10)",
             params![
                 org,
                 team,
@@ -430,7 +479,8 @@ impl Store {
                 request_id,
                 actor,
                 crate::util::now(),
-                input
+                input,
+                purpose.as_str()
             ],
         )?;
         let row = self
@@ -449,7 +499,7 @@ impl Store {
         Ok(self
             .conn
             .query_row(
-                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
+                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input,purpose
                  FROM team_work_items WHERE org_id=?1 AND team_id=?2 AND request_id=?3",
                 params![org, team, request_id],
                 Self::map_work_item,
@@ -466,7 +516,7 @@ impl Store {
         Ok(self
             .conn
             .query_row(
-                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
+                "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input,purpose
                  FROM team_work_items WHERE org_id=?1 AND team_id=?2 AND work_id=?3",
                 params![org, team, work_id],
                 Self::map_work_item,
@@ -506,7 +556,7 @@ impl Store {
     ) -> Result<Vec<TeamWorkItem>> {
         self.require_team_participant(actor, org, team)?;
         let mut stmt = self.conn.prepare(
-            "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input
+            "SELECT org_id,team_id,work_id,goal_id,title,status,owner_principal_id,request_id,attempt_id,run_id,created_by,version,input,purpose
              FROM team_work_items WHERE org_id=?1 AND team_id=?2 ORDER BY created_at, work_id",
         )?;
         let rows = stmt
@@ -536,6 +586,15 @@ impl Store {
             .map_err(|e| StoreError::InvalidControlResource(e.to_string()))?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, &proposal.org_id, &proposal.team_id)?;
+
+        // Structured plans have their own revision/brief contract. The legacy
+        // title-only acceptance path must not materialize them as runnable roots.
+        let structured: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM huddle_proposals WHERE org_id=?1 AND team_id=?2 AND huddle_id=?3 AND source_work_id IS NOT NULL)",
+            params![proposal.org_id, proposal.team_id, proposal.huddle_id], |r| r.get(0))?;
+        if structured {
+            return Err(StoreError::ControlResourceConflict);
+        }
 
         if let Some(existing) = self
             .conn
@@ -623,6 +682,17 @@ impl Store {
         let current = self
             .get_team_work_item(org, team, work_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
+        if self
+            .activation_blocked_by_stop(org, team, work_id, current.goal_id.as_deref(), None)?
+            .is_some()
+        {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        // Recheck in the binding transaction: a stop may have arrived while the
+        // execution host was preparing the run. Children also retain parent pause.
+        if let Some(parent) = self.work_ancestors(org, team, work_id)?.get(1) {
+            self.require_work_allocation_open(org, team, parent)?;
+        }
         if current.status == "running" {
             if current.attempt_id.as_deref() == Some(attempt_id)
                 && current.run_id.as_deref() == Some(run_id)
@@ -662,6 +732,18 @@ impl Store {
     ) -> Result<TeamWorkItem> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
+        let work = self
+            .get_team_work_item(org, team, work_id)?
+            .ok_or(StoreError::ControlAccessDenied)?;
+        if self
+            .activation_blocked_by_stop(org, team, work_id, work.goal_id.as_deref(), None)?
+            .is_some()
+        {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        if let Some(parent) = self.work_ancestors(org, team, work_id)?.get(1) {
+            self.require_work_allocation_open(org, team, parent)?;
+        }
         let updated = self.conn.execute(
             "UPDATE team_work_items
              SET status='open', attempt_id=NULL, run_id=NULL, version=version+1
@@ -775,9 +857,10 @@ impl Store {
         Ok((cursor, Some(work)))
     }
 
-    /// Authorized temporary child under a parent work item. Child budget cannot
-    /// exceed the parent allocation; stop scope is inherited. Cross-team deny
-    /// discloses no parent title or private fields.
+    /// Reserve a child from a previously authorized allowance. The supplied
+    /// parent budget is a stale-view assertion, never permission to spend it.
+    /// Siblings and the parent's own reservations share one atomic balance.
+    /// Allocation is not authority to execute; the governed launch gate remains.
     pub fn create_work_delegation(
         &self,
         actor: &str,
@@ -800,25 +883,40 @@ impl Store {
         validate_id(request_id, "request_id")?;
         validate_title(child_title)?;
         validate_id(stop_scope, "stop_scope")?;
-        if parent_budget_tokens < 0 || child_budget_tokens < 0 {
+        if parent_budget_tokens <= 0 || child_budget_tokens <= 0 {
             return Err(StoreError::InvalidControlResource("budget".into()));
         }
         if child_budget_tokens > parent_budget_tokens {
             return Err(StoreError::InvalidControlResource("budget".into()));
         }
-        if let (Some(p_org), Some(p_team)) = (peer_org, peer_team) {
-            if p_org != org || p_team != team {
-                // Same opaque denial as outsider access; do not leak parent context.
-                return Err(StoreError::ControlAccessDenied);
-            }
+        if !matches!((peer_org, peer_team), (None, None))
+            && (peer_org != Some(org) || peer_team != Some(team))
+        {
+            return Err(StoreError::ControlAccessDenied);
         }
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
-        self.require_team_participant(actor, org, team)?;
+        if !self.control_access(actor, crate::ControlPermission::ManageTeam, org, team)? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let budget = self.work_budget_unchecked(org, team, parent_work_id)?;
+        if parent_budget_tokens != budget.token_limit {
+            return Err(StoreError::ControlResourceConflict);
+        }
+        if stop_scope != "inherit" && stop_scope != budget.stop_scope {
+            return Err(StoreError::InvalidControlResource("stop_scope".into()));
+        }
         if let Some(existing) = self.delegation_by_request(org, team, request_id)? {
             if existing.delegation_id != delegation_id
                 || existing.parent_work_id != parent_work_id
                 || existing.child_work_id != child_work_id
                 || existing.child_budget_tokens != child_budget_tokens
+                || existing.parent_budget_tokens != budget.token_limit
+                || existing.stop_scope != budget.stop_scope
+                || existing.payer_principal_id != budget.payer_principal_id
+                || existing.created_by != actor
+                || self
+                    .get_team_work_item(org, team, child_work_id)?
+                    .is_none_or(|child| child.title != child_title)
             {
                 return Err(StoreError::ControlResourceConflict);
             }
@@ -828,18 +926,21 @@ impl Store {
         let parent = self
             .get_team_work_item(org, team, parent_work_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
-        if parent.status == "parked" {
-            return Err(StoreError::ControlAccessDenied);
-        }
-        let inherited_stop = if stop_scope == "inherit" {
-            format!("work/{parent_work_id}")
-        } else if stop_scope.starts_with(&format!("work/{parent_work_id}"))
-            || stop_scope == format!("goal/{}", parent.goal_id.as_deref().unwrap_or(""))
+        self.require_work_allocation_open(org, team, parent_work_id)?;
+        self.require_bounded_work_reports(org, team, parent_work_id)?;
+        // A fresh child identity prevents attaching an existing root, cycles or
+        // a second parent. The immediate transaction serializes competing writers.
+        if self.get_team_work_item(org, team, child_work_id)?.is_some()
+            || self.work_ancestors(org, team, parent_work_id)?.len() >= 32
         {
-            stop_scope.to_string()
-        } else {
-            return Err(StoreError::InvalidControlResource("stop_scope".into()));
-        };
+            return Err(StoreError::ControlResourceConflict);
+        }
+        if child_budget_tokens > budget.available_tokens {
+            return Err(StoreError::InvalidControlResource(
+                "work budget exhausted".into(),
+            ));
+        }
+        let inherited_stop = budget.stop_scope;
         let child_request = format!("{request_id}/child");
         if let Some(existing_child) = self.work_item_by_request(org, team, &child_request)? {
             if existing_child.work_id != child_work_id || existing_child.title != child_title {
@@ -876,9 +977,9 @@ impl Store {
                 parent_work_id,
                 child_work_id,
                 parent.goal_id,
-                actor,
+                budget.payer_principal_id,
                 inherited_stop,
-                parent_budget_tokens,
+                budget.token_limit,
                 child_budget_tokens,
                 request_id,
                 actor,
@@ -1252,6 +1353,8 @@ mod tests {
         db.create_team_goal("alice", "org", "team", "g1", "Goal")
             .unwrap();
         db.create_team_work_item("alice", "org", "team", "parent", "Parent", "rp", Some("g1"))
+            .unwrap();
+        db.authorize_work_budget("alice", "org", "team", "parent", "budget-parent", 100)
             .unwrap();
         assert!(db
             .create_work_delegation(

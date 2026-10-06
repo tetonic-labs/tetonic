@@ -45,7 +45,11 @@ mod team_admin;
 pub use context_access::{team_participation_context_id, ContextOwner};
 pub use context_publication::ContextPublication;
 mod execution_limits;
+mod delegated_grants;
+pub use delegated_grants::{DelegatedExecutionGrant, DelegatedGrantLineage, DelegatedGrantRequest};
 mod local_provider_keys;
+mod local_work_notes;
+pub use local_work_notes::LocalWorkData;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
@@ -54,7 +58,9 @@ mod projects;
 mod recall;
 mod result_disposition;
 mod run_capacity;
+mod child_capacity;
 pub use execution_limits::{OrganizationExecutionLimits, TeamExecutionLimits};
+mod human_controls;
 mod run_store;
 mod scheduler_decision;
 mod schema;
@@ -62,11 +68,23 @@ mod secret_overrides;
 mod sync_lock;
 mod team_store;
 mod team_work;
-mod human_controls;
-mod workstation_placement;
+mod work_briefs;
+mod work_budgets;
+mod work_usage;
+pub use work_usage::{work_activation_request_id, TeamBudgetSetting, WorkUsage};
+pub use work_budgets::{WorkBudget, WorkBudgetReservation};
+mod huddle_plans;
+mod plan_human;
+pub use plan_human::{HumanQuestionContent, WorkHumanQuestion, PlanDirection};
+mod huddle_execution;
+pub use huddle_execution::{HuddleExecution, PlanAgentPin};
+pub use huddle_plans::{HuddlePlan, PlanAssignment, PlanContent};
+pub use work_briefs::WorkBrief;
+pub use team_work::WorkPurpose;
 mod trust;
 mod util;
 mod worker_store;
+mod workstation_placement;
 
 pub use backup::{
     is_ephemeral_db_path, pre_migrate_backup_directory, pre_migrate_backup_path,
@@ -76,18 +94,16 @@ pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
 pub use control_credentials::ControlCredentialRow;
+pub use human_controls::{ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection};
 pub use identity_store::AgentIdentityRow;
 pub use membership_store::{ControlPermission, OrganizationRole};
 pub use recall::RecallHit;
 pub use team_store::{OrganizationRow, TeamRow};
 pub use team_work::{HuddleProposal, TeamGoal, TeamWorkItem, WorkActivationCursor, WorkDelegation};
-pub use human_controls::{
-    ControlStop, EffectApproval, TeamEffortEntry, TeamWorkInspection,
-};
+pub use trust::{ApprovalRow, EgressAllowRow};
 pub use workstation_placement::{
     WorkPlacementPin, WorkerAssignmentClaim, Workstation, WorkstationGrant,
 };
-pub use trust::{ApprovalRow, EgressAllowRow};
 
 pub use capacity::RuntimeProfileRow;
 pub use compute_reservation::ComputeReservationRow;
@@ -1087,9 +1103,9 @@ impl Store {
         if self.require_legacy_session(session_id).is_err() {
             return Ok(None);
         }
-        let mut stmt = self.conn.prepare(
-            "SELECT status FROM sessions WHERE id = ?1 AND context_id='legacy-local'",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("SELECT status FROM sessions WHERE id = ?1 AND context_id='legacy-local'")?;
         let mut rows = stmt.query_map(params![session_id], |r| r.get(0))?;
         Ok(rows.next().transpose()?)
     }

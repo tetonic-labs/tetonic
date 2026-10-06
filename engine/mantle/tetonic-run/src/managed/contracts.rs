@@ -213,6 +213,8 @@ pub trait ManagedRunHooks: Send + Sync {
 #[derive(Clone, Default)]
 pub struct AdmissionContext {
     pub activation: Option<tetonic_domain::ActivationBinding>,
+    /// Non-serializable proof minted by this runtime for an authorized parent.
+    pub delegation_parent: Option<super::delegation::DelegationParent>,
     /// Absolute Unix deadline selected by the host, persisted on the task.
     /// Child work can shorten, but cannot extend, its parent's deadline.
     pub deadline: Option<u64>,

@@ -2,6 +2,14 @@
 
 Local-only audit and memory store (`lokai.db`): sessions, transcripts, tool calls, file changes, checkpoints, egress mirror, estate enrollment, project memory.
 
+Local UI retries use `get_execution_grant` through the authorized resource service
+to retain the original grant and its expiry. Reading a grant neither renews it nor
+grants execution; the managed execution path still checks its scope and validity.
+
+`list_organization_agents` enumerates immutable default registrations under
+organization read authority, with membership rechecked inside the read transaction.
+The local UI uses this roster rather than keeping agent definitions in browser state.
+
 ## Role in the stack
 
 Optional but expected in production: `tetonicd` and `tetonic-cli` attach an `AuditSink` backed by `Store`. Time-travel (checkpoint/undo/redo) reads the file-change timeline from here.
@@ -83,3 +91,7 @@ H2-2 concurrent FTS vs append (no HOL), WAL reopen after abrupt drop, write FIFO
 
 - [memory-store-v2](../../../docs/implementation/contracts/memory-store-v2.md)
 - [memory-and-context-v1](../../../docs/implementation/memory-and-context-v1.md)
+
+Schema v51 adds host-owned `local_provider_keys`: provider IDs and opaque OS-vault
+references only, never plaintext API keys. These host methods are not exposed as
+employee organization resources. Existing migration backups apply.

@@ -101,6 +101,32 @@ impl Store {
         Ok(result)
     }
 
+    /// Enumerate registrations under the same read authority as individual lookups.
+    pub fn list_organization_agents(
+        &self,
+        actor: &str,
+        org: &str,
+    ) -> Result<Vec<(String, RegisteredAgent)>> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
+        if !self.control_access(actor, ControlPermission::ReadOrganization, org, "")? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let keys = self.conn.prepare(
+            "SELECT agent_key FROM organization_agents WHERE org_id=?1 ORDER BY created_at,agent_key",
+        )?.query_map([org], |r| r.get::<_, String>(0))?.collect::<rusqlite::Result<Vec<_>>>()?;
+        let result = keys
+            .into_iter()
+            .map(|key| {
+                let agent = self
+                    .registered_agent_unchecked(org, &key)?
+                    .ok_or(StoreError::ControlResourceConflict)?;
+                Ok((key, agent))
+            })
+            .collect::<Result<Vec<_>>>()?;
+        tx.commit()?;
+        Ok(result)
+    }
+
     pub(crate) fn registered_agent_unchecked(
         &self,
         org: &str,
@@ -149,6 +175,11 @@ mod tests {
                 original
             );
             assert_eq!(original.identity.privilege_class, "unconfigured");
+            assert_eq!(
+                db.list_organization_agents("bob", "org").unwrap(),
+                vec![("maintainer".into(), original.clone())]
+            );
+            assert!(db.list_organization_agents("alice", "other").is_err());
             assert_eq!(original.identity.toolset_subscriptions_json, "[]");
             assert!(db
                 .register_organization_agent("alice", "org", "maintainer", "other", &config)
@@ -176,6 +207,7 @@ mod tests {
                 .unwrap();
             assert_eq!(before, after);
             db.remove_organization_member("org", "bob").unwrap();
+            assert!(db.list_organization_agents("bob", "org").is_err());
             assert!(db
                 .get_organization_agent("bob", "org", "maintainer")
                 .is_err());

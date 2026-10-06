@@ -56,6 +56,7 @@ pub struct BrokerInferenceProvider {
     broker: Arc<DefaultComputeBroker>,
     scanner: Option<Arc<dyn SecretScanner>>,
     redaction_sink: Option<Arc<dyn OutboundRedactionSink>>,
+    hosted: Option<Arc<tetonic_inference::hosted::HostedChatProvider>>,
 }
 
 impl BrokerInferenceProvider {
@@ -64,6 +65,7 @@ impl BrokerInferenceProvider {
             broker,
             scanner: None,
             redaction_sink: None,
+            hosted: None,
         }
     }
 
@@ -83,6 +85,17 @@ impl BrokerInferenceProvider {
 
     pub fn broker(&self) -> &Arc<DefaultComputeBroker> {
         &self.broker
+    }
+
+    /// An explicit hosted binding shares admission with local work, but never
+    /// enters PooledProvider's local/worker routing or automatic fallback.
+    pub fn for_hosted(&self, hosted: Arc<tetonic_inference::hosted::HostedChatProvider>) -> Self {
+        Self {
+            broker: self.broker.clone(),
+            scanner: self.scanner.clone(),
+            redaction_sink: self.redaction_sink.clone(),
+            hosted: Some(hosted),
+        }
     }
 
     /// Scan and redact Infer messages. Must run before any local or remote dispatch.
@@ -220,7 +233,13 @@ impl InferenceProvider for BrokerInferenceProvider {
         let scanned = self.scan_outbound(req).await;
         timer.finish(scanned.is_ok());
         let req = scanned?;
-        self.broker.chat_admitted(req, on_token).await
+        if let Some(hosted) = &self.hosted {
+            self.broker
+                .chat_hosted_admitted(hosted, req, on_token)
+                .await
+        } else {
+            self.broker.chat_admitted(req, on_token).await
+        }
     }
 
     async fn fabric_snapshot(&self) -> FabricSnapshot {

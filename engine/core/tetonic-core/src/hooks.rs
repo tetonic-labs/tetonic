@@ -88,8 +88,12 @@ pub type CaptureWorkspaceVersion = Arc<
 
 /// In-loop specialist spawn (A13). The host runs the sub-agent turn and returns
 /// a tool outcome for the parent model.
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct SpawnRequest {
+    pub tool_name: String,
+    pub call_id: String,
+    pub arguments: serde_json::Value,
+    pub attempt_id: Option<String>,
     pub role: String,
     pub task: String,
     pub parent_agent_id: String,

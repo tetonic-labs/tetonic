@@ -19,10 +19,32 @@ struct GeneralConfiguration {
     requested_tools: Vec<String>,
     #[serde(default)]
     max_steps: Option<usize>,
+    /// Optional owner preferences; only a host may apply these within its ceilings.
+    #[serde(default)]
+    preferences: Option<GeneralAgentPreferences>,
+    #[serde(default)]
+    explain_turn: Option<bool>,
+}
+
+/// Stored configuration, never execution authority. Other hosts may ignore it.
+#[derive(Clone, serde::Serialize, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct GeneralAgentPreferences {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+    #[serde(default, skip_serializing_if = "std::ops::Not::not")]
+    pub hosted_consent: bool,
+    pub display_name: String,
+    pub model: String,
+    pub max_elapsed_seconds: u64,
+    pub reported_token_ceiling: u64,
 }
 
 /// Trusted host preparation ceilings, not user-supplied execution grants.
+#[derive(Clone)]
 pub struct HarnessPreparationLimits {
+    /// Trusted host control capability, separately bound and authorized at admission.
+    pub human_handoff: bool,
     pub max_steps: usize,
     pub max_input_bytes: usize,
 }
@@ -172,7 +194,30 @@ fn prepare(
     {
         return Err(ResourceError::Invalid);
     }
-    let config = envelope.configuration;
+    let mut config = envelope.configuration;
+    if limits.human_handoff
+        && !config
+            .requested_tools
+            .iter()
+            .any(|t| t == super::plan_dispatch::ASK_HUMAN)
+    {
+        config
+            .requested_tools
+            .push(super::plan_dispatch::ASK_HUMAN.into());
+    }
+    if let Some(prefs) = &config.preferences {
+        if prefs.display_name.trim().is_empty()
+            || prefs.display_name.len() > 256
+            || prefs.model.trim().is_empty()
+            || prefs.model.len() > 256
+            || prefs.display_name.chars().any(char::is_control)
+            || prefs.model.chars().any(char::is_whitespace)
+            || prefs.max_elapsed_seconds == 0
+            || prefs.reported_token_ceiling == 0
+        {
+            return Err(ResourceError::Invalid);
+        }
+    }
     let steps = config.max_steps.unwrap_or(limits.max_steps);
     if config.instructions.trim().is_empty()
         || limits.max_steps == 0
@@ -194,19 +239,122 @@ fn prepare(
             return Err(ResourceError::Invalid);
         }
     }
+    // A prompt-only worker may answer naturally after a human clarification.
+    // Keep dispatchers and effectful jobs on explicit completion so prose cannot
+    // bypass their host completion guards. This changes no tool authority.
+    let explain_turn = if limits.human_handoff {
+        config
+            .requested_tools
+            .iter()
+            .all(|tool| tool == "finish" || tool == super::plan_dispatch::ASK_HUMAN)
+            && config.explain_turn != Some(false)
+    } else {
+        config
+            .explain_turn
+            .unwrap_or_else(|| config.requested_tools.is_empty() || is_explain_turn(&input))
+    };
     Ok(PreparedAgentRevision {
         identity: revision.identity,
         invocation: tetonic_domain::AgentInvocation {
             instructions: config.instructions,
             user_input: input,
             max_steps: steps,
-            explain_turn: false,
+            explain_turn,
             empty_tool_nudge: false,
             completion_tool: "finish".into(),
-            discipline: Default::default(),
+            discipline: tetonic_domain::LoopDiscipline {
+                handoff_tool: limits
+                    .human_handoff
+                    .then(|| super::plan_dispatch::ASK_HUMAN.into()),
+                spawn_tool: config
+                    .requested_tools
+                    .iter()
+                    .any(|t| t == super::plan_dispatch::DISPATCH)
+                    .then(|| super::plan_dispatch::DISPATCH.into()),
+                ..Default::default()
+            },
         },
         requested_tools: config.requested_tools,
     })
+}
+
+fn is_explain_turn(input: &str) -> bool {
+    let trimmed = input.trim();
+    let lower = trimmed.to_ascii_lowercase();
+
+    const READ_ONLY: &[&str] = &[
+        "read only",
+        "read-only",
+        "do not edit",
+        "don't edit",
+        "dont edit",
+        "without editing",
+        "no edits",
+        "not edit",
+    ];
+    if READ_ONLY.iter().any(|k| lower.contains(k)) {
+        return true;
+    }
+
+    const ACTION: &[&str] = &[
+        "implement",
+        "fix",
+        "edit",
+        "refactor",
+        "create",
+        "write",
+        "add ",
+        "change",
+        "update",
+        "replace",
+        "build ",
+        "correct",
+        "bug",
+        "todo",
+        "notimplemented",
+    ];
+    if ACTION.iter().any(|kw| lower.contains(kw)) {
+        return false;
+    }
+
+    if trimmed.ends_with('?') {
+        return true;
+    }
+
+    const PREFIXES: &[&str] = &[
+        "can ",
+        "could ",
+        "what ",
+        "whats ",
+        "what's ",
+        "how ",
+        "why ",
+        "where ",
+        "which ",
+        "who ",
+        "when ",
+        "show ",
+        "list ",
+        "tell ",
+        "explain ",
+        "describe ",
+        "summarize ",
+        "summary ",
+        "walk me through",
+        "help me understand",
+        "is ",
+        "are ",
+        "do ",
+        "does ",
+        "will ",
+        "would ",
+        "should ",
+    ];
+    if PREFIXES.iter().any(|prefix| lower.starts_with(prefix)) {
+        return true;
+    }
+
+    lower.contains("tell me") || lower.contains("about")
 }
 
 #[cfg(test)]
@@ -247,6 +395,7 @@ mod tests {
                 first.identity.bound_definition_digest.clone(),
                 "user task".into(),
                 HarnessPreparationLimits {
+                    human_handoff: false,
                     max_steps: 8,
                     max_input_bytes: 1024,
                 },
@@ -342,6 +491,7 @@ mod tests {
         )
         .is_err());
         let limits = || HarnessPreparationLimits {
+            human_handoff: false,
             max_steps: 8,
             max_input_bytes: 1024,
         };
@@ -382,5 +532,89 @@ mod tests {
             )
             .await
             .is_err());
+    }
+
+    #[test]
+    fn test_is_explain_turn_detection() {
+        assert!(is_explain_turn("can we show which tools are available"));
+        assert!(is_explain_turn("what tools do you have?"));
+        assert!(is_explain_turn("list all tools"));
+        assert!(is_explain_turn("explain the architecture"));
+        assert!(is_explain_turn("describe how this works"));
+        assert!(is_explain_turn("how does the parser work?"));
+        assert!(is_explain_turn("do not edit, just explain"));
+        assert!(!is_explain_turn("fix the bug in parser.rs"));
+        assert!(!is_explain_turn("implement user authentication"));
+        assert!(!is_explain_turn("edit src/main.rs"));
+        assert!(!is_explain_turn("user task"));
+    }
+
+    #[tokio::test]
+    async fn human_handoff_accepts_plain_worker_answers_without_bypassing_completion_guards() {
+        let dir = tempfile::tempdir().unwrap();
+        let local = LocalControl::open(dir.path().join("control.db"), "test".into())
+            .await
+            .unwrap();
+        local
+            .bootstrap("admin".into(), "org".into(), "Org".into())
+            .await
+            .unwrap();
+        let credential = local
+            .credentials()
+            .issue("admin".into(), 3600)
+            .await
+            .unwrap();
+        for (i, config, conversational) in [
+            (
+                0,
+                serde_json::json!({"instructions":"Compare options","requested_tools":["finish"]}),
+                true,
+            ),
+            (
+                1,
+                serde_json::json!({"instructions":"Coordinate","requested_tools":["finish",super::super::plan_dispatch::DISPATCH],"explain_turn":true}),
+                false,
+            ),
+            (
+                2,
+                serde_json::json!({"instructions":"Work","requested_tools":["finish","run_shell"],"explain_turn":true}),
+                false,
+            ),
+            (
+                3,
+                serde_json::json!({"instructions":"Explicit completion required","requested_tools":["finish"],"explain_turn":false}),
+                false,
+            ),
+        ] {
+            let revision = local
+                .resources()
+                .register_agent(
+                    credential.expose_secret(),
+                    "org".into(),
+                    format!("agent-{i}"),
+                    "general".into(),
+                    config,
+                )
+                .await
+                .unwrap();
+            let prepared = prepare(
+                revision,
+                "Please do the assignment".into(),
+                HarnessPreparationLimits {
+                    human_handoff: true,
+                    max_steps: 8,
+                    max_input_bytes: 1024,
+                },
+            )
+            .unwrap();
+            assert_eq!(prepared.invocation.explain_turn, conversational);
+            assert_eq!(
+                prepared.invocation.discipline.handoff_tool.as_deref(),
+                Some(super::super::plan_dispatch::ASK_HUMAN)
+            );
+            assert!(prepared
+                .requested_tools
+                .contains(&super::super::plan_dispatch::ASK_HUMAN.into()));
+        }
     }
 }

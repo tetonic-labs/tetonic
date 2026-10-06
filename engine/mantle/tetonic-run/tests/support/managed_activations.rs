@@ -5,6 +5,9 @@ use tetonic_run::managed::{
     ActivationReceipt, AdmissionContext, AuthorizedExecution, ExecutionAuthority, ManagedAdmission,
 };
 
+#[path = "managed_delegation.rs"]
+mod delegation;
+
 struct Authority(Arc<AtomicBool>);
 #[async_trait::async_trait]
 impl ExecutionAuthority for Authority {

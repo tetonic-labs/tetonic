@@ -485,6 +485,10 @@ async fn run_spawned_specialist_rolls_back_and_returns_handoff() {
     let outcome = run_spawned_specialist(
         &mut conversation,
         SpawnRequest {
+            tool_name: String::new(),
+            call_id: String::new(),
+            arguments: serde_json::Value::Null,
+            attempt_id: None,
             parent_agent_id: ROOT_AGENT.to_string(),
             role: "coder".into(),
             task: "fix lib.rs".into(),
@@ -580,6 +584,10 @@ async fn spawn_host_dispatch_carves_budget_and_respects_limits() {
     let ok = host
         .dispatch(
             SpawnRequest {
+                tool_name: String::new(),
+                call_id: String::new(),
+                arguments: serde_json::Value::Null,
+                attempt_id: None,
                 parent_agent_id: ROOT_AGENT.to_string(),
                 role: "coder".into(),
                 task: "subtask".into(),
@@ -594,6 +602,10 @@ async fn spawn_host_dispatch_carves_budget_and_respects_limits() {
     let exhausted = host
         .dispatch(
             SpawnRequest {
+                tool_name: String::new(),
+                call_id: String::new(),
+                arguments: serde_json::Value::Null,
+                attempt_id: None,
                 parent_agent_id: ROOT_AGENT.to_string(),
                 role: "coder".into(),
                 task: "second spawn".into(),

@@ -62,7 +62,7 @@ impl super::service::ManagedRunService {
         &self,
         id: &DispatchId,
         job: AdmitJob,
-        context: AdmissionContext,
+        mut context: AdmissionContext,
     ) -> Result<ManagedAdmission, ManagedRunError> {
         if job.identity.id != job.job_spec.identity_id
             || job.identity.bound_definition_digest != job.job_spec.definition_digest
@@ -72,11 +72,50 @@ impl super::service::ManagedRunService {
             ));
         }
         super::activation::validate_activation(&context, &job)?;
+        if let Some(parent) = &context.delegation_parent {
+            if job.parent_attempt.as_ref() != Some(&parent.binding().attempt_id) {
+                return Err(ManagedRunError::InvalidRequest(
+                    "delegation parent mismatch".into(),
+                ));
+            }
+            let auth = context.authorization.as_ref().ok_or_else(|| {
+                ManagedRunError::InvalidRequest("delegation requires authorization".into())
+            })?;
+            let activation = context.activation.as_ref().ok_or_else(|| {
+                ManagedRunError::InvalidRequest("delegation requires delivery identity".into())
+            })?;
+            context.authorization = Some(self.child_authorization(parent, auth, activation)?);
+        }
+        // Even a permissive custom host authority cannot turn a stored child
+        // grant into an independent root. Parent-bound dispatch is a separate gate.
+        if job.parent_attempt.is_none() {
+            if let (Some(store), Some(grant)) = (
+                &self.store,
+                context
+                    .authorization
+                    .as_ref()
+                    .and_then(|auth| auth.grant_id.clone()),
+            ) {
+                let derived = store
+                    .read(move |db| db.execution_grant_is_delegated(&grant))
+                    .await
+                    .map_err(|_| ManagedRunError::PersistenceFailed("grant lookup failed".into()))?
+                    .map_err(|_| {
+                        ManagedRunError::PersistenceFailed("grant lookup failed".into())
+                    })?;
+                if derived {
+                    return Err(ManagedRunError::InvalidRequest(
+                        "delegated grant requires governed child admission".into(),
+                    ));
+                }
+            }
+        }
         if let (Some(activation), Some(authorization)) =
             (&context.activation, &context.authorization)
         {
-            if let Some(receipt) = self
-                .lookup_activation(
+            let receipt = if let Some(parent) = &context.delegation_parent {
+                self.lookup_child_activation(
+                    parent,
                     authorization,
                     activation,
                     &job.identity,
@@ -84,7 +123,17 @@ impl super::service::ManagedRunService {
                     job.role.as_deref(),
                 )
                 .await?
-            {
+            } else {
+                self.lookup_activation(
+                    authorization,
+                    activation,
+                    &job.identity,
+                    &job.job_spec,
+                    job.role.as_deref(),
+                )
+                .await?
+            };
+            if let Some(receipt) = receipt {
                 return Ok(ManagedAdmission::Existing(receipt));
             }
         }
@@ -122,15 +171,17 @@ impl super::service::ManagedRunService {
                 deadline_instant.map_or(parent_instant, |instant| instant.min(parent_instant)),
             );
         }
-        // Do not let a child silently drop or introduce authority. Governed
-        // delegation requires its own inherited grant/budget contract.
+        // Scoped children must carry the live parent proof and inherited
+        // grant/allocation binding, rather than silently dropping authority.
         if let Some(parent) = &job.parent_attempt {
             let parent_scoped = self
                 .active
                 .lock_recover()
                 .get(parent)
                 .is_some_and(|active| active.authorization.is_some());
-            if parent_scoped || context.authorization.is_some() {
+            if (parent_scoped || context.authorization.is_some())
+                && context.delegation_parent.is_none()
+            {
                 return Err(ManagedRunError::InvalidRequest(
                     "governed delegation is not configured".into(),
                 ));
@@ -249,10 +300,26 @@ impl super::service::ManagedRunService {
                 })?;
             let run_id = parent_active.binding.run_id;
             let current_seq = self.current_sequence(&run_id).await;
-            let task_id = context
-                .task_id
-                .clone()
-                .unwrap_or_else(|| TaskId::new(format!("task_spawn_{}", uuid::Uuid::new_v4())));
+            let task_id = if let (Some(activation), Some(auth)) =
+                (&context.activation, &context.authorization)
+            {
+                // Recheck immediately before writing the child task. The effect
+                // gate checks again before any model or tool invocation.
+                auth.authority
+                    .authorize(&auth.scope, &job.identity, &job.job_spec)
+                    .await
+                    .map_err(|_| {
+                        ManagedRunError::InvalidRequest(
+                            "delegated execution authorization denied".into(),
+                        )
+                    })?;
+                super::delegation::child_task_id(&auth.scope, &activation.request_id)?
+            } else {
+                context
+                    .task_id
+                    .clone()
+                    .unwrap_or_else(|| TaskId::new(format!("task_spawn_{}", uuid::Uuid::new_v4())))
+            };
             let snapshot = self.inspect_run(&run_id).await?;
             if let Some(task) = snapshot.tasks.get(&task_id) {
                 if task.binding.job_spec.as_ref() != Some(&job.job_spec)
@@ -291,6 +358,23 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     task_id: task_id.clone(),
                     binding: TaskInputBinding {
+                        // Registered activation retries inspect the original receipt;
+                        // this owner cannot redispatch a second attempt. A retryable
+                        // failure must therefore terminate instead of staying Ready.
+                        retry_policy: tetonic_domain::RetryPolicy {
+                            max_attempts: if context.activation.is_some() {
+                                1
+                            } else {
+                                tetonic_domain::RetryPolicy::default().max_attempts
+                            },
+                            ..Default::default()
+                        },
+                        delegation: context.activation.as_ref().map(|activation| {
+                            tetonic_domain::DelegatedTaskBinding {
+                                parent_attempt: parent_attempt.clone(),
+                                activation: activation.clone(),
+                            }
+                        }),
                         deadline,
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
                         execution_grant_id: context
@@ -303,7 +387,21 @@ impl super::service::ManagedRunService {
                     },
                 }))
                 .await
-                .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()))?;
+                .map_err(|error| match error {
+                    tetonic_domain::RunSupervisorError::OrganizationCapacityExceeded => {
+                        ManagedRunError::OrganizationCapacityExceeded
+                    }
+                    tetonic_domain::RunSupervisorError::PrincipalCapacityExceeded => {
+                        ManagedRunError::PrincipalCapacityExceeded
+                    }
+                    tetonic_domain::RunSupervisorError::TeamCapacityExceeded => {
+                        ManagedRunError::TeamCapacityExceeded
+                    }
+                    tetonic_domain::RunSupervisorError::ExecutionCapacityExceeded => {
+                        ManagedRunError::ExecutionCapacityExceeded
+                    }
+                    other => ManagedRunError::PersistenceFailed(other.to_string()),
+                })?;
 
             let delivery_key = format!("turn:{}:{}", run_id, attempt_id);
             let created = self
@@ -391,6 +489,14 @@ impl super::service::ManagedRunService {
                     run_id: run_id.clone(),
                     root_task_id: task_id.clone(),
                     root_binding: TaskInputBinding {
+                        retry_policy: tetonic_domain::RetryPolicy {
+                            max_attempts: if context.activation.is_some() {
+                                1
+                            } else {
+                                tetonic_domain::RetryPolicy::default().max_attempts
+                            },
+                            ..Default::default()
+                        },
                         activation: context.activation.clone(),
                         deadline,
                         execution_scope: context.authorization.as_ref().map(|a| a.scope.clone()),
@@ -575,6 +681,7 @@ impl super::service::ManagedRunService {
             self.active.lock_recover().insert(
                 attempt_id.clone(),
                 ActiveAttempt {
+                    delegation_closed: Arc::new(AtomicBool::new(false)),
                     deadline,
                     deadline_instant,
                     work_scope: Default::default(),

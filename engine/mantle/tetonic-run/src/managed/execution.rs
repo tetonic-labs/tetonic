@@ -377,11 +377,16 @@ impl super::service::ManagedRunService {
         })?;
         probe.abort();
         let ticket = self.reserve_dispatch();
+        let parent_attempt = context
+            .delegation_parent
+            .as_ref()
+            .map(|parent| parent.binding().attempt_id.clone());
+        let finish_run = parent_attempt.is_none();
         let admit_job = AdmitJob {
             identity: cmd.identity,
             job_spec: cmd.job_spec,
             role: agent.execution_role().map(str::to_owned),
-            parent_attempt: None,
+            parent_attempt,
         };
         let this = self.clone();
         let t_id = ticket.id.clone();
@@ -422,7 +427,7 @@ impl super::service::ManagedRunService {
                     attempt: att,
                     outcome,
                     policy: finalization,
-                    finish_run: true,
+                    finish_run,
                 })
                 .await;
             if let Err(error) = finalized {

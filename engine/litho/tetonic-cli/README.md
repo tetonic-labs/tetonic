@@ -4,6 +4,13 @@ Phase A headless CLI (`tetonic`): single-agent runs, interactive chat, audit/his
 
 Package name is **`tetonic-cli`**; the binary on PATH is **`tetonic`**.
 
+`tetonic ui --database <dedicated-db> --model <installed-model>` starts the
+loopback-only adapter for the live web Work view. Open its owner-only connection
+link. This slice offers local agent creation, installed model selection, bounded
+per-agent run limits, durable requests/results and cancellation, with no external
+tools or remote collaboration. Configuration,
+authentication and current limits are in the [local UI contract](../../../docs/implementation/contracts/local-ui-v1.md).
+
 ## Entry points
 
 | Command / flag | Purpose |

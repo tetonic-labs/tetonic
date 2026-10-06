@@ -76,6 +76,76 @@
         }
     }
 
+    struct StructuredProvider {
+        attempt_tool: bool,
+    }
+
+    #[async_trait]
+    impl InferenceProvider for StructuredProvider {
+        async fn chat(
+            &self,
+            request: ChatRequest,
+            _: &mut TokenSink<'_>,
+        ) -> Result<ChatResponse, InferenceError> {
+            assert!(request.tools.is_empty());
+            assert_eq!(
+                request.response_format,
+                Some(serde_json::json!({"type":"object"}))
+            );
+            let mut message = Message::assistant("{\"answer\":\"Ready\"}");
+            if self.attempt_tool {
+                message = message.with_tool_calls(vec![tetonic_inference::ToolCall {
+                    function: tetonic_inference::FunctionCall {
+                        name: "again".into(),
+                        arguments: serde_json::json!({}),
+                    },
+                }]);
+            }
+            Ok(ChatResponse {
+                message,
+                usage: Default::default(),
+                provenance: Default::default(),
+            })
+        }
+    }
+
+    #[tokio::test]
+    async fn structured_answer_uses_provider_format_and_refuses_tool_calls() {
+        for attempt_tool in [false, true] {
+            let agent = Agent::new(
+                Arc::new(StructuredProvider { attempt_tool }),
+                CountingTool,
+                AgentConfig {
+                    response_schema: Some(serde_json::json!({"type":"object"})),
+                    ..AgentConfig::default()
+                },
+            );
+            let mut convo = Conversation::new();
+            let mut executed_tools = 0;
+            let outcome = agent
+                .turn(
+                    &mut convo,
+                    test_inv_explain("Return an answer", true),
+                    |step| {
+                        if matches!(step, Step::ToolResult { .. }) {
+                            executed_tools += 1;
+                        }
+                    },
+                )
+                .await;
+            assert_eq!(executed_tools, 0);
+            if attempt_tool {
+                assert!(
+                    matches!(outcome, CandidateOutcome::Failed { message } if message.contains("unexpected tool call"))
+                );
+            } else {
+                assert!(
+                    matches!(outcome, CandidateOutcome::Completed { summary, .. } if summary == "{\"answer\":\"Ready\"}")
+                );
+            }
+        }
+    }
+
     struct CeilingProvider {
         calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,
         report_tokens: bool,

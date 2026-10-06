@@ -1,7 +1,6 @@
 //! Authorized snapshot inspection over the existing durable run supervisor.
 use super::*;
 use tetonic_domain::{RunId, RunSnapshot};
-use tetonic_run::RunSupervisor;
 
 pub enum RunPoll {
     Events(Vec<tetonic_domain::RunEventEnvelope>),
@@ -23,7 +22,7 @@ impl ContextService {
         let actor = principal.principal_id;
         self.authorize_run_context(&actor, &organization, &context)
             .await?;
-        let supervisor = tetonic_run::DurableRunSupervisor::new(Some(self.store.clone()));
+        let supervisor = tetonic_run::DurableRunReader::new(self.store.clone());
         let snapshot = supervisor
             .snapshot(RunId::new(run))
             .await
@@ -71,7 +70,7 @@ impl ContextService {
             run.clone(),
         )
         .await?;
-        let supervisor = tetonic_run::DurableRunSupervisor::new(Some(self.store.clone()));
+        let supervisor = tetonic_run::DurableRunReader::new(self.store.clone());
         let replay = supervisor
             .resume_from_sequence(RunId::new(run.clone()), after, limit)
             .await
@@ -151,6 +150,7 @@ impl ContextService {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use tetonic_run::RunSupervisor;
     #[tokio::test]
     async fn inspection_denies_legacy_and_mixed_context_runs() {
         let dir = tempfile::tempdir().unwrap();
@@ -231,8 +231,8 @@ mod tests {
                     "private".into(),
                     run.0
                 )
-            .await
-            .is_err());
+                .await
+                .is_err());
         }
     }
 

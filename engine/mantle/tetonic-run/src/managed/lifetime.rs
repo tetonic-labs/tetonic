@@ -8,6 +8,7 @@ use tokio::task::AbortHandle;
 
 #[derive(Clone)]
 pub struct ActiveAttempt {
+    pub(super) delegation_closed: std::sync::Arc<std::sync::atomic::AtomicBool>,
     pub deadline: Option<u64>,
     pub(crate) deadline_instant: Option<tokio::time::Instant>,
     pub work_scope: tetonic_domain::work_scope::WorkScope,
@@ -149,9 +150,10 @@ impl super::service::ManagedRunService {
         if self.is_canceled(attempt) {
             return true;
         }
-        self.active.lock_recover().get(attempt).is_some_and(|active| {
-            active.work_scope.is_canceled() || active.deadline_elapsed()
-        })
+        self.active
+            .lock_recover()
+            .get(attempt)
+            .is_some_and(|active| active.work_scope.is_canceled() || active.deadline_elapsed())
     }
 
     pub async fn attempt_authority_revoked(&self, attempt: &AttemptId) -> bool {

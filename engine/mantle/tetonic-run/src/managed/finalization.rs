@@ -25,6 +25,50 @@ impl super::service::ManagedRunService {
                 "child finalizer cannot finish the parent run".into(),
             ));
         }
+        if active.authorization.is_some() {
+            // Serialize closing the parent against child admission. No child may
+            // slip between checking the descendants and finalizing this worker.
+            let admission = self.admission_gate.lock().await;
+            let snapshot = self.inspect_run(&active.binding.run_id).await?;
+            let unfinished_child = snapshot.tasks.values().any(|task| {
+                task.binding
+                    .delegation
+                    .as_ref()
+                    .is_some_and(|d| d.parent_attempt == job.attempt)
+                    && (!matches!(
+                        task.state,
+                        tetonic_domain::TaskState::Succeeded
+                            | tetonic_domain::TaskState::Failed
+                            | tetonic_domain::TaskState::Canceled
+                            | tetonic_domain::TaskState::Skipped
+                    ) || !snapshot
+                        .attempts
+                        .values()
+                        .any(|a| a.task_id == task.task_id)
+                        || snapshot
+                            .attempts
+                            .values()
+                            .any(|a| a.task_id == task.task_id && !a.execution_quiesced))
+            });
+            // Close effect admission synchronously before withdrawing parent
+            // authority. Otherwise a child can observe revocation in the gap
+            // and publish a failure while whole-run cancellation is still pending.
+            if unfinished_child {
+                for child in self.active.lock_recover().values() {
+                    if child.binding.run_id == active.binding.run_id {
+                        child.work_scope.cancel();
+                    }
+                }
+            }
+            active.delegation_closed.store(true, Ordering::SeqCst);
+            drop(admission);
+            if unfinished_child {
+                self.cancel_run(&active.binding.run_id).await?;
+                return Ok(CandidateOutcome::Canceled {
+                    reason: "parent finished before delegated work quiesced".into(),
+                });
+            }
+        }
         // Keep the effect owner alive at the deadline. Cancellation closes work
         // admission and reaches cooperative workers; it is not quiescence.
         let finish_run = job.finish_run;

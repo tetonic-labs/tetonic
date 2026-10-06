@@ -44,10 +44,12 @@ credentials, widen egress, or construct providers. Named profiles enforce their
 model allowlist. `default` accepts syntactically valid model IDs; runtime model
 availability is checked by the existing inference path on the next request.
 
-This preserves the existing broker boundary. The hosted adapter is still not a
-complete admitted compute plane: hosted broker integration is required before
-registering it for production sessions. Never disguise hosted inference as the
-local slot of a fabric pool.
+This preserves the existing broker boundary. The local UI now has a separate,
+explicit prompt-only hosted route: a sealed `RegisteredHostedInference` shares
+broker admission through `BrokerInferenceProvider::for_hosted`, with native vault
+credentials and per-call disclosure checks. It does not register a hosted API as
+a fabric worker or local pooled model. See `docs/implementation/contracts/local-ui-v1.md`.
+This does not automatically enable hosted profiles for every live coding session.
 
 ## Terminal commands
 

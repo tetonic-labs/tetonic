@@ -131,6 +131,10 @@ async fn ledger_full_refuses_before_child_is_built() {
     let outcome = run_spawned_specialist(
         &mut conversation,
         SpawnRequest {
+            tool_name: String::new(),
+            call_id: String::new(),
+            arguments: serde_json::Value::Null,
+            attempt_id: None,
             parent_agent_id: ROOT_AGENT.to_string(),
             role: "coder".into(),
             task: "should not run".into(),
@@ -179,6 +183,10 @@ async fn child_build_failure_releases_reservation() {
     let outcome = run_spawned_specialist(
         &mut conversation,
         SpawnRequest {
+            tool_name: String::new(),
+            call_id: String::new(),
+            arguments: serde_json::Value::Null,
+            attempt_id: None,
             parent_agent_id: ROOT_AGENT.to_string(),
             role: "coder".into(),
             task: "x".into(),
@@ -300,6 +308,10 @@ async fn spawn_limits_still_cap_when_ledger_would_allow() {
     let _first = host
         .dispatch(
             SpawnRequest {
+                tool_name: String::new(),
+                call_id: String::new(),
+                arguments: serde_json::Value::Null,
+                attempt_id: None,
                 parent_agent_id: ROOT_AGENT.to_string(),
                 role: "coder".into(),
                 task: "one".into(),
@@ -311,6 +323,10 @@ async fn spawn_limits_still_cap_when_ledger_would_allow() {
     let second = host
         .dispatch(
             SpawnRequest {
+                tool_name: String::new(),
+                call_id: String::new(),
+                arguments: serde_json::Value::Null,
+                attempt_id: None,
                 parent_agent_id: ROOT_AGENT.to_string(),
                 role: "coder".into(),
                 task: "two".into(),

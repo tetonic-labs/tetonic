@@ -1,6 +1,26 @@
 use super::*;
 
 impl ResourceService {
+    pub async fn list_agents(
+        &self,
+        credential: &str,
+        org: String,
+    ) -> Result<Vec<(String, tetonic_memory::RegisteredAgent)>, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ReadOrganization {
+                    org_id: org.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .read(move |db| db.list_organization_agents(&actor.principal_id, &org))
+            .await??)
+    }
+
     /// Register immutable harness configuration. Requested capabilities are data,
     /// not effective grants; activation is a separate governed operation.
     pub async fn register_agent(

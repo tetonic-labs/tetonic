@@ -10,24 +10,29 @@ use tetonic_memory::{OrganizationRow, SharedStore, StoreError, TeamRow};
 mod local_control;
 mod local_credentials;
 pub use local_control::LocalControl;
-mod membership;
 mod administration;
+mod membership;
 mod team_work;
+mod work_budgets;
+mod work_usage;
+mod work_briefs;
+mod huddle_plans;
+pub(crate) use huddle_plans::PlanMutation;
 mod team_work_activation;
 pub use team_work_activation::TeamWorkLaunch;
+mod context_artifacts;
+mod context_compiler;
+mod contexts;
+mod credential_binding;
 mod human_controls;
 mod workstation_placement;
-mod contexts;
-mod context_compiler;
-mod credential_binding;
-mod context_artifacts;
 pub use contexts::ContextService;
+pub use local_credentials::{IssuedCredential, LocalCredentials};
+pub use membership::CredentialVerifier;
 pub use tetonic_memory::team_participation_context_id;
 pub use tetonic_memory::ContextOwner;
 pub use tetonic_memory::HuddleProposal;
 pub use tetonic_memory::OrganizationRole;
-pub use local_credentials::{IssuedCredential, LocalCredentials};
-pub use membership::CredentialVerifier;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum ResourceAction {
@@ -238,7 +243,9 @@ mod context_pipeline_tests;
 mod agents;
 
 mod general_harness;
-pub use general_harness::{HarnessPreparationLimits, PreparedAgentRevision};
+pub use general_harness::{
+    GeneralAgentPreferences, HarnessPreparationLimits, PreparedAgentRevision,
+};
 
 mod execution_authority;
 
@@ -253,4 +260,9 @@ mod activation;
 pub use activation::RegisteredAgentJob;
 
 mod registered_executor;
-pub use registered_executor::{RegisteredExecutionSettings, RegisteredAgentSubmission, RegisteredAgentExecution};
+pub(crate) mod plan_dispatch;
+pub use plan_dispatch::PlanDispatch;
+pub use registered_executor::{
+    RegisteredAgentExecution, RegisteredAgentSubmission, RegisteredExecutionSettings,
+    RegisteredHostedInference,
+};

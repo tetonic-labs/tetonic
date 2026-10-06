@@ -121,8 +121,11 @@ impl Agent {
         self.config.task_id = Some(task_id.to_string());
         self.config.attempt_id = Some(attempt_id.to_string());
         if let Some(audit) = &self.audit {
-            audit.note(&serde_json::json!({"kind":"managed_binding", "run_id":run_id,
-                "task_id":task_id, "attempt_id":attempt_id}).to_string());
+            audit.note(
+                &serde_json::json!({"kind":"managed_binding", "run_id":run_id,
+                "task_id":task_id, "attempt_id":attempt_id})
+                .to_string(),
+            );
         }
     }
 
@@ -771,8 +774,13 @@ impl Agent {
             };
         }
         if !self.execution_authorized().await {
-            return ToolOutcome { ok: false, summary: "execution authorization denied".into(),
-                content: "execution authorization denied".into(), error_kind: Some("denied".into()), change: None };
+            return ToolOutcome {
+                ok: false,
+                summary: "execution authorization denied".into(),
+                content: "execution authorization denied".into(),
+                error_kind: Some("denied".into()),
+                change: None,
+            };
         }
         let _tool_stage = tetonic_telemetry::enter_stage_child("tool");
         let name = name.to_string();
@@ -1162,7 +1170,7 @@ impl Agent {
                     tools: Vec::new(),
                     temperature: 0.2,
                     num_ctx: Some(self.config.num_ctx as u32),
-                max_tokens: None,
+                    max_tokens: None,
                     draft_model: self.config.draft_model.clone(),
                     draft_count: self.config.draft_count,
                     keep_alive: None,
@@ -1494,7 +1502,11 @@ impl Agent {
                 model: self.config.model.clone(),
                 model_digest: None,
                 messages: sent,
-                tools: self.inference_schemas().to_vec(),
+                tools: if self.config.response_schema.is_some() {
+                    vec![]
+                } else {
+                    self.inference_schemas().to_vec()
+                },
                 temperature: self.config.temperature,
                 num_ctx: Some(self.config.num_ctx as u32),
                 max_tokens: None,
@@ -1526,7 +1538,7 @@ impl Agent {
                     model_tier: self.config.model_tier.clone(),
                     ..Default::default()
                 }),
-                response_format: None,
+                response_format: self.config.response_schema.clone(),
                 outbound_scan: Default::default(),
             };
             tetonic_inference::stamp_request_classification(&mut req);
@@ -1555,7 +1567,9 @@ impl Agent {
                     };
                 }
                 if !self.execution_authorized().await {
-                    return CandidateOutcome::Failed { message: "execution authorization denied".into() };
+                    return CandidateOutcome::Failed {
+                        message: "execution authorization denied".into(),
+                    };
                 }
                 let inference_timer =
                     tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Inference);
@@ -1604,6 +1618,12 @@ impl Agent {
                 a.message("assistant", &msg.content, tcj.as_deref());
             }
             convo.messages.push(msg);
+
+            if self.config.response_schema.is_some() && !tool_calls.is_empty() {
+                return CandidateOutcome::Failed {
+                    message: "structured answer returned an unexpected tool call".into(),
+                };
+            }
 
             if tool_calls.is_empty() {
                 let answer_text = convo
@@ -1682,7 +1702,9 @@ impl Agent {
                     };
                 }
                 if !self.execution_authorized().await {
-                    return CandidateOutcome::Failed { message: "execution authorization denied".into() };
+                    return CandidateOutcome::Failed {
+                        message: "execution authorization denied".into(),
+                    };
                 }
                 let name = tc.function.name.clone();
                 let args = tc.function.arguments.clone();
@@ -1725,6 +1747,35 @@ impl Agent {
                     name: name.clone(),
                     args: args.clone(),
                 });
+
+                // D7: validate tool JSON before execute; one repair pass via tool result.
+                {
+                    if let Err(e) = self.tools.validate_tool_args(&name, &args) {
+                        let feedback = format!(
+                            "ERROR: invalid arguments for `{name}`: {e}. \
+Fix the JSON to match the tool schema and call the tool again."
+                        );
+                        if let Some(a) = self.audit() {
+                            a.tool_call(
+                                &call_id,
+                                &name,
+                                &args_json,
+                                false,
+                                "invalid arguments",
+                                Some("bad_args"),
+                            );
+                            a.tool_message(&name, &call_id, &feedback);
+                        }
+                        on_step(Step::ToolResult {
+                            call_id: call_id.clone(),
+                            name: name.clone(),
+                            ok: false,
+                            summary: "invalid arguments".into(),
+                        });
+                        convo.messages.push(Message::tool(name.clone(), feedback));
+                        continue 'steps;
+                    }
+                }
 
                 if name == invocation.completion_tool {
                     let mut summary = args
@@ -1800,7 +1851,9 @@ impl Agent {
                     };
                 }
 
-                if invocation.discipline.spawn_tool.as_deref() == Some(name.as_str()) {
+                if invocation.discipline.spawn_tool.as_deref() == Some(name.as_str())
+                    || invocation.discipline.handoff_tool.as_deref() == Some(name.as_str())
+                {
                     if let Some(hook) = &self.spawn {
                         let role = args
                             .get("role")
@@ -1814,6 +1867,10 @@ impl Agent {
                             .to_string();
                         let outcome = hook(
                             SpawnRequest {
+                                tool_name: name.clone(),
+                                call_id: call_id.clone(),
+                                arguments: args.clone(),
+                                attempt_id: self.config.attempt_id.clone(),
                                 role,
                                 task,
                                 parent_agent_id: self.config.agent_id.clone(),
@@ -1839,7 +1896,9 @@ impl Agent {
                             ok: outcome.ok,
                             summary: outcome.summary.clone(),
                         });
-                        convo.messages.push(Message::tool(name.clone(), model_str));
+                        convo.messages.push(
+                            Message::tool(name.clone(), model_str).with_tool_call_id(&call_id),
+                        );
                         continue 'steps;
                     }
                     let feedback = invocation
@@ -1868,35 +1927,6 @@ impl Agent {
                     });
                     convo.messages.push(Message::tool(name.clone(), feedback));
                     continue 'steps;
-                }
-
-                // D7: validate tool JSON before execute; one repair pass via tool result.
-                if name != invocation.completion_tool {
-                    if let Err(e) = self.tools.validate_tool_args(&name, &args) {
-                        let feedback = format!(
-                            "ERROR: invalid arguments for `{name}`: {e}. \
-Fix the JSON to match the tool schema and call the tool again."
-                        );
-                        if let Some(a) = self.audit() {
-                            a.tool_call(
-                                &call_id,
-                                &name,
-                                &args_json,
-                                false,
-                                "invalid arguments",
-                                Some("bad_args"),
-                            );
-                            a.tool_message(&name, &call_id, &feedback);
-                        }
-                        on_step(Step::ToolResult {
-                            call_id: call_id.clone(),
-                            name: name.clone(),
-                            ok: false,
-                            summary: "invalid arguments".into(),
-                        });
-                        convo.messages.push(Message::tool(name.clone(), feedback));
-                        continue 'steps;
-                    }
                 }
 
                 if invocation.discipline.expand_tool.as_deref() == Some(name.as_str()) {
@@ -1953,7 +1983,10 @@ Fix the JSON to match the tool schema and call the tool again."
                                     ok: true,
                                     summary,
                                 });
-                                convo.messages.push(Message::tool(name.clone(), model_str));
+                                convo.messages.push(
+                                    Message::tool(name.clone(), model_str)
+                                        .with_tool_call_id(&call_id),
+                                );
                                 continue 'steps;
                             }
                             Err(e) => {
@@ -2333,8 +2366,8 @@ fn content_looks_like_tool_json(content: &str) -> bool {
 }
 
 #[cfg(test)]
-#[path = "agent_tests.rs"]
-mod tests;
-#[cfg(test)]
 #[path = "blocking_work_tests.rs"]
 mod blocking_work_tests;
+#[cfg(test)]
+#[path = "agent_tests.rs"]
+mod tests;

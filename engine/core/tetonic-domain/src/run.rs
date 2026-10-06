@@ -117,9 +117,18 @@ pub struct ActivationBinding {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub struct DelegatedTaskBinding {
+    pub parent_attempt: AttemptId,
+    pub activation: ActivationBinding,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct TaskInputBinding {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub activation: Option<ActivationBinding>,
+    /// Child delivery identity within the parent's run. Never a root activation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub delegation: Option<DelegatedTaskBinding>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub execution_scope: Option<ExecutionScope>,
     /// Locator for the selected immutable grant, never authority by itself.
@@ -146,6 +155,7 @@ impl Default for TaskInputBinding {
     fn default() -> Self {
         Self {
             activation: None,
+            delegation: None,
             execution_scope: None,
             execution_grant_id: None,
             job_spec: None,

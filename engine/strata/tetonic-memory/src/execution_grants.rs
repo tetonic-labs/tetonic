@@ -13,6 +13,27 @@ pub struct ExecutionGrant {
 }
 
 impl Store {
+    /// Read an existing grant for trusted owner composition without changing its expiry.
+    pub fn get_execution_grant(
+        &self,
+        actor: &str,
+        org: &str,
+        id: &str,
+    ) -> Result<Option<ExecutionGrant>> {
+        if !self.control_access(actor, ControlPermission::ManageOrganization, org, "")? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let payload: Option<String> = self.conn.query_row(
+            "SELECT payload FROM execution_grants WHERE grant_id=?1 AND org_id=?2 AND revoked_at IS NULL",
+            params![id, org], |row| row.get(0),
+        ).optional()?;
+        payload
+            .map(|value| {
+                serde_json::from_str(&value).map_err(|_| StoreError::ControlResourceConflict)
+            })
+            .transpose()
+    }
+
     pub(crate) fn migrate_execution_grants_v40(&self) -> Result<()> {
         if self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version>=40)",
@@ -89,6 +110,24 @@ impl Store {
         if !registered {
             return Err(StoreError::ControlAccessDenied);
         }
+        // A derived grant cannot be reissued through the independent-root door.
+        if self.execution_grant_is_delegated(&grant.grant_id)? {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        self.insert_execution_grant(actor, grant, &payload, now, "issue")?;
+        tx.commit()?;
+        Ok(())
+    }
+
+    /// Caller owns the transaction and has checked the relevant authority.
+    pub(crate) fn insert_execution_grant(
+        &self,
+        actor: &str,
+        grant: &ExecutionGrant,
+        payload: &str,
+        now: i64,
+        action: &str,
+    ) -> Result<()> {
         let old: Option<(String, Option<i64>)> = self
             .conn
             .query_row(
@@ -115,9 +154,11 @@ impl Store {
                     grant.expires_at
                 ],
             )?;
-            self.conn.execute("INSERT INTO execution_grant_events(grant_id,actor,action,at) VALUES(?1,?2,'issue',?3)",params![grant.grant_id,actor,now])?;
+            self.conn.execute(
+                "INSERT INTO execution_grant_events(grant_id,actor,action,at) VALUES(?1,?2,?3,?4)",
+                params![grant.grant_id, actor, action, now],
+            )?;
         }
-        tx.commit()?;
         Ok(())
     }
 
@@ -157,6 +198,10 @@ impl Store {
         now: i64,
     ) -> Result<bool> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
+        if self.execution_grant_is_delegated(id)? {
+            // A parent-bound grant is never authority for an independent job.
+            return Ok(false);
+        }
         let payload: Option<String> = self.conn.query_row("SELECT payload FROM execution_grants WHERE grant_id=?1 AND revoked_at IS NULL AND expires_at>?2",
             params![id,now],|r|r.get(0)).optional()?;
         let allowed = if let Some(payload) = payload {
@@ -226,6 +271,14 @@ mod tests {
         assert!(db.issue_execution_grant("alice", &grant, 100).is_err());
         db.issue_execution_grant("admin", &grant, 100).unwrap();
         db.issue_execution_grant("admin", &grant, 100).unwrap();
+        assert_eq!(
+            db.get_execution_grant("admin", "org", "grant").unwrap(),
+            Some(grant.clone())
+        );
+        assert!(db.get_execution_grant("alice", "org", "grant").is_err());
+        assert!(db
+            .get_execution_grant("admin", "other-org", "grant")
+            .is_err());
         let count: i64 = db
             .conn
             .query_row("SELECT count(*) FROM execution_grant_events", [], |r| {
@@ -255,6 +308,10 @@ mod tests {
             .unwrap();
         db.revoke_execution_grant("admin", "org", "grant", 102)
             .unwrap();
+        assert!(db
+            .get_execution_grant("admin", "org", "grant")
+            .unwrap()
+            .is_none());
         assert!(!db
             .execution_grant_allows("grant", &grant.scope, &grant.job, 103)
             .unwrap());
