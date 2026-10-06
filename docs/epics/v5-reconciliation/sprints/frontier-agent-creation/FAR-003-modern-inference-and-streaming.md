@@ -6,6 +6,8 @@ Status: **in progress; OpenAI Responses path implemented**. Size: L. Parent: [fr
 
 Add OpenAI Responses to the existing guarded inference path; preserve provider call IDs, opaque continuation items, structured outputs and refusal/incomplete states. Stream validated deltas through existing managed events. Upgrade Anthropic message continuity/streaming against its native protocol. Remove synthetic success for missing external tool results. Keep API and subscription request profiles distinct, including their budget limits.
 
+Provider-independent follow-up: add a Google/Gemini native protocol adapter under the existing inference boundary and qualify Anthropic's ordinary-tool/MCP result round trips. Reuse the same engine tool manifest and executor across OpenAI, Anthropic, Google and local routes. Preserve each protocol's required private continuation and actual call identifiers; execute only validated complete calls and return genuine results/errors. Verify current official protocol requirements before implementation. Provider-native encoding must not become a separate permission model.
+
 ## Acceptance
 
 A streamed model turn calls a tool, receives its actual correlated result, continues and finishes. Parallel calls, missing outputs, split SSE frames, cancel, truncated streams and usage errors have deterministic tests. Reasoning continuation survives without disclosure as shared memory. No failed stream is reported as success.

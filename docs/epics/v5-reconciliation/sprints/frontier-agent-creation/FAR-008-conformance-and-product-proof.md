@@ -10,6 +10,8 @@ Run the shared conformance matrix in the source audit for every advertised profi
 
 Publish exact tested provider/harness versions, execution profiles, limits and live evidence. At least one complete frontier model path and one vendor harness path pass tool access, usage, cancellation and recovery gates. Honest limitations remain visible; no release claim based only on mocks.
 
+The October 6 provider-independence clarification additionally requires a shared ordinary-tool/MCP conformance matrix for OpenAI, Anthropic, Google and local adapters. Record each profile as implemented, fixture-verified, live-verified or unsupported separately. Exercise the same grant and result semantics across adapters, provider changes with preserved selections and destination checks, delegated team execution, and the first vendor harness. The historical results below do not establish this parity.
+
 ## Evidence
 
 The first slices exercise creation, discovery, Responses SSE/protocol handling, managed file reads and provider payload scanning. The actual pinned Codex executable also passes the separate offline feasibility probe in FAR-005. These are separate evidence levels: a fake hosted transport with real Tetonic execution, and a real vendor harness with a fake provider outside Tetonic execution. Neither is live provider/product proof.

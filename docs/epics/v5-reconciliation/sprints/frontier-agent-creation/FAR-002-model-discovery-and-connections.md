@@ -6,6 +6,8 @@ Status: **in progress; API-key discovery verified**. Size: L. Parent: [frontier 
 
 Replace fixed hosted suggestions with authenticated provider discovery through EgressGuard and the existing OS vault. Provide bounded requests, pagination, explicit errors, refresh and custom IDs. Separate API-key and ChatGPT OAuth routes; record connection identity and billing route. Discovery does not prove tool support. Never borrow the desktop app's credentials or silently change billing route.
 
+Provider-independent follow-up: add the Google connection/catalog route and a reusable provider descriptor boundary instead of extending provider-name conditionals throughout agent setup. Model availability and protocol/tool capabilities inform readiness; they do not define or silently alter the agent's grants. Missing adapters remain visibly unsupported. Keep data-destination authorization separate from connection discovery.
+
 ## Acceptance
 
 The current editor discovers models available to the connected account, retains the selected model across refresh, and shows useful auth/offline/empty results. Unsupported model/protocol combinations are explicit. Tests use fake transports; an opt-in live read validates a configured account without inference.

@@ -10,6 +10,8 @@ Implement approved stdio/HTTP MCP connection lifecycle, auth, discovery, manifes
 
 One neutral real test MCP with a read and reversible mutation works through Tetonic and the first vendor harness. Expired auth, changed schemas, missing tools and cancellation are visible. New tools are not automatically granted. Imported skills preserve provenance and cannot escape policy.
 
+The same granted MCP tools must work through every supported tool-capable model adapter (OpenAI, Anthropic, Google and local), using FAR-004's common disclosure/authority binding. An MCP connection is owned by the execution environment and scoped to its users/agents, not attached to a model-provider brand. The current Ollama-only profile below is an interim delivery restriction, not the product's target architecture.
+
 ## Delivered slice — October 6, 2026
 
 An operator supplies `tetonic ui --mcp-config <file>` with named local HTTP servers and exact, vetted read-tool names. The existing Tools & MCPs and agent editor surfaces discover individual tools, show real connection failures, preserve selections across provider changes, and register only explicitly selected tools. No server is installed or launched. This is reusable domain-neutral tooling, exercised with calendar availability; it contains no calendar-specific runtime or workflow.

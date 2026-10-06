@@ -6,6 +6,23 @@ Started October 6, 2026. Status: **in progress**. This dedicated sprint is autho
 
 A person creates an agent, chooses an available model and supported harness, attaches tools, and gives it work. Tools survive model/harness changes; actual compatibility and authority determine whether work can start. Streaming, tool effects, usage, human flags and cancellation remain visible in the current team workspace. The engine owns policy and coordination regardless of which lab supplies inference or the agent loop.
 
+## Product requirement — provider-independent capabilities
+
+User clarification, October 6: an agent's granted tools and MCP connections must work across supported OpenAI, Anthropic, Google and local-model routes. Provider-specific tool subsets are temporary implementation gaps, not the intended product contract. Adding another supported provider must require an inference adapter and conformance evidence, not another tool executor or permission system.
+
+- The agent definition retains stable tool selections. Effective execution authority comes from current organization/team/agent/run grants, deployment scope and policy. A provider change neither expands grants nor silently removes selections.
+- Each inference adapter translates the same tool manifests, calls, call IDs, results, streaming completion and required private continuation into its native protocol. A tool-capable model and a working adapter are prerequisites; an unsupported model must be identified explicitly rather than silently downgraded to prompt-only behavior.
+- Tetonic governs tool execution through the existing tool hosts, action/process brokers and EgressGuard. MCP credentials stay at the connection/execution boundary; model providers receive only policy-permitted manifests, arguments and results. An MCP server may execute remotely from the inference provider.
+- Tool/action permission and permission to disclose context/results to a model destination are separate checks. Changing model destination preserves the tool grant but may require additional authorization under the organization's data policy. Apply that rule to all destinations, including remote local-model endpoints; do not use provider brand as an authorization policy.
+- A vendor harness must bridge the same selected tools through the same authority checks. Delegated team assignments inherit explicit scopes, budgets and stop lineage; choosing a different model or harness cannot change these rules.
+- The UI presents one capability selection experience. Readiness explains specific missing connections, unsupported protocol capabilities or denied data flows while preserving the requested configuration.
+
+Acceptance: run the same neutral MCP and ordinary tool scenarios through OpenAI, Anthropic, Google and local adapters. Exercise success, unselected-tool denial, mismatched/changed manifests, argument/result correlation, errors, partial streams, cancellation, revocation and denied disclosure. Repeat the selected-tool path through managed team dispatch and the first enabled vendor harness. Do not claim parity from a model dropdown, standalone probe or fixture-free assertion.
+
+## Immediate implementation order
+
+This clarification supersedes the earlier vendor-first ordering below. Prioritize FAR-004's common capability/disclosure binding with FAR-006 MCP use; qualify the existing OpenAI and Anthropic adapters plus the new Google route under FAR-002/003/008. Carry the resolved binding through FAR-007 team dispatch. FAR-005 must then connect its harness to that same path. Versioned editing and lifecycle controls continue to reuse existing identity/revision primitives. Do not remove the current guards before their common replacement and tests exist. This is a target and priority change, not a claim that the current restrictions have been removed.
+
 ## Relationship to the October plan
 
 This is a dedicated implementation sprint, not an extra calendar week or an independent architecture. It expands and specializes OCT-102/103/105 and COORD-A/B plus connected capability work. Existing October release gates stay open. October 25 remains the target; the first supported profile and remaining vendor coverage must be re-estimated from evidence. Do not pretend all rows below fit the remaining time. The prior statement that no fourth sprint is added is superseded for this focused workstream; the three calendar windows remain the planning baseline.
