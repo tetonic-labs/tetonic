@@ -1,0 +1,293 @@
+[
+  {
+    "trial": "d",
+    "variant": "Initial grouped-dispatch instructions; dual singular/array advertised schema.",
+    "scenario": "scenario.json",
+    "scenario_sha256": "cfb5c5e49af66dde19e77cadaa3028f9a7112c8382a0d64818d0f9bdca52fcae",
+    "coordinator_digest": "sha256:22b1abbb522c48aff4bef6c777859e86b551fee71d06c9dc24649d50bf16a32e",
+    "source_work_id": "f1fc6531-1731-4a51-87e0-4a9cd8866392",
+    "state": "failed",
+    "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "4b5851c9-e5d2-4fa0-aab0-27584c5f1c4a",
+        "state": "failed",
+        "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 3763,
+        "output_tokens": 500,
+        "calls": 3,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "2dea12f4-aec2-46b5-8dd3-cf0f76ac2f8e",
+        "state": "completed",
+        "error": null,
+        "human_questions": [],
+        "accepted_answers": [
+          "Demonstrated: Handoff/synthesis capability (S1,S2); successful trial completion with proper workflow (S2); engineering gate green (S3). Unproven: factual correctness/team advantage (S1); OCT-101/Sprint 1 closure (S3); fresh workspace tests, installer validation, engine restart recovery, usability results, new model evidence (S3). Recommendation: Run full-workspace test with engine restart and user validation before closing gates."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 936,
+        "output_tokens": 1500,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "0131ef18-e2c2-4570-8c6a-31ad6969a45b",
+        "state": "completed",
+        "error": null,
+        "human_questions": [],
+        "accepted_answers": [
+          "**Corrections:** Assessment correctly distinguishes demonstrated (handoff/synthesis in S1,S2; workflow completion in S2) from unproven (factual correctness S1; gate closure S3; fresh tests/recovery/usability S3).\n\n**Next step:** Run full-workspace test with engine restart and user validation (S3 notes these were not performed). This addresses missing evidence for release readiness before closing OCT-101/Sprint 1 gates."
+        ],
+        "own_token_allowance": 3500,
+        "input_tokens": 1089,
+        "output_tokens": 403,
+        "calls": 1,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      }
+    ],
+    "coordinator_recorded_tool_calls": [
+      {
+        "name": "dispatch_assignment",
+        "arguments": {
+          "assignment_keys": [
+            "assess"
+          ]
+        }
+      },
+      {
+        "name": "dispatch_assignment",
+        "arguments": {
+          "assignment_keys": [
+            "review"
+          ]
+        }
+      }
+    ],
+    "solo": {
+      "agent": "Evidence analyst",
+      "work_id": "ee42d5db-1e1d-45af-bfcd-4238fbe1891f",
+      "state": "failed",
+      "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+      "human_questions": [],
+      "accepted_answers": [],
+      "own_token_allowance": 4096,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "calls": 1,
+      "held_tokens": 4096,
+      "unknown_calls": 1,
+      "pending_calls": 0
+    },
+    "timing": {
+      "solo_seconds": 120.1904382,
+      "team_seconds": 205.4693498
+    }
+  },
+  {
+    "trial": "e",
+    "variant": "Instructions explicitly include dependent keys in one group; dual advertised schema.",
+    "scenario": "scenario.json",
+    "scenario_sha256": "cfb5c5e49af66dde19e77cadaa3028f9a7112c8382a0d64818d0f9bdca52fcae",
+    "coordinator_digest": "sha256:37421d0cd19dde26e103b1f690ffb967022b6be62726cbf75f893b6c072e1ae3",
+    "source_work_id": "3006a15c-ed01-4ccd-9c1a-53e6acfca500",
+    "state": "failed",
+    "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "05e6c0cb-7c88-46f0-b2e9-c227c3db8f73",
+        "state": "failed",
+        "error": "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.",
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 3517,
+        "output_tokens": 813,
+        "calls": 3,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "d27d0a87-4943-460a-8f41-e3beba727a9c",
+        "state": "not_started",
+        "error": null,
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 3500,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 0,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "f5627d74-3e3e-4ce6-958b-ca2d3830336c",
+        "state": "not_started",
+        "error": null,
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 3500,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 0,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      }
+    ],
+    "coordinator_recorded_tool_calls": [
+      {
+        "name": "finish"
+      },
+      {
+        "name": "dispatch_assignment",
+        "arguments": {
+          "assignment_key": "assess",
+          "assignment_keys": [
+            "assess",
+            "review"
+          ]
+        }
+      }
+    ],
+    "solo": {
+      "agent": "Evidence analyst",
+      "work_id": "b39e5063-d14d-450d-b68f-c2299290cacc",
+      "state": "completed",
+      "error": null,
+      "human_questions": [],
+      "accepted_answers": [
+        "Demonstrated: Handoff/synthesis workflow (S1, S2) and green engineering gate (S3). Unproven: Model correctness (S1), OCT-101/Sprint 1 closure (S3), fresh workspace tests, installer validation, or user usability (S3). Inference: Tetonic readiness is incomplete. Recommendation: Execute a fresh full-workspace test run with engine restart to validate recovery and usability before release closure."
+      ],
+      "own_token_allowance": 4096,
+      "input_tokens": 626,
+      "output_tokens": 3147,
+      "calls": 1,
+      "held_tokens": 0,
+      "unknown_calls": 0,
+      "pending_calls": 0
+    },
+    "timing": {
+      "solo_seconds": 109.0328412,
+      "team_seconds": 107.6518943
+    }
+  },
+  {
+    "trial": "f",
+    "variant": "Final single advertised array schema; singular calls accepted for compatibility.",
+    "scenario": "scenario.json",
+    "scenario_sha256": "cfb5c5e49af66dde19e77cadaa3028f9a7112c8382a0d64818d0f9bdca52fcae",
+    "coordinator_digest": "sha256:134043bede83a8696686c08d9eea952f0f20a74a77be9bc26d55fee82d42ed5a",
+    "source_work_id": "b99681ea-a738-43b0-befa-9c66987c6957",
+    "state": "failed",
+    "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+    "participants": [
+      {
+        "agent": "Team coordinator",
+        "work_id": "055e3627-edfc-459c-8155-7e0187590ce1",
+        "state": "failed",
+        "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+        "human_questions": [
+          {
+            "question": "The assess assignment failed - the Evidence analyst did not complete. Should I retry with a different approach or provide my own assessment based on the excerpts?",
+            "why": "Need to determine how to proceed after the evidence analyst failure before attempting review",
+            "options": [
+              "Retry assess with same inputs",
+              "Provide my own assessment now",
+              "Ask for new evidence"
+            ]
+          }
+        ],
+        "accepted_answers": [],
+        "own_token_allowance": 4096,
+        "input_tokens": 2098,
+        "output_tokens": 656,
+        "calls": 2,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence analyst",
+        "work_id": "de3862d5-96b0-4bd8-a13b-516895caea72",
+        "state": "failed",
+        "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 3500,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 1,
+        "held_tokens": 3500,
+        "unknown_calls": 1,
+        "pending_calls": 0
+      },
+      {
+        "agent": "Evidence reviewer",
+        "work_id": "2f620a6e-e858-48d3-a6e3-747ebfda4758",
+        "state": "not_started",
+        "error": null,
+        "human_questions": [],
+        "accepted_answers": [],
+        "own_token_allowance": 3500,
+        "input_tokens": 0,
+        "output_tokens": 0,
+        "calls": 0,
+        "held_tokens": 0,
+        "unknown_calls": 0,
+        "pending_calls": 0
+      }
+    ],
+    "coordinator_recorded_tool_calls": [
+      {
+        "name": "dispatch_assignment",
+        "arguments": {
+          "assignment_keys": [
+            "assess",
+            "review"
+          ]
+        }
+      },
+      {
+        "name": "ask_human"
+      }
+    ],
+    "solo": {
+      "agent": "Evidence analyst",
+      "work_id": "57002ad9-0472-4c06-95ab-fbbb1f944f2b",
+      "state": "failed",
+      "error": "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again.",
+      "human_questions": [],
+      "accepted_answers": [],
+      "own_token_allowance": 4096,
+      "input_tokens": 0,
+      "output_tokens": 0,
+      "calls": 1,
+      "held_tokens": 4096,
+      "unknown_calls": 1,
+      "pending_calls": 0
+    },
+    "timing": {
+      "solo_seconds": 120.1604985,
+      "team_seconds": 359.2996797
+    }
+  }
+]

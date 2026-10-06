@@ -1,6 +1,6 @@
 # October 25 MVP sprint plan
 
-Updated October 5, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [baseline implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md) and [first shaping slice](october-1-coherent-workspace/shaping-evidence-2026-10-05.md). No October P0 ticket has met its complete exit criteria yet.
+Updated October 6, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [baseline implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md) and [first shaping slice](october-1-coherent-workspace/shaping-evidence-2026-10-05.md). No October P0 ticket has met its complete exit criteria yet.
 
 The release should prove that digital autonomous teams can carry out the person's work while the human shapes outcomes, boundaries and priorities. The operator sees work structure, status, agent participation and actual interactions at a glance, can inspect the details, and receives concise flags when judgment is needed. Tetonic carries orchestration and coordination without unbounded interruption loops. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones.
 
@@ -88,6 +88,18 @@ The result inspector now exposes the pinned brief and participant allowances;
 coordination advertisements are leaner. The package gate and 206 application
 unit tests pass, but useful synthesis and independent review remain unproven.
 Coordination headroom and solo deadline diagnosis are the next execution work.
+
+October 6 coordination follow-up: [grouped dispatch and inference timing](october-1-coherent-workspace/coordination-groups-evidence-2026-10-06.md)
+extends the existing dispatcher to collect an ordered group without model relay
+turns, preserving per-assignment admission, cancellation and whole-plan completion
+checks. Actual-model failures exposed an ambiguous dual-format tool schema; the
+model now sees one array format. Payload-free reasoning timing also distinguishes
+initial model activity from completed output. The final live model selected both
+keys together, but the first worker timed out; its reviewer did not start and the
+coordinator's unanswered recovery question expired. One solo comparison completed;
+two timed out. The package gate and focused regressions pass, but useful review,
+reliable inference within the supported limits, grounded recovery choices, budget
+forecasting and the full product/recovery gates remain open.
 
 ## Work levels and tracking
 
