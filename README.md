@@ -47,12 +47,12 @@ The repository contains both the emerging team workspace and the underlying Rust
 
 | Capability           | Current local preview                                                                                                                                                    |
 | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Agent setup          | Register agents, choose models, and set bounded run limits. Local Ollama and hosted OpenAI/Anthropic paths exist for individual agents.                                  |
+| Agent setup          | Register agents, discover local or account-visible models, select supported tools, and set bounded run limits. Individual agents support Ollama and OpenAI/Anthropic API keys. |
 | Shaping and planning | Discuss with the Guide, save a versioned brief, generate and revise assignments, agree on direction, then explicitly start the plan.                                     |
 | Team execution       | A coordinator dispatches agreed assignments to existing local agents. Dependencies and contributions are recorded through managed child runs.                            |
 | Human involvement    | Workers can raise questions during a bounded run. The owner can answer, inspect results, amend upcoming assignments, and cancel work.                                    |
 | Visibility           | Work map, conversation history, individual contributions, and provider-reported token usage with held and remaining allowances.                                          |
-| File access          | Individual local agents can receive supported file tools when the host explicitly grants a workspace. The Guide and current team-execution path do not have file access. |
+| File access          | Individual Ollama agents can receive host-granted file tools. OpenAI agents can use selected file reads with explicit folder disclosure consent. The Guide and current team path lack file access. |
 
 **Choose a trial based on supplied information:** compare two proposals, ask for an independent critique, or synthesize a brief and review its assumptions. These exercise the current coordination path without relying on external access.
 
