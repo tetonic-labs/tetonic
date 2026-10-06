@@ -20,6 +20,7 @@ impl LocalWorkspace {
         let endpoint = match provider {
             "openai" => "https://api.openai.com/v1/models",
             "anthropic" => "https://api.anthropic.com/v1/models",
+            "google" => "https://generativelanguage.googleapis.com/v1beta/models",
             _ => unreachable!(),
         };
         let guard = self.host.app.turn.guard();
@@ -58,11 +59,19 @@ async fn discover(
     // Bounded pagination, with no provider-returned URL or endpoint following.
     for _ in 0..25 {
         let page = transport.list_models(endpoint, cursor.as_deref()).await?;
-        let entries = page["data"]
+        let google = endpoint == "https://generativelanguage.googleapis.com/v1beta/models";
+        let entries = page[if google { "models" } else { "data" }]
             .as_array()
             .ok_or_else(|| InferenceError::Decode("invalid model catalog".into()))?;
         for model in entries {
-            let id = model["id"]
+            if google
+                && !model["supportedGenerationMethods"]
+                    .as_array()
+                    .is_some_and(|methods| methods.iter().any(|m| m == "generateContent"))
+            {
+                continue;
+            }
+            let id = model[if google { "name" } else { "id" }]
                 .as_str()
                 .filter(|id| {
                     !id.is_empty()
@@ -70,20 +79,32 @@ async fn discover(
                         && !id.chars().any(|c| c.is_control() || c.is_whitespace())
                 })
                 .ok_or_else(|| InferenceError::Decode("invalid model ID".into()))?;
+            let id = if google {
+                id.strip_prefix("models/")
+                    .ok_or_else(|| InferenceError::Decode("invalid Gemini model name".into()))?
+            } else {
+                id
+            };
+            if google {
+                super::inference_endpoint("google", id)
+                    .map_err(|_| InferenceError::Decode("invalid Gemini model ID".into()))?;
+            }
             models.insert(id.to_owned());
             if models.len() > 5000 {
                 return Err(InferenceError::Decode("model catalog too large".into()));
             }
         }
-        if page.get("has_more").is_none() || page["has_more"] == false {
+        if (google && (page.get("nextPageToken").is_none() || page["nextPageToken"] == ""))
+            || (!google && (page.get("has_more").is_none() || page["has_more"] == false))
+        {
             return Ok(models.into_iter().collect());
         }
-        if page["has_more"] != true {
+        if !google && page["has_more"] != true {
             return Err(InferenceError::Decode("invalid catalog pagination".into()));
         }
-        let next = page["last_id"]
+        let next = page[if google { "nextPageToken" } else { "last_id" }]
             .as_str()
-            .filter(|id| !id.is_empty() && id.len() <= 256)
+            .filter(|id| !id.is_empty() && id.len() <= 4096 && !id.chars().any(char::is_control))
             .ok_or_else(|| InferenceError::Decode("missing catalog cursor".into()))?;
         if entries.is_empty() || !cursors.insert(next.to_owned()) {
             return Err(InferenceError::Decode(
@@ -117,9 +138,46 @@ mod tests {
             endpoint: &str,
             cursor: Option<&str>,
         ) -> Result<Value, InferenceError> {
-            assert_eq!(endpoint, "https://api.anthropic.com/v1/models");
+            assert!(matches!(
+                endpoint,
+                "https://api.anthropic.com/v1/models"
+                    | "https://generativelanguage.googleapis.com/v1beta/models"
+            ));
             self.cursors.lock().unwrap().push(cursor.map(str::to_owned));
             Ok(self.pages.lock().unwrap().remove(0))
+        }
+    }
+    #[tokio::test]
+    async fn google_catalog_filters_generation_models_and_follows_page_tokens() {
+        let catalog = Catalog {
+            pages: Mutex::new(vec![
+                json!({"models":[{"name":"models/gemini-test","supportedGenerationMethods":["generateContent"]},{"name":"models/embedding-test","supportedGenerationMethods":["embedContent"]}],"nextPageToken":"page/2+="}),
+                json!({"models":[{"name":"models/gemini-next","supportedGenerationMethods":["generateContent"]}]}),
+            ]),
+            cursors: Mutex::default(),
+        };
+        assert_eq!(
+            discover(
+                &catalog,
+                "https://generativelanguage.googleapis.com/v1beta/models"
+            )
+            .await
+            .unwrap(),
+            vec!["gemini-next", "gemini-test"]
+        );
+        assert_eq!(
+            *catalog.cursors.lock().unwrap(),
+            vec![None, Some("page/2+=".into())]
+        );
+        for model in [
+            "https://elsewhere/model",
+            "../model",
+            "models/gemini",
+            "model?key=x",
+            "model#fragment",
+            "",
+        ] {
+            assert!(super::super::inference_endpoint("google", model).is_err());
         }
     }
     #[tokio::test]

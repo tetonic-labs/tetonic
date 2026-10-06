@@ -1,5 +1,5 @@
 //! Wire protocol dispatcher for hosted inference backends.
-use super::{anthropic, openai, responses, HostedModelConfig, HostedWireProtocol};
+use super::{anthropic, gemini, openai, responses, HostedModelConfig, HostedWireProtocol};
 use crate::{ChatRequest, ChatResponse, InferenceError};
 use serde_json::Value;
 
@@ -11,6 +11,7 @@ pub(super) fn request(
         HostedWireProtocol::OpenAiChatCompletions => openai::request(req, config),
         HostedWireProtocol::OpenAiResponses => responses::request(req, config),
         HostedWireProtocol::AnthropicMessages => anthropic::request(req, config),
+        HostedWireProtocol::GoogleGenerateContent => gemini::request(req, config),
     }
 }
 
@@ -23,5 +24,6 @@ pub(super) fn response(
         HostedWireProtocol::OpenAiChatCompletions => openai::response(value, req_model),
         HostedWireProtocol::OpenAiResponses => responses::response(value, req_model),
         HostedWireProtocol::AnthropicMessages => anthropic::response(&value, req_model),
+        HostedWireProtocol::GoogleGenerateContent => gemini::response(&value, req_model),
     }
 }

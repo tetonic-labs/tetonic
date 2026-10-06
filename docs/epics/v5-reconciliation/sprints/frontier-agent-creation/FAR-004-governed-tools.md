@@ -1,6 +1,6 @@
 # FAR-004 — Provider-independent tool execution and disclosure
 
-Status: **in progress — scoped OpenAI file reads implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress — direct-agent file/MCP parity implemented for Ollama, OpenAI, Anthropic and Google; fixture verified**. Size: L. Parent: [frontier agent sprint](plan.md).
 
 ## Work
 
@@ -28,6 +28,18 @@ Selected read and reversible write work with a frontier model, while unselected 
 Run the same ordinary-tool and MCP cases against OpenAI, Anthropic, Google and local adapters with equivalent grants. Their wire payloads may differ; the authorized effect, result delivery, denial and stop semantics must agree. Unsupported adapters/models are explicit readiness failures. Changing provider retains requested tools and triggers only genuinely required destination-policy checks; no provider-specific permission recreation.
 
 ## Evidence
+
+### Provider-independent direct agents — October 6 follow-up
+
+The first three coupling rows above are reconciled. Version-1 `ToolDisclosure` pins the provider, inference endpoint, exact selected tools and optional jailed folder. It is data consent, not execution authority. MCP tool IDs retain their endpoint/manifest pin. All four runtime profiles advertise the same host-supported file and discovered MCP tools. Hosted MCP-only agents need no workspace. General agents still use ResourceService definitions, existing execution grants, managed attempts, ActionBroker, `RegisteredToolHost`/`McpToolHost`, EgressGuard, secret scanning and staged file finalization. No parallel executor or grant store was introduced.
+
+Hosted approval now covers selected tool inputs/results. The editor retains tools across provider changes and resets consent when the model, folder or selection changes. The server independently binds/rechecks the scope. Conservative legacy support accepts old OpenAI read approvals only; it cannot add new provider, MCP or write permissions. Missing keys and changed destination/folder bindings block activation.
+
+One shared fixture matrix exercises real file reads and staged writes, genuine result correlation, unselected-write denial, path escape, secret-result denial and legacy/destination checks against all three hosted protocols. Another exercises actual local HTTP MCP through created hosted agents, including unselected calls, changed manifests, key removal and managed cancellation. Existing Ollama tests exercise the same underlying runtime and MCP host. Results and commands are recorded in FAR-008. No paid inference or live vendor compatibility is claimed.
+
+Remaining: inherited tools/data scope for agreed-plan children (fourth coupling row), integrated interactive approval where policy requires it, vendor harness attachment, durable frontier continuation, stronger capability qualification and live provider/product evidence. Provider independence is implemented for direct general-harness agents; this does not finish the whole ticket or sprint.
+
+### Historical first slice
 
 The current connected editor allows selected OpenAI file reads (`read_file`, `list_dir`, `grep`, `glob`) where the host permits them. Creation requires explicit disclosure consent, recorded against the canonical configured folder. Submission rechecks that scope, narrows the tool host to the selected tools, and uses existing ResourceService grants, managed execution, action broker, usage reservations and the egress scanner. Changing the host folder invalidates that approval. Prompt-only agents retain no ambient workspace access.
 

@@ -155,6 +155,13 @@ export interface WorkUsage {
   over_limit: boolean;
 }
 export interface EngineAgent {
+  tool_disclosure?: {
+    version: number;
+    provider: string;
+    endpoint: string;
+    tools: string[];
+    workspace: string | null;
+  } | null;
   hosted_workspace?: string | null;
   plan_coordinator?: boolean;
   provider?: string;

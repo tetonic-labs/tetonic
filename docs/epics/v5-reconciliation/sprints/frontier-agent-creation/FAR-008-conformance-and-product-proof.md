@@ -14,6 +14,33 @@ The October 6 provider-independence clarification additionally requires a shared
 
 ## Evidence
 
+### Provider-independent direct-agent increment — October 6, 2026
+
+| Profile | Implemented and fixture-verified | Live evidence |
+|---|---|---|
+| Ollama/general | Existing managed file tools and local HTTP MCP; same host tool selection as hosted profiles | No new live trial in this increment |
+| OpenAI/general | Responses streaming, selected files including staged writes, selected local HTTP MCP | Not run |
+| Anthropic/general | Buffered Messages, actual call IDs, private signed/redacted continuation, same file/MCP execution | Not run |
+| Google/general | Account model discovery, buffered generateContent, function schemas/results, private signatures, same file/MCP execution | Not run |
+| Vendor harness and agreed-plan children with these tools | Still restricted; separate integration work remains | Not established |
+
+The shared managed tests exercise 15 file cases and 12 MCP cases across the three hosted adapters. File cases cover actual reads, staged/finalized writes, unselected writes, path escape and secret-result denial. They also check folder/destination binding and conservative legacy approval. MCP cases cover selected/unselected calls, changed manifests and cancellation with a real local HTTP server. Results are correlated back to the model's IDs and surfaced through the existing task history. Provider tests cover prompt isolation, keys, restart, discovery, cancellation and usage reservation release; the Google catalog test covers pagination, generation filtering and unsafe model IDs. UI tests cover exact selection preservation and fresh data approval across providers.
+
+Validation:
+
+| Command | Result |
+|---|---|
+| `cargo test --offline -p tetonic-app -p tetonic-inference -p tetonic-core -p tetonic-egress --lib -- --test-threads=1` | Passed: app 220, inference 149, core 47, egress 25; six existing ignored scenarios/benchmarks across packages |
+| `cargo run --offline -p tetonic-arch-gate -- verify package` | Passed formatting, workspace Clippy, architecture and quality checks |
+| `npm test -- --maxWorkers=2` | 145 passed across 25 files |
+| `npm run build` | Passed TypeScript and production build; existing >500 KiB bundle warning remains |
+
+An initial application run found a newly introduced tool-order normalization change. Creation now preserves the original tool order, keeping existing immutable definitions/retries stable; only the disclosure set is normalized. The complete rerun passed. Later malformed-part validation in the Google/Anthropic decoders is covered by the focused hosted protocol rerun. The previously recorded parallel audit-failure classification race remains open.
+
+No paid inference, subscription credential use, external MCP installation, running-engine restart or publication was performed. An existing running engine needs rebuilding/restarting before these backend changes appear. This is source/fixture evidence, not confirmation that every model in an account catalog supports these APIs. Google/Anthropic token streaming, inherited team data/tool grants, installed harness execution, durable provider continuation, remote/authenticated/write MCP and skills remain open.
+
+### Historical evidence
+
 The first slices exercise creation, discovery, Responses SSE/protocol handling, managed file reads and provider payload scanning. The actual pinned Codex executable also passes the separate offline feasibility probe in FAR-005. These are separate evidence levels: a fake hosted transport with real Tetonic execution, and a real vendor harness with a fake provider outside Tetonic execution. Neither is live provider/product proof.
 
 The package engineering gate passes. Focused checks pass: 28 local-workspace tests (three existing live scenarios ignored), 47 core tests, 26 hosted inference tests, 13 editor tests and TypeScript. The full application suite with default parallelism reported 213 passes, three ignored scenarios and one failure in `registered_workspace_job_uses_production_runtime_broker_tools_and_scoped_audit`: the injected audit-error case returned `Canceled` instead of `Failed`. The isolated test passed. The complete application suite then passed using the engineering gate's serial convention: `cargo test --offline -p tetonic-app --lib -- --test-threads=1` reported 214 passes, three ignored. The parallel race remains open; the serial pass is not a fix.

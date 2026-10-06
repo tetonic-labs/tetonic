@@ -151,19 +151,12 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             let catalog = workspace.agent_catalog().await.unwrap();
             assert!(catalog.tools.contains(&"read_file".to_string()));
             assert!(!catalog.tools.contains(&"run_shell".to_string()));
-            assert_eq!(catalog.runtime_profiles.len(), 3);
+            assert_eq!(catalog.runtime_profiles.len(), 4);
             for profile in &catalog.runtime_profiles {
                 assert_eq!(profile.harness, "general");
-                if profile.provider == "ollama" {
-                    assert_eq!(profile.tools, catalog.tools);
-                } else if profile.provider == "openai" {
-                    assert!(profile.tools.contains(&"read_file".into()));
-                    assert!(!profile.tools.contains(&"write_file".into()));
-                    assert!(profile.requires_tool_consent);
-                } else {
-                    assert!(profile.tools.is_empty());
-                    assert!(profile.tool_restriction.is_some());
-                }
+                assert_eq!(profile.tools, catalog.tools);
+                assert_eq!(profile.requires_tool_consent, profile.provider != "ollama");
+                assert!(profile.tool_restriction.is_none());
             }
             let input = CreateLocalAgent {
                 provider: "ollama".into(),

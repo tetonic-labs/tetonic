@@ -8,6 +8,7 @@ use std::sync::{
 use tetonic_domain::key_storage::{KeyStorageError, SecretBytes};
 use tetonic_inference::hosted::HostedTransport;
 
+mod parity;
 mod tools;
 
 #[derive(Default)]
@@ -51,6 +52,11 @@ impl HostedTransport for Transport {
         cursor: Option<&str>,
     ) -> Result<Value, InferenceError> {
         assert!(cursor.is_none());
+        if endpoint == "https://generativelanguage.googleapis.com/v1beta/models" {
+            return Ok(
+                json!({"models":[{"name":"models/google-test-text-model","supportedGenerationMethods":["generateContent"]}]}),
+            );
+        }
         let model = if endpoint == "https://api.openai.com/v1/models" {
             "openai-test-text-model"
         } else {
@@ -63,6 +69,14 @@ impl HostedTransport for Transport {
         self.calls.lock().unwrap().push(body.clone());
         if self.wait.load(Ordering::SeqCst) {
             std::future::pending::<()>().await;
+        }
+        if body.get("contents").is_some() {
+            return Ok(parity::completion(
+                "google",
+                "finish",
+                json!({"summary":"Hosted answer"}),
+                "finish-1",
+            ));
         }
         if body["model"]
             .as_str()
@@ -130,11 +144,12 @@ async fn hosted_agent_round_trip(with_folder: bool) {
             let catalog = workspace.agent_catalog().await.unwrap();
             assert!(catalog.models.is_empty());
             assert!(catalog.local_error.is_some());
-            assert_eq!(catalog.providers.len(), 2);
+            assert_eq!(catalog.providers.len(), 3);
             assert_eq!(!catalog.tools.is_empty(), with_folder);
             for (provider, model) in [
                 ("openai", "openai-test-text-model"),
                 ("anthropic", "anthropic-test-text-model"),
+                ("google", "google-test-text-model"),
             ] {
                 let input = CreateLocalAgent {
                     provider: provider.into(),
@@ -175,7 +190,11 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     .unwrap();
                 assert_eq!(
                     vault.values.lock().unwrap().len(),
-                    if provider == "openai" { 1 } else { 2 }
+                    match provider {
+                        "openai" => 1,
+                        "anthropic" => 2,
+                        _ => 3,
+                    }
                 );
                 assert!(workspace
                     .create_agent(CreateLocalAgent {
@@ -217,21 +236,13 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                 assert_eq!(transport.calls.lock().unwrap().len(), calls_before_retry);
                 let calls = transport.calls.lock().unwrap().clone();
                 let body = calls.last().unwrap();
-                assert_eq!(body["model"], model);
+                if provider != "google" {
+                    assert_eq!(body["model"], model);
+                }
                 assert!(body.to_string().contains("copper compass"));
                 assert!(!body.to_string().contains(&secret));
                 assert!(body.get("temperature").is_none());
-                let names: Vec<_> = body["tools"]
-                    .as_array()
-                    .unwrap()
-                    .iter()
-                    .map(|tool| {
-                        tool["name"]
-                            .as_str()
-                            .or_else(|| tool["function"]["name"].as_str())
-                            .unwrap()
-                    })
-                    .collect();
+                let names = parity::names(body, provider);
                 assert_eq!(
                     names,
                     vec!["finish"],

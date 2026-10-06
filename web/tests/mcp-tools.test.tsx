@@ -24,7 +24,7 @@ const connection: McpConnection = {
   message: 'Discover tools to check this connection.',
   tools: [],
 };
-function setup() {
+function setup(hosted = false) {
   const client = new LocalEngine('fixture');
   let current = connection;
   const catalog = (): AgentCatalog => ({
@@ -32,7 +32,7 @@ function setup() {
     harnesses: ['general'],
     tools: current.tools.map((t) => t.id),
     mcp_connections: [current],
-    providers: [{ id: 'openai', name: 'OpenAI', key_saved: true }],
+    providers: ['openai', 'anthropic', 'google'].map((id) => ({ id, name: id, key_saved: true })),
     runtime_profiles: [
       {
         provider: 'ollama',
@@ -40,23 +40,24 @@ function setup() {
         tools: current.tools.map((t) => t.id),
         tool_restriction: null,
       },
-      {
-        provider: 'openai',
+      ...['openai', 'anthropic', 'google'].map((provider) => ({
+        provider,
         harness: 'general',
-        tools: [],
-        tool_restriction: 'MCP tools are not available with this provider.',
-      },
+        tools: hosted ? current.tools.map((t) => t.id) : [],
+        requires_tool_consent: true,
+        tool_restriction: hosted ? null : 'MCP tools are not available with this provider.',
+      })),
     ],
     max_steps: 4,
     max_seconds: 120,
     max_tokens: 4096,
   });
   vi.spyOn(client, 'agentCatalog').mockImplementation(async () => catalog());
-  vi.spyOn(client, 'providerModels').mockResolvedValue({
-    provider: 'openai',
+  vi.spyOn(client, 'providerModels').mockImplementation(async (provider) => ({
+    provider,
     models: ['account-model'],
     capabilities_verified: false,
-  });
+  }));
   const discover = vi.spyOn(client, 'discoverMcp').mockImplementation(async () => {
     current = {
       ...connection,
@@ -98,6 +99,50 @@ function setup() {
 afterEach(() => vi.restoreAllMocks());
 
 describe('connected MCP tool selection', () => {
+  it.each(['openai', 'anthropic', 'google'])(
+    'preserves MCP selection for %s and requires consent for its exact data scope',
+    async (provider) => {
+      const f = setup(true);
+      await userEvent.click(await screen.findByRole('button', { name: 'Discover Calendar tools' }));
+      await userEvent.click(await screen.findByRole('checkbox', { name: 'Calendar: search' }));
+      fireEvent.change(screen.getByLabelText('Name', { exact: true }), {
+        target: { value: 'Calendar researcher' },
+      });
+      fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: provider } });
+      await screen.findByRole('option', { name: 'account-model', exact: true });
+      fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+        target: { value: 'account-model' },
+      });
+      await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+      expect(screen.getByRole('checkbox', { name: 'Calendar: search' })).toHaveProperty(
+        'checked',
+        true,
+      );
+      expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', true);
+      await userEvent.click(
+        screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+      );
+      expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty(
+        'disabled',
+        false,
+      );
+      await userEvent.click(screen.getByRole('checkbox', { name: 'Calendar: lookup' }));
+      expect(
+        screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+      ).toHaveProperty('checked', false);
+      expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', true);
+      await userEvent.click(
+        screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+      );
+      await userEvent.click(screen.getByRole('button', { name: 'Create agent' }));
+      await waitFor(() => expect(f.create).toHaveBeenCalledOnce());
+      expect(f.create.mock.calls[0][0]).toMatchObject({
+        provider,
+        tools: [search.id, lookup.id],
+        hosted_tools_consent: true,
+      });
+    },
+  );
   it('discovers an operator-configured service and attaches only the individual selected tool', async () => {
     const f = setup();
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {

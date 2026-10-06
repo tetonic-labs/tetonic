@@ -3,7 +3,7 @@ use std::sync::{
     atomic::{AtomicU8, Ordering},
     Mutex,
 };
-mod fixture;
+pub(crate) mod fixture;
 use fixture::Fixture;
 
 #[test]

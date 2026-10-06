@@ -1,6 +1,6 @@
 # FAR-003 — Modern inference protocols, streaming and tool continuity
 
-Status: **in progress; OpenAI Responses path implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress; OpenAI Responses streaming plus buffered Anthropic/Google tool continuity implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
 
 ## Work
 
@@ -13,6 +13,12 @@ Provider-independent follow-up: add a Google/Gemini native protocol adapter unde
 A streamed model turn calls a tool, receives its actual correlated result, continues and finishes. Parallel calls, missing outputs, split SSE frames, cancel, truncated streams and usage errors have deterministic tests. Reasoning continuation survives without disclosure as shared memory. No failed stream is reported as success.
 
 ## Evidence
+
+October 6 follow-up: Anthropic now retains actual `tool_use` IDs and complete signed/redacted blocks privately, correlates out-of-order results and rejects missing, incomplete or refused tool turns. Google generateContent is a native adapter inside the existing hosted boundary, with function declarations, optional native IDs, internal correlation when older models omit IDs, private thought signatures and complete-response validation. Thought tokens contribute to reported output usage. Provider-native search/code execution is not enabled. Both adapters remain buffered; this change does not claim Google/Anthropic streaming, durable continuation or live model qualification.
+
+Protocol fixtures exercise same-name parallel calls, real result IDs, missing/unknown results, private continuation, cross-model rejection, malformed/truncated calls and the internal finish transition. Shared managed file/MCP parity fixtures are in FAR-004/FAR-008. Official references: [Anthropic client tools](https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls), [Google content wire schema](https://github.com/googleapis/googleapis/blob/master/google/ai/generativelanguage/v1beta/content.proto), [Google usage schema](https://github.com/googleapis/googleapis/blob/master/google/ai/generativelanguage/v1beta/generative_service.proto). These are API-key profiles, separate from subscription/vendor-harness work.
+
+### Historical first slice
 
 October 6: the connected OpenAI API-key route uses Responses through the existing hosted broker, egress checks and usage wrapper. The transport incrementally parses bounded SSE and forwards text through the existing token events; partial tool arguments never execute. The final response must be complete and valid. Provider tool IDs now reach the core loop and its actual result messages. Opaque reasoning continuation is retained privately for the in-process conversation, checked against the model/protocol, and excluded from ordinary serialization and Debug output. It is not durable session resumption.
 

@@ -14,6 +14,10 @@ The current editor discovers models available to the connected account, retains 
 
 ## Evidence
 
+October 6 follow-up: Google API-key creation and account catalog discovery now join the existing OS-vault/EgressGuard route. Discovery handles `models/` names, filters `generateContent` entries, follows bounded `pageToken` pagination, rejects unsafe model IDs and keeps capability qualification explicitly false. The connected editor obtains Google from the same catalog as other providers. Shared provider tests cover key rotation, prompt-only isolation, restart and exact result handling. No live account query was made. Reference: [Google models API](https://ai.google.dev/api/models). A general operator-configurable provider descriptor, OAuth, multi-account identity and live qualification remain open.
+
+### Historical first slice
+
 October 6: API-key model discovery for OpenAI and Anthropic now uses the existing OS vault and EgressGuard. The authenticated local API exposes bounded catalog reads, cursor pagination, model validation/deduplication and explicit errors. No model call is made to discover availability. The connected editor has account-backed choices, refresh, preserved selections, credential-aware request cancellation and manual model IDs; fixed hosted suggestions are removed.
 
 Verified with four application/provider fixtures, six egress tests, twelve UI tests, TypeScript and CLI compilation. No live account was queried. Discovery explicitly does not certify tool/protocol compatibility. OAuth, durable multi-account identity, current capability qualification and live account validation remain open, so the ticket is not complete.

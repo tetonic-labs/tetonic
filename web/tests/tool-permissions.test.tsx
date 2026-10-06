@@ -78,7 +78,9 @@ describe('connected agent permissions', () => {
     expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
     expect(screen.getByRole('checkbox', { name: 'Write files' })).toHaveProperty('disabled', true);
     await userEvent.click(
-      screen.getByRole('checkbox', { name: /Allow selected file results from C:\/approved-work/ }),
+      screen.getByRole('checkbox', {
+        name: /Allow selected tool inputs and results.*C:\/approved-work/,
+      }),
     );
     await userEvent.click(screen.getByRole('button', { name: /Create agent/ }));
     await waitFor(() => expect(create).toHaveBeenCalledOnce());
@@ -180,13 +182,15 @@ describe('connected agent permissions', () => {
     });
     await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
     await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
-    await userEvent.click(screen.getByRole('checkbox', { name: /Allow selected file results/ }));
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+    );
     expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', false);
     const before = await catalog.mock.results[0].value;
     catalog.mockResolvedValue({ ...before, workspace_root: 'C:/different-work' });
     await userEvent.click(screen.getByRole('button', { name: 'Refresh engine setup' }));
     const consent = await screen.findByRole('checkbox', {
-      name: /Allow selected file results from C:\/different-work/,
+      name: /Allow selected tool inputs and results.*C:\/different-work/,
     });
     expect(consent).toHaveProperty('checked', false);
     expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', true);

@@ -36,9 +36,33 @@ fn provider_info(id: &str) -> Result<(&'static str, &'static str), AppError> {
     match id {
         "openai" => Ok(("OpenAI", "https://api.openai.com/v1/responses")),
         "anthropic" => Ok(("Anthropic", "https://api.anthropic.com/v1/messages")),
-        _ => Err(AppError::InvalidRequest(
-            "Choose OpenAI or Anthropic.".into(),
+        "google" => Ok((
+            "Google",
+            "https://generativelanguage.googleapis.com/v1beta/models",
         )),
+        _ => Err(AppError::InvalidRequest(
+            "Choose OpenAI, Anthropic or Google.".into(),
+        )),
+    }
+}
+
+pub(super) fn inference_endpoint(provider: &str, model: &str) -> Result<String, AppError> {
+    let base = provider_info(provider)?.1;
+    if provider == "google" {
+        if model.is_empty()
+            || model.len() > 256
+            || !model
+                .bytes()
+                .all(|b| b.is_ascii_alphanumeric() || b"-_.".contains(&b))
+            || model.starts_with('.')
+        {
+            return Err(AppError::InvalidRequest(
+                "Enter a Gemini model ID without a URL or models/ prefix.".into(),
+            ));
+        }
+        Ok(format!("{base}/{model}:generateContent"))
+    } else {
+        Ok(base.into())
     }
 }
 
@@ -124,6 +148,8 @@ impl HostedCredentialSource for StoredCredential {
         let key = std::str::from_utf8(secret.as_ref()).map_err(|_| unavailable())?;
         if self.provider == "anthropic" {
             tetonic_egress::HostedCredential::anthropic(key)
+        } else if self.provider == "google" {
+            tetonic_egress::HostedCredential::api_key("x-goog-api-key", key)
         } else {
             tetonic_egress::HostedCredential::bearer(key)
         }
@@ -167,7 +193,11 @@ impl LocalWorkspace {
 
     pub(super) async fn providers(&self) -> Vec<LocalProvider> {
         let mut providers = Vec::new();
-        for (id, name) in [("openai", "OpenAI"), ("anthropic", "Anthropic")] {
+        for (id, name) in [
+            ("openai", "OpenAI"),
+            ("anthropic", "Anthropic"),
+            ("google", "Google"),
+        ] {
             providers.push(LocalProvider {
                 id: id.into(),
                 name: name.into(),
@@ -206,7 +236,7 @@ impl LocalWorkspace {
         &self,
         agent: &LocalAgent,
     ) -> Result<crate::resources::RegisteredHostedInference, AppError> {
-        let (_, endpoint) = provider_info(&agent.provider)?;
+        let endpoint = inference_endpoint(&agent.provider, &agent.model)?;
         let workspace_disclosure = if let Some(disclosure) = &agent.hosted_workspace {
             let root = self
                 .host
@@ -216,19 +246,47 @@ impl LocalWorkspace {
                 .ok_or(AppError::WorkspaceUnavailable)?;
             let workspace =
                 tetonic_tools::Workspace::new(root).map_err(|_| AppError::WorkspaceUnavailable)?;
-            if agent.provider != "openai"
-                || workspace.root().to_str() != Some(disclosure)
-                || agent
-                    .tools
-                    .iter()
-                    .any(|tool| !crate::resources::HOSTED_READ_TOOLS.contains(&tool.as_str()))
-            {
+            if workspace.root().to_str() != Some(disclosure) {
                 return Err(AppError::PolicyDenied("The agent's approved hosted workspace no longer matches this host or its selected tools.".into()));
             }
             Some(disclosure.clone())
         } else {
             None
         };
+        // Old definitions authorize only the exact OpenAI file-read profile they
+        // originally approved. Never migrate legacy consent into new capabilities.
+        let disclosure = agent.tool_disclosure.clone().or_else(|| {
+            (agent.provider == "openai"
+                && workspace_disclosure.is_some()
+                && agent
+                    .tools
+                    .iter()
+                    .all(|t| crate::resources::HOSTED_READ_TOOLS.contains(&t.as_str())))
+            .then(|| {
+                let mut tools = agent.tools.clone();
+                tools.sort();
+                tools.dedup();
+                crate::resources::ToolDisclosure {
+                    version: 1,
+                    provider: agent.provider.clone(),
+                    endpoint: endpoint.clone(),
+                    tools,
+                    workspace: workspace_disclosure.clone(),
+                }
+            })
+        });
+        if disclosure.as_ref().is_some_and(|d| {
+            !d.matches(
+                &agent.provider,
+                &endpoint,
+                &agent.tools,
+                workspace_disclosure.as_deref(),
+            )
+        }) || (!agent.tools.is_empty() && disclosure.is_none())
+            || (crate::resources::uses_workspace(&agent.tools) && workspace_disclosure.is_none())
+        {
+            return Err(AppError::PolicyDenied("Selected tools need approval for this model destination and data scope. Review the agent's access.".into()));
+        }
         if !agent.hosted_consent || !self.keys.ready(&agent.provider).await {
             return Err(AppError::InvalidRequest(
                 "Save a provider key and allow prompts to be sent to this provider in agent setup."
@@ -237,10 +295,12 @@ impl LocalWorkspace {
         }
         let guard = self.host.app.turn.guard();
         guard
-            .allow_hosted_endpoint(endpoint)
+            .allow_hosted_endpoint(&endpoint)
             .map_err(|_| AppError::InvalidRequest("Provider endpoint unavailable.".into()))?;
         let mut config = if agent.provider == "anthropic" {
             HostedModelConfig::anthropic(&agent.model, agent.max_tokens as u32)
+        } else if agent.provider == "google" {
+            HostedModelConfig::google(&agent.model, agent.max_tokens as u32)
         } else {
             HostedModelConfig::responses(&agent.model, agent.max_tokens as u32)
         };
@@ -249,7 +309,7 @@ impl LocalWorkspace {
         let transport: Arc<dyn tetonic_inference::hosted::HostedTransport> =
             Arc::new(EgressHostedTransport::new(
                 guard,
-                endpoint.into(),
+                endpoint.clone(),
                 Arc::new(StoredCredential {
                     keys: self.keys.clone(),
                     provider: agent.provider.clone(),
@@ -267,12 +327,12 @@ impl LocalWorkspace {
         Ok(crate::resources::RegisteredHostedInference {
             provider: Arc::new(provider),
             binding: format!(
-                "hosted-v2:{}:{}:{}",
+                "hosted-v3:{}:{}:{}",
                 agent.provider,
                 endpoint,
-                serde_json::to_string(&workspace_disclosure).unwrap_or_default()
+                serde_json::to_string(&disclosure).unwrap_or_default()
             ),
-            workspace_disclosure,
+            tool_disclosure: disclosure,
         })
     }
 }

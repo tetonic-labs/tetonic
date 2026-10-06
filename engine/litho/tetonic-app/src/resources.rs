@@ -273,3 +273,5 @@ pub use registered_executor::{
     RegisteredAgentExecution, RegisteredAgentSubmission, RegisteredExecutionSettings,
     RegisteredHostedInference,
 };
+mod tool_disclosure;
+pub use tool_disclosure::{uses_workspace, ToolDisclosure, WORKSPACE_TOOLS};

@@ -81,13 +81,25 @@ export function agentSetup(
   if (selected.length && !catalog.tools)
     return { state: 'unknown', message: 'Tool availability has not been confirmed.' };
   const supported = supportedAgentTools(catalog, provider, agent.harness);
+  if (provider !== 'ollama' && agent.tool_disclosure) {
+    const scope = agent.tool_disclosure;
+    if (
+      scope.version !== 1 ||
+      scope.provider !== provider ||
+      JSON.stringify([...new Set(selected)].sort()) !== JSON.stringify(scope.tools) ||
+      (scope.workspace || null) !== (agent.hosted_workspace || null)
+    )
+      return needs(
+        'Selected tool access has changed. Create a replacement agent to approve its current access.',
+      );
+  }
   if (selected.some((tool) => !supported.includes(tool)))
     return needs(
       'Some selected tools are no longer available. Restore host access or create an agent with the available tools.',
     );
   if (
     provider !== 'ollama' &&
-    selected.length &&
+    selected.some((tool) => !tool.startsWith('mcp_')) &&
     (!agent.hosted_workspace ||
       (catalog.workspace_root !== undefined && catalog.workspace_root !== agent.hosted_workspace))
   )

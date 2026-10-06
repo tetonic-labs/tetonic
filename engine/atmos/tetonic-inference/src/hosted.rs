@@ -1,6 +1,7 @@
 //! Opt-in, buffered Chat Completions and Messages adapter. No automatic routing or fallback.
 //! Backend options and authentication remain outside the portable agent loop.
 pub mod anthropic;
+pub mod gemini;
 pub mod openai;
 pub mod registry;
 pub mod responses;
@@ -163,7 +164,16 @@ impl HostedTransport for EgressHostedTransport {
             .await
             .map_err(|_| error("hosted credential unavailable"))?;
         let query = cursor
-            .map(|cursor| vec![("after_id", cursor)])
+            .map(|cursor| {
+                vec![(
+                    if endpoint == "https://generativelanguage.googleapis.com/v1beta/models" {
+                        "pageToken"
+                    } else {
+                        "after_id"
+                    },
+                    cursor,
+                )]
+            })
             .unwrap_or_default();
         self.guard
             .get_hosted_json(endpoint, &query, &credential)
@@ -189,6 +199,7 @@ pub enum HostedWireProtocol {
     OpenAiChatCompletions,
     OpenAiResponses,
     AnthropicMessages,
+    GoogleGenerateContent,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -212,6 +223,14 @@ pub struct HostedModelConfig {
 }
 
 impl HostedModelConfig {
+    pub fn google(model: impl Into<String>, max_output_tokens: u32) -> Self {
+        Self {
+            protocol: HostedWireProtocol::GoogleGenerateContent,
+            send_temperature: false,
+            supports_json_schema: false,
+            ..Self::openai(model, max_output_tokens)
+        }
+    }
     pub fn responses(model: impl Into<String>, max_output_tokens: u32) -> Self {
         Self {
             protocol: HostedWireProtocol::OpenAiResponses,

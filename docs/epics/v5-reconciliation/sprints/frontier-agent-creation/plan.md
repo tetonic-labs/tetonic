@@ -52,6 +52,10 @@ Each ticket records implementation, exact checks, limitations and evidence. Unit
 
 ## Current evidence
 
+Latest October 6 increment: the common disclosure binding is implemented, and direct Ollama/OpenAI/Anthropic/Google general agents use the same granted file/MCP execution path. Google discovery/native function calling and Anthropic native-ID/private-continuation fixes are integrated. Hosted file writes reuse staging/finalization; MCP remains local HTTP reads. Shared fixtures cover real effects/results and denial/stop behavior. See FAR-004 and FAR-008 for the current evidence; earlier entries below describe historical slices. No live-provider or installed vendor-harness completion is claimed.
+
+The next integration boundary is FAR-007: resolve each delegated worker's provider, exact tools and authorized input/result disclosure, preserving derived grants, context privacy, budgets and parent stop. FAR-005 must then bridge vendor harnesses into that same execution contract. These remain substantive work, not configuration toggles.
+
 - Source audit: implementation tracing plus nine UI tests and one mocked backend test at baseline. No vendor harness or real MCP integration was proven.
 - [FAR-001 evidence](FAR-001-creation-and-readiness.md#evidence): compatibility and preserved selections, invalid-profile rejection, hosted execution on file-enabled hosts; 25 Rust and nine UI tests passed, plus TypeScript. Mocked provider evidence only.
 - [FAR-002 partial evidence](FAR-002-model-discovery-and-connections.md#evidence): account catalog discovery and current-editor refresh/error paths; four application, six egress and twelve UI tests passed; TypeScript and CLI compilation passed. OAuth and full capability qualification remain open.

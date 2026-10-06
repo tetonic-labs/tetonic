@@ -62,7 +62,13 @@ export function AgentCreateForm({
   const [selectedTools, setSelectedTools] = useState<string[]>([]);
   const [hostedConsent, setHostedConsent] = useState(false);
   const [approvedScope, setApprovedScope] = useState<string | null>(null);
-  const scopeKey = JSON.stringify([provider, connected?.catalog.workspace_root]);
+  const scopeKey = JSON.stringify([
+    provider,
+    model,
+    customModel,
+    connected?.catalog.workspace_root,
+    [...selectedTools].sort(),
+  ]);
   const hostedToolsConsent = approvedScope === scopeKey;
   const hosted = provider !== 'ollama';
   const lab = connected?.catalog.providers?.find((value) => value.id === provider);
@@ -91,7 +97,7 @@ export function AgentCreateForm({
     ? supportedAgentTools(connected.catalog, provider, configuration.harness)
     : [];
   const requiresToolConsent =
-    hosted && !!runtimeProfile?.requires_tool_consent && configuration.toolIds.length > 0;
+    hosted && !!runtimeProfile?.requires_tool_consent && selectedTools.length > 0;
   const providerReady =
     !hosted || (!!lab?.key_saved && hostedConsent && (!requiresToolConsent || hostedToolsConsent));
   const tools = connected
@@ -285,7 +291,7 @@ export function AgentCreateForm({
               </label>
               <p>
                 {runtimeProfile?.tools.length
-                  ? 'This profile can also read files you explicitly allow below.'
+                  ? 'This teammate can use the tools you select below.'
                   : 'This profile works with your prompts and conversation only.'}
               </p>
               <p>Choose a text model with tool calling available to your provider account.</p>
@@ -439,9 +445,10 @@ export function AgentCreateForm({
               onChange={(event) => setApprovedScope(event.target.checked ? scopeKey : null)}
             />
             <span>
-              Allow selected file results from{' '}
-              {connected?.catalog.workspace_root || 'the engine’s configured folder'} to be sent to{' '}
-              {lab?.name}. Files outside this folder and unselected tools stay unavailable.
+              Allow selected tool inputs and results to be sent to {lab?.name}.
+              {selectedTools.some((tool) => !tool.startsWith('mcp_')) &&
+                ` File access stays within ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
+              Only the selected tools are included in this approval.
             </span>
           </label>
         )}

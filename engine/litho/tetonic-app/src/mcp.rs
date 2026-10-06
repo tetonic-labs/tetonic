@@ -14,7 +14,7 @@ use tetonic_egress::EgressGuard;
 mod client;
 mod host;
 #[cfg(test)]
-mod tests;
+pub(crate) mod tests;
 pub(crate) use host::McpToolHost;
 
 #[derive(Clone, Deserialize)]

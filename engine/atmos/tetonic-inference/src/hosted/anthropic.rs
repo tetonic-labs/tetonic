@@ -4,7 +4,7 @@ use serde_json::{json, Value};
 use super::{error, HostedModelConfig};
 use crate::{
     ChatRequest, ChatResponse, FunctionCall, GenUsage, InferenceError, InferenceProvenance,
-    Message, ToolCall,
+    Message, ProviderMessageState, ToolCall,
 };
 
 pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, InferenceError> {
@@ -15,6 +15,9 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
         return Err(error(
             "hosted adapter does not support model digests or speculative draft settings",
         ));
+    }
+    if req.response_format.is_some() {
+        return Err(error("Messages profile does not support structured output"));
     }
     if !config.supports_tools
         && (!req.tools.is_empty()
@@ -33,7 +36,9 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
     let mut pending_tool_ids = std::collections::VecDeque::new();
 
     for (index, msg) in req.messages.iter().enumerate() {
-        if msg.provider_state.is_some() {
+        if msg.provider_state.as_ref().is_some_and(|s| {
+            msg.role != "assistant" || s.protocol != "anthropic-messages" || s.model != req.model
+        }) {
             return Err(error(
                 "provider continuation cannot be converted to Messages",
             ));
@@ -83,13 +88,26 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
                 }));
             }
             "assistant" => {
+                if !pending_tool_ids.is_empty() {
+                    return Err(error("missing tool results before assistant message"));
+                }
                 let mut blocks = Vec::new();
                 if !msg.content.is_empty() {
                     blocks.push(json!({"type": "text", "text": msg.content}));
                 }
                 if let Some(calls) = msg.tool_calls.as_ref().filter(|c| !c.is_empty()) {
                     for (ordinal, call) in calls.iter().enumerate() {
-                        let id = format!("toolu_{index}_{ordinal}");
+                        let id = if let Some(state) = &msg.provider_state {
+                            if state.call_ids.len() != calls.len() {
+                                return Err(error("invalid Messages call correlation"));
+                            }
+                            state.call_ids[ordinal].clone()
+                        } else {
+                            format!("toolu_{index}_{ordinal}")
+                        };
+                        if pending_tool_ids.iter().any(|(existing, _)| existing == &id) {
+                            return Err(error("duplicate Messages tool ID"));
+                        }
                         pending_tool_ids.push_back((id.clone(), call.function.name.clone()));
                         blocks.push(json!({
                             "type": "tool_use",
@@ -98,6 +116,9 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
                             "input": call.function.arguments,
                         }));
                     }
+                }
+                if let Some(state) = &msg.provider_state {
+                    blocks = state.items.clone();
                 }
                 if blocks.is_empty() {
                     blocks.push(json!({"type": "text", "text": ""}));
@@ -108,8 +129,16 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
                 }));
             }
             "tool" => {
+                let position = if let Some(id) = &msg.tool_call_id {
+                    pending_tool_ids
+                        .iter()
+                        .position(|(pending, _)| pending == id)
+                        .ok_or_else(|| error("tool result ID does not match a pending call"))?
+                } else {
+                    0
+                };
                 let (expected_id, expected_name) = pending_tool_ids
-                    .pop_front()
+                    .remove(position)
                     .ok_or_else(|| error("orphan tool result in hosted conversation"))?;
                 if msg.tool_name.as_deref().is_some()
                     && msg.tool_name.as_deref() != Some(&expected_name)
@@ -193,12 +222,8 @@ pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, I
 }
 
 pub fn response(value: &Value, model: &str) -> Result<ChatResponse, InferenceError> {
-    if let Some(err) = value.get("error") {
-        let msg = err
-            .get("message")
-            .and_then(|m| m.as_str())
-            .unwrap_or("unknown Anthropic API error");
-        return Err(error(&format!("Anthropic API error: {msg}")));
+    if value.get("error").is_some() {
+        return Err(error("Anthropic rejected the request"));
     }
 
     let role = value.get("role").and_then(|r| r.as_str()).unwrap_or("");
@@ -215,20 +240,35 @@ pub fn response(value: &Value, model: &str) -> Result<ChatResponse, InferenceErr
 
     let mut text_parts = Vec::new();
     let mut tool_calls = Vec::new();
+    let mut call_ids = Vec::new();
+    let mut seen = std::collections::HashSet::new();
 
     for block in content_blocks {
         match block.get("type").and_then(|t| t.as_str()) {
             Some("text") => {
-                if let Some(text) = block.get("text").and_then(|t| t.as_str()) {
-                    text_parts.push(text);
-                }
+                text_parts.push(
+                    block["text"]
+                        .as_str()
+                        .ok_or_else(|| error("invalid Messages text"))?,
+                );
             }
             Some("tool_use") => {
                 let name = block
                     .get("name")
                     .and_then(|n| n.as_str())
                     .ok_or_else(|| error("missing tool_use name in Anthropic response"))?;
-                let input = block.get("input").cloned().unwrap_or_else(|| json!({}));
+                let input = block
+                    .get("input")
+                    .cloned()
+                    .ok_or_else(|| error("missing Messages tool input"))?;
+                let id = block["id"]
+                    .as_str()
+                    .filter(|id| !id.is_empty() && id.len() <= 512)
+                    .ok_or_else(|| error("missing Messages tool ID"))?;
+                if name.is_empty() || !input.is_object() || !seen.insert(id.to_owned()) {
+                    return Err(error("invalid Messages tool call"));
+                }
+                call_ids.push(id.to_owned());
                 tool_calls.push(ToolCall {
                     function: FunctionCall {
                         name: name.into(),
@@ -236,7 +276,10 @@ pub fn response(value: &Value, model: &str) -> Result<ChatResponse, InferenceErr
                     },
                 });
             }
-            _ => {}
+            Some("thinking") if block["thinking"].is_string() && block["signature"].is_string() => {
+            }
+            Some("redacted_thinking") if block["data"].is_string() => {}
+            _ => return Err(error("unsupported Messages content")),
         }
     }
 
@@ -245,13 +288,24 @@ pub fn response(value: &Value, model: &str) -> Result<ChatResponse, InferenceErr
     if !tool_calls.is_empty() {
         message.tool_calls = Some(tool_calls);
     }
+    message.provider_state = Some(ProviderMessageState {
+        protocol: "anthropic-messages",
+        model: model.into(),
+        items: content_blocks.clone(),
+        call_ids,
+    });
 
     let stop_reason = value
         .get("stop_reason")
         .and_then(|s| s.as_str())
-        .unwrap_or("end_turn");
-    if stop_reason == "max_tokens" {
-        return Err(error("hosted completion truncated by max_tokens limit"));
+        .ok_or_else(|| error("missing Messages stop reason"))?;
+    if !matches!(stop_reason, "end_turn" | "tool_use" | "stop_sequence")
+        || (stop_reason == "tool_use") != message.tool_calls.is_some()
+        || (message.content.is_empty() && message.tool_calls.is_none())
+    {
+        return Err(error(
+            "hosted completion was refused, incomplete or unsupported",
+        ));
     }
 
     let usage = value.get("usage");
@@ -281,6 +335,47 @@ pub fn response(value: &Value, model: &str) -> Result<ChatResponse, InferenceErr
 mod tests {
     use super::*;
     use crate::{FunctionCall, ToolCall, ToolSchema};
+
+    #[test]
+    fn signed_blocks_and_real_ids_survive_parallel_tool_round_trip_privately() {
+        let parts = json!([
+            {"type":"thinking","thinking":"private deliberation","signature":"opaque"},
+            {"type":"redacted_thinking","data":"encrypted"},
+            {"type":"tool_use","id":"real-a","name":"read_file","input":{"path":"a"}},
+            {"type":"tool_use","id":"real-b","name":"read_file","input":{"path":"b"}}
+        ]);
+        let value = json!({"role":"assistant","content":parts,"stop_reason":"tool_use"});
+        let model = "claude-3-5-sonnet-20241022";
+        let msg = response(&value, model).unwrap().message;
+        assert!(msg.content.is_empty());
+        assert!(!serde_json::to_string(&msg)
+            .unwrap()
+            .contains("private deliberation"));
+        assert!(!format!("{msg:?}").contains("opaque"));
+        let mut req = ChatRequest {
+            model: model.into(),
+            messages: vec![Message::user("Read"), msg],
+            ..Default::default()
+        };
+        assert!(request(&req, &test_config()).is_err());
+        req.messages.extend([
+            Message::tool("read_file", "B").with_tool_call_id("real-b"),
+            Message::tool("read_file", "A").with_tool_call_id("real-a"),
+        ]);
+        let body = request(&req, &test_config()).unwrap();
+        assert_eq!(body["messages"][1]["content"], parts);
+        assert_eq!(body["messages"][2]["content"][0]["tool_use_id"], "real-b");
+        req.messages.last_mut().unwrap().tool_call_id = Some("unknown".into());
+        assert!(request(&req, &test_config()).is_err());
+        for reason in ["max_tokens", "refusal", "pause_turn"] {
+            let mut bad = value.clone();
+            bad["stop_reason"] = json!(reason);
+            assert!(response(&bad, model).is_err());
+        }
+        let mut bad = value;
+        bad["content"][3]["id"] = json!("real-a");
+        assert!(response(&bad, model).is_err());
+    }
 
     fn test_config() -> HostedModelConfig {
         HostedModelConfig {
@@ -343,7 +438,7 @@ mod tests {
                         arguments: json!({"path": "src/main.rs"}),
                     },
                 }]),
-                Message::tool("read_file", "fn main() {}").with_tool_call_id("call_0"),
+                Message::tool("read_file", "fn main() {}").with_tool_call_id("toolu_1_0"),
             ],
             tools: vec![ToolSchema::function(
                 "read_file",

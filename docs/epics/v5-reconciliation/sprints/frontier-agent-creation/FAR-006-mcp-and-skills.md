@@ -10,7 +10,7 @@ Implement approved stdio/HTTP MCP connection lifecycle, auth, discovery, manifes
 
 One neutral real test MCP with a read and reversible mutation works through Tetonic and the first vendor harness. Expired auth, changed schemas, missing tools and cancellation are visible. New tools are not automatically granted. Imported skills preserve provenance and cannot escape policy.
 
-The same granted MCP tools must work through every supported tool-capable model adapter (OpenAI, Anthropic, Google and local), using FAR-004's common disclosure/authority binding. An MCP connection is owned by the execution environment and scoped to its users/agents, not attached to a model-provider brand. The current Ollama-only profile below is an interim delivery restriction, not the product's target architecture.
+The same granted MCP tools must work through every supported tool-capable model adapter (OpenAI, Anthropic, Google and local), using FAR-004's common disclosure/authority binding. An MCP connection is owned by the execution environment and scoped to its users/agents, not attached to a model-provider brand. The October 6 follow-up implements this for direct general-harness agents; the earlier Ollama-only restriction is superseded. Delegated children and vendor harnesses remain open.
 
 ## Delivered slice — October 6, 2026
 
@@ -27,7 +27,7 @@ The server must advertise `readOnlyHint: true` **and** the operator must name th
 | Area | Current support | Still open |
 |---|---|---|
 | Transport | Numeric loopback HTTP; bounded JSON and SSE; initialize/list/call/session cleanup | Remote HTTPS, OAuth/API-key connections, stdio process lifecycle, server deployment |
-| Agent | User-created Ollama/general agents, selected per-tool grants; file tools can coexist | Hosted MCP result-disclosure contracts and frontier/vendor harness attachment |
+| Agent | User-created Ollama/OpenAI/Anthropic/Google general agents, selected per-tool grants; hosted agents approve exact tool data scope | Frontier/vendor harness attachment and live provider qualification |
 | Tool behavior | Operator-vetted reads, text/structured results, exact manifest pin | Mutation previews/approval/effect receipts, full local JSON Schema validation, media/resources/prompts |
 | Teamwork | Independently assigned agents reuse the registered execution path | Agreed-plan child tool grants; existing delegated children remain prompt-only plus human escalation |
 | Stop | Stops waiting/inference, requests MCP cancellation, no automatic tool retry | Server termination acknowledgement; cancellation cannot undo or guarantee termination of server work |

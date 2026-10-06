@@ -93,8 +93,8 @@ export function AgentMcpTools({
     <section>
       <h3>Connected services</h3>
       <p>
-        Choose the individual tools this teammate can use. MCP tools currently work with local
-        models.
+        Choose the individual tools this teammate can use. Your selections stay with the agent when
+        you change model providers.
       </p>
       {onDiscover && (
         <McpConnections connections={connections} onDiscover={onDiscover} disabled={disabled} />

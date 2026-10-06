@@ -30,7 +30,9 @@ struct GeneralConfiguration {
 #[derive(Clone, serde::Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeneralAgentPreferences {
-    /// Canonical owner-approved folder for hosted read-tool results, not authority.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_disclosure: Option<super::ToolDisclosure>,
+    /// Canonical owner-approved folder for hosted file-tool data, not authority.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub hosted_workspace: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]

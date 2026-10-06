@@ -88,9 +88,10 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
           )}
         </pre>
         <p>
-          Remote URLs, credentials, write tools and hosted-model MCP access are not supported yet.
-          Server read-only hints are checked but are not a security guarantee; the operator must vet
-          the server and its tools.
+          Remote MCP URLs, credentials and MCP write tools are not supported yet. Hosted models
+          require your approval to receive selected tool inputs and results. Server read-only hints
+          are checked but are not a security guarantee; the operator must vet the server and its
+          tools.
         </p>
       </details>
       {coordinationTools.length > 0 && (

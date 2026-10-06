@@ -1,7 +1,7 @@
 use super::super::client::VERSION;
 use super::*;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
-pub(super) struct Fixture {
+pub(crate) struct Fixture {
     pub config: Vec<u8>,
     pub mode: Arc<AtomicU8>,
     pub calls: Arc<Mutex<Vec<Value>>>,

@@ -8,6 +8,7 @@ pub use profiles::LocalAgentRuntimeProfile;
 
 #[derive(Clone, Serialize)]
 pub struct LocalAgent {
+    pub tool_disclosure: Option<crate::resources::ToolDisclosure>,
     pub hosted_workspace: Option<String>,
     pub plan_coordinator: bool,
     pub provider: String,
@@ -195,8 +196,10 @@ impl LocalWorkspace {
                     "This model provider and harness cannot run together on this host.".into(),
                 )
             })?;
-        if !matches!(input.provider.as_str(), "ollama" | "openai" | "anthropic")
-            || (input.provider != "ollama" && !input.hosted_consent)
+        if !matches!(
+            input.provider.as_str(),
+            "ollama" | "openai" | "anthropic" | "google"
+        ) || (input.provider != "ollama" && !input.hosted_consent)
         {
             return Err(AppError::InvalidRequest(
                 "Choose a supported provider and allow hosted prompts when using a lab model."
@@ -219,10 +222,13 @@ impl LocalWorkspace {
                     .unwrap_or_else(|| "A requested tool is not available on this host.".into()),
             ));
         }
-        let hosted_workspace = if input.provider != "ollama" && !requested_tools.is_empty() {
-            if !input.hosted_tools_consent {
-                return Err(AppError::InvalidRequest("Allow selected file results to be sent to this provider, or remove the selected tools.".into()));
-            }
+        if input.provider != "ollama" && !requested_tools.is_empty() && !input.hosted_tools_consent
+        {
+            return Err(AppError::InvalidRequest("Allow selected tool inputs and results to be sent to this provider, or remove the selected tools.".into()));
+        }
+        let hosted_workspace = if input.provider != "ollama"
+            && crate::resources::uses_workspace(&requested_tools)
+        {
             let root = self
                 .host
                 .settings
@@ -242,10 +248,27 @@ impl LocalWorkspace {
         } else {
             None
         };
+        if input.provider != "ollama" {
+            providers::inference_endpoint(&input.provider, &input.model)?;
+        }
+        let tool_disclosure = if input.provider != "ollama" && !requested_tools.is_empty() {
+            let mut selected = requested_tools.clone();
+            selected.sort();
+            Some(crate::resources::ToolDisclosure {
+                version: 1,
+                provider: input.provider.clone(),
+                endpoint: providers::inference_endpoint(&input.provider, &input.model)?,
+                tools: selected,
+                workspace: hosted_workspace.clone(),
+            })
+        } else {
+            None
+        };
         let config = serde_json::json!({
             "instructions": if input.purpose.is_empty() { "Help the owner think through their request. Inspect the workspace with available tools and call finish with your complete answer as the summary." } else { &input.purpose },
             "requested_tools": requested_tools, "max_steps": input.max_steps,
             "preferences": GeneralAgentPreferences {
+                tool_disclosure,
                 hosted_workspace,
                 provider: (input.provider != "ollama").then_some(input.provider.clone()),
                 hosted_consent: input.provider != "ollama" && input.hosted_consent,
@@ -353,6 +376,7 @@ impl LocalWorkspace {
         let config = &value["configuration"];
         let prefs: GeneralAgentPreferences = if key == AGENT {
             GeneralAgentPreferences {
+                tool_disclosure: None,
                 hosted_workspace: None,
                 provider: None,
                 hosted_consent: false,
@@ -367,6 +391,7 @@ impl LocalWorkspace {
             })?
         } else {
             GeneralAgentPreferences {
+                tool_disclosure: None,
                 hosted_workspace: None,
                 provider: None,
                 hosted_consent: false,
@@ -383,6 +408,7 @@ impl LocalWorkspace {
             .map_err(|_| AppError::InvalidRequest("Invalid stored agent tools.".into()))?
             .unwrap_or_default();
         Ok(LocalAgent {
+            tool_disclosure: prefs.tool_disclosure,
             hosted_workspace: prefs.hosted_workspace,
             plan_coordinator: key == plan_execution::COORDINATOR,
             provider: prefs.provider.unwrap_or_else(local_provider),

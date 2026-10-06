@@ -35,8 +35,8 @@ pub struct RegisteredExecutionSettings {
 pub struct RegisteredHostedInference {
     pub(crate) provider: Arc<tetonic_inference::hosted::HostedChatProvider>,
     pub(crate) binding: String,
-    /// Canonical owner-approved disclosure root for selected read tools only.
-    pub(crate) workspace_disclosure: Option<String>,
+    /// Owner-approved tool data and destination, separate from execution grants.
+    pub(crate) tool_disclosure: Option<super::ToolDisclosure>,
 }
 
 pub(crate) const HOSTED_READ_TOOLS: &[&str] = &["read_file", "list_dir", "grep", "glob"];
@@ -131,12 +131,15 @@ impl crate::Application {
         parent: Option<tetonic_run::managed::DelegationParent>,
     ) -> Result<RegisteredAgentSubmission, AppError> {
         if let Some(mcp) = &settings.mcp {
-            if settings.hosted.is_some() {
-                return Err(AppError::PolicyDenied(
-                    "MCP results are not yet approved for hosted inference".into(),
-                ));
-            }
-            settings.allowed_tools.extend(mcp.tool_names());
+            settings
+                .allowed_tools
+                .extend(mcp.tool_names().into_iter().filter(|tool| {
+                    settings.hosted.as_ref().is_none_or(|h| {
+                        h.tool_disclosure
+                            .as_ref()
+                            .is_some_and(|d| d.tools.contains(tool))
+                    })
+                }));
         }
         let wants_dispatch = settings
             .allowed_tools
@@ -357,20 +360,21 @@ impl crate::Application {
         // requested class remains part of the fingerprint so two host classes
         // do not alias to the same activation.
         let data_class = if let Some(hosted) = &settings.hosted {
-            // Disclosure is scoped to the exact root approved at creation, and
-            // only selected read tools. Recall, team handoffs, writes, processes
-            // and artifacts need their own disclosure/authority contracts.
+            // Data disclosure cannot broaden execution authority. The exact selected
+            // tools and folder must fit both this consent and the prepared grants.
+            // Recall, delegated team context and artifacts remain separately scoped.
             let capabilities = &prepared.command.job_spec.capability_bindings;
-            let valid = match &hosted.workspace_disclosure {
+            let valid = match &hosted.tool_disclosure {
                 Some(disclosure) => {
-                    root_key.as_ref() == Some(disclosure)
+                    disclosure.version == 1
+                        && root_key == disclosure.workspace
                         && settings
                             .allowed_tools
                             .iter()
-                            .all(|tool| HOSTED_READ_TOOLS.contains(&tool.as_str()))
-                        && capabilities.iter().all(|tool| {
-                            tool == "finish" || HOSTED_READ_TOOLS.contains(&tool.as_str())
-                        })
+                            .all(|tool| disclosure.tools.contains(tool))
+                        && capabilities
+                            .iter()
+                            .all(|tool| tool == "finish" || disclosure.tools.contains(tool))
                 }
                 None => {
                     root_key.is_none()

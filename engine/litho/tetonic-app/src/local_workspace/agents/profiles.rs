@@ -22,22 +22,23 @@ impl LocalWorkspace {
             .cloned()
             .collect();
         tools.sort();
-        ["ollama", "openai", "anthropic"]
+        tools.retain(|tool| crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str()));
+        tools.extend(
+            self.host
+                .settings
+                .mcp
+                .as_ref()
+                .map(|m| m.tool_names())
+                .unwrap_or_default(),
+        );
+        ["ollama", "openai", "anthropic", "google"]
             .into_iter()
             .map(|provider| LocalAgentRuntimeProfile {
                 requires_tool_consent: provider != "ollama",
                 provider: provider.into(),
                 harness: "general".into(),
-                tools: match provider {
-                    "ollama" => tools.iter().cloned().chain(self.host.settings.mcp.as_ref().map(|m| m.tool_names()).unwrap_or_default()).collect(),
-                    "openai" => tools.iter().filter(|tool| crate::resources::HOSTED_READ_TOOLS.contains(&tool.as_str())).cloned().collect(),
-                    _ => vec![],
-                },
-                tool_restriction: match provider {
-                    "openai" => Some("This profile supports selected file reads. Writes and other tools are not enabled yet. Choose another provider or remove those tools.".into()),
-                    "anthropic" => Some("Workspace tools are not supported for this provider yet. Choose another provider or remove the selected tools.".into()),
-                    _ => None,
-                },
+                tools: tools.clone(),
+                tool_restriction: None,
             })
             .collect()
     }
