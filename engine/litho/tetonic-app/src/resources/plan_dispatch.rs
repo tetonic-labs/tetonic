@@ -1,8 +1,10 @@
 //! Host-bound plan tool on the existing asynchronous spawn boundary. The model
-//! selects an assignment key; it cannot supply agents, grants, budgets or input.
+//! selects agreed assignment keys; it cannot supply agents, grants, budgets or input.
 use std::sync::{Arc, Mutex};
 use tetonic_domain::work_scope::CancellationSignal;
 use tetonic_domain::{AuthorizedAction, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal};
+
+mod group;
 
 pub(crate) const DISPATCH: &str = "dispatch_assignment";
 pub(crate) const ASK_HUMAN: &str = "ask_human";
@@ -98,51 +100,20 @@ pub struct PlanDispatch {
 
 impl PlanDispatch {
     pub(crate) fn hook(&self) -> tetonic_core::SpawnHook {
-        let sender = self.sender.clone();
-        let human = self.human.clone();
+        let dispatch = self.clone();
         Box::new(move |request, _| {
-            let sender = sender.clone();
-            let human = human.clone();
+            let dispatch = dispatch.clone();
             Box::pin(async move {
                 if request.tool_name == ASK_HUMAN {
-                    return match human {
+                    return match dispatch.human.clone() {
                         Some(h) => h.ask(request).await,
                         None => ToolOutcome::fail("Human handoff unavailable", "denied"),
                     };
                 }
-                let Some(attempt) = request.attempt_id else {
-                    return ToolOutcome::fail("Managed parent required", "denied");
-                };
-                let Ok(args) = serde_json::from_value::<DispatchArgs>(request.arguments) else {
-                    return ToolOutcome::fail(
-                        "Use an assignment key from the agreed plan",
-                        "bad_args",
-                    );
-                };
-                let (reply, receiver) = tokio::sync::oneshot::channel();
-                if sender
-                    .send(DispatchCall {
-                        key: args.assignment_key,
-                        attempt,
-                        reply,
-                    })
-                    .await
-                    .is_err()
-                {
-                    return ToolOutcome::fail("The plan dispatcher is unavailable", "unavailable");
-                }
-                receiver.await.unwrap_or_else(|_| {
-                    ToolOutcome::fail("The plan dispatcher stopped", "unavailable")
-                })
+                group::dispatch(&dispatch, request).await
             })
         })
     }
-}
-
-#[derive(serde::Deserialize)]
-#[serde(deny_unknown_fields)]
-struct DispatchArgs {
-    assignment_key: String,
 }
 
 #[derive(Clone)]
@@ -192,8 +163,8 @@ impl ToolHost for RegisteredToolHost {
             }
             ads.push(ToolAdvertisement {
             name:DISPATCH.into(),
-            description:"Dispatch a ready key; retries reuse work. Returns its result or waiting_human, also_completed, and outstanding_assignments.".into(),
-            parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_key"],"properties":{"assignment_key":{"type":"string","description":"Use the key, not an assignment object.","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}),
+            description:"Dispatch assignment_keys sequentially in dependency order, including dependents. Later workers receive earlier results. Stops on a block or human wait. Completed-key retries reuse results.".into(),
+            parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_keys"],"properties":{"assignment_keys":{"type":"array","minItems":1,"maxItems":12,"uniqueItems":true,"items":{"type":"string","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}}),
         });
         }
         if self.dispatch.as_ref().is_some_and(|d| d.human.is_some()) {
@@ -212,21 +183,11 @@ impl ToolHost for RegisteredToolHost {
                 .map_err(|_| "Keep the question, reason and choices concise".into());
         }
         if name == DISPATCH {
-            if self.dispatch.is_none() {
-                return Err("Plan dispatch is unavailable".into());
-            }
-            let input: DispatchArgs =
-                serde_json::from_value(args.clone()).map_err(|e| e.to_string())?;
-            if !self
+            let dispatch = self
                 .dispatch
                 .as_ref()
-                .unwrap()
-                .assignment_keys
-                .contains(&input.assignment_key)
-            {
-                return Err(format!("Use only an assignment_key from: {}. Pass the short key, not an object or instructions.", self.dispatch.as_ref().unwrap().assignment_keys.join(", ")));
-            }
-            return Ok(());
+                .ok_or("Plan dispatch is unavailable")?;
+            return group::keys(args.clone(), &dispatch.assignment_keys).map(|_| ());
         }
         if name == "finish" {
             if let Some(dispatch) = &self.dispatch {

@@ -1389,6 +1389,8 @@ impl InferenceProvider for OllamaProvider {
         // hidden thinking. A first JSON/thinking chunk is not a visible answer.
         let mut first_content_timer =
             Some(StageTimer::start_visible(PerfStage::InferenceFirstContent));
+        let request_started = std::time::Instant::now();
+        let mut saw_reasoning = false;
         let mut admission = self.admission.lock().await;
         self.admit_allocation(&mut admission, &req.model, &mut body.options)
             .await?;
@@ -1449,6 +1451,21 @@ impl InferenceProvider for OllamaProvider {
                 checked_vram = true;
             }
             if let Some(msg) = chunk.get("message") {
+                // Record only timing, never the model's reasoning text. This
+                // distinguishes active reasoning from load/transport stalls
+                // even when a deadline interrupts before the final usage chunk.
+                if !saw_reasoning
+                    && msg
+                        .get("thinking")
+                        .and_then(Value::as_str)
+                        .is_some_and(|s| !s.is_empty())
+                {
+                    saw_reasoning = true;
+                    tracing::debug!(target: "lokai_performance", stage = "inference_first_reasoning",
+                        outcome = "succeeded", duration_ms = request_started.elapsed().as_secs_f64() * 1000.0,
+                        attempt_id = ?req.fabric.as_ref().and_then(|f| f.attempt_id.as_deref()),
+                        "reasoning stream began");
+                }
                 if let Some(r) = msg.get("role").and_then(|r| r.as_str()) {
                     role = r.to_string();
                 }

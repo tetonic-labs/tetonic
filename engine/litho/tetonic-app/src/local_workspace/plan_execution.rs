@@ -8,7 +8,7 @@ use std::{
 use tetonic_memory::{HuddleExecution, PlanAgentPin, PlanContent};
 
 pub(super) const COORDINATOR: &str = "Team coordinator";
-const INSTRUCTIONS: &str = "You coordinate; workers execute. Dispatch ready assignment keys, respecting dependencies. The dispatcher supplies instructions and owner amendments. Workers ask their own questions. On waiting_human, dispatch other ready keys. Replies include also_completed contributions and outstanding_assignments. Use those receipts; do not redispatch completed work. When nothing is outstanding, call finish immediately with a concise synthesis, limitations and [title](#work=WORK_ID) citations. Never invent contributions or grant authority.";
+const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing outstanding keys in dependency order, including dependents. The host runs the group sequentially and supplies earlier results to later workers. Use a one-key array only when intermediate judgment is needed. A block or human wait stops the group; select other ready keys as needed. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]

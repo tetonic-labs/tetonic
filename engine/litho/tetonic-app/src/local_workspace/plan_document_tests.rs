@@ -12,6 +12,10 @@ struct DocumentScenario {
 #[tokio::test]
 #[ignore = "requires local Ollama and scenario.json in a fresh TETONIC_DOCUMENT_PROOF_DIR"]
 async fn local_model_document_plan_journey() {
+    let _ = tracing_subscriber::fmt()
+        .with_env_filter("lokai_performance=debug")
+        .with_ansi(false)
+        .try_init();
     let directory = std::path::PathBuf::from(
         std::env::var("TETONIC_DOCUMENT_PROOF_DIR").expect("set a fresh document proof directory"),
     );

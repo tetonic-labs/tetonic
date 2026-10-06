@@ -38,6 +38,7 @@ async fn finished_secret_response_keeps_content_tools_and_usage_after_expected_u
     for buffered in [false, true] {
         let mut chunks = vec![];
         if buffered {
+            chunks.push(json!({"done":false,"message":{"role":"assistant","thinking":"PRIVATE_REASONING_CANARY","content":""}}));
             chunks.push(json!({"done":false,"message":{"role":"assistant","content":"Ready. "}}));
         }
         chunks.push(json!({"done":true,"done_reason":"stop","prompt_eval_count":87,"eval_count":13,

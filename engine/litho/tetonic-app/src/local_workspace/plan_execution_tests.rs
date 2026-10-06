@@ -8,6 +8,9 @@ mod human;
 #[path = "plan_document_tests.rs"]
 mod documents;
 
+#[path = "plan_group_tests.rs"]
+mod groups;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;
@@ -167,22 +170,26 @@ async fn scripted_server(
                                 .iter()
                                 .filter(|r| r["tools"].to_string().contains(DISPATCH))
                                 .count();
-                            match count {
-                                1 => (
-                                    "finish",
-                                    json!({"summary":"Premature completion must be rejected"}),
-                                ),
-                                2 => (DISPATCH, json!({"assignment_key":"check"})),
-                                3 | 4 => (DISPATCH, json!({"assignment_key":"compare"})),
-                                5 => (DISPATCH, json!({"assignment_key":"check"})),
-                                _ => (
-                                    "finish",
-                                    json!({"summary":"COMBINED_RESULT: shorter workshops are more flexible; verify attendance before committing."}),
-                                ),
+                            if matches!(scenario, 5..=7) {
+                                groups::reply(scenario, count)
+                            } else {
+                                match count {
+                                    1 => (
+                                        "finish",
+                                        json!({"summary":"Premature completion must be rejected"}),
+                                    ),
+                                    2 => (DISPATCH, json!({"assignment_key":"check"})),
+                                    3 | 4 => (DISPATCH, json!({"assignment_key":"compare"})),
+                                    5 => (DISPATCH, json!({"assignment_key":"check"})),
+                                    _ => (
+                                        "finish",
+                                        json!({"summary":"COMBINED_RESULT: shorter workshops are more flexible; verify attendance before committing."}),
+                                    ),
+                                }
                             }
                         }
                     };
-                    if child && scenario == 1 {
+                    if child && matches!(scenario, 1 | 7) {
                         let _ = stream.read(&mut [0; 1]).await;
                         return;
                     }

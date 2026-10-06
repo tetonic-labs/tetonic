@@ -135,12 +135,31 @@ request returns the receipt; another request cannot start this huddle again.
 A recorded but interrupted start is not automatically retried after restart.
 
 The coordinator runs through registered activation and the managed runtime. Its
-host-bound `dispatch_assignment` tool accepts an approved `assignment_key` only;
+host-bound `dispatch_assignment` tool accepts approved assignment keys only;
 children use existing allocations, derived grants and managed child admission.
 The parent waits outside inference. Completed dependencies are explicit scoped
 inputs; all contributions must succeed before the coordinator can finish.
 The existing task and cancel endpoints inspect/control this work. Canceling a
 child uses run-level cancellation, including its parent and siblings.
+
+The same tool also accepts `assignment_keys`, an ordered array of 1–12 distinct
+agreed keys, instead of `assignment_key`. The model-facing schema advertises only
+the array form (one key for a single assignment); the old singular form remains
+accepted for compatibility. The host validates the entire selection
+before dispatch, then feeds each selected key through the existing dispatcher.
+The caller must list dependencies before their dependents; an unmet dependency
+blocks the group rather than launching prerequisite work implicitly. Every
+assignment retains its own pinned identity, latest eligible owner direction,
+derived grant, allocation and managed parent. This collects several contributions
+without an extra model call between each one; it does not add a scheduler.
+
+A group stops on a blocked assignment or human wait and returns all results
+collected so far, the stop message and current outstanding keys. Other ready work
+can still be selected in a later call. Completed-key retries read their receipts.
+Parent cancellation drops the group wait and prevents subsequent dispatches.
+The coordinator's completion guard remains authoritative for the whole plan,
+including assignments outside the selected group. Single-key receipt shape is
+unchanged. No endpoint or tool can change the approved graph or token allocations.
 
 This local profile permits local inference, explicit shared input and `finish`
 for contributors. File/hosted/MCP access and nested dispatch are unavailable on
