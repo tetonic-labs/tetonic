@@ -9,6 +9,9 @@ use tetonic_inference::hosted::{
 };
 use tetonic_inference::InferenceError;
 
+mod discovery;
+pub use discovery::LocalModelCatalog;
+
 #[derive(Serialize)]
 pub struct LocalProvider {
     pub id: String,

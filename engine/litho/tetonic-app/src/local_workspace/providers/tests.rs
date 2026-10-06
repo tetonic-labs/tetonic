@@ -42,6 +42,20 @@ struct Transport {
 }
 #[async_trait::async_trait]
 impl HostedTransport for Transport {
+    async fn list_models(
+        &self,
+        endpoint: &str,
+        cursor: Option<&str>,
+    ) -> Result<Value, InferenceError> {
+        assert!(cursor.is_none());
+        let model = if endpoint == "https://api.openai.com/v1/models" {
+            "gpt-4.1"
+        } else {
+            assert_eq!(endpoint, "https://api.anthropic.com/v1/models");
+            "claude-sonnet-4-6"
+        };
+        Ok(json!({"data":[{"id":model}],"has_more":false}))
+    }
     async fn complete(&self, body: Value) -> Result<Value, InferenceError> {
         self.calls.lock().unwrap().push(body.clone());
         if self.wait.load(Ordering::SeqCst) {
@@ -127,6 +141,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     tools: None,
                 };
                 assert!(workspace.create_agent(input.clone()).await.is_err());
+                assert!(workspace.provider_models(provider).await.is_err());
                 let secret = format!("disposable-{provider}-credential");
                 workspace
                     .save_provider_key(SaveProviderKey {
@@ -136,6 +151,10 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     .await
                     .unwrap();
                 // Rotation publishes the new reference before deleting the old entry.
+                let discovered = workspace.provider_models(provider).await.unwrap();
+                assert_eq!(discovered.models, vec![model]);
+                assert!(!discovered.capabilities_verified);
+                assert_eq!(discovered.provider, provider);
                 workspace
                     .save_provider_key(SaveProviderKey {
                         provider: provider.into(),
@@ -293,6 +312,8 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                 .await
                 .unwrap();
             assert!(!restored.keys.ready("openai").await);
+            assert!(restored.provider_models("openai").await.is_err());
+            assert!(restored.provider_models("unknown").await.is_err());
             assert!(restored
                 .submit_for_agent(
                     uuid::Uuid::new_v4().to_string(),

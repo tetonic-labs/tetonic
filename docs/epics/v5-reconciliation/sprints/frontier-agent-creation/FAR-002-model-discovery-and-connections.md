@@ -1,6 +1,6 @@
 # FAR-002 — Account-aware model discovery and connections
 
-Status: **planned**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress; API-key discovery verified**. Size: L. Parent: [frontier agent sprint](plan.md).
 
 ## Work
 
@@ -12,5 +12,6 @@ The current editor discovers models available to the connected account, retains 
 
 ## Evidence
 
-Pending implementation and verification. Preserve the [audit's conformance boundaries](../october-1-coherent-workspace/agent-creation-frontier-audit-2026-10-06.md#10-required-conformance-and-release-evidence).
+October 6: API-key model discovery for OpenAI and Anthropic now uses the existing OS vault and EgressGuard. The authenticated local API exposes bounded catalog reads, cursor pagination, model validation/deduplication and explicit errors. No model call is made to discover availability. The connected editor has account-backed choices, refresh, preserved selections, credential-aware request cancellation and manual model IDs; fixed hosted suggestions are removed.
 
+Verified with four application/provider fixtures, six egress tests, twelve UI tests, TypeScript and CLI compilation. No live account was queried. Discovery explicitly does not certify tool/protocol compatibility. OAuth, durable multi-account identity, current capability qualification and live account validation remain open, so the ticket is not complete.

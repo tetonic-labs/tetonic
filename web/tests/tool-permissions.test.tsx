@@ -18,6 +18,11 @@ const workspace: EngineWorkspace = {
 
 function setup(tools = ['read_file', 'list_dir', 'grep', 'glob', 'write_file', 'edit_file']) {
   const client = new LocalEngine('test');
+  vi.spyOn(client, 'providerModels').mockResolvedValue({
+    provider: 'openai',
+    models: ['gpt-4.1'],
+    capabilities_verified: false,
+  });
   vi.spyOn(client, 'agentCatalog').mockResolvedValue({
     models: ['installed-model'],
     harnesses: ['general'],
@@ -61,6 +66,7 @@ describe('connected agent permissions', () => {
     });
     await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
     fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
     expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
     expect(screen.getByRole('checkbox', { name: 'Write files' })).toHaveProperty('disabled', true);
     fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
@@ -74,6 +80,7 @@ describe('connected agent permissions', () => {
     fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'ollama' } });
     expect(screen.getByRole('checkbox', { name: 'Read files' })).toHaveProperty('checked', true);
     fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
     fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
       target: { value: 'gpt-4.1' },
     });

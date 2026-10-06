@@ -191,6 +191,11 @@ export interface EngineProvider {
   name: string;
   key_saved: boolean;
 }
+export interface ProviderModelCatalog {
+  provider: string;
+  models: string[];
+  capabilities_verified: boolean;
+}
 export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key'> & {
   request_id: string;
   tools?: string[];
@@ -336,6 +341,13 @@ export class LocalEngine {
   }
   agentCatalog(signal?: AbortSignal) {
     return this.request<AgentCatalog>('/agent-catalog', undefined, signal);
+  }
+  providerModels(provider: string, signal?: AbortSignal) {
+    return this.request<ProviderModelCatalog>(
+      `/provider-models/${encodeURIComponent(provider)}`,
+      undefined,
+      signal,
+    );
   }
   createAgent(input: CreateEngineAgent) {
     return this.request<EngineAgent>('/agents', input);

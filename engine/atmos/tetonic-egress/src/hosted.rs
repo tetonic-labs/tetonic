@@ -188,8 +188,8 @@ impl EgressGuard {
         Ok(())
     }
 
-    /// Bounded, authenticated JSON POST. No redirects, proxy inheritance, retry,
-    /// or response-body logging. DNS is pinned while retaining TLS verification.
+    /// Bounded, authenticated JSON POST. No redirects, retries or body logging.
+    /// Direct connections pin DNS; an explicitly configured proxy resolves upstream.
     pub async fn post_hosted_json<C: AsRef<HostedCredential>>(
         &self,
         url: &str,
@@ -198,18 +198,65 @@ impl EgressGuard {
     ) -> Result<Value, EgressError> {
         tokio::time::timeout(
             Duration::from_secs(120),
-            self.post_hosted_inner(url, body, credential.as_ref()),
+            self.hosted_json(
+                url,
+                reqwest::Method::POST,
+                Some(body),
+                &[],
+                credential.as_ref(),
+            ),
         )
         .await
         .map_err(|_| failure("hosted request timed out"))?
     }
 
-    async fn post_hosted_inner(
+    /// Read a model catalog at an explicitly enrolled endpoint. Query parameters
+    /// are separate from the endpoint grant and must not contain credentials.
+    pub async fn get_hosted_json<C: AsRef<HostedCredential>>(
         &self,
         url: &str,
-        body: &Value,
+        query: &[(&str, &str)],
+        credential: &C,
+    ) -> Result<Value, EgressError> {
+        tokio::time::timeout(
+            Duration::from_secs(10),
+            self.hosted_json(url, reqwest::Method::GET, None, query, credential.as_ref()),
+        )
+        .await
+        .map_err(|_| failure("hosted catalog request timed out"))?
+    }
+
+    async fn hosted_json(
+        &self,
+        url: &str,
+        method: reqwest::Method,
+        body: Option<&Value>,
+        query: &[(&str, &str)],
         credential: &HostedCredential,
     ) -> Result<Value, EgressError> {
+        let resp = self
+            .hosted_request(url, method, body, query, credential)
+            .await?;
+        let mut stream = resp.bytes_stream();
+        let mut bytes = Vec::new();
+        while let Some(chunk) = stream.next().await {
+            let chunk = chunk.map_err(|_| failure("hosted response interrupted"))?;
+            if bytes.len().saturating_add(chunk.len()) > MAX_BODY {
+                return Err(failure("hosted response exceeds 8 MiB"));
+            }
+            bytes.extend_from_slice(&chunk);
+        }
+        serde_json::from_slice(&bytes).map_err(|_| failure("invalid hosted response JSON"))
+    }
+
+    async fn hosted_request(
+        &self,
+        url: &str,
+        method: reqwest::Method,
+        body: Option<&Value>,
+        query: &[(&str, &str)],
+        credential: &HostedCredential,
+    ) -> Result<reqwest::Response, EgressError> {
         let parsed = endpoint(url)?;
         let host = parsed
             .host_str()
@@ -285,12 +332,17 @@ impl EgressGuard {
                 .insert(key, client.clone());
             client
         };
-        let bytes = serde_json::to_vec(body).map_err(|_| failure("invalid hosted request"))?;
+        let bytes = body
+            .map(serde_json::to_vec)
+            .transpose()
+            .map_err(|_| failure("invalid hosted request"))?
+            .unwrap_or_default();
         if bytes.len() > MAX_BODY {
             return Err(failure("hosted request exceeds 8 MiB"));
         }
         let mut req_builder = client
-            .post(parsed)
+            .request(method, parsed)
+            .query(query)
             .header(reqwest::header::CONTENT_TYPE, "application/json");
 
         for (header_name, header_value) in &credential.headers {
@@ -308,16 +360,7 @@ impl EgressGuard {
                 resp.status().as_u16()
             )));
         }
-        let mut stream = resp.bytes_stream();
-        let mut bytes = Vec::new();
-        while let Some(chunk) = stream.next().await {
-            let chunk = chunk.map_err(|_| failure("hosted response interrupted"))?;
-            if bytes.len().saturating_add(chunk.len()) > MAX_BODY {
-                return Err(failure("hosted response exceeds 8 MiB"));
-            }
-            bytes.extend_from_slice(&chunk);
-        }
-        serde_json::from_slice(&bytes).map_err(|_| failure("invalid hosted response JSON"))
+        Ok(resp)
     }
 }
 
@@ -378,6 +421,18 @@ mod tests {
             Err(EgressError::Denied { .. })
         ));
         guard.revoke_hosted_endpoint(url).unwrap();
+        assert!(matches!(
+            guard
+                .get_hosted_json(url, &[("after_id", "model")], &key)
+                .await,
+            Err(EgressError::Denied { .. })
+        ));
+        assert!(matches!(
+            guard
+                .get_hosted_json("https://example.invalid/v1/models", &[], &key)
+                .await,
+            Err(EgressError::Denied { .. })
+        ));
         assert!(matches!(
             guard.post_hosted_json(url, &Value::Null, &key).await,
             Err(EgressError::Denied { .. })

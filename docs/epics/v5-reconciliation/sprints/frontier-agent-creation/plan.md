@@ -37,3 +37,4 @@ Each ticket records implementation, exact checks, limitations and evidence. Unit
 
 - Source audit: implementation tracing plus nine UI tests and one mocked backend test at baseline. No vendor harness or real MCP integration was proven.
 - [FAR-001 evidence](FAR-001-creation-and-readiness.md#evidence): compatibility and preserved selections, invalid-profile rejection, hosted execution on file-enabled hosts; 25 Rust and nine UI tests passed, plus TypeScript. Mocked provider evidence only.
+- [FAR-002 partial evidence](FAR-002-model-discovery-and-connections.md#evidence): account catalog discovery and current-editor refresh/error paths; four application, six egress and twelve UI tests passed; TypeScript and CLI compilation passed. OAuth and full capability qualification remain open.

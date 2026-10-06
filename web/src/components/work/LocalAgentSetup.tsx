@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { AgentCreateForm } from '../views/AgentCreateForm';
 import type { AgentDraft } from '../../lib/agentConfiguration';
 import type {
@@ -24,6 +24,11 @@ export function LocalAgentSetup({
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [retry, setRetry] = useState(0);
+  const [connectionRevision, setConnectionRevision] = useState(0);
+  const discoverModels = useCallback(
+    (provider: string, signal?: AbortSignal) => client.providerModels(provider, signal),
+    [client],
+  );
   const pending = useRef<CreateEngineAgent | null>(null);
   const active = useRef(true);
   useEffect(() => {
@@ -126,8 +131,11 @@ export function LocalAgentSetup({
         catalog,
         saving,
         error,
+        onDiscoverModels: discoverModels,
+        connectionRevision,
         onSaveKey: async (provider, key) => {
           const saved = await client.saveProviderKey(provider, key);
+          if (active.current) setConnectionRevision((value) => value + 1);
           if (active.current)
             setCatalog((old) =>
               old

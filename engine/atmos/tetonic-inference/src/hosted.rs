@@ -87,6 +87,14 @@ impl HostedCredentialSource for StaticCredentialSource {
 #[async_trait]
 pub trait HostedTransport: Send + Sync {
     async fn complete(&self, body: Value) -> Result<Value, InferenceError>;
+
+    async fn list_models(
+        &self,
+        _endpoint: &str,
+        _cursor: Option<&str>,
+    ) -> Result<Value, InferenceError> {
+        Err(error("model discovery is unavailable for this transport"))
+    }
 }
 
 pub struct EgressHostedTransport {
@@ -113,6 +121,24 @@ impl EgressHostedTransport {
 
 #[async_trait]
 impl HostedTransport for EgressHostedTransport {
+    async fn list_models(
+        &self,
+        endpoint: &str,
+        cursor: Option<&str>,
+    ) -> Result<Value, InferenceError> {
+        let credential = self
+            .credentials
+            .credential()
+            .await
+            .map_err(|_| error("hosted credential unavailable"))?;
+        let query = cursor
+            .map(|cursor| vec![("after_id", cursor)])
+            .unwrap_or_default();
+        self.guard
+            .get_hosted_json(endpoint, &query, &credential)
+            .await
+            .map_err(|e| error(&format!("model discovery failed: {e}")))
+    }
     async fn complete(&self, body: Value) -> Result<Value, InferenceError> {
         let credential = self
             .credentials

@@ -195,6 +195,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             .agent_catalog()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path.starts_with("/api/local/provider-models/") {
+        state
+            .workspace
+            .provider_models(&path["/api/local/provider-models/".len()..])
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path == "/api/local/work-items" {
         state
             .workspace

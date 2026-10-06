@@ -26,7 +26,7 @@ mod shaping;
 mod workroom;
 pub use agents::{CreateLocalAgent, LocalAgent, LocalAgentCatalog};
 pub use plans::PlanCommand;
-pub use providers::{LocalProvider, RemoveProviderKey, SaveProviderKey};
+pub use providers::{LocalModelCatalog, LocalProvider, RemoveProviderKey, SaveProviderKey};
 pub use shaping::{SaveWorkBrief, WorkPurpose};
 pub use workroom::BudgetSettingsRequest;
 

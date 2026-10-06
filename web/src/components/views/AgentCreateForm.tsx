@@ -11,8 +11,9 @@ import {
   type AgentDraft,
 } from '../../lib/agentConfiguration';
 import { AgentAdvancedSettings } from './AgentAdvancedSettings';
-import type { AgentCatalog } from '../../lib/localEngine';
+import type { AgentCatalog, ProviderModelCatalog } from '../../lib/localEngine';
 import { AgentProviderKey } from './AgentProviderKey';
+import { AgentModelSelect } from './AgentModelSelect';
 
 export function AgentCreateForm({
   teams,
@@ -37,6 +38,8 @@ export function AgentCreateForm({
     error: string;
     onSaveKey?: (provider: string, key: string) => Promise<void>;
     onRemoveKey?: (provider: string) => Promise<void>;
+    onDiscoverModels?: (provider: string, signal?: AbortSignal) => Promise<ProviderModelCatalog>;
+    connectionRevision?: number;
   };
 }) {
   const [name, setName] = useState(''),
@@ -219,41 +222,20 @@ export function AgentCreateForm({
               </select>
             </label>
           )}
-          <label>
-            Model
-            <select value={model} onChange={(event) => setModel(event.target.value)}>
-              <option value="">
-                {hosted
-                  ? 'Choose a model'
-                  : defaultModel
-                    ? `Workspace default · ${defaultModel}`
-                    : 'No local models available'}
-              </option>
-              {(hosted
-                ? provider === 'openai'
-                  ? ['gpt-4.1', 'gpt-4.1-mini']
-                  : ['claude-sonnet-4-6', 'claude-haiku-4-5']
-                : choices
-              ).map((choice) => (
-                <option key={choice} value={choice}>
-                  {choice}
-                </option>
-              ))}
-              {(!connected || hosted) && <option value="custom">Specify a model…</option>}
-            </select>
-          </label>
-          {model === 'custom' && (
-            <label>
-              Model identifier
-              <input
-                required
-                maxLength={160}
-                value={customModel}
-                onChange={(event) => setCustomModel(event.target.value)}
-                placeholder="Provider’s exact model ID"
-              />
-            </label>
-          )}
+          <AgentModelSelect
+            key={`models-${provider}`}
+            provider={provider}
+            keySaved={!!lab?.key_saved}
+            connectionRevision={connected?.connectionRevision}
+            discover={connected?.onDiscoverModels}
+            choices={choices}
+            defaultModel={defaultModel}
+            model={model}
+            customModel={customModel}
+            onModel={setModel}
+            onCustomModel={setCustomModel}
+            connected={!!connected}
+          />
           {hosted && lab && connected?.onSaveKey && (
             <AgentProviderKey
               key={provider}

@@ -145,6 +145,11 @@ describe('agent configuration', () => {
         defaultModel="local-model"
         onCreate={onCreate}
         connected={{
+          onDiscoverModels: async () => ({
+            provider: 'anthropic',
+            models: ['claude-sonnet-4-6'],
+            capabilities_verified: false,
+          }),
           catalog: {
             providers: [{ id: 'anthropic', name: 'Anthropic', key_saved: true }],
             models: ['local-model'],
@@ -162,6 +167,7 @@ describe('agent configuration', () => {
 
     await user.type(screen.getByRole('textbox', { name: 'Name', exact: true }), 'Claude Assistant');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Model provider' }), 'anthropic');
+    await screen.findByRole('option', { name: 'claude-sonnet-4-6', exact: true });
     await user.selectOptions(
       screen.getByRole('combobox', { name: 'Model', exact: true }),
       'claude-sonnet-4-6',
