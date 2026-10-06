@@ -35,6 +35,24 @@ Record individual outcomes rather than hiding problems in an average. Require ze
 
 ## Deterministic contract checks
 
+Required follow-up scenarios from the [shaping/capability/skills contract](shaping-capabilities-and-skills.md):
+
+- Start with an unclear problem, compare approaches with source evidence, retain
+  the person's decisions through reload, and dispatch the accepted scope only.
+  Observe whether the person understands the choice; ticket generation alone is
+  not success. Permit an exploration to end without execution.
+- Discover an absent source or insufficient permission, present a concise request,
+  resolve it through an authorized setup path or supplied alternative, and resume
+  only the affected work after validation. Also demonstrate denial without a loop.
+- Create one skill and import another through the supported package/source path;
+  inspect, enable and use a pinned revision in real work. Prove that importing
+  cannot execute scripts, leak personal scope or grant access. Updating/disabling
+  a skill must have explicit semantics for active and future work.
+
+These are new required checks, not covered by the existing frontend example test
+counts. Skill/runtime enforcement belongs to OCT-102; durable shaping to OCT-103;
+capability request resolution to OCT-105; presentation to OCT-104.
+
 | Condition | Required product behavior |
 |---|---|
 | Empty successful response | Empty real workspace; no starter agents, approvals or work substituted |
@@ -122,3 +140,44 @@ Remove fake activity from the normal journey as P0. A full historical package cl
 - [ ] OCT-103/104/105 statuses reflect their full parent acceptance, including engine obligations beyond this UI plan.
 
 Carry confirmed defects and evidence links into the existing sprint progress record. Do not create a separate reporting dashboard or mark the October release ready because this UI sprint passes.
+
+
+## October 5 product journey pass
+
+The operator asked for less navigation, better timing and hierarchy of information, and explicitly confirmed that the map should remain. This pass changes the surrounding production TeamWorkspace, its existing projections and existing plan/brief/answer clients. It does not add another UI, mutation owner, demo dataset, or engine execution path.
+
+| Journey | Friction observed | Applied change |
+|---|---|---|
+| Arrive / return | Internal assignments and an old exploration competed as separate work; an already launched discussion could still appear as a waiting alert | One top-level undertaking per launched plan in the work list and return shelf; discussion and assignments retain their original records. The discussion joins its recorded plan's map group, while contributions remain on the map. |
+| Give a clear request | Three competing composer modes, an unlabeled arrow and implementation-oriented footer | Visible Start work action; a separate Shape work together entry; activity search has a contextual name and home. |
+| Explore an uncertain idea | New-work entry began with a saved-discussion selector; saving a brief offered no obvious onward action | Simple idea entry, resume through existing work, discussion-to-brief and saved-brief-to-plan actions. Draft and uncertain-send identities remain scoped and durable. |
+| Review a proposal | The approach was hidden behind a disclosure before agreement | The approach is visible alongside assignments. Agreement and start still use the existing explicit engine controls. |
+| Follow / finish a team plan | Result and team state were buried inside a generic Shape work shell; the Guide's old state competed with the actual team's state | Work-specific title and Overview land on current execution/result; discussion and brief remain adjacent. Reopened source and root bookmarks resolve to the same journey. |
+| Read contributions | Inspecting each contribution navigated away from the team | Read contributions inline; detailed assignment and coordinator inspection retain a direct in-app back path. |
+| Answer a team | Needs you listed links to work instead of the actual question | Existing HumanQuestion component is directly actionable in Needs you, retaining its receipt verification and uncertain-answer retry behavior. |
+| Understand usage | Needed a separate workspace-level Usage trip | Plan overview shows reported usage against its original allowance, with per-run details and unconfirmed usage disclosure. Global allowance settings remain available. |
+| Inspect a single agent's work | Earlier requests preceded the most recent answer | Latest exchange first; older exchanges expandable. Full recorded activity remains accessible. |
+| Return to the map | Detail panel could cover the selected node | Focus framing reserves the actual wide-panel footprint and updates for viewport size. Map design and activity behavior remain. |
+
+Observed navigation examples are specific to these paths, not universal speed claims. The return shelf opens the team result in one click; an inline contribution takes one further expansion. Needs you exposes the answer control after one click instead of first opening its work record. The map already allowed direct work opening; this pass preserves it.
+
+Validation: 121 frontend tests across 22 files passed; production TypeScript/Vite build passed. Added regression coverage for source/plan grouping without losing discussion records, one-click result landing, inline contribution reading, contextual back navigation, answering from Needs you, root bookmarks/raw coordinator inspection, execution whose source is missing from the snapshot, and starting a new discussion after previous team work. Existing uncertain command, disconnection, stop, brief, plan, agent and usage tests continue to pass.
+
+Browser inspection used the existing real completed two-agent workshop run on the isolated 5176 preview; no new model work was dispatched for this UX pass. Result, contribution, usage, detailed inspection/back, map return, keyboard Escape and new idea entry were checked. Desktop 1440x900/1280x800 and narrow 390x844 were inspected; no document horizontal overflow was observed. At 1280x800 the selected node ended at x443 and the panel began at x582, keeping the selection visible. Screenshots and command logs are local under `.lokai/ux-journey-2026-10-05/`.
+
+Remaining product work: proposal generation still requires explicit capture/review before agreement; no automatic intent-to-plan shortcut was introduced. Team creation/membership and MCP connection management remain limited by the current local engine contract. Large live workloads, first-use installation, 200% zoom, full keyboard/assistive-technology coverage and external fresh-user comprehension trials were not completed in this pass. This is not evidence to close those release gates. Display grouping does not share private shaping context with workers or change their existing context, grants or budget boundaries.
+
+
+## October 5 — capability clarity and commit checks
+
+- Finished exploration is labeled **Discussion ready**. The shaping composer states that the Guide cannot use tools or start agents from the discussion, and points to the existing brief/plan path.
+- Plan creation exposes the current restriction to supplied information and written contributions before the owner invests in a proposal.
+- Tools separates internal coordination controls from file/service capabilities. An empty catalog is only reported as confirmed when connected and successfully loaded; connecting external services remains unavailable in this preview.
+- These are presentation corrections, not implementation of external connectors, automatic team assembly, or continuing responsibilities. The map is unchanged.
+
+Validation before committing the accumulated workspace:
+
+- Web: **121 tests passed** across 22 files. Production build and typecheck passed during the clarity pass.
+- Application library: **205 passed, 1 failed, 2 ignored**. `resources::execution_grants::tests::parent_revocation_quiesces_parent_and_active_child_without_refunding_unknown_spend` failed its child canceled-outcome assertion in the full run, then passed in isolation. The intermittent result remains unresolved; this is not a clean full-suite result.
+- `cargo fmt --all -- --check` failed with differences across 82 files, including files outside this change set. Repository-wide formatting remains an open check.
+- Staged whitespace checks passed. Local databases, connection credentials, generated builds, and live experiment artifacts are excluded from the commits.

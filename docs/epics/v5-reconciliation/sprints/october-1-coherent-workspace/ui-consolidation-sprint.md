@@ -16,7 +16,7 @@ The [implementation tickets](ui-consolidation-tickets.md) and [validation protoc
 
 | Principle | Observable product behavior |
 |---|---|
-| A clear next step | A fresh workspace invites an outcome with a visible permitted agent/team; acceptance places the work on the map. No forced team wizard or product tour |
+| A clear next step | A fresh workspace accepts an unclear problem or a direct assignment with a visible permitted agent/team. Help the person understand and choose; only acknowledged work appears as active. No forced wizard or product tour |
 | Autonomous work is visible | The overview shows actual ownership, activity, dependency and state; it is useful without reading a transcript |
 | Ordinary language | People ask, discuss, review, pause and continue. They do not need to understand dispatch, harnesses, grants or run topology |
 | Recognition over recollection | Stable names, portraits, work titles and map locations help people recognize what they left. Returning never requires reconstructing a log |
@@ -29,19 +29,22 @@ The [implementation tickets](ui-consolidation-tickets.md) and [validation protoc
 
 Keep the established copper, ink and warm neutral brand, readable typography, agent portraits and restrained spatial character. A new visual theme, mascot system or animation engine is outside this sprint. Human language and understandable behavior are P0 work; ornamental refinement is optional.
 
+The same visual continuity applies to interactive examples and prototypes. Reuse `web/src/brand.css`, the bundled display/body/mono fonts, and established map/control treatments. Do not introduce project-specific pastel palettes or a separate component style to demonstrate scale. This requirement was reaffirmed by the user during the multi-agent project example review.
+
 ## The product people should learn
 
 There is one primary workspace. A selected piece of work opens a focused view in that workspace. Requests for input open a decision brief with the originating work still identifiable. At most one management overlay is open at a time; closing it restores the previous selection and focus.
 
 ```text
-Tetonic                                  Teams   Agents   Needs you
+Tetonic                   Teams   Agents   Tools & MCPs   Needs you
 
                  Your work and its activity
            Goals, people and resources on one map
           Select work to understand or redirect it
 
           [ Who will own this work / its audience ]
-          [ What would you like accomplished?     ] [Start work]
+          [ What are you working through?         ] [Send]
+             Explore an idea or give a direction
 ```
 
 "Needs you" appears prominently only when there is a real actionable request. A compact work list opens from the workspace and selects the same records as the map. It is a navigation aid, with keyboard access and clear labels, not another board or work database. Settings contain installation, provider and operational controls; those details do not occupy the everyday workspace.
@@ -52,11 +55,26 @@ The diagram describes hierarchy, not fixed pixel positions. Narrow screens retai
 
 ### First use
 
-If the configured engine is ready, show a quiet real workspace, its available registered agent or team, and one invitation to delegate. Current copy direction: **Put your agents to work.** Supporting line: **Hand over an outcome. Follow the work. Step in when you’re needed.** The assignment names its owner and scope. Do not advertise recurrence until an engine schedule exists.
+If the configured engine is ready, show a quiet real workspace and its available registered agent or team. Accept an unclear problem as naturally as a direct assignment. Current copy direction: **What are you working through?** Supporting line: **Think it through with your team, then put the plan to work.** The assignment names its owner and scope. Do not advertise recurrence until an engine schedule exists.
 
 Do not require selecting a work type, mode, team, model or role before typing. Use permitted configured defaults. If inference, authentication or an allowed resource is missing, name the missing prerequisite and provide the supported next step. Never imply that the workspace is ready when it cannot execute. Do not create a sample agent to fill an empty state.
 
-After sending, preserve the full original words in work detail. Show sending until acceptance, then place the acknowledged assignment on the map and leave the person there; opening its conversation is a choice. Show working only from execution evidence. A larger or unclear request can lead to a short clarification or huddle. A proposed plan does not authorize its own execution; an existing bounded policy may authorize continuation without approval at every step. This must become a real delegation-and-return experience, not just replacement copy for a chat box.
+Preserve the full original words in their scoped discussion or work record. For
+a direct assignment, show sending until acceptance, then place acknowledged work
+on the map; opening its conversation is a choice. For exploration, retain the
+discussion and developing brief without inventing assignments. Show working only
+from execution evidence, including any authorized research. A proposed plan does
+not authorize its own execution; existing bounded policy can permit continuation
+without approval at every step.
+
+The [shaping, capability and skills contract](shaping-capabilities-and-skills.md)
+extends this journey: a persistent conversation and concise evolving brief help
+the person understand alternatives before committing work. Discussion alone does
+not dispatch implementation. A visible scoped start action applies when a plan
+needs authorization; clear already-authorized requests need no additional wizard.
+Tools & MCPs includes a distinct Skills area for create/import and availability.
+Missing access opens a concise request linked to the affected work and setup path,
+with alternatives, rather than a generic failure or an implied connection.
 
 ### Returning
 
@@ -65,6 +83,15 @@ Show the same map locations and selected work where practical. Present a brief f
 Use "Since you left" only when an actual last-seen cursor and current evidence support it. Otherwise use "Latest updates" with real timestamps. Initially this can be a deterministic summary of recorded events; it does not require a new summarizing agent. Cross-agent and recurring-work summaries are completed under OCT-205 in sprint 2.
 
 ## Work and spatial behavior
+
+The October 4 follow-up adds four product requirements: collision-aware dependency
+layout with reserved tool destinations, an original-output team blackboard,
+labeled/color-reinforced areas containing parallel projects and teams, and a
+read-only director context path from the main composer. The
+[work-context and blackboard integration plan](work-context-and-blackboard.md)
+separates the implemented product example from the existing engine readers that
+must be extended. Example lookup is not live model answering or a completed
+governed collaboration gate.
 
 Organize the map around human goals or responsibilities. Agents remain recognizable circles with images or stable accessible fallbacks. Destinations represent actual connected resources relevant to that work. The view should help answer who is working on what, what is being used, and where help is needed.
 
@@ -150,9 +177,18 @@ Paths are current code entry points, not an instruction to delete whole files wi
 | [ActionInboxView](../../../../../web/src/components/views/ActionInboxView.tsx) and [AttentionView](../../../../../web/src/components/views/AttentionView.tsx) | Combine entry and detail | One Needs you queue; reuse acknowledgement handling and concise briefs |
 | [TeamRoom](../../../../../web/src/components/work/TeamRoom.tsx) and [HuddleView](../../../../../web/src/components/views/HuddleView.tsx) | Fold useful context into work | Team and work conversations remain distinctly scoped. No separate room required to finish the same assignment |
 | [AgentsView](../../../../../web/src/components/views/AgentsView.tsx), [TeamsView](../../../../../web/src/components/views/TeamsView.tsx), [LocalAgentSetup](../../../../../web/src/components/work/LocalAgentSetup.tsx) | Retain optional management | One durable create/edit path where supported; hide unsupported mutations rather than storing a browser-only roster |
-| Tools and Castle console screens | Move to relevant detail or settings | Show allowed resources with the work or agent; keep operator controls available without an infrastructure tour |
+| [ToolsView](../../../../../web/src/components/views/ToolsView.tsx) resource library | Retain a visible Tools & MCPs section | Reuse the existing library for browsing and setup; link team availability and map destinations to the same resource identity. Distinguish configured availability, enforced permission and observed activity |
+| Castle console screens | Move to operator settings | Keep infrastructure controls available without requiring an infrastructure tour |
 
 Keep ResourceService, the existing local workspace composition, managed run ownership, broker, approvals and storage as authorities. Consolidating React state must not create a replacement scheduler, identity registry, approval log or conversation store. Browser persistence may retain presentation preferences and unsent drafts, but cannot authorize work or pretend to save accepted work.
+
+Tools & MCPs remains directly discoverable from the workspace. Its development
+example currently supports sample resources and setup drafts using the existing
+library; it does not connect MCP servers or grant permissions. Live integration
+must use the existing resource and policy authorities for connection state and
+team/agent access. Resource activity on the map is evidence of use, never proof
+of permission or successful setup. This requirement does not introduce a tool
+marketplace or a second configuration store.
 
 ## Ticket overview
 

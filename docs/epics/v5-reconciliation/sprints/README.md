@@ -1,10 +1,31 @@
 # October 25 MVP sprint plan
 
-Updated October 4, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [current implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md). No October P0 ticket has met its complete exit criteria yet.
+Updated October 5, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [baseline implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md) and [first shaping slice](october-1-coherent-workspace/shaping-evidence-2026-10-05.md). No October P0 ticket has met its complete exit criteria yet.
 
 The release should prove that digital autonomous teams can carry out the person's work while the human shapes outcomes, boundaries and priorities. The operator sees work structure, status, agent participation and actual interactions at a glance, can inspect the details, and receives concise flags when judgment is needed. Tetonic carries orchestration and coordination without unbounded interruption loops. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones.
 
 ## Active schedule
+
+October 5 execution update: [finite agreed-plan execution](october-1-coherent-workspace/plan-execution-evidence-2026-10-05.md)
+now connects approved assignments to the existing managed child runtime, shared
+usage and current map. A live local model completed two distinct contributions
+and a combined result. Useful supplied-document evidence, human flags/steering,
+broader capability access and restart reconciliation remain open; no full October
+gate closes here.
+
+October 5 follow-on: [bounded human handoff and steering](october-1-coherent-workspace/human-handoff-evidence-2026-10-05.md)
+now uses the same plan, runtime, scopes and budgets. Questions and amended
+upcoming instructions are durable; waiting remains within a live attempt's
+existing deadline. This is partial COORD-B/OCT-202/203 evidence, not durable
+park/resume or a completed sprint gate.
+
+October 5 completion follow-up: [completion reliability evidence](october-1-coherent-workspace/completion-reliability-evidence-2026-10-05.md)
+fixes the expected-unload response race and delivers newly completed sibling
+contributions with dispatch receipts. A real two-agent handoff with an owner
+answer and changed upcoming instructions now completed with a combined result
+under the original limits: 3101/4096 coordinator tokens, 6107/11096 overall.
+This closes that trial's completion gap, not the full sprint's usefulness,
+recovery or release-reliability gates.
 
 | Sprint | Dates in 2026 | User outcome | Required gate |
 |---|---|---|---|
@@ -17,6 +38,15 @@ October 25 is the release decision, not another feature-development day. Freeze 
 The revised [Sprint 1 workspace plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the product-experience delivery plan: one map, one composer, progressive work inspection and clear human flags backed by bounded coordination. Ten UI children remain: eight P0, one P1 and one P2. UI-008's minimum real team selection/inspection is now required; advanced custom setup stays optional. COORD-A/B/C pull the smallest governed collaboration and activity slices of OCT-201/202/205 into Sprint 1 without duplicating their owners or closing their full acceptance. No fourth sprint is added. Optional customization, filters, shortcuts and motion refinement defer; the second real domain scenario moves from Sprint 1 to Sprint 2 to make room.
 
 ## Work levels and tracking
+
+October 4 follow-up: [problem shaping, missing capabilities and skills](october-1-coherent-workspace/shaping-capabilities-and-skills.md)
+are required product scope under existing OCT-102/103/104/105. The person can learn
+and compare approaches before choosing a plan; agents can request missing access;
+and users can create/import skills and use them in governed execution. Parent
+ticket counts stay unchanged, but effort has increased. Local exploration and
+versioned briefs and finite local plan dispatch now have implementation evidence;
+skills and capability requests remain open. Re-estimate at the October 6 review rather
+than assuming the expanded scope fits within the dates.
 
 Each sprint has seven tickets: five P0, one P1 and one P2. There are 21 tickets total, including 15 release requirements. Priorities apply to the October profile, not the lifetime importance of a feature.
 
@@ -35,7 +65,9 @@ Size describes uncertainty and breadth: **S** is a localized change; **M** spans
 - One human owner, one execution host, durable single-authority storage, loopback access by default, and one primary OS/package selected and proven by October 6. No public unauthenticated listener or shared database across machines.
 - One complete provider, built-in harness and tool combination proven against actual model execution. Hide unsupported combinations. Hosted file disclosure requires the existing egress and permission path; never loosen it simply to make a provider work.
 - Proposed validation target: three independent work items, two collaborating agents, and one bounded recurring responsibility on declared hardware. Final supported concurrency comes from measurement, not this target.
-- Simple work starts without team assembly. An optional short huddle makes larger work understandable. Conversations, assignments, approvals and results retain distinct meanings in the existing resource model.
+- Simple work starts without team assembly. Unclear problems support persistent exploration, explanation and plan shaping before execution; a huddle can crystallize the chosen approach. Conversations, proposals, assignments, approvals and results remain distinct in the existing resource model.
+- Create/edit/export and import agent skills through the declared supported package/source profile; bind exact revisions to actual governed execution. A skill supplies task guidance, not permission. Unsupported script requirements remain visible and cannot bypass the tool profile.
+- Missing context, connections and permissions produce actionable work-scoped requests, supported setup paths or alternatives. Resume only after validation; unrelated work can continue. A connector catalog entry alone is not connected access.
 - Enforce the declared token, time, task and concurrency limits through delegated work. Financial spend controls appear only if backed by a working cumulative ledger; an estimate is labeled as an estimate.
 - Support configurable logging, telemetry and storage for the selected profile. An unsupported backend is rejected explicitly. Preserve scoped knowledge and access controls even with one human owner.
 

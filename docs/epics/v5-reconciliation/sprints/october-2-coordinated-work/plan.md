@@ -6,7 +6,7 @@ User outcome: several different responsibilities progress, a small team performs
 
 ## Ticket overview
 
-All full-ticket exits below remain planned/unverified. COORD-A/B/C are first slices scheduled in Sprint 1, not completed implementation or extra tickets. Size reflects breadth and uncertainty, not calendar days.
+All full-ticket exits below remain unverified. COORD-A/B/C have partial implementation in Sprint 1: governed child execution, finite agreed-plan dispatch, scoped contributions and actual work projections. See [October 5 plan execution evidence](../october-1-coherent-workspace/plan-execution-evidence-2026-10-05.md). These are not extra tickets or full gate completions. Size reflects breadth and uncertainty, not calendar days.
 
 | Ticket | Work | Priority | Size | Depends on |
 |---|---|---|---|---|
@@ -19,6 +19,10 @@ All full-ticket exits below remain planned/unverified. COORD-A/B/C are first sli
 | OCT-207 | Refine event-driven docking motion | P2 | S | OCT-205 |
 
 ## OCT-201 Enforce delegation lineage and shared limits
+
+October 5 partial implementation: the [COORD-A execution slice](../october-1-coherent-workspace/child-execution-evidence-2026-10-05.md)
+connects funded child tasks to the existing managed run and provider path. Wider
+fault coverage and the complete acceptance below remain open.
 
 **Sequencing:** COORD-A moves the smallest governed child-execution path into Sprint 1, including every safeguard reachable by that slice. This ticket retains full ownership of allocation races, proxy resistance, private context, stop and restart behavior as the team/concurrency envelope expands. Do not launch unrelated root runs to sidestep the current governed-child guard.
 
@@ -41,6 +45,12 @@ Acceptance: two actual agents contribute different useful pieces to an input-spe
 Extended acceptance: duplicate/lost exchange replies, unavailable recipients, competing help requests and repeated urgent messages produce bounded accepted/deferred/declined/expired outcomes. Root-work limits survive retries, proxying and restart. Explicit dependency cycles are rejected; stalled exchanges escalate once instead of spinning. Other eligible work receives execution time. Human emergency controls are independent of collaboration throttles. Measure useful contributions and manual coordination avoided, not message volume alone.
 
 ## OCT-203 Keep independent work moving and conflicts visible
+
+October 5 partial prerequisite: [human handoff evidence](../october-1-coherent-workspace/human-handoff-evidence-2026-10-05.md)
+proves a live child can await an answer without model polling while another
+eligible agent continues. The wait still owns its admission slot and deadline.
+It is not durable parking, general queue fairness or resource-conflict control;
+those requirements below remain open.
 
 Work: connect queue, park, resume and reprioritization operations to engine authority. Apply bounded scheduling and avoid starvation. Work blocked on a human or dependency releases usable capacity where safe. Preserve durable ownership and dependencies. For concurrent writes in the supported local workspace, use existing resource claims or a conservative serialized write boundary; do not rely on agent courtesy to prevent clobbering.
 

@@ -8,6 +8,91 @@ The revised [UI consolidation sprint](ui-consolidation-sprint.md) specifies the 
 
 ## Changes to scope and order
 
+October 5 latest COORD-A slice: [governed child execution evidence](child-execution-evidence-2026-10-05.md)
+supersedes the earlier child-admission status below. Funded children can execute
+through the application host in the parent's managed run with inherited grants,
+attempt usage, shared concurrency limits and parent termination. Plan dispatch,
+bounded contribution exchange and the ordinary two-agent UI journey remain open.
+
+The [model-driven orchestration contract](model-driven-orchestration.md) refines
+OCT-103 and COORD-A/B/C: a managed orchestrating agent gathers context, maintains
+work and requests assignments through existing engine authorities. The model
+shapes work; the engine enforces permissions, shared allocation, placement and
+stops. This is planned integration, not completed by the interactive UI example.
+One external work-source adapter follows the governed local proof; broad Jira
+synchronization is not silently added to the release gate.
+
+The subsequent [shaping, capabilities and skills refinement](shaping-capabilities-and-skills.md)
+adds required baseline scope: help a person understand an unclear problem and
+shape a versioned plan; resolve missing context/access through actionable requests;
+and create/import/use agent skills. This expands existing P0 parents, not optional
+OCT-106 setup. Re-estimate the added work at the October 6 review; the existing
+dates are not evidence that these additions fit.
+
+October 5: the [first shaping implementation](shaping-evidence-2026-10-05.md)
+adds real local exploration, an editable versioned brief and continued conversation
+through the existing registered runtime. Accepted-plan dispatch, skills and durable
+capability requests remain open; no P0 parent or coordination gate closes here.
+
+October 5 UI cutover: the [team-view integration](team-view-cutover-2026-10-05.md)
+removes older product/preview shells and promotes the agreed team-work map to the
+single UI at both `/` and `/dev/team-work/`. It now reads real engine records and
+uses existing submission, cancellation, agent setup and shaping paths. Example
+data no longer backs the product. The coordination gates below remain open.
+
+October 5 next slice: [structured plan evidence](plan-evidence-2026-10-05.md)
+extends existing huddles with saved-brief provenance, model-generated assignments,
+dependency validation, proposed effort, revision and agreement in Shape work.
+The unsafe child-to-root activation fallback is closed. Agreement still does not
+dispatch: COORD-A/B/C and the remaining P0 scope remain open.
+
+October 5 COORD-A progress: [allocation and inherited-stop evidence](delegation-admission-evidence-2026-10-05.md)
+adds explicit durable allowances, atomic sibling/parent reservations, inherited
+payer/stop lineage, exact retries and descendant stop targeting through existing
+work services. This established the allocation/stop foundation for the permission
+slice below. Attempt-bound spending and child execution are still required. Plan
+dispatch remains disabled; this does not close COORD-A or the sprint.
+
+October 5 COORD-A permission slice: [derived-grant evidence](delegated-grant-evidence-2026-10-05.md)
+adds parent-derived execution grants to the existing grant store, ResourceService
+and managed execution-authority path. Child permissions retain shared team
+context, tool/artifact limits, payer/stop lineage and the exact parent task,
+attempt and lease. Live parent credential revocation and cancellation invalidate
+inherited authority. Independent-root bypass remains denied. Attempt-bound
+spending, governed child admission and plan dispatch remain open; no coordination
+gate closes here.
+
+October 5 usage slice: [budget and usage evidence](budget-usage-evidence-2026-10-05.md)
+binds the existing work allowance to managed provider calls, durably records
+reported and unconfirmed usage, and conservatively settles unused allowance
+after terminal quiescence. The existing team UI gains Usage and a default
+allowance for new requests. This supplies attempt accounting for local work;
+hard billing caps, shared budget periods, cross-node reconciliation and governed
+child dispatch are still open. COORD-A/B/C are not closed by this slice.
+
+October 5 finite team execution: [agreed-plan dispatch evidence](plan-execution-evidence-2026-10-05.md)
+adds an explicit Start action, pinned revisions, a bounded model coordinator,
+scoped dependency handoff and combined results through the existing child
+runtime. The current map/blackboard project actual contributor records. A real
+local model completed two contributions and synthesis; useful document evidence,
+human flags, changed direction and broader tool interactions remain unverified.
+The earlier entries above describe their state at the time, not today's gaps.
+
+October 5 human handoff: [handoff and steering evidence](human-handoff-evidence-2026-10-05.md)
+adds bounded agent questions, answers on the same attempt, progress by other
+eligible agents, and revisioned edits to unstarted assignments. Completed
+contributions and the original allowance are retained. The live trial exposed
+coordination overhead and the short worker deadline; it did not complete the
+whole plan. Durable parking, capacity release and resumption after restart
+remain open. This does not close COORD-B or OCT-203.
+
+October 5 completion follow-up: [reliability evidence](completion-reliability-evidence-2026-10-05.md)
+records the provider response fix and reconciliation of completed sibling
+contributions. The repeated live handoff completed both workers and the combined
+result within the same deadlines and allowances. This supersedes the failed
+trial outcome above; durable parking, broader useful tool work and complete
+sprint acceptance still remain open.
+
 Keep the existing map shell, durable submission/retry path, scoped drafts, result inspection, identity forms and acknowledged controls. Rework the single-assignee conversation projection into a view of actual shared work, dependencies, contributors and resource interactions. Do not discard useful integration or build a second orchestration service.
 
 | Gate pulled forward | Existing owner | Required by the Sprint 1 exit | Remainder in Sprint 2 |
@@ -22,7 +107,7 @@ Make room by deferring optional custom composition, advanced role editing, work 
 
 ## Ticket overview
 
-OCT-101 through OCT-105 have partial work in progress; no full exit is verified. COORD-A/B/C are newly scheduled and remain planned. OCT-106/107 remain deferred until required gates pass. The [baseline](baseline.md) and [October 4 evidence](evidence-2026-10-04.md) record checks, commits and gaps. Dependencies identify exit requirements, not a ban on independent preparation. No ticket is marked verified until all its acceptance conditions have evidence.
+OCT-101 through OCT-105 have partial work in progress; no full exit is verified. COORD-A has durable allocation, inherited stops, parent-derived permission, attempt-bound usage and governed child admission. COORD-B/C now have finite plan dispatch, scoped contributions and actual map/blackboard projections. Their full fault, human-steering and useful-result acceptance remains open. OCT-106/107 remain deferred until required gates pass. The [baseline](baseline.md), [October 4 evidence](evidence-2026-10-04.md) and October 5 evidence above record checks, commits and gaps. Dependencies identify exit requirements, not a ban on independent preparation. No ticket is marked verified until all its acceptance conditions have evidence.
 
 | Ticket | Work | Priority | Size | Depends on |
 |---|---|---|---|---|
@@ -46,6 +131,13 @@ Acceptance: by October 6, record the source revision and dirty-tree state, actua
 
 ## OCT-102 Prove one permitted inference and tool path
 
+Required skills slice: create/edit/export a skill and import a downloaded package
+through one supported source path, inspect and enable it, then use a pinned
+revision in an actual governed run. Preserve existing context, tool and egress
+authority; import must not execute code or grant its requested capabilities.
+Unsupported executable requirements remain explicit. See the linked refinement
+for scope, lifecycle and acceptance. A decorative skills catalog cannot pass.
+
 Work: connect one useful provider/harness/tool combination end to end. Support bounded work on explicitly selected files and documents without requiring a code repository. Make frontend tool choices match the backend grant; no tools selected must not silently expand to all default tools. Preserve broker egress authorization, credential-store exclusions and secret handling. If a hosted route is selected, complete its authorized context-disclosure path before granting workspace tools. Keep unsupported model/harness/tool combinations out of release controls.
 
 Reuse: `engine/litho/tetonic-app/src/resources/general_harness.rs`, `registered_executor.rs`, `execution_grants.rs`, the existing broker, tools and local provider-key storage. Use `LocalAgentSetup` and `agentConfiguration` as adapters to those contracts, not an independent permission model.
@@ -53,6 +145,13 @@ Reuse: `engine/litho/tetonic-app/src/resources/general_harness.rs`, `registered_
 Acceptance: an actual model reads an allowed source and produces a useful output; authorized edits stay within the selected workspace. Deny unauthorized tools, out-of-scope paths including traversal/symlink escape, credential stores and unauthorized network access before effects occur. Missing or invalid provider credentials produce a clear recoverable error. Record the actual isolation guarantee; do not enable arbitrary shell/process execution without a validated containment and cancellation path.
 
 ## OCT-103 Unify durable work and conversation lifecycle
+
+Required shaping slice: allow a person to explore and learn before knowing the
+outcome. Persist the scoped conversation, evidence, alternatives, decisions and
+evolving brief; translate only accepted direction into work. A clear task can
+skip extended shaping. A later change shows affected assignments and its actual
+application boundary. Extend existing huddle/work/context records rather than
+adding a separate planning store or replaying fixed intake templates.
 
 Detailed UI delivery: UI-002, UI-003, UI-007 and the UI-008 baseline in the [consolidation tickets](ui-consolidation-tickets.md). The existing resource and runtime lifecycle remains authoritative.
 
@@ -73,6 +172,13 @@ Reuse: `App.tsx`, `Workroom`, `TeamActivityMap`, existing focus/zoom controls, `
 Acceptance: a new empty workspace provides one clear next action and makes delegation understandable. In COORD-C, a returning person can identify the outcome, current child work, responsible agents, dependency/blocker and observed resource interaction without reading a transcript. The map, list and detail select the same authoritative records. Empty responses show no samples; disconnected records retain freshness and no fabricated motion. Identity/membership mutations use the durable service. Keyboard access, baseline contrast and reduced motion preserve the same information.
 
 ## OCT-105 Connect decisions results and controls to engine acknowledgements
+
+Required capability-request slice: agents can surface missing source context,
+connections, permission, skills or execution prerequisites. Show the exact need,
+affected work, authorized setup/decision owner and alternatives. Validate access
+and current intent before resuming only affected work. One request cannot grant
+itself or pass credentials through a model. Denial/expiry/revocation and duplicate
+requests have durable outcomes; independent work remains usable.
 
 Detailed UI delivery: UI-003, UI-005, UI-006 and UI-007 in the [consolidation tickets](ui-consolidation-tickets.md). Clear language does not replace exact effect inspection, enforced scope or acknowledged control behavior.
 
