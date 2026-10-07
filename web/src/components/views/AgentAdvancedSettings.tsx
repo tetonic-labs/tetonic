@@ -6,11 +6,13 @@ export function AgentAdvancedSettings({
   onChange,
   hasTeam,
   enforcedLimits,
+  guide = false,
 }: {
   value: AgentConfiguration;
   onChange: (value: AgentConfiguration) => void;
   hasTeam: boolean;
   enforcedLimits?: AgentConfiguration['limits'];
+  guide?: boolean;
 }) {
   const scope = (change: Partial<AgentConfiguration['scope']>) =>
     onChange({ ...value, scope: { ...value.scope, ...change } });
@@ -33,9 +35,9 @@ export function AgentAdvancedSettings({
         </div>
         {enforcedLimits ? (
           <p className="agent-field-note">
-            Only you can request work through this local connection. Records stay in your Personal
-            workspace. Selected file tools use the engine’s configured folder. Shell, web and
-            shared-human access are unavailable.
+            {guide
+              ? 'These limits apply to each Guide reply. Team assignments keep their own agents and allowances.'
+              : 'Only you can request work through this local connection. Selected tools stay subject to the engine’s access policy; terminal commands require your approval.'}
           </p>
         ) : (
           <>

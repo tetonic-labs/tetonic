@@ -167,7 +167,6 @@ impl crate::Application {
                 && (parent.is_some()
                     || bound_dispatch
                     || bound_human
-                    || settings.hosted.is_some()
                     || settings.response_schema.is_some()
                     || settings.workspace_root.is_some()
                     || settings.mcp.is_some()
@@ -178,7 +177,7 @@ impl crate::Application {
             || director.is_some_and(|d| work.as_ref().is_none_or(|(_, w)| w != &d.turn))
         {
             return Err(AppError::PolicyDenied(
-                "Conversation planning requires its trusted, local, output-scoped binding.".into(),
+                "Conversation planning requires its trusted, output-scoped binding.".into(),
             ));
         }
         if wants_dispatch != bound_dispatch
@@ -432,17 +431,24 @@ impl crate::Application {
             // tools and folder must fit both this consent and the prepared grants.
             // Recall, delegated team context and artifacts remain separately scoped.
             let capabilities = &prepared.command.job_spec.capability_bindings;
+            // These controls expose only the host-bound conversation/work scope.
+            // They have no file, shell, MCP or dispatch authority. A hosted Guide's
+            // prompt consent covers the scoped planning context and tool results.
+            let internal_control = |tool: &str| {
+                (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                    || (bound_director && tool == super::work_director::CONTROL)
+            };
             let valid = match &hosted.tool_disclosure {
                 Some(disclosure) => {
                     disclosure.version == 1
                         && root_key == disclosure.workspace
-                        && settings.allowed_tools.iter().all(|tool| {
-                            (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                                || disclosure.tools.contains(tool)
-                        })
+                        && settings
+                            .allowed_tools
+                            .iter()
+                            .all(|tool| internal_control(tool) || disclosure.tools.contains(tool))
                         && capabilities.iter().all(|tool| {
                             tool == "finish"
-                                || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                                || internal_control(tool)
                                 || disclosure.tools.contains(tool)
                         })
                 }
@@ -451,11 +457,10 @@ impl crate::Application {
                         && settings
                             .allowed_tools
                             .iter()
-                            .all(|tool| bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                        && capabilities.iter().all(|tool| {
-                            tool == "finish"
-                                || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                        })
+                            .all(|tool| internal_control(tool))
+                        && capabilities
+                            .iter()
+                            .all(|tool| tool == "finish" || internal_control(tool))
                 }
             };
             if !valid || !prepared.command.job_spec.artifact_bindings.is_empty() {

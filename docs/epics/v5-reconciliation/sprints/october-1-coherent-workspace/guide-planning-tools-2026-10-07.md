@@ -2,6 +2,8 @@
 
 Date: October 7, 2026. Baseline: `ba413c0c`.
 
+Follow-up: [Guide model settings](guide-model-settings-2026-10-07.md) removes the local-model-only restriction described in this slice and adds persistent provider/model selection through existing agent configuration.
+
 ## Product change
 
 The map's Guide can now turn a planning conversation into a saved team proposal and revise it in a follow-up. The proposal appears in the existing conversation, without pressing Prepare a plan or navigating elsewhere. Short answers still do not require a plan. The existing Prepare control remains available as a fallback.

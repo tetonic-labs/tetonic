@@ -8,19 +8,21 @@ import { WorkingBrief } from '../workspace/WorkingBrief';
 import { PlanReview } from './PlanReview';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { Portrait } from '../ui/Portrait';
+import { agentSetup } from '../../lib/agentCapabilities';
 import './shaping.css';
 
 type ShapingProps = {
   workId?: string;
   onWork?: (id: string, inspect?: boolean) => void;
   onSelected?: (id: string) => void;
+  onGuideSettings?: () => void;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
   return <ConnectedShaping key={connectionDraftScope()} {...props} />;
 }
 
-function ConnectedShaping({ workId, onWork, onSelected }: ShapingProps) {
+function ConnectedShaping({ workId, onWork, onSelected, onGuideSettings }: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
   const records = workRecords(workspace?.tasks || [], engine.workItems).filter(
@@ -42,6 +44,11 @@ function ConnectedShaping({ workId, onWork, onSelected }: ShapingProps) {
   const active = !!latest && taskIsActive(latest);
   const guideKey = latest?.agent_key || workspace?.shaping_agent_key || '';
   const guide = uiAgents.find((agent) => agent.id === guideKey);
+  const guideProfile = workspace?.agents.find((agent) => agent.key === guideKey);
+  const setup =
+    guideProfile &&
+    agentSetup(guideProfile, engine.catalog, isConnected && !engine.readErrors['Agent setup']);
+  const setupIssue = setup?.state === 'needs_setup' ? setup.message : '';
   const writer = useWorkspaceDraft(`team-shaping:${connectionDraftScope()}`);
   const draftKey = selectedId || 'new';
   const draft = writer.drafts[draftKey] || { text: '' };
@@ -53,6 +60,7 @@ function ConnectedShaping({ workId, onWork, onSelected }: ShapingProps) {
   const canSend =
     isConnected &&
     !!guideKey &&
+    (!setupIssue || !!draft.pending) &&
     !missing &&
     !writer.busyKey &&
     (!active || !!draft.pending) &&
@@ -138,6 +146,16 @@ function ConnectedShaping({ workId, onWork, onSelected }: ShapingProps) {
                 : 'Think it through. Put your team to work.'}
           </small>
         </span>
+        {onGuideSettings && guideProfile && (
+          <button
+            type="button"
+            onClick={onGuideSettings}
+            disabled={!isConnected}
+            title={`Used for new replies: ${guideProfile.model}`}
+          >
+            Guide model
+          </button>
+        )}
         {active && (
           <button
             onClick={() => void stop()}
@@ -149,6 +167,7 @@ function ConnectedShaping({ workId, onWork, onSelected }: ShapingProps) {
           </button>
         )}
       </div>
+      {setupIssue && <p role="status">{setupIssue} Open Guide model to review its settings.</p>}
       <div
         className="px-shaping-body"
         ref={thread}

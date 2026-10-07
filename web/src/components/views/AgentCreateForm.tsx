@@ -28,6 +28,7 @@ export function AgentCreateForm({
   backLabel,
   connected,
   agent,
+  guide = false,
 }: {
   teams: Team[];
   currentTeamId: string;
@@ -38,6 +39,7 @@ export function AgentCreateForm({
   onBack?: () => void;
   backLabel?: string;
   agent?: EngineAgent;
+  guide?: boolean;
   connected?: {
     catalog: AgentCatalog;
     saving: boolean;
@@ -224,46 +226,50 @@ export function AgentCreateForm({
           )}
         </h2>
         <p>
-          {agent
-            ? 'Changes apply to new work. Work already started keeps its current settings.'
-            : 'Give them a purpose. Choose how they work.'}
+          {guide
+            ? 'Choose who helps you think and plan. Changes apply to the next reply.'
+            : agent
+              ? 'Changes apply to new work. Work already started keeps its current settings.'
+              : 'Give them a purpose. Choose how they work.'}
         </p>
       </header>
-      <div className="agent-create-basics">
-        <div className="agent-identity-fields">
-          <label>
-            Name
-            <input
-              autoFocus
-              required
-              maxLength={60}
-              placeholder="What should we call them?"
-              value={name}
-              onChange={(event) => setName(event.target.value)}
-            />
-          </label>
-          <label>
-            What will they help with?
-            <textarea
-              rows={2}
-              maxLength={4000}
-              placeholder="Research ideas, improve our project…"
-              value={purpose}
-              onChange={(event) => setPurpose(event.target.value)}
-            />
-          </label>
-          <label>
-            Team
-            <select value={teamId} onChange={(event) => changeTeam(event.target.value)}>
-              {!connected && <option value="">No team yet</option>}
-              {teams.map((team) => (
-                <option key={team.id} value={team.id}>
-                  {team.name}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
+      <div className="agent-create-basics" data-guide={guide}>
+        {!guide && (
+          <div className="agent-identity-fields">
+            <label>
+              Name
+              <input
+                autoFocus
+                required
+                maxLength={60}
+                placeholder="What should we call them?"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+              />
+            </label>
+            <label>
+              What will they help with?
+              <textarea
+                rows={2}
+                maxLength={4000}
+                placeholder="Research ideas, improve our project…"
+                value={purpose}
+                onChange={(event) => setPurpose(event.target.value)}
+              />
+            </label>
+            <label>
+              Team
+              <select value={teamId} onChange={(event) => changeTeam(event.target.value)}>
+                {!connected && <option value="">No team yet</option>}
+                {teams.map((team) => (
+                  <option key={team.id} value={team.id}>
+                    {team.name}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         <div className="agent-runtime-fields">
           <span className="agent-runtime-title">
             <Cpu size={17} />
@@ -323,15 +329,19 @@ export function AgentCreateForm({
                   onChange={(event) => setHostedConsent(event.target.checked)}
                 />
                 <span>
-                  Allow this agent’s instructions, prompts, and conversation history to be sent to{' '}
+                  {guide
+                    ? 'Allow the Guide’s conversation, workspace activity summaries, agent capabilities, plans, and inspected work results to be sent to '
+                    : 'Allow this agent’s instructions, prompts, and conversation history to be sent to '}
                   {lab?.name}. Provider usage charges apply.
                 </span>
               </label>
-              <p>
-                {runtimeProfile?.tools.length
-                  ? 'This teammate can use the tools you select below.'
-                  : 'This profile works with your prompts and conversation only.'}
-              </p>
+              {!guide && (
+                <p>
+                  {runtimeProfile?.tools.length
+                    ? 'This teammate can use the tools you select below.'
+                    : 'This profile works with your prompts and conversation only.'}
+                </p>
+              )}
               <p>Choose a text model with tool calling available to your provider account.</p>
             </>
           )}
@@ -348,7 +358,7 @@ export function AgentCreateForm({
               {connected.refreshing ? 'Checking setup…' : 'Refresh engine setup'}
             </button>
           )}
-          {(!connected || connected.catalog.harnesses.length > 1) && (
+          {!guide && (!connected || connected.catalog.harnesses.length > 1) && (
             <label>
               Harness
               <select
@@ -373,11 +383,13 @@ export function AgentCreateForm({
             </label>
           )}
           <p>
-            {connected
-              ? hosted
-                ? `Tetonic runs the agent here. Model requests go to ${lab?.name || provider}. Codex and Claude Code runtimes are not connected yet.`
-                : 'Tetonic runs the agent and its tools here, using your local model.'
-              : harnesses.find((harness) => harness.id === configuration.harness)?.description}
+            {guide
+              ? 'The Guide can read work status and save proposals. You choose when a plan starts.'
+              : connected
+                ? hosted
+                  ? `Tetonic runs the agent here. Model requests go to ${lab?.name || provider}. Codex and Claude Code runtimes are not connected yet.`
+                  : 'Tetonic runs the agent and its tools here, using your local model.'
+                : harnesses.find((harness) => harness.id === configuration.harness)?.description}
           </p>
           {!connected && (
             <span className="agent-runtime-caption">
@@ -386,227 +398,230 @@ export function AgentCreateForm({
           )}
         </div>
       </div>
-      <fieldset className="agent-tool-picker">
-        <legend>
-          Tools{' '}
-          <span>
-            {configuration.toolIds.length +
-              configuration.resourceIds.length +
-              selectedTools.filter((name) => name.startsWith('mcp_')).length}{' '}
-            selected
-          </span>
-        </legend>
-        <div className="agent-tool-grid">
-          {tools.map((tool) => {
-            const group = agentToolGroups[tool.id] || [];
-            const availableTools = group.filter((name) => supportedTools.includes(name));
-            const selected = configuration.toolIds.includes(tool.id);
-            const described = selected
-              ? selectedTools.filter((name) => group.includes(name))
-              : availableTools;
-            return (
-              <label
-                className="agent-tool-choice"
-                key={tool.id}
-                data-selected={configuration.toolIds.includes(tool.id)}
-              >
-                <input
-                  type="checkbox"
-                  aria-label={tool.name}
-                  checked={configuration.toolIds.includes(tool.id)}
-                  disabled={
-                    !!connected &&
-                    !configuration.toolIds.includes(tool.id) &&
-                    !availableTools.length
-                  }
-                  onChange={(event) => {
-                    if (connected)
-                      setSelectedTools(
-                        event.target.checked
-                          ? [
-                              ...selectedTools.filter((name) => !group.includes(name)),
-                              ...availableTools,
-                            ]
-                          : selectedTools.filter((name) => !group.includes(name)),
-                      );
-                    setConfiguration({
-                      ...configuration,
-                      toolIds: event.target.checked
-                        ? [...configuration.toolIds, tool.id]
-                        : configuration.toolIds.filter((id) => id !== tool.id),
-                    });
-                  }}
-                />
-                <span>
-                  <strong>{tool.name}</strong>
-                  <small>
-                    {connected
-                      ? toolDescription(described) || 'Unavailable with this provider'
-                      : tool.description}
-                  </small>
-                </span>
-              </label>
-            );
-          })}
-        </div>
-        {connected && (
-          <p className="agent-field-note">
-            {hosted
-              ? 'Workspace tools need a supported execution profile. Your selections are kept when you change providers.'
-              : tools.length
-                ? 'Only selected tools are granted. Terminal commands need your approval each time.'
-                : 'No workspace tools are available for this provider and host.'}
-          </p>
-        )}
-        {connected &&
-          selectedTools
-            .filter(
-              (id) =>
-                !id.startsWith('mcp_') &&
-                !Object.values(agentToolGroups).some((group) => group.includes(id)),
-            )
-            .map((id) => (
-              <label className="agent-tool-choice" key={id}>
-                <input
-                  type="checkbox"
-                  checked
-                  aria-label={`Selected tool: ${id}`}
-                  onChange={() => setSelectedTools(selectedTools.filter((name) => name !== id))}
-                />
-                <span>
-                  <strong>{id}</strong>
-                  <small>
-                    {supportedTools.includes(id)
-                      ? 'Selected for this agent'
-                      : 'Unavailable. Remove this tool or restore its access.'}
-                  </small>
-                </span>
-              </label>
-            ))}
-        {compatibilityIssue && (
-          <p className="local-notice" role="alert">
-            {compatibilityIssue}
-          </p>
-        )}
-        {connected && selectedTools.includes('run_shell') && (
-          <p className="agent-field-note">
-            Terminal runs local commands and installed command-line tools. Each command appears in
-            Needs you for your approval. The working folder is not a security boundary on every
-            operating system; any isolation gaps are shown with the command.
-          </p>
-        )}
-        {connected && (
-          <AgentMcpTools
-            connections={connected.catalog.mcp_connections || []}
-            selected={selectedTools}
-            supported={supportedTools}
-            onSelect={setSelectedTools}
-            onDiscover={connected.onDiscoverMcp}
-            disabled={connected.saving}
-          />
-        )}
-        {requiresToolConsent && !compatibilityIssue && (
-          <label className="agent-hosted-consent">
-            <input
-              type="checkbox"
-              checked={hostedToolsConsent}
-              onChange={(event) => setApprovedScope(event.target.checked ? scopeKey : null)}
-            />
+      {!guide && (
+        <fieldset className="agent-tool-picker">
+          <legend>
+            Tools{' '}
             <span>
-              Allow selected tool inputs and results to be sent to {lab?.name}.
-              {selectedTools.some((tool) => !tool.startsWith('mcp_')) &&
-                ` Working folder: ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
-              Only the selected tools are included in this approval.
+              {configuration.toolIds.length +
+                configuration.resourceIds.length +
+                selectedTools.filter((name) => name.startsWith('mcp_')).length}{' '}
+              selected
             </span>
-          </label>
-        )}
-        {!connected && (
-          <details className="agent-resource-picker">
-            <summary>
-              Workspace tools & MCPs{' '}
-              <span>
-                {configuration.resourceIds.length
-                  ? `${configuration.resourceIds.length} selected`
-                  : `${available.length} available`}
-              </span>
-            </summary>
+          </legend>
+          <div className="agent-tool-grid">
+            {tools.map((tool) => {
+              const group = agentToolGroups[tool.id] || [];
+              const availableTools = group.filter((name) => supportedTools.includes(name));
+              const selected = configuration.toolIds.includes(tool.id);
+              const described = selected
+                ? selectedTools.filter((name) => group.includes(name))
+                : availableTools;
+              return (
+                <label
+                  className="agent-tool-choice"
+                  key={tool.id}
+                  data-selected={configuration.toolIds.includes(tool.id)}
+                >
+                  <input
+                    type="checkbox"
+                    aria-label={tool.name}
+                    checked={configuration.toolIds.includes(tool.id)}
+                    disabled={
+                      !!connected &&
+                      !configuration.toolIds.includes(tool.id) &&
+                      !availableTools.length
+                    }
+                    onChange={(event) => {
+                      if (connected)
+                        setSelectedTools(
+                          event.target.checked
+                            ? [
+                                ...selectedTools.filter((name) => !group.includes(name)),
+                                ...availableTools,
+                              ]
+                            : selectedTools.filter((name) => !group.includes(name)),
+                        );
+                      setConfiguration({
+                        ...configuration,
+                        toolIds: event.target.checked
+                          ? [...configuration.toolIds, tool.id]
+                          : configuration.toolIds.filter((id) => id !== tool.id),
+                      });
+                    }}
+                  />
+                  <span>
+                    <strong>{tool.name}</strong>
+                    <small>
+                      {connected
+                        ? toolDescription(described) || 'Unavailable with this provider'
+                        : tool.description}
+                    </small>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {connected && (
             <p className="agent-field-note">
-              {teamId
-                ? 'From the selected team’s toolkit.'
-                : 'Unassigned resources. Choose a team to see its toolkit.'}{' '}
-              Setup drafts still need connecting.
+              {hosted
+                ? 'Workspace tools need a supported execution profile. Your selections are kept when you change providers.'
+                : tools.length
+                  ? 'Only selected tools are granted. Terminal commands need your approval each time.'
+                  : 'No workspace tools are available for this provider and host.'}
             </p>
-            {available.length > 4 && (
-              <label className="agent-tool-search">
-                <Search size={15} aria-hidden="true" />
-                <input
-                  type="search"
-                  aria-label="Find tools and MCPs"
-                  value={query}
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="Find a tool or MCP…"
-                />
-              </label>
-            )}
-            <div className="agent-resource-options">
-              {matching.map((resource) => {
-                const Icon =
-                  resource.kind === 'mcp'
-                    ? Plug
-                    : resource.kind === 'storage'
-                      ? Database
-                      : Terminal;
-                return (
-                  <label
-                    className="agent-tool-choice"
-                    key={resource.id}
-                    data-selected={configuration.resourceIds.includes(resource.id)}
-                  >
-                    <input
-                      type="checkbox"
-                      aria-label={resource.name}
-                      checked={configuration.resourceIds.includes(resource.id)}
-                      onChange={(event) =>
-                        setConfiguration({
-                          ...configuration,
-                          resourceIds: event.target.checked
-                            ? [...configuration.resourceIds, resource.id]
-                            : configuration.resourceIds.filter((id) => id !== resource.id),
-                        })
-                      }
-                    />
-                    <Icon size={16} aria-hidden="true" />
-                    <span>
-                      <strong>{resource.name}</strong>
-                      <small>
-                        {resource.kind === 'mcp'
-                          ? 'MCP'
-                          : resource.kind === 'storage'
-                            ? 'Storage'
-                            : 'Tool'}{' '}
-                        · {resource.source === 'draft' ? 'Setup draft' : 'Preview resource'}
-                      </small>
-                    </span>
-                  </label>
-                );
-              })}
-              {!matching.length && (
-                <p className="agent-field-note">
-                  {query
-                    ? 'No matching resources.'
-                    : 'No resources assigned here yet. Add or assign them in Tools & MCPs.'}
-                </p>
+          )}
+          {connected &&
+            selectedTools
+              .filter(
+                (id) =>
+                  !id.startsWith('mcp_') &&
+                  !Object.values(agentToolGroups).some((group) => group.includes(id)),
+              )
+              .map((id) => (
+                <label className="agent-tool-choice" key={id}>
+                  <input
+                    type="checkbox"
+                    checked
+                    aria-label={`Selected tool: ${id}`}
+                    onChange={() => setSelectedTools(selectedTools.filter((name) => name !== id))}
+                  />
+                  <span>
+                    <strong>{id}</strong>
+                    <small>
+                      {supportedTools.includes(id)
+                        ? 'Selected for this agent'
+                        : 'Unavailable. Remove this tool or restore its access.'}
+                    </small>
+                  </span>
+                </label>
+              ))}
+          {compatibilityIssue && (
+            <p className="local-notice" role="alert">
+              {compatibilityIssue}
+            </p>
+          )}
+          {connected && selectedTools.includes('run_shell') && (
+            <p className="agent-field-note">
+              Terminal runs local commands and installed command-line tools. Each command appears in
+              Needs you for your approval. The working folder is not a security boundary on every
+              operating system; any isolation gaps are shown with the command.
+            </p>
+          )}
+          {connected && (
+            <AgentMcpTools
+              connections={connected.catalog.mcp_connections || []}
+              selected={selectedTools}
+              supported={supportedTools}
+              onSelect={setSelectedTools}
+              onDiscover={connected.onDiscoverMcp}
+              disabled={connected.saving}
+            />
+          )}
+          {requiresToolConsent && !compatibilityIssue && (
+            <label className="agent-hosted-consent">
+              <input
+                type="checkbox"
+                checked={hostedToolsConsent}
+                onChange={(event) => setApprovedScope(event.target.checked ? scopeKey : null)}
+              />
+              <span>
+                Allow selected tool inputs and results to be sent to {lab?.name}.
+                {selectedTools.some((tool) => !tool.startsWith('mcp_')) &&
+                  ` Working folder: ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
+                Only the selected tools are included in this approval.
+              </span>
+            </label>
+          )}
+          {!connected && (
+            <details className="agent-resource-picker">
+              <summary>
+                Workspace tools & MCPs{' '}
+                <span>
+                  {configuration.resourceIds.length
+                    ? `${configuration.resourceIds.length} selected`
+                    : `${available.length} available`}
+                </span>
+              </summary>
+              <p className="agent-field-note">
+                {teamId
+                  ? 'From the selected team’s toolkit.'
+                  : 'Unassigned resources. Choose a team to see its toolkit.'}{' '}
+                Setup drafts still need connecting.
+              </p>
+              {available.length > 4 && (
+                <label className="agent-tool-search">
+                  <Search size={15} aria-hidden="true" />
+                  <input
+                    type="search"
+                    aria-label="Find tools and MCPs"
+                    value={query}
+                    onChange={(event) => setQuery(event.target.value)}
+                    placeholder="Find a tool or MCP…"
+                  />
+                </label>
               )}
-            </div>
-          </details>
-        )}
-        {notice && (
-          <p className="agent-field-note" role="status">
-            {notice}
-          </p>
-        )}
-      </fieldset>
+              <div className="agent-resource-options">
+                {matching.map((resource) => {
+                  const Icon =
+                    resource.kind === 'mcp'
+                      ? Plug
+                      : resource.kind === 'storage'
+                        ? Database
+                        : Terminal;
+                  return (
+                    <label
+                      className="agent-tool-choice"
+                      key={resource.id}
+                      data-selected={configuration.resourceIds.includes(resource.id)}
+                    >
+                      <input
+                        type="checkbox"
+                        aria-label={resource.name}
+                        checked={configuration.resourceIds.includes(resource.id)}
+                        onChange={(event) =>
+                          setConfiguration({
+                            ...configuration,
+                            resourceIds: event.target.checked
+                              ? [...configuration.resourceIds, resource.id]
+                              : configuration.resourceIds.filter((id) => id !== resource.id),
+                          })
+                        }
+                      />
+                      <Icon size={16} aria-hidden="true" />
+                      <span>
+                        <strong>{resource.name}</strong>
+                        <small>
+                          {resource.kind === 'mcp'
+                            ? 'MCP'
+                            : resource.kind === 'storage'
+                              ? 'Storage'
+                              : 'Tool'}{' '}
+                          · {resource.source === 'draft' ? 'Setup draft' : 'Preview resource'}
+                        </small>
+                      </span>
+                    </label>
+                  );
+                })}
+                {!matching.length && (
+                  <p className="agent-field-note">
+                    {query
+                      ? 'No matching resources.'
+                      : 'No resources assigned here yet. Add or assign them in Tools & MCPs.'}
+                  </p>
+                )}
+              </div>
+            </details>
+          )}
+          {notice && (
+            <p className="agent-field-note" role="status">
+              {notice}
+            </p>
+          )}
+        </fieldset>
+      )}
       <AgentAdvancedSettings
+        guide={guide}
         value={configuration}
         onChange={setConfiguration}
         hasTeam={!!teamId}

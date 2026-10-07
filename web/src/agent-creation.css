@@ -22,6 +22,9 @@
   grid-template-columns: 1.15fr 1fr;
   gap: 25px;
 }
+.agent-create-basics[data-guide='true'] {
+  grid-template-columns: minmax(0, 1fr);
+}
 .agent-identity-fields,
 .agent-runtime-fields {
   display: flex;

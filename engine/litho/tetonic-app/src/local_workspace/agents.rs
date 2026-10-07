@@ -320,7 +320,7 @@ impl LocalWorkspace {
             .unwrap_or_default();
         Ok(LocalAgent {
             definition_digest: stored.identity.bound_definition_digest.clone(),
-            editable: key != shaping::GUIDE && key != plan_execution::COORDINATOR,
+            editable: key != plan_execution::COORDINATOR,
             tool_disclosure: prefs.tool_disclosure,
             hosted_workspace: prefs.hosted_workspace,
             plan_coordinator: key == plan_execution::COORDINATOR,

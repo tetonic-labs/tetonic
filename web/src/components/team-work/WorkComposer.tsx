@@ -11,11 +11,13 @@ export function WorkComposer({
   recipient,
   onAccepted,
   onShape,
+  onGuideSettings,
 }: {
   work?: WorkRecord;
   recipient?: string;
   onAccepted: (id: string) => void;
   onShape?: (id?: string) => void;
+  onGuideSettings?: () => void;
 }) {
   const engine = useLocalEngine();
   const [choice, setChoice] = useState(recipient || '');
@@ -142,6 +144,16 @@ export function WorkComposer({
           {!work && <span>{directing ? 'Send' : 'Start work'}</span>}
         </button>
       </div>
+      {directing && selectedAgent && onGuideSettings && (
+        <button
+          type="button"
+          className="px-text-button"
+          onClick={onGuideSettings}
+          disabled={!engine.isConnected}
+        >
+          Guide model · {selectedAgent.model}
+        </button>
+      )}
       {onShape && !directing && (
         <div className="tw-composer-alternatives">
           <span>Still figuring it out?</span>

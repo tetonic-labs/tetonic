@@ -1,5 +1,9 @@
 # MVP implementation progress
 
+## 2026-10-07 — Configurable Guide for conversational planning
+
+Added [Guide model settings](sprints/october-1-coherent-workspace/guide-model-settings-2026-10-07.md), following the [conversation planning tool](sprints/october-1-coherent-workspace/guide-planning-tools-2026-10-07.md). The owner can choose a local or hosted planning model and reply limits from the existing agent settings, directly accessible from the map/conversation. Saved settings reuse registered identities and revisions; hosted planning uses the same scoped `work_plan` capability and managed provider adapters. Plans remain proposals until the owner starts them. Model/credential setup failures no longer create phantom starting work. Provider fixtures validate OpenAI/Anthropic/Google planning without Ollama; no paid live-provider quality claim is made. Full Sprint 1 and broader MVP obligations remain open.
+
 ## 2026-10-04 — Sprint 1 re-scoped around autonomous team work
 
 Revised the [active Sprint 1](sprints/october-1-coherent-workspace/plan.md), its [product plan](sprints/october-1-coherent-workspace/ui-consolidation-sprint.md), tickets and validation protocol after the user clarified the core product: autonomous digital teams do the work, humans shape it, and the operator understands outcomes, work structure, agent activity and interactions at a glance. Chat supports this experience; a simpler single-agent conversation cannot satisfy the product gate.

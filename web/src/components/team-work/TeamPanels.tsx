@@ -131,6 +131,7 @@ export function TeamPanels({
   dark,
   setDark,
   initialAgentId,
+  editInitially = false,
 }: {
   panel: TeamPanel;
   records: WorkRecord[];
@@ -139,13 +140,18 @@ export function TeamPanels({
   dark: boolean;
   setDark: (value: boolean) => void;
   initialAgentId?: string;
+  editInitially?: boolean;
 }) {
   const engine = useLocalEngine();
   const { workspace, client, uiAgents, teams, approvals, readErrors } = engine;
   const [creating, setCreating] = useState(false);
   const [agentId, setAgentId] = useState<string | null>(initialAgentId || null);
   const [createdAgent, setCreatedAgent] = useState<EngineAgent | null>(null);
-  const [editingAgent, setEditingAgent] = useState<EngineAgent | null>(null);
+  const [editingAgent, setEditingAgent] = useState<EngineAgent | null>(() =>
+    editInitially
+      ? workspace?.agents.find((a) => a.key === initialAgentId && a.editable !== false) || null
+      : null,
+  );
   const [updatedAgentKey, setUpdatedAgentKey] = useState<string | null>(null);
   const [query, setQuery] = useState('');
   if (panel === 'work')

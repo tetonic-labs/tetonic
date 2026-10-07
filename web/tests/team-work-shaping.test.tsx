@@ -16,6 +16,8 @@ const guide = {
   max_seconds: 120,
   max_tokens: 4096,
   tools: [],
+  editable: true,
+  definition_digest: 'guide-revision',
 };
 const saved: EngineTask = {
   id: 'saved-exploration',
@@ -91,6 +93,54 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('points a hosted Guide with a removed key to settings without submitting phantom work', async () => {
+    const f = fixture([saved]);
+    const current = await f.client.snapshot();
+    f.snapshot.mockResolvedValue({
+      ...current,
+      agents: [{ ...guide, provider: 'openai', hosted_consent: true }],
+    });
+    vi.mocked(f.client.agentCatalog).mockResolvedValue({
+      models: [],
+      harnesses: ['general'],
+      tools: [],
+      max_steps: 8,
+      max_seconds: 120,
+      max_tokens: 4096,
+      providers: [{ id: 'openai', name: 'OpenAI', key_saved: false }],
+    });
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    f.view();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Continue the conversation' }), {
+      target: { value: 'Continue this plan' },
+    });
+    await screen.findByText(/A provider key is needed.*Open Guide model/);
+    expect(screen.getByRole('button', { name: 'Send exploration reply' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    fireEvent.click(screen.getByRole('button', { name: 'Guide model' }));
+    await screen.findByRole('combobox', { name: 'Model provider' });
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+  it('opens Guide settings directly from a conversation and returns without losing its draft', async () => {
+    const f = fixture([saved]);
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    f.view();
+    fireEvent.change(await screen.findByRole('textbox', { name: 'Continue the conversation' }), {
+      target: { value: 'Keep this unfinished thought.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Guide model' }));
+    await screen.findByText(
+      'Choose who helps you think and plan. Changes apply to the next reply.',
+    );
+    expect(screen.queryByRole('textbox', { name: 'Name', exact: true })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to previous view' }));
+    expect(
+      await screen.findByRole('textbox', { name: 'Continue the conversation' }),
+    ).toHaveProperty('value', 'Keep this unfinished thought.');
+    expect(f.submit).not.toHaveBeenCalled();
+  });
   it('uses the configured live Guide without passing example projects or assignments', async () => {
     const f = fixture();
     f.view();

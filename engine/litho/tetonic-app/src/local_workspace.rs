@@ -344,6 +344,10 @@ impl LocalWorkspace {
         let mut conversation_input = self
             .conversation_input(&id, &agent_key, parent_id.as_deref(), &input)
             .await?;
+        // Reject missing credentials/models before creating an unstarted record.
+        // Confirmed retries already returned above and retain their original run.
+        self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
+        let mut settings = self.agent_execution_settings(&agent).await?;
         let work = resources
             .create_team_work_item_for_purpose(
                 &self.host.credential,
@@ -363,8 +367,6 @@ impl LocalWorkspace {
         if work.run_id.is_some() {
             return self.project_task(work).await;
         }
-        self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
-        let mut settings = self.agent_execution_settings(&agent).await?;
         let mut director = None;
         let planning = self.planning_ids().await?.contains_key(&id);
         if planning {

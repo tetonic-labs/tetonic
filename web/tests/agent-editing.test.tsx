@@ -81,6 +81,7 @@ function setup(agent = existing) {
         model: agent.model,
         input_limit: 12000,
         agents: [agent],
+        shaping_agent_key: 'the-guide',
         tasks: [],
       }}
       onCreated={saved}
@@ -153,4 +154,41 @@ it('lets an agent remove a selected MCP tool that is no longer offered', async (
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await waitFor(() => expect(f.update).toHaveBeenCalledOnce());
   expect(f.update.mock.calls[0][1].tools).toEqual([]);
+});
+
+it('edits the Guide model with planning disclosure and no execution tool or identity controls', async () => {
+  const guide = { ...existing, key: 'the-guide', name: 'The Guide', tools: [] };
+  const f = setup(guide);
+  await screen.findByRole('combobox', { name: 'Model provider' });
+  expect(screen.queryByLabelText('Name', { exact: true })).toBeNull();
+  expect(screen.queryByLabelText('What will they help with?')).toBeNull();
+  expect(screen.queryByRole('checkbox', { name: 'Terminal', exact: true })).toBeNull();
+  expect(screen.queryByRole('checkbox', { name: 'Calendar: search' })).toBeNull();
+  fireEvent.change(screen.getByRole('combobox', { name: 'Model provider' }), {
+    target: { value: 'openai' },
+  });
+  await screen.findByRole('option', { name: 'account-model' });
+  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), {
+    target: { value: 'account-model' },
+  });
+  const save = screen.getByRole('button', { name: 'Save changes' });
+  expect(save).toHaveProperty('disabled', true);
+  fireEvent.click(
+    screen.getByRole('checkbox', { name: /workspace activity summaries.*inspected work results/ }),
+  );
+  expect(save).toHaveProperty('disabled', false);
+  fireEvent.click(save);
+  await waitFor(() => expect(f.saved).toHaveBeenCalledOnce());
+  expect(f.update.mock.calls[0][0]).toEqual(guide);
+  expect(f.update.mock.calls[0][1]).toMatchObject({
+    name: guide.name,
+    purpose: guide.purpose,
+    provider: 'openai',
+    model: 'account-model',
+    harness: 'general',
+    tools: [],
+    hosted_consent: true,
+    hosted_tools_consent: false,
+  });
+  expect(f.create).not.toHaveBeenCalled();
 });

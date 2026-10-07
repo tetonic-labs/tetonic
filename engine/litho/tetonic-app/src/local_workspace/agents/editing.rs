@@ -20,6 +20,25 @@ impl LocalWorkspace {
         if !agent.editable {
             return Err(AppError::InvalidRequest("This agent is managed by the engine's planning system. Create a teammate for custom settings and tools.".into()));
         }
+        // The Guide shares saved-agent identity, revisions and provider settings.
+        // Its planning authority still comes only from a scoped host binding;
+        // editing a model must not turn it into an arbitrary workspace executor.
+        if input.agent_key == shaping::GUIDE
+            && (input.configuration.name != agent.name
+                || input.configuration.purpose != agent.purpose
+                || input.configuration.harness != "general"
+                || input
+                    .configuration
+                    .tools
+                    .as_ref()
+                    .is_some_and(|t| !t.is_empty())
+                || input.configuration.hosted_tools_consent
+                || input.configuration.expected_workspace_root.is_some())
+        {
+            return Err(AppError::InvalidRequest(
+                "Choose the Guide's model and reply limits. Its identity, planning instructions and scoped tools are managed by the engine.".into(),
+            ));
+        }
         if agent.provider != input.configuration.provider
             || agent.model != input.configuration.model
         {

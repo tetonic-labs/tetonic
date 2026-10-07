@@ -26,6 +26,7 @@ export function EngineAgentDetail({
   updated?: boolean;
 }) {
   const engine = useLocalEngine();
+  const guide = profile.key === engine.workspace?.shaping_agent_key;
   const fresh = engine.isConnected && !engine.readErrors['Agent setup'];
   const setup = agentSetup(profile, engine.catalog, fresh);
   const listed = engine.workspace?.agents.some((agent) => agent.key === profile.key);
@@ -56,7 +57,7 @@ export function EngineAgentDetail({
           disabled={!fresh || !profile.definition_digest}
           onClick={onEdit}
         >
-          Edit agent
+          {guide ? 'Guide model & limits' : 'Edit agent'}
         </button>
       )}
       {profile.editable === false && (
@@ -72,11 +73,19 @@ export function EngineAgentDetail({
             : 'Agent saved. Refreshing your workspace…'}
         </p>
       )}
-      <p>{profile.purpose}</p>
       <p>
-        {toolDescription(profile.tools || [], engine.catalog) ||
-          'Works with the information you supply. No file or external tools selected.'}
+        {guide
+          ? 'Helps you think through ideas, shape team plans, and understand ongoing work.'
+          : profile.purpose}
       </p>
+      {guide ? (
+        <p>Can inspect work and save proposals. You choose when a plan starts.</p>
+      ) : (
+        <p>
+          {toolDescription(profile.tools || [], engine.catalog) ||
+            'Works with the information you supply. No file or external tools selected.'}
+        </p>
+      )}
       {setup.state !== 'configured' && <p role="status">{setup.message}</p>}
       {provider && !provider.key_saved && connection}
       {!profile.plan_coordinator && (

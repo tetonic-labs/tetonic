@@ -39,6 +39,7 @@ type Panel = {
     | 'detail';
   id?: string;
   inspect?: boolean;
+  edit?: boolean;
 } | null;
 function route(): { panel: Panel; project?: string } {
   const hash = new URLSearchParams(location.hash.slice(1));
@@ -381,6 +382,9 @@ function ConnectedTeamWorkspace() {
               recipient={recipient}
               onAccepted={showWork}
               onShape={shape}
+              onGuideSettings={() =>
+                open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
+              }
             />
           </div>
         )}
@@ -422,6 +426,9 @@ function ConnectedTeamWorkspace() {
                   key={focusSource || 'new'}
                   workId={focusSource}
                   onWork={showWork}
+                  onGuideSettings={() =>
+                    open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
+                  }
                   onSelected={(id) => {
                     setPanel({ kind: 'shaping', id });
                   }}
@@ -440,10 +447,11 @@ function ConnectedTeamWorkspace() {
                 ))}
               {['work', 'agents', 'teams', 'attention', 'settings'].includes(panel.kind) && (
                 <TeamPanels
-                  key={`${panel.kind}:${panel.id || ''}`}
+                  key={`${panel.kind}:${panel.id || ''}:${!!panel.edit}`}
                   panel={panel.kind as 'work' | 'agents' | 'teams' | 'attention' | 'settings'}
                   records={panel.kind === 'attention' ? attentionRecords : records}
                   initialAgentId={panel.id}
+                  editInitially={panel.edit}
                   onWork={showWork}
                   onAgent={(key) => {
                     if (key === workspace?.shaping_agent_key) shape();

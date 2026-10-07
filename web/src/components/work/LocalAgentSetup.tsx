@@ -114,6 +114,7 @@ export function LocalAgentSetup({
   return (
     <AgentCreateForm
       agent={agent}
+      guide={!!agent && agent.key === workspace.shaping_agent_key}
       teams={[
         {
           id: workspace.team_id,
