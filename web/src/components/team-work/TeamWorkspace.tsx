@@ -425,6 +425,7 @@ function ConnectedTeamWorkspace() {
                 <LiveShaping
                   key={focusSource || 'new'}
                   workId={focusSource}
+                  onAgentSettings={(key) => open({ kind: 'agents', id: key, edit: true })}
                   onWork={showWork}
                   onGuideSettings={() =>
                     open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })

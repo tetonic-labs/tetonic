@@ -119,7 +119,9 @@ impl LocalWorkspace {
         })
     }
 
-    async fn installed_models(&self) -> Result<Vec<String>, AppError> {
+    pub(in crate::local_workspace) async fn installed_models(
+        &self,
+    ) -> Result<Vec<String>, AppError> {
         let provider = tetonic_inference::OllamaProvider::new(
             self.host.app.turn.ollama_base(),
             self.host.app.turn.guard(),

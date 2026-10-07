@@ -7,16 +7,22 @@ use std::{
 };
 use tetonic_memory::{HuddleExecution, PlanAgentPin, PlanContent};
 
+mod coordinator;
 mod parallel;
+pub use coordinator::{CoordinationModel, PlanSetupIssue};
 
 pub(super) const COORDINATOR: &str = "Team coordinator";
 const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing all outstanding keys, including dependents. The host runs independent agents concurrently and starts dependent work after its inputs are ready. Use a one-key array only when intermediate judgment is needed. A blocked assignment does not stop unrelated work. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
 
-#[derive(Deserialize)]
+#[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct StartPlan {
     pub request_id: String,
     pub revision: i64,
+    #[serde(default)]
+    pub coordinator: Option<CoordinationModel>,
+    #[serde(default)]
+    pub hosted_coordination_consent: bool,
 }
 
 #[derive(Clone, Serialize)]
@@ -33,6 +39,7 @@ pub struct PlanTaskLink {
 
 #[derive(Serialize)]
 pub struct PlanExecutionView {
+    pub coordinator: Option<CoordinationModel>,
     pub directions: Vec<tetonic_memory::PlanDirection>,
     pub receipt: HuddleExecution,
     pub state: String,
@@ -169,6 +176,7 @@ impl LocalWorkspace {
             state = "failed".into();
         }
         Ok(Some(PlanExecutionView {
+            coordinator: self.pinned_coordinator_model(&receipt).await?,
             directions: self.plan_directions(source).await?,
             receipt,
             state,
@@ -251,6 +259,14 @@ impl LocalWorkspace {
                     "This plan already has an execution. Open its existing work.".into(),
                 ));
             }
+            let model = self.pinned_coordinator_model(&old).await?;
+            if let Some(model) = model {
+                coordinator::check_model_choice(&request, &model)?;
+            } else if request.coordinator.is_some() || request.hosted_coordination_consent {
+                return Err(AppError::InvalidRequest(
+                    "This older start has no saved model choice. Open its existing work.".into(),
+                ));
+            }
             return self
                 .execution_view(source)
                 .await?
@@ -277,10 +293,14 @@ impl LocalWorkspace {
             .content
             .as_ref()
             .ok_or(AppError::InferenceUnavailable)?;
-        self.require_installed_model(&self.host.settings.model)
-            .await?;
+        let guide = self.guide_for_coordination().await?;
+        let model = CoordinationModel::from(&guide);
+        coordinator::check_model_choice(&request, &model)?;
+        // Validate the selected destination before any execution receipt is saved.
+        self.agent_execution_settings(&guide).await?;
         let resources = self.local.resources();
-        let coordinator_config = serde_json::json!({"instructions":INSTRUCTIONS,"requested_tools":["finish",DISPATCH],"explain_turn":false,"max_steps":16});
+        let max_elapsed_seconds = self.plan_deadline(content);
+        let coordinator_config = coordinator::configuration(&guide, content, max_elapsed_seconds);
         let coordinator = match resources
             .register_agent(
                 &self.host.credential,
@@ -317,7 +337,6 @@ impl LocalWorkspace {
                 definition_digest: registered.identity.bound_definition_digest,
             });
         }
-        let max_elapsed_seconds = self.plan_deadline(content);
         let source_owned = source.to_owned();
         let revision = request.revision;
         let request_id = request.request_id;
@@ -370,6 +389,11 @@ impl LocalWorkspace {
     async fn launch_plan(self: &Rc<Self>, receipt: &HuddleExecution) -> Result<(), AppError> {
         let resources = self.local.resources();
         let secret = &self.host.credential;
+        // Resolve the admitted revision, never today's Guide/host defaults.
+        let coordinator = self.pinned_coordinator(receipt).await?;
+        let mut settings = self.host.settings.clone();
+        self.apply_agent_inference(&coordinator, &mut settings, None)
+            .await?;
         let context = format!("plan-{}", receipt.root_work_id);
         self.local
             .contexts()
@@ -392,7 +416,7 @@ impl LocalWorkspace {
                 "assignments":receipt.content.assignments.iter().map(|a|serde_json::json!({"key":a.key,"title":a.title,"depends_on":a.depends_on,"deliverable":a.deliverable})).collect::<Vec<_>>()})
         );
         if input.len() > 48_000 {
-            return Err(AppError::InvalidRequest("This plan is too large for the local coordinator. Shorten the brief or assignments.".into()));
+            return Err(AppError::InvalidRequest("This plan is too large for the coordinator. Shorten the brief or assignments.".into()));
         }
         resources
             .create_team_work_item_for_purpose(
@@ -463,17 +487,15 @@ impl LocalWorkspace {
             sender,
             remaining: remaining.clone(),
         };
-        let mut settings = self.host.settings.clone();
         settings.mcp = None;
         settings.workspace_root = None;
-        settings.hosted = None;
         settings.allowed_tools = ["finish".into(), DISPATCH.into(), ASK_HUMAN.into()]
             .into_iter()
             .collect();
         settings.limits.human_handoff = true;
         settings.plan_dispatch = Some(dispatch);
         settings.max_elapsed_seconds = receipt.max_elapsed_seconds;
-        settings.limits.max_steps = 16;
+        settings.limits.max_steps = coordinator.max_steps;
         settings.limits.max_input_bytes = 48_000;
         settings.reported_token_ceiling = Some(
             receipt.content.token_budget

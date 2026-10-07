@@ -150,6 +150,7 @@ async fn mixed_provider_teams_keep_saved_model_file_and_mcp_grants() {
                         StartPlan {
                             request_id: uuid::Uuid::new_v4().to_string(),
                             revision: 2,
+                            ..Default::default()
                         },
                     )
                     .await

@@ -115,6 +115,7 @@ async fn human_wait_and_direction(scenario: u8) {
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -396,6 +397,7 @@ async fn stopped_human_wait_rejects_answers_and_changes_without_reviving_work() 
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -476,6 +478,7 @@ async fn coordinator_answers_reach_workers_through_scoped_plan_context() {
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -592,6 +595,7 @@ async fn unanswered_question_expires_without_a_false_starting_or_retry_state() {
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 2,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -669,6 +673,7 @@ async fn restarted_wait_remains_inspectable_but_an_answer_cannot_revive_its_atte
                         StartPlan {
                             request_id: uuid::Uuid::new_v4().to_string(),
                             revision: 1,
+                            ..Default::default()
                         },
                     )
                     .await

@@ -131,7 +131,7 @@ async fn local_model_document_plan_journey() {
             let started = workspace
                 .start_plan(
                     &source,
-                    StartPlan { request_id: request_id.clone(), revision: 1 },
+                    StartPlan { request_id: request_id.clone(), revision: 1, ..Default::default() },
                 )
                 .await
                 .unwrap();

@@ -431,11 +431,13 @@ impl crate::Application {
             // tools and folder must fit both this consent and the prepared grants.
             // Recall, delegated team context and artifacts remain separately scoped.
             let capabilities = &prepared.command.job_spec.capability_bindings;
-            // These controls expose only the host-bound conversation/work scope.
-            // They have no file, shell, MCP or dispatch authority. A hosted Guide's
-            // prompt consent covers the scoped planning context and tool results.
+            // Internal controls expose only their host-bound work scope. Dispatch
+            // selects pre-authorized assignments; it cannot grant arbitrary tools.
+            // Hosted context consent never replaces a child's execution grant.
             let internal_control = |tool: &str| {
-                (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
+                tool == "finish"
+                    || (bound_dispatch && tool == super::plan_dispatch::DISPATCH)
+                    || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
                     || (bound_director && tool == super::work_director::CONTROL)
             };
             let valid = match &hosted.tool_disclosure {

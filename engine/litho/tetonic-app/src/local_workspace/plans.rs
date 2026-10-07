@@ -52,6 +52,8 @@ pub enum PlanCommand {
 }
 #[derive(Serialize)]
 pub struct PlanView {
+    pub coordinator: Option<plan_execution::CoordinationModel>,
+    pub setup_issues: Vec<plan_execution::PlanSetupIssue>,
     pub execution_max_seconds: Option<u64>,
     pub execution: Option<PlanExecutionView>,
     pub plans: Vec<HuddlePlan>,
@@ -124,6 +126,8 @@ impl LocalWorkspace {
             _ => None,
         };
         let mut readiness = Vec::new();
+        let execution = self.execution_view(id).await?;
+        let mut setup_issues = vec![];
         if let Some(plan) = plans.first() {
             if plan.brief_revision != brief_revision {
                 readiness
@@ -131,6 +135,10 @@ impl LocalWorkspace {
             }
             if let Some(content) = &plan.content {
                 readiness.extend(self.execution_readiness(content).await?);
+                if execution.is_none() {
+                    setup_issues = self.plan_setup_issues(content).await?;
+                    readiness.extend(setup_issues.iter().map(|i| i.message.clone()));
+                }
                 let agents = self.agents().await?;
                 for assignment in &content.assignments {
                     match agents
@@ -167,7 +175,13 @@ impl LocalWorkspace {
                 }
             }
         }
-        let execution = self.execution_view(id).await?;
+        let coordinator = if let Some(execution) = &execution {
+            execution.coordinator.clone()
+        } else {
+            Some(plan_execution::CoordinationModel::from(
+                &self.guide_for_coordination().await?,
+            ))
+        };
         let execution_available = execution.is_none()
             && readiness.is_empty()
             && plans.first().is_some_and(|p| p.status == "agreed");
@@ -181,6 +195,8 @@ impl LocalWorkspace {
                     .map(|content| self.plan_deadline(content))
             });
         Ok(PlanView {
+            coordinator,
+            setup_issues,
             execution_max_seconds,
             execution,
             plans,

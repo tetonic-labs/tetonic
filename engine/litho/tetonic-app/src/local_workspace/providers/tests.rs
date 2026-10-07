@@ -8,6 +8,7 @@ use std::sync::{
 use tetonic_domain::key_storage::{KeyStorageError, SecretBytes};
 use tetonic_inference::hosted::HostedTransport;
 
+mod coordination;
 mod guide;
 mod local_shell;
 mod parity;

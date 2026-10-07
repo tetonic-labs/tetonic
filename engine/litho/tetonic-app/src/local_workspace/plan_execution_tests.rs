@@ -369,6 +369,7 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
                 StartPlan {
                     request_id: request.clone(),
                     revision: 1,
+                    ..Default::default()
                 },
             )
             .await
@@ -379,6 +380,7 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
                 StartPlan {
                     request_id: request.clone(),
                     revision: 1,
+                    ..Default::default()
                 },
             )
             .await
@@ -389,7 +391,8 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
                 &source,
                 StartPlan {
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    revision: 1
+                    revision: 1,
+                    ..Default::default()
                 }
             )
             .await
@@ -497,6 +500,7 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
                 StartPlan {
                     request_id: request,
                     revision: 1,
+                    ..Default::default()
                 },
             )
             .await
@@ -551,7 +555,8 @@ async fn stale_brief_and_no_coordination_budget_block_start_without_inference() 
                 &source,
                 StartPlan {
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    revision: 2
+                    revision: 2,
+                    ..Default::default()
                 }
             )
             .await
@@ -572,7 +577,8 @@ async fn stale_brief_and_no_coordination_budget_block_start_without_inference() 
                 &source,
                 StartPlan {
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    revision: 2
+                    revision: 2,
+                    ..Default::default()
                 }
             )
             .await
@@ -605,6 +611,7 @@ async fn stopping_a_plan_cancels_child_wait_without_starting_the_next_assignment
                 StartPlan {
                     request_id: uuid::Uuid::new_v4().to_string(),
                     revision: 1,
+                    ..Default::default()
                 },
             )
             .await
@@ -698,6 +705,7 @@ async fn local_model_plan_journey() {
                 StartPlan {
                     request_id: uuid::Uuid::new_v4().to_string(),
                     revision: 2,
+                    ..Default::default()
                 },
             )
             .await

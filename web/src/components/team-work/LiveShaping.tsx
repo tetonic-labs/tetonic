@@ -16,13 +16,20 @@ type ShapingProps = {
   onWork?: (id: string, inspect?: boolean) => void;
   onSelected?: (id: string) => void;
   onGuideSettings?: () => void;
+  onAgentSettings?: (key: string) => void;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
   return <ConnectedShaping key={connectionDraftScope()} {...props} />;
 }
 
-function ConnectedShaping({ workId, onWork, onSelected, onGuideSettings }: ShapingProps) {
+function ConnectedShaping({
+  workId,
+  onWork,
+  onSelected,
+  onGuideSettings,
+  onAgentSettings,
+}: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
   const records = workRecords(workspace?.tasks || [], engine.workItems).filter(
@@ -121,7 +128,7 @@ function ConnectedShaping({ workId, onWork, onSelected, onGuideSettings }: Shapi
     return (
       <section className="px-shaping" aria-label="Team work">
         <div className="px-shaping-body">
-          <PlanReview workId={selectedId} onWork={onWork} />
+          <PlanReview workId={selectedId} onWork={onWork} onAgentSettings={onAgentSettings} />
         </div>
       </section>
     );
@@ -217,6 +224,7 @@ function ConnectedShaping({ workId, onWork, onSelected, onGuideSettings }: Shapi
                 key={`${selected.id}:${briefVersion}`}
                 workId={selected.id}
                 onView={viewChanged}
+                onAgentSettings={onAgentSettings}
                 onWork={onWork}
                 suggestion={suggestion}
                 conversationActive={active}

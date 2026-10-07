@@ -23,6 +23,7 @@ export function PlanReview({
   onView,
   onWork,
   onBrief,
+  onAgentSettings,
   suggestion,
   conversationActive = false,
 }: {
@@ -30,6 +31,7 @@ export function PlanReview({
   onView?: (view: PlanView) => void;
   onWork?: (id: string, inspect?: boolean) => void;
   onBrief?: () => void;
+  onAgentSettings?: (key: string) => void;
   suggestion?: string;
   conversationActive?: boolean;
 }) {
@@ -61,6 +63,10 @@ export function PlanReview({
   );
   const running = !!view?.generation && taskIsActive(view.generation);
   const stale = !!current && current.brief_revision !== view?.brief_revision;
+  const unresolved =
+    view?.readiness.filter(
+      (reason) => !view.setup_issues?.some((issue) => issue.message === reason),
+    ) || [];
   const editStale =
     !!edit && (edit.base !== current?.revision || edit.brief !== view?.brief_revision);
   useEffect(() => {
@@ -659,11 +665,11 @@ export function PlanReview({
                       )}
                     </>
                   )}
-                  {!!view.readiness.length && (
+                  {!!unresolved.length && (
                     <details>
-                      <summary>Things to resolve · {view.readiness.length}</summary>
+                      <summary>Things to resolve · {unresolved.length}</summary>
                       <ul>
-                        {view.readiness.map((r, i) => (
+                        {unresolved.map((r, i) => (
                           <li key={i}>{r}</li>
                         ))}
                       </ul>
@@ -768,6 +774,7 @@ export function PlanReview({
           view={view}
           refresh={refresh}
           onWork={onWork}
+          onAgentSettings={onAgentSettings}
           disabled={disabled || stale}
         />
       )}

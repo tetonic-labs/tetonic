@@ -2,6 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { PlanReview } from '../src/components/team-work/PlanReview';
+import { PlanExecution } from '../src/components/team-work/PlanExecution';
 import {
   LocalEngine,
   EngineRequestError,
@@ -160,10 +161,10 @@ function fixture(
     set: (v: Partial<PlanView>) => {
       state = { ...state, ...v };
     },
-    render: (suggestion?: string) =>
+    render: (suggestion?: string, onAgentSettings?: (key: string) => void) =>
       render(
         <LocalEngineProvider client={client}>
-          <PlanReview workId="shape" suggestion={suggestion} />
+          <PlanReview workId="shape" suggestion={suggestion} onAgentSettings={onAgentSettings} />
         </LocalEngineProvider>,
       ),
   };
@@ -171,6 +172,93 @@ function fixture(
 afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+});
+
+it('reviews the coordination destination and retains consent with an uncertain start', async () => {
+  const coordinator = { provider: 'openai', model: 'reviewed-model' };
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+    coordinator,
+  });
+  const start = vi.spyOn(f.client, 'startPlan').mockRejectedValue(new Error('Response lost'));
+  const settings = vi.fn();
+  const page = f.render(undefined, settings);
+  const button = await screen.findByRole('button', { name: 'Start this plan' });
+  expect(button).toHaveProperty('disabled', true);
+  fireEvent.click(screen.getByRole('button', { name: 'Change model' }));
+  expect(settings).toHaveBeenCalledWith('guide');
+  fireEvent.click(screen.getByRole('checkbox', { name: /Allow the shared brief/ }));
+  fireEvent.click(button);
+  await screen.findByText('Response lost');
+  const request = start.mock.calls[0][1];
+  expect(request).toMatchObject({ coordinator, hosted_coordination_consent: true });
+  expect(f.update.mock.calls[0][1]).toEqual({
+    action: 'agree',
+    request_id: request.request_id,
+    revision: 1,
+  });
+  page.unmount();
+  // Another tab may change the Guide after an uncertain response. Retrying must
+  // neither display the new destination nor silently send it the old consent.
+  f.set({ coordinator: { provider: 'google', model: 'later-model' } });
+  f.render();
+  fireEvent.click(await screen.findByRole('button', { name: 'Check this start again' }));
+  await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+  expect(start.mock.calls[1][1]).toEqual(request);
+  expect(screen.getByText(/Coordination: reviewed-model/)).toBeTruthy();
+  expect(screen.queryByText(/Coordination: later-model/)).toBeNull();
+});
+
+it('requires fresh consent when the coordination model changes before starting', async () => {
+  const view: PlanView = {
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+    coordinator: { provider: 'openai', model: 'first' },
+  };
+  const f = fixture(view);
+  const element = (v: PlanView) => (
+    <LocalEngineProvider client={f.client}>
+      <PlanExecution workId="shape" view={v} refresh={async () => {}} />
+    </LocalEngineProvider>
+  );
+  const page = render(element(view));
+  await waitFor(() => expect(screen.getByRole('checkbox')).toHaveProperty('disabled', false));
+  fireEvent.click(screen.getByRole('checkbox'));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
+      'disabled',
+      false,
+    ),
+  );
+  page.rerender(element({ ...view, coordinator: { provider: 'anthropic', model: 'second' } }));
+  expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty('disabled', true);
+});
+
+it('takes a blocked plan directly to the agent that needs setup', async () => {
+  const issue = { agent_key: 'reviewer', message: 'Reviewer needs its provider key.' };
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [issue.message],
+    setup_issues: [issue],
+    execution_available: false,
+    coordinator: { provider: 'ollama', model: 'local-model' },
+  });
+  const settings = vi.fn();
+  f.render(undefined, settings);
+  fireEvent.click(await screen.findByRole('button', { name: 'Review agent setup' }));
+  expect(settings).toHaveBeenCalledWith('reviewer');
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty('disabled', true);
+  expect(f.submit).not.toHaveBeenCalled();
 });
 
 it('shows a proposal saved by the Guide when its reply finishes, without a prepare click or launch', async () => {

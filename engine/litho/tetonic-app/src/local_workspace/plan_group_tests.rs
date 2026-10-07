@@ -18,6 +18,7 @@ async fn parent_stop_cancels_both_parallel_workers() {
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -62,6 +63,7 @@ async fn independent_agents_reach_inference_together_and_keep_their_identities()
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await
@@ -143,6 +145,7 @@ async fn grouped_dispatch_preserves_dependencies_receipts_and_idempotent_retries
                         StartPlan {
                             request_id: uuid::Uuid::new_v4().to_string(),
                             revision: 1,
+                            ..Default::default()
                         },
                     )
                     .await
@@ -226,6 +229,7 @@ async fn stopping_a_group_cancels_the_child_and_never_starts_the_next_key() {
                     StartPlan {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         revision: 1,
+                        ..Default::default()
                     },
                 )
                 .await

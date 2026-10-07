@@ -227,7 +227,7 @@ export function AgentCreateForm({
         </h2>
         <p>
           {guide
-            ? 'Choose who helps you think and plan. Changes apply to the next reply.'
+            ? 'Choose who helps you think and plan. Changes apply to new replies and teams you start.'
             : agent
               ? 'Changes apply to new work. Work already started keeps its current settings.'
               : 'Give them a purpose. Choose how they work.'}

@@ -35,6 +35,7 @@ export interface HuddlePlan {
   agreement_id: string | null;
 }
 export interface PlanExecutionView {
+  coordinator?: CoordinationModel | null;
   directions?: PlanDirection[];
   receipt: {
     source_work_id: string;
@@ -64,6 +65,8 @@ export interface PlanTaskLink {
   depends_on: string[];
 }
 export interface PlanView {
+  coordinator?: CoordinationModel | null;
+  setup_issues?: { agent_key: string; message: string }[];
   execution_max_seconds?: number | null;
   execution?: PlanExecutionView | null;
   plans: HuddlePlan[];
@@ -71,6 +74,16 @@ export interface PlanView {
   brief_revision: number;
   readiness: string[];
   execution_available: boolean;
+}
+export interface CoordinationModel {
+  provider: string;
+  model: string;
+}
+export interface StartPlanRequest {
+  request_id: string;
+  revision: number;
+  coordinator?: CoordinationModel;
+  hosted_coordination_consent?: boolean;
 }
 export type PlanCommand =
   | {
@@ -421,7 +434,7 @@ export class LocalEngine {
   briefs(id: string, signal?: AbortSignal) {
     return this.request<WorkBrief[]>(`/briefs/${encodeURIComponent(id)}`, undefined, signal);
   }
-  startPlan(id: string, request: { request_id: string; revision: number }) {
+  startPlan(id: string, request: StartPlanRequest) {
     return this.request<PlanExecutionView>(`/plans/${encodeURIComponent(id)}/start`, request);
   }
   answerPlanQuestion(id: string, request: AnswerPlanQuestion) {

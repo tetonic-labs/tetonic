@@ -1,5 +1,9 @@
 # MVP implementation progress
 
+## 2026-10-07 — Teams use the chosen coordination model
+
+Added [provider-independent team coordination](sprints/october-1-coherent-workspace/hosted-team-coordination-2026-10-07.md). New plans use the Guide's selected provider/model for coordination, pin that choice in the existing registered coordinator revision, and retain each worker's saved identity/model/tools. Hosted team execution no longer requires Ollama. The existing plan view shows the coordination destination, requires consent for hosted shared context, and links missing setup directly to the relevant agent. Controlled provider tests demonstrate parallel file/MCP work, human-question handoff, stable model choice, safe retries and restart persistence. This closes the local-only coordinator gap; it does not claim live frontier-model quality or complete the wider MVP.
+
 ## 2026-10-07 — Configurable Guide for conversational planning
 
 Added [Guide model settings](sprints/october-1-coherent-workspace/guide-model-settings-2026-10-07.md), following the [conversation planning tool](sprints/october-1-coherent-workspace/guide-planning-tools-2026-10-07.md). The owner can choose a local or hosted planning model and reply limits from the existing agent settings, directly accessible from the map/conversation. Saved settings reuse registered identities and revisions; hosted planning uses the same scoped `work_plan` capability and managed provider adapters. Plans remain proposals until the owner starts them. Model/credential setup failures no longer create phantom starting work. Provider fixtures validate OpenAI/Anthropic/Google planning without Ollama; no paid live-provider quality claim is made. Full Sprint 1 and broader MVP obligations remain open.

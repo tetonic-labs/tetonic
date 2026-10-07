@@ -1,6 +1,11 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { connectionDraftScope, EngineRequestError, type PlanView } from '../../lib/localEngine';
+import {
+  connectionDraftScope,
+  EngineRequestError,
+  type PlanView,
+  type StartPlanRequest,
+} from '../../lib/localEngine';
 import { stateLabels } from '../../lib/workspaceRecords';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { HumanQuestion } from './HumanQuestion';
@@ -11,17 +16,19 @@ export function PlanExecution({
   view,
   refresh,
   onWork,
+  onAgentSettings,
   disabled = false,
 }: {
   workId: string;
   view: PlanView;
   refresh: () => Promise<void>;
   onWork?: (id: string, inspect?: boolean) => void;
+  onAgentSettings?: (key: string) => void;
   disabled?: boolean;
 }) {
   const { client, isConnected, cancelTask, workspace } = useLocalEngine();
   const key = `tetonic_plan_start:${connectionDraftScope()}:${workId}`;
-  const [pending, setPending] = useState<{ request_id: string; revision: number } | null>(() => {
+  const [pending, setPending] = useState<StartPlanRequest | null>(() => {
     try {
       return JSON.parse(sessionStorage.getItem(key) || 'null');
     } catch {
@@ -31,24 +38,45 @@ export function PlanExecution({
   const [busy, setBusy] = useState(false);
   const gate = useRef(false);
   const [error, setError] = useState('');
+  const [approvedModel, setApprovedModel] = useState<string | null>(null);
   const execution = view.execution;
   const plan = view.plans[0];
+  const coordinator = execution ? execution.coordinator : pending?.coordinator || view.coordinator;
+  const modelScope = JSON.stringify([plan?.revision, coordinator]);
+  const hosted = !!coordinator && coordinator.provider !== 'ollama';
+  const approved = approvedModel === modelScope;
+  const providerName =
+    (
+      { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', ollama: 'Ollama' } as Record<
+        string,
+        string
+      >
+    )[coordinator?.provider || ''] || coordinator?.provider;
   if (!execution && !['draft', 'agreed'].includes(plan?.status || '')) return null;
   const content = execution?.receipt.content || plan?.content;
   if (!content) return null;
   const coordination =
     content.token_budget - content.assignments.reduce((total, a) => total + a.token_budget, 0);
   async function start() {
-    if (gate.current || !plan || !isConnected || disabled) return;
+    if (gate.current || !plan || !isConnected || disabled || (!pending && hosted && !approved))
+      return;
     gate.current = true;
     setBusy(true);
     setError('');
-    const request = pending || { request_id: crypto.randomUUID(), revision: plan.revision };
+    const request = pending || {
+      request_id: crypto.randomUUID(),
+      revision: plan.revision,
+      ...(coordinator ? { coordinator, hosted_coordination_consent: hosted && approved } : {}),
+    };
     try {
       sessionStorage.setItem(key, JSON.stringify(request));
       setPending(request);
       if (plan.status !== 'agreed') {
-        const agreed = await client.updatePlan(workId, { action: 'agree', ...request });
+        const agreed = await client.updatePlan(workId, {
+          action: 'agree',
+          request_id: request.request_id,
+          revision: request.revision,
+        });
         if (
           agreed.work_id !== workId ||
           agreed.revision !== request.revision ||
@@ -138,6 +166,47 @@ export function PlanExecution({
       )}
       {!execution ? (
         <>
+          {coordinator && (
+            <p className="tw-small">
+              Coordination: {coordinator.model} · {providerName}{' '}
+              {onAgentSettings && workspace?.shaping_agent_key && (
+                <button
+                  disabled={busy || !!pending || !isConnected}
+                  onClick={() => onAgentSettings(workspace.shaping_agent_key!)}
+                >
+                  Change model
+                </button>
+              )}
+            </p>
+          )}
+          {view.setup_issues?.map((issue) => (
+            <div key={issue.agent_key} role="status">
+              <p>{issue.message}</p>
+              {onAgentSettings && (
+                <button
+                  disabled={busy || !isConnected}
+                  onClick={() => onAgentSettings(issue.agent_key)}
+                >
+                  Review agent setup
+                </button>
+              )}
+            </div>
+          ))}
+          {hosted && (
+            <label className="agent-hosted-consent">
+              <input
+                type="checkbox"
+                checked={pending ? !!pending.hosted_coordination_consent : approved}
+                disabled={busy || !!pending}
+                onChange={(event) => setApprovedModel(event.target.checked ? modelScope : null)}
+              />
+              <span>
+                Allow the shared brief, plan, team contributions and plan clarifications to be sent
+                to {providerName} to coordinate this work and combine the results. Provider usage
+                charges apply.
+              </span>
+            </label>
+          )}
           <details>
             <summary>Budget & time limit</summary>
             <p>
@@ -160,7 +229,9 @@ export function PlanExecution({
               disabled ||
               !isConnected ||
               (!pending &&
-                (view.readiness.length > 0 || plan?.brief_revision !== view.brief_revision))
+                ((hosted && !approved) ||
+                  view.readiness.length > 0 ||
+                  plan?.brief_revision !== view.brief_revision))
             }
             onClick={() => void start()}
           >
@@ -199,6 +270,12 @@ export function PlanExecution({
           )}
           <details className="tw-execution-brief">
             <summary>What the team was given</summary>
+            {execution.coordinator && (
+              <p>
+                Coordination model: {execution.coordinator.model} · {providerName}. Saved when this
+                team started.
+              </p>
+            )}
             {execution.receipt.brief ? (
               <>
                 <p>
