@@ -10,6 +10,57 @@ pub fn detect_recovery_required(snapshot: &RunSnapshot, now: u64) -> bool {
     if snapshot.state == RunState::RecoveryRequired {
         return true;
     }
+    // An intentionally parked run is different from an abandoned live worker.
+    // Only the supported root-only contract qualifies; never exempt a subtree.
+    if snapshot.state == RunState::Active
+        && !snapshot.cancellation.run_canceled
+        && snapshot.tasks.len() == 1
+        && snapshot.tasks.values().all(|t| {
+            t.binding.activation.is_some()
+                && t.binding.execution_scope.is_some()
+                && t.binding.delegation.is_none()
+                && t.finalization_claim.is_none()
+        })
+        && snapshot
+            .attempts
+            .values()
+            .any(|a| a.state == AttemptState::Suspended)
+        && snapshot.attempts.values().all(|a| {
+            a.execution_quiesced
+                && (crate::lease::is_terminal_attempt(&a.state)
+                    || (a.state == AttemptState::Suspended
+                        && a.execution_claimed
+                        && a.lease.is_some()
+                        && a.suspension.as_ref().is_some_and(|s| {
+                            s.remaining_seconds > 0
+                                && !s.checkpoint.artifact_id.is_empty()
+                                && !s.checkpoint.digest.is_empty()
+                        })
+                        && snapshot.tasks.get(&a.task_id).is_some_and(|t| {
+                            t.state == TaskState::Parked
+                                && t.active_attempt.as_ref() == Some(&a.attempt_id)
+                        })))
+        })
+        && snapshot.tasks.values().all(|t| {
+            matches!(
+                t.state,
+                TaskState::Parked
+                    | TaskState::Succeeded
+                    | TaskState::Failed
+                    | TaskState::Canceled
+                    | TaskState::Skipped
+            )
+        })
+    {
+        return false;
+    }
+    if snapshot
+        .attempts
+        .values()
+        .any(|a| a.state == AttemptState::Suspended)
+    {
+        return true;
+    }
     for attempt in snapshot.attempts.values() {
         if matches!(
             attempt.state,

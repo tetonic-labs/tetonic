@@ -58,6 +58,8 @@ pub use worker_eligibility::{
     evaluate_worker_eligibility, placement_reason_is_local_only, WorkerEligibilityInput,
 };
 
+pub mod checkpoint;
+
 use std::sync::Arc;
 
 use async_trait::async_trait;

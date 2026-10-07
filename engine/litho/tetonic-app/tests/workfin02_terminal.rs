@@ -128,6 +128,7 @@ fn attempt(state: AttemptState) -> AttemptRecord {
         last_heartbeat_sequence: 0,
     });
     AttemptRecord {
+        suspension: None,
         execution_quiesced: false,
         execution_claimed: false,
         attempt_id: AttemptId::new("att_wf02"),

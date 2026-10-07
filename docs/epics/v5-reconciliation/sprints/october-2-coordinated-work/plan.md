@@ -46,6 +46,12 @@ Extended acceptance: duplicate/lost exchange replies, unavailable recipients, co
 
 ## OCT-203 Keep independent work moving and conflicts visible
 
+October 7 engine prerequisite: [runtime boundaries and durable waiting](runtime-boundaries-and-durable-waits-2026-10-07.md)
+adds checkpoint-backed suspension and exclusive restoration for a scoped root
+through the existing managed lifecycle. Production team waiting is **not enabled**.
+Durable delegation, production harness reconstruction and the work controller
+remain the next integration slices; OCT-203 and its product acceptance stay open.
+
 October 5 partial prerequisite: [human handoff evidence](../october-1-coherent-workspace/human-handoff-evidence-2026-10-05.md)
 proves a live child can await an answer without model polling while another
 eligible agent continues. The wait still owns its admission slot and deadline.

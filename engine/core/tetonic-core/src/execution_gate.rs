@@ -5,6 +5,17 @@ use tetonic_domain::work_scope::WorkScope;
 pub trait ExecutionGate: Send + Sync {
     /// Deny on revoked/unavailable authority. Implementations return no secrets.
     async fn authorize(&self) -> Result<(), ()>;
+    /// Trusted runtime lifecycle, unavailable for ordinary/legacy turns.
+    async fn suspend(
+        &self,
+        _checkpoint: &crate::WaitCheckpoint,
+        _reason: tetonic_domain::SuspensionReason,
+    ) -> Result<(), ()> {
+        Err(())
+    }
+    async fn resume(&self) -> Result<(), ()> {
+        Err(())
+    }
 }
 
 /// Denies further effects after the attempt scope is canceled.

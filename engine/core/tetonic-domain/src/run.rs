@@ -42,6 +42,7 @@ pub enum TaskState {
     Ready,
     Leased,
     Running,
+    Parked,
     Succeeded,
     Failed,
     Canceled,
@@ -55,6 +56,7 @@ pub enum AttemptState {
     Leased,
     Starting,
     Running,
+    Suspended,
     Succeeded,
     Failed,
     TimedOut,
@@ -395,6 +397,8 @@ pub enum RunCommand {
     StartAttempt(StartAttempt),
     /// Durable, non-idempotent permission to enter the executor once.
     ClaimExecution(StartAttempt),
+    SuspendAttempt(crate::SuspendAttempt),
+    ResumeAttempt(crate::ResumeAttempt),
     RecordHeartbeat(RecordHeartbeat),
     ClaimFinalization(ClaimFinalization),
     CompleteAttempt(CompleteAttempt),
@@ -423,6 +427,8 @@ impl RunCommand {
             RunCommand::LeaseAttempt(c) => &c.envelope,
             RunCommand::StartAttempt(c) => &c.envelope,
             RunCommand::ClaimExecution(c) => &c.envelope,
+            RunCommand::SuspendAttempt(c) => &c.envelope,
+            RunCommand::ResumeAttempt(c) => &c.envelope,
             RunCommand::RecordHeartbeat(c) => &c.envelope,
             RunCommand::ClaimFinalization(c) => &c.envelope,
             RunCommand::CompleteAttempt(c) => &c.envelope,
@@ -449,6 +455,8 @@ impl RunCommand {
             RunCommand::LeaseAttempt(c) => Some(&c.run_id),
             RunCommand::StartAttempt(c) => Some(&c.run_id),
             RunCommand::ClaimExecution(c) => Some(&c.run_id),
+            RunCommand::SuspendAttempt(c) => Some(&c.run_id),
+            RunCommand::ResumeAttempt(c) => Some(&c.run_id),
             RunCommand::RecordHeartbeat(c) => Some(&c.run_id),
             RunCommand::ClaimFinalization(c) => Some(&c.run_id),
             RunCommand::CompleteAttempt(c) => Some(&c.run_id),
@@ -486,6 +494,8 @@ pub struct TaskRecord {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct AttemptRecord {
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suspension: Option<crate::AttemptSuspension>,
     #[serde(default, skip_serializing_if = "is_false")]
     pub execution_quiesced: bool,
     #[serde(default, skip_serializing_if = "is_false")]

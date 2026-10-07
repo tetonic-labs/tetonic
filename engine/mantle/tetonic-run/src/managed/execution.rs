@@ -6,6 +6,7 @@ use tetonic_memory::RecoverMutex;
 
 struct AttemptExecutionGate {
     active: super::lifetime::ActiveAttempt,
+    service: super::ManagedRunService,
 }
 
 async fn execution_revoked(
@@ -31,6 +32,9 @@ async fn execution_revoked(
 #[async_trait::async_trait]
 impl tetonic_core::ExecutionGate for AttemptExecutionGate {
     async fn authorize(&self) -> Result<(), ()> {
+        if self.active.suspension().is_some() {
+            return Err(());
+        }
         if self.active.work_scope.is_canceled() || self.active.deadline_elapsed() {
             self.active.work_scope.cancel();
             return Err(());
@@ -50,6 +54,22 @@ impl tetonic_core::ExecutionGate for AttemptExecutionGate {
             return Err(());
         }
         Ok(())
+    }
+    async fn suspend(
+        &self,
+        checkpoint: &tetonic_core::WaitCheckpoint,
+        reason: tetonic_domain::SuspensionReason,
+    ) -> Result<(), ()> {
+        self.service
+            .suspend_at_boundary(&self.active.binding.attempt_id, checkpoint, reason)
+            .await
+            .map_err(|_| ())
+    }
+    async fn resume(&self) -> Result<(), ()> {
+        self.service
+            .resume_boundary(&self.active.binding.attempt_id)
+            .await
+            .map_err(|_| ())
     }
 }
 
@@ -74,7 +94,7 @@ impl super::service::ManagedRunService {
         let Some(task) = snapshot.tasks.get(&binding.task_id) else {
             return fail("durable task missing".into());
         };
-        if task.binding.deadline != active.deadline {
+        if task.binding.deadline != active.deadline() {
             return fail("execution deadline binding mismatch".into());
         }
         if active.deadline_elapsed() {
@@ -159,36 +179,51 @@ impl super::service::ManagedRunService {
                 reason: "attempt canceled before execution".into(),
             };
         }
-        let claimed = self
-            .supervisor
-            .handle(tetonic_domain::RunCommand::ClaimExecution(
-                tetonic_domain::StartAttempt {
-                    envelope: crate::command_envelope(
-                        format!("execute:{attempt}"),
-                        None,
-                        "lokai-manager",
-                    ),
-                    run_id: binding.run_id.clone(),
-                    attempt_id: attempt.clone(),
-                    lease_proof: active.lease_proof.clone(),
-                },
-            ))
-            .await;
-        if let Err(error) = claimed {
-            return fail(published_supervisor(&error));
+        if let Some(suspension) = active.suspension() {
+            let checkpoint = match self
+                .read_wait_checkpoint(&binding, &suspension.checkpoint)
+                .await
+            {
+                Ok(checkpoint) if checkpoint.invocation == invocation => checkpoint,
+                _ => return fail("saved invocation is unavailable or changed".into()),
+            };
+            *conversation = match checkpoint.into_conversation() {
+                Ok(conversation) => conversation,
+                Err(_) => return fail("saved invocation is unavailable or changed".into()),
+            };
+        } else {
+            let claimed = self
+                .supervisor
+                .handle(tetonic_domain::RunCommand::ClaimExecution(
+                    tetonic_domain::StartAttempt {
+                        envelope: crate::command_envelope(
+                            format!("execute:{attempt}"),
+                            None,
+                            "lokai-manager",
+                        ),
+                        run_id: binding.run_id.clone(),
+                        attempt_id: attempt.clone(),
+                        lease_proof: active.lease_proof.clone(),
+                    },
+                ))
+                .await;
+            if let Err(error) = claimed {
+                return fail(published_supervisor(&error));
+            }
+            self.notify_hooks(|hooks| hooks.execution_claimed(&binding));
         }
-        self.notify_hooks(|hooks| hooks.execution_claimed(&binding));
         if let Err(error) = agent.bind_work_scope(active.work_scope.clone()) {
             return fail(error.to_string());
         }
         agent.bind_execution_gate(Some(std::sync::Arc::new(AttemptExecutionGate {
             active: active.clone(),
+            service: self.clone(),
         })
             as std::sync::Arc<dyn tetonic_core::ExecutionGate>));
         agent.stamp_managed_run(&binding.run_id.0, &binding.task_id.0, &attempt.0);
         // A scoped attempt must not inherit turns from another information context.
         // An unscoped coding session keeps the conversation it resumed.
-        if task.binding.execution_scope.is_some() {
+        if task.binding.execution_scope.is_some() && active.suspension().is_none() {
             conversation.discard_carried_turns();
         }
         let loop_cancel = conversation.cancel_handle();
@@ -363,7 +398,7 @@ impl super::service::ManagedRunService {
     pub async fn submit_identity_job_with_context(
         &self,
         cmd: StartIdentityJobCommand,
-        mut agent: tetonic_core::Agent,
+        agent: tetonic_core::Agent,
         context: AdmissionContext,
         finalization: Option<FinalizationPolicy>,
     ) -> Result<ManagedSubmission, ManagedRunError> {
@@ -383,8 +418,8 @@ impl super::service::ManagedRunService {
             .map(|parent| parent.binding().attempt_id.clone());
         let finish_run = parent_attempt.is_none();
         let admit_job = AdmitJob {
-            identity: cmd.identity,
-            job_spec: cmd.job_spec,
+            identity: cmd.identity.clone(),
+            job_spec: cmd.job_spec.clone(),
             role: agent.execution_role().map(str::to_owned),
             parent_attempt,
         };
@@ -412,45 +447,8 @@ impl super::service::ManagedRunService {
                 binding: binding.clone(),
                 completion,
             }));
-            let mut conversation = tetonic_core::Conversation::new();
-            let outcome = this
-                .execute_attempt(
-                    att.clone(),
-                    &mut agent,
-                    &mut conversation,
-                    cmd.invocation,
-                    &mut |_| {},
-                )
+            this.drive_submission(binding, cmd, agent, finalization, finish_run, t_id)
                 .await;
-            let finalized = this
-                .finalize(FinalizeJob {
-                    attempt: att,
-                    outcome,
-                    policy: finalization,
-                    finish_run,
-                })
-                .await;
-            if let Err(error) = finalized {
-                if this.binding(&binding.attempt_id).is_none() {
-                    // Another terminal owner (such as cancel_run) has already
-                    // removed the binding and delivered completion. Do not emit
-                    // a second, contradictory failure for this late finalizer.
-                    let _ = this.release_dispatch(&t_id).await;
-                    return;
-                }
-                // Deliver an explicit failure, retaining durable recovery state.
-                let result = StartIdentityJobResult {
-                    run_id: binding.run_id,
-                    task_id: binding.task_id,
-                    attempt_id: binding.attempt_id,
-                    outcome: CandidateOutcome::Failed {
-                        message: published_managed(&error),
-                    },
-                };
-                this.notify_hooks(|hooks| hooks.terminal(&result));
-                this.complete_attempt_join(result);
-            }
-            let _ = this.release_dispatch(&t_id).await;
         };
 
         let task = tokio::task::spawn_local(fut);
@@ -461,10 +459,59 @@ impl super::service::ManagedRunService {
             )
         })?
     }
+    pub(super) async fn drive_submission(
+        &self,
+        binding: Box<ManagedBinding>,
+        cmd: StartIdentityJobCommand,
+        mut agent: tetonic_core::Agent,
+        finalization: Option<FinalizationPolicy>,
+        finish_run: bool,
+        ticket: DispatchId,
+    ) {
+        let mut conversation = tetonic_core::Conversation::new();
+        let outcome = self
+            .execute_attempt(
+                binding.attempt_id.clone(),
+                &mut agent,
+                &mut conversation,
+                cmd.invocation,
+                &mut |_| {},
+            )
+            .await;
+        let finalized = self
+            .finalize(FinalizeJob {
+                attempt: binding.attempt_id.clone(),
+                outcome,
+                policy: finalization,
+                finish_run,
+            })
+            .await;
+        if let Err(error) = finalized {
+            if self.binding(&binding.attempt_id).is_none() {
+                // Another terminal owner (such as cancel_run) has already
+                // removed the binding and delivered completion. Do not emit
+                // a second, contradictory failure for this late finalizer.
+                let _ = self.release_dispatch(&ticket).await;
+                return;
+            }
+            // Deliver an explicit failure, retaining durable recovery state.
+            let result = StartIdentityJobResult {
+                run_id: binding.run_id,
+                task_id: binding.task_id,
+                attempt_id: binding.attempt_id,
+                outcome: CandidateOutcome::Failed {
+                    message: published_managed(&error),
+                },
+            };
+            self.notify_hooks(|hooks| hooks.terminal(&result));
+            self.complete_attempt_join(result);
+        }
+        let _ = self.release_dispatch(&ticket).await;
+    }
 }
 
 impl super::service::ManagedRunService {
-    fn validate_start(
+    pub(super) fn validate_start(
         &self,
         cmd: &StartIdentityJobCommand,
         agent: &tetonic_core::Agent,

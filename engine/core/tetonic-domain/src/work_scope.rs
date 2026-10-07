@@ -19,6 +19,7 @@ impl CancellationSignal {
 #[derive(Default)]
 struct State {
     closed: bool,
+    parked: bool,
     signal: CancellationSignal,
     outstanding: usize,
 }
@@ -31,7 +32,7 @@ pub struct WorkScope(Arc<Mutex<State>>);
 impl WorkScope {
     pub fn try_enter(&self) -> Option<WorkLease> {
         let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
-        if state.closed {
+        if state.closed || state.parked {
             return None;
         }
         state.outstanding += 1;
@@ -55,6 +56,24 @@ impl WorkScope {
     pub fn is_quiescent(&self) -> bool {
         self.0.lock().unwrap_or_else(|e| e.into_inner()).outstanding == 0
     }
+    /// Close effect admission only if every previously admitted worker settled.
+    pub fn park(&self) -> bool {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if state.closed || state.outstanding != 0 {
+            return false;
+        }
+        state.parked = true;
+        true
+    }
+    /// A runtime must reacquire durable execution ownership before calling this.
+    pub fn unpark(&self) -> bool {
+        let mut state = self.0.lock().unwrap_or_else(|e| e.into_inner());
+        if state.closed || !state.parked {
+            return false;
+        }
+        state.parked = false;
+        true
+    }
 }
 
 pub struct WorkLease(WorkScope);
@@ -71,6 +90,23 @@ impl Drop for WorkLease {
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn parking_requires_quiescence_and_cannot_undo_cancellation() {
+        let scope = WorkScope::default();
+        let worker = scope.try_enter().unwrap();
+        assert!(!scope.park());
+        drop(worker);
+        assert!(scope.park());
+        assert!(scope.try_enter().is_none());
+        assert!(!scope.cancellation_signal().is_canceled());
+        assert!(scope.unpark());
+        assert!(scope.try_enter().is_some());
+        assert!(scope.park());
+        scope.cancel();
+        assert!(!scope.unpark());
+        assert!(!scope.park());
+        assert!(scope.try_enter().is_none());
+    }
     #[test]
     fn cancellation_closes_admission_but_does_not_release_workers() {
         let scope = WorkScope::default();

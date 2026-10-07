@@ -227,6 +227,14 @@ impl Store {
         self.migrate_shell_approvals_v61()?;
         self.migrate_agent_edits_v62()?;
         self.migrate_plan_continuation_v63()?;
+        if applied < 64 {
+            // Run journals now carry suspension commands and parked states.
+            // Older writers must refuse this format even without new tables.
+            self.conn.execute(
+                "INSERT INTO schema_versions(version,applied_at) VALUES(64,?1)",
+                [now()],
+            )?;
+        }
         Ok(())
     }
 

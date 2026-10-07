@@ -26,6 +26,7 @@ use crate::tokenizer::{HeuristicTokenizer, Tokenizer};
 use crate::turn::{TurnOpsEvent, TurnOpsHook, TurnState};
 
 pub struct Agent {
+    durable_waits: bool,
     execution_gate: Option<Arc<dyn crate::ExecutionGate>>,
     work_scope: tetonic_domain::work_scope::WorkScope,
     provider: Arc<dyn InferenceProvider>,
@@ -54,6 +55,8 @@ pub struct Agent {
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
     world_adapter: Option<Arc<dyn tetonic_domain::WorldAdapter>>,
 }
+
+mod waiting;
 
 // Thread safety must follow from every field's trait bounds; never override
 // the compiler here when introducing a new host hook or capability.
@@ -333,6 +336,7 @@ impl Agent {
             brain: None,
             world_adapter: None,
             execution_gate: None,
+            durable_waits: false,
         }
     }
 
@@ -1241,6 +1245,16 @@ impl Agent {
     where
         F: FnMut(Step) + Send,
     {
+        let resuming = convo.pending_resume.take();
+        if resuming.as_ref().is_some_and(|c| {
+            !c.matches_agent(self)
+                || c.invocation != invocation
+                || c.pending.attempt_id.as_deref() != self.config.attempt_id.as_deref()
+        }) {
+            return CandidateOutcome::Failed {
+                message: "checkpoint invocation binding mismatch".into(),
+            };
+        }
         let user_input = invocation.user_input.as_str();
         // Propagate trace context to child spans; keep agent config business ids in sync.
         if let Some(parent_ctx) = tetonic_telemetry::extract_context() {
@@ -1390,10 +1404,12 @@ impl Agent {
             }
             convo.messages.push(Message::system(system_prompt));
         }
-        if let Some(a) = self.audit() {
-            a.message("user", user_input, None);
+        if resuming.is_none() {
+            if let Some(a) = self.audit() {
+                a.message("user", user_input, None);
+            }
+            convo.messages.push(Message::user(user_input.to_string()));
         }
-        convo.messages.push(Message::user(user_input.to_string()));
         if let Some(instructions) = &self.turn_instructions {
             // Do not rewrite old role instructions: doing so changes the prefix
             // and makes the backend reprocess all subsequent conversation tokens.
@@ -1445,7 +1461,16 @@ impl Agent {
         let mut reported_tokens: u64 = 0;
         let max_steps = invocation.max_steps.min(self.config.max_steps);
 
-        'steps: for _ in 0..max_steps {
+        if let Some(checkpoint) = resuming {
+            monitor = checkpoint.monitor.clone();
+            step_index = checkpoint.step_index;
+            steps_used = checkpoint.steps_used;
+            reported_tokens = checkpoint.reported_tokens;
+            if let Err(outcome) = self.host_wait(convo, checkpoint, &mut on_step).await {
+                return outcome;
+            }
+        }
+        'steps: for _ in steps_used as usize..max_steps {
             steps_used += 1;
             if token_ceiling_reached(self.config.reported_token_ceiling, reported_tokens) {
                 on_step(Step::Stopped("reported token ceiling reached".into()));
@@ -1695,6 +1720,40 @@ impl Agent {
                 };
             }
 
+            // A resumable host boundary must be the only call in its response.
+            // Reject the whole batch before any ordinary effect, so no skipped
+            // tail can later be mistaken for a completed or replayable action.
+            if self.durable_waits
+                && tool_calls.len() > 1
+                && tool_calls.iter().any(|tc| {
+                    invocation.discipline.handoff_tool.as_deref() == Some(tc.function.name.as_str())
+                })
+            {
+                for (ordinal, call) in tool_calls.iter().enumerate() {
+                    let id = provider_call_ids
+                        .get(ordinal)
+                        .cloned()
+                        .unwrap_or_else(|| format!("tc_{:x}_{}", convo.nonce, convo.call_no));
+                    convo.call_no += 1;
+                    let feedback = "No calls in this batch were executed. Submit the host handoff as a single tool call.";
+                    if let Some(audit) = self.audit() {
+                        audit.tool_call(
+                            &id,
+                            &call.function.name,
+                            &call.function.arguments.to_string(),
+                            false,
+                            feedback,
+                            Some("handoff_batch"),
+                        );
+                        audit.tool_message(&call.function.name, &id, feedback);
+                    }
+                    convo.messages.push(
+                        Message::tool(call.function.name.clone(), feedback.to_string())
+                            .with_tool_call_id(id),
+                    );
+                }
+                continue 'steps;
+            }
             // Calls can depend on earlier mutations and on per-call discipline.
             // Execute only after those checks, preserving the requested order.
             for (ordinal, tc) in tool_calls.into_iter().enumerate() {
@@ -1876,19 +1935,47 @@ Fix the JSON to match the tool schema and call the tool again."
                             .and_then(|v| v.as_str())
                             .unwrap_or("")
                             .to_string();
-                        let outcome = hook(
-                            SpawnRequest {
-                                tool_name: name.clone(),
-                                call_id: call_id.clone(),
-                                arguments: args.clone(),
-                                attempt_id: self.config.attempt_id.clone(),
-                                role,
-                                task,
-                                parent_agent_id: self.config.agent_id.clone(),
-                            },
-                            convo,
-                        )
-                        .await;
+                        let request = SpawnRequest {
+                            tool_name: name.clone(),
+                            call_id: call_id.clone(),
+                            arguments: args.clone(),
+                            attempt_id: self.config.attempt_id.clone(),
+                            role,
+                            task,
+                            parent_agent_id: self.config.agent_id.clone(),
+                        };
+                        if self.durable_waits
+                            && invocation.discipline.handoff_tool.as_deref() == Some(name.as_str())
+                        {
+                            let checkpoint = crate::WaitCheckpoint {
+                                version: 1,
+                                harness: self.wait_harness_binding(),
+                                invocation: invocation.clone(),
+                                pending: request,
+                                messages: convo.messages.clone(),
+                                prefix_len: convo.prefix_len,
+                                nonce: convo.nonce,
+                                call_no: convo.call_no,
+                                retrieved_paths: {
+                                    let mut paths: Vec<_> =
+                                        convo.retrieved_paths.iter().cloned().collect();
+                                    paths.sort();
+                                    paths
+                                },
+                                turn_id: convo.turn_id().map(str::to_owned),
+                                steps_used,
+                                step_index,
+                                reported_tokens,
+                                monitor: monitor.clone(),
+                            };
+                            if let Err(outcome) =
+                                self.host_wait(convo, checkpoint, &mut on_step).await
+                            {
+                                return outcome;
+                            }
+                            continue 'steps;
+                        }
+                        let outcome = hook(request, convo).await;
                         let model_str = outcome.to_model_string();
                         if let Some(a) = self.audit() {
                             a.tool_call(

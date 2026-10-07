@@ -49,7 +49,23 @@ pub(crate) fn registered_capacity(snapshot: &RunSnapshot) -> Result<(Option<&str
                         | tetonic_domain::AttemptState::Superseded
                 )
         });
-    Ok((Some(&job.identity_id.0), !released))
+    // A saved suspension proves the root executor has no in-flight effects.
+    // Only the supported root-only contract releases capacity. Recovery and
+    // ambiguous extra attempts must retain their holds.
+    let suspended = snapshot.state == RunState::Active
+        && snapshot.tasks.len() == 1
+        && snapshot.attempts.values().all(|a| a.execution_quiesced)
+        && root.state == tetonic_domain::TaskState::Parked
+        && root
+            .active_attempt
+            .as_ref()
+            .and_then(|id| snapshot.attempts.get(id))
+            .is_some_and(|a| {
+                a.state == tetonic_domain::AttemptState::Suspended
+                    && a.execution_quiesced
+                    && a.suspension.is_some()
+            });
+    Ok((Some(&job.identity_id.0), !(released || suspended)))
 }
 
 #[cfg(test)]

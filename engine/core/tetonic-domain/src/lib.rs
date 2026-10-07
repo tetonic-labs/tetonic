@@ -25,6 +25,7 @@ pub mod result_integrity;
 pub mod run;
 pub mod secrets;
 pub mod sinks;
+pub mod suspension;
 pub mod tool_host;
 pub mod trust;
 pub mod work_scope;
@@ -111,6 +112,7 @@ pub use secrets::{
     OutboundRedaction, OutboundRedactionSink, RedactionRecordReference, ScanOutcome, SecretScanner,
 };
 pub use sinks::{CapabilityConsumer, CapabilityError, MutationSink, PolicyEvaluator, ProcessSink};
+pub use suspension::{AttemptSuspension, ResumeAttempt, SuspendAttempt, SuspensionReason};
 pub use tool_host::{
     ChangeKind, FileChange, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal,
 };

@@ -19,6 +19,7 @@ use crate::retry::{
     apply_failure_with_retry, failure_class_for_timeout, map_attempt_state_for_failure,
 };
 use crate::side_effect::record_side_effect_commit;
+mod suspension;
 
 pub fn apply_command(
     snapshot: &RunSnapshot,
@@ -34,6 +35,8 @@ pub fn apply_command(
         RunCommand::LeaseAttempt(c) => apply_lease_attempt(snapshot, c),
         RunCommand::StartAttempt(c) => apply_start_attempt(snapshot, c),
         RunCommand::ClaimExecution(c) => apply_claim_execution(snapshot, c),
+        RunCommand::SuspendAttempt(c) => suspension::suspend(snapshot, c),
+        RunCommand::ResumeAttempt(c) => suspension::resume(snapshot, c),
         RunCommand::RecordHeartbeat(c) => apply_record_heartbeat(snapshot, c),
         RunCommand::ClaimFinalization(c) => apply_claim_finalization(snapshot, c),
         RunCommand::CompleteAttempt(c) => apply_complete_attempt(snapshot, c),
@@ -299,6 +302,7 @@ fn apply_create_attempt(
     out.attempts.insert(
         cmd.attempt_id.clone(),
         AttemptRecord {
+            suspension: None,
             execution_quiesced: false,
             execution_claimed: false,
             attempt_id: cmd.attempt_id.clone(),
@@ -638,6 +642,7 @@ fn apply_cancel_task(
                     | AttemptState::Leased
                     | AttemptState::Starting
                     | AttemptState::Running
+                    | AttemptState::Suspended
             )
         {
             a.state = AttemptState::Canceled;
@@ -687,6 +692,7 @@ fn apply_cancel_run(
                 | AttemptState::Leased
                 | AttemptState::Starting
                 | AttemptState::Running
+                | AttemptState::Suspended
         ) {
             a.state = AttemptState::Canceled;
             a.failure_class = Some(FailureClass::Canceled);
@@ -848,6 +854,8 @@ pub fn event_type_for(command: &RunCommand) -> &'static str {
         RunCommand::LeaseAttempt(_) => "attempt.leased",
         RunCommand::StartAttempt(_) => "attempt.started",
         RunCommand::ClaimExecution(_) => "attempt.execution_claimed",
+        RunCommand::SuspendAttempt(_) => "attempt.suspended",
+        RunCommand::ResumeAttempt(_) => "attempt.resumed",
         RunCommand::RecordHeartbeat(_) => "attempt.heartbeat",
         RunCommand::ClaimFinalization(_) => "finalization.claimed",
         RunCommand::CompleteAttempt(_) => "attempt.completed",

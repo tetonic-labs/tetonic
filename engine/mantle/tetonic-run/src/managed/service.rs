@@ -176,12 +176,30 @@ impl ManagedRunService {
             }
             self.notify_hooks(|h| h.fail_approval_waits(&active.binding.attempt_id));
         }
+        // Stops are signaled immediately above. Serialize the durable fence
+        // with a concurrent resume before acknowledging settled ownership.
+        let _admission = self.admission_gate.lock().await;
         let mut result = self
             .supervisor
             .handle(tetonic_domain::RunCommand::CancelRun(cmd))
             .await
             .map(|_| ())
             .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()));
+        let actives: Vec<_> = {
+            let current = self.active.lock_recover();
+            actives
+                .into_iter()
+                .map(|active| {
+                    current
+                        .get(&active.binding.attempt_id)
+                        .cloned()
+                        .unwrap_or(active)
+                })
+                .collect()
+        };
+        // The cancellation is now fenced. Slow workers must not keep the
+        // admission lock and block unrelated work from starting or resuming.
+        drop(_admission);
         for active in actives {
             // Cancellation is an admission barrier, not evidence of physical
             // completion. Never release ownership while a worker retains a lease.

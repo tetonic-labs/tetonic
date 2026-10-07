@@ -82,6 +82,7 @@ pub fn dependencies_satisfied(snapshot: &RunSnapshot, task_id: &TaskId) -> bool 
                         | TaskState::Ready
                         | TaskState::Leased
                         | TaskState::Running
+                        | TaskState::Parked
                 ) {
                     return false;
                 }
@@ -94,6 +95,7 @@ pub fn dependencies_satisfied(snapshot: &RunSnapshot, task_id: &TaskId) -> bool 
                         | TaskState::Ready
                         | TaskState::Leased
                         | TaskState::Running
+                        | TaskState::Parked
                 ) {
                     return false;
                 }
@@ -185,7 +187,10 @@ pub fn task_is_executable(task_state: &TaskState) -> bool {
 }
 
 pub fn task_is_locked(task_state: &TaskState) -> bool {
-    matches!(task_state, TaskState::Leased | TaskState::Running)
+    matches!(
+        task_state,
+        TaskState::Leased | TaskState::Running | TaskState::Parked
+    )
 }
 
 pub fn topo_sort_tasks(snapshot: &RunSnapshot) -> Vec<TaskId> {

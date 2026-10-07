@@ -15,6 +15,7 @@ pub struct ToolProgressReport {
 }
 
 /// Tracks loop-heuristic state for a single user turn.
+#[derive(Clone, serde::Serialize, serde::Deserialize)]
 pub struct HeuristicMonitor {
     empty_tool_retry_limit: u32,
     no_progress_limit: u32,

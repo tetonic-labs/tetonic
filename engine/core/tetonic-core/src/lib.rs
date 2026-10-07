@@ -25,6 +25,7 @@ pub use agent::Agent;
 pub use config::AgentConfig;
 pub use context::ContextReport;
 pub use conversation::Conversation;
+mod wait_checkpoint;
 pub use demuxer::{DemuxedChunk, TokenDemuxer};
 pub use error::AgentError;
 pub use filter::{FilterDecision, SensoryFilter};
@@ -34,6 +35,7 @@ pub use hooks::{
 };
 pub use inference_binding::{AgentInferenceBinding, InvalidInferenceBinding};
 pub use step::Step;
+pub use wait_checkpoint::WaitCheckpoint;
 pub mod checkpoint;
 pub use checkpoint::CheckpointManager;
 pub use tetonic_domain::checkpoint::{

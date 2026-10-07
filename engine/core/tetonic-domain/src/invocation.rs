@@ -5,7 +5,7 @@
 //! Not durable. Not an `ExecutionOutcome` alias.
 
 /// Product-compiled inputs for one agent-loop turn.
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct AgentInvocation {
     /// Resolved instruction text. The only instruction source the loop may use.
     pub instructions: String,
@@ -22,7 +22,7 @@ pub struct AgentInvocation {
 }
 
 /// Product-supplied loop tables. Empty `Default` has no tool names or copy.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct LoopDiscipline {
     pub finish_min_chars: Option<usize>,
     pub empty_tool_nudge_text: Option<String>,
@@ -38,7 +38,7 @@ pub struct LoopDiscipline {
 }
 
 /// Product-supplied feedback strings. Empty default is silent.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct LoopNotes {
     pub finish_too_short: Option<String>,
     pub mutate_feedback: Option<String>,
@@ -55,7 +55,7 @@ pub struct LoopNotes {
 }
 
 /// Product-supplied numeric limits. Empty default applies no extra gates.
-#[derive(Debug, Clone, PartialEq, Eq, Default)]
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
 pub struct LoopDisciplineLimits {
     pub max_whole_file_bytes: Option<usize>,
     pub search_miss_streak: Option<u32>,

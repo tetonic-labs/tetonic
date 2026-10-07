@@ -201,7 +201,16 @@ impl Store {
             Some(scope) => self.team_for_execution_context(&scope.information_context_id)?,
             None => None,
         };
-        if new_seq == 1 && execution_held {
+        let previously_held: bool = tx
+            .query_row(
+                "SELECT execution_held FROM run_projections WHERE run_id=?1",
+                [&snapshot.run_id.0],
+                |row| row.get(0),
+            )
+            .optional()?
+            .unwrap_or(false);
+        // Resumption competes for capacity atomically just like first admission.
+        if execution_held && !previously_held {
             let occupied: bool = tx.query_row(
                 "SELECT EXISTS(SELECT 1 FROM run_projections WHERE registered_identity_id=?1
                     AND execution_held=1 AND run_id<>?2

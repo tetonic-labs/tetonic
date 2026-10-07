@@ -25,6 +25,32 @@ impl super::service::ManagedRunService {
                 "child finalizer cannot finish the parent run".into(),
             ));
         }
+        // A failed/revoked wake must not reopen effects or cancel a different
+        // executor that won the resume claim. Detach this host only. The saved
+        // wait remains durable; a partially claimed wake requires recovery.
+        if active.suspension().is_some() {
+            if self.is_canceled(&job.attempt) {
+                self.cancel_run(&active.binding.run_id).await?;
+                return Ok(CandidateOutcome::Canceled {
+                    reason: "run canceled".into(),
+                });
+            }
+            active.work_scope.cancel();
+            active.heartbeat_cancel.store(true, Ordering::SeqCst);
+            self.active.lock_recover().remove(&job.attempt);
+            self.attempt_dispatches.lock_recover().remove(&job.attempt);
+            let outcome = CandidateOutcome::Failed {
+                message: "This executor could not resume the saved wait; no work was replayed. Inspect the durable run before retrying.".into(),
+            };
+            // This is an attachment failure, not a terminal run event.
+            self.complete_attempt_join(StartIdentityJobResult {
+                run_id: active.binding.run_id.clone(),
+                task_id: active.binding.task_id.clone(),
+                attempt_id: job.attempt,
+                outcome: outcome.clone(),
+            });
+            return Ok(outcome);
+        }
         if active.authorization.is_some() {
             // Serialize closing the parent against child admission. No child may
             // slip between checking the descendants and finalizing this worker.
@@ -620,7 +646,7 @@ impl super::service::ManagedRunService {
                     .authorization
                     .as_ref()
                     .and_then(|a| a.grant_id.as_ref())
-            && task.binding.deadline == active.deadline;
+            && task.binding.deadline == active.deadline();
         let allowed = if binding_matches {
             match &active.authorization {
                 Some(auth) => auth

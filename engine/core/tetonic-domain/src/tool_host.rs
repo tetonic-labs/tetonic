@@ -95,6 +95,13 @@ pub struct ToolAdvertisement {
 /// Named tool → [`ToolProposal`]; execute after the broker. Send + Sync + clone for concurrency.
 pub trait ToolHost: Send + Sync {
     fn clone_box(&self) -> Box<dyn ToolHost>;
+    /// Trusted host attestation for process-loss-safe suspension. Return true
+    /// only when completed calls are durable and there are no staged mutations,
+    /// open sessions or other transient tool state that a restart would lose.
+    /// Quiescence of running workers is checked separately by the runtime.
+    fn checkpoint_ready(&self) -> bool {
+        false
+    }
 
     fn propose(&self, name: &str, args: &Value) -> Option<ToolProposal>;
     fn is_tool_allowed(&self, name: &str) -> bool;
@@ -172,6 +179,10 @@ mod tests {
     #[test]
     fn tool_host_is_a_rustc_trait() {
         let host: Box<dyn ToolHost> = Box::new(DummyHost);
+        assert!(
+            !host.checkpoint_ready(),
+            "unknown tool state must not be checkpointed"
+        );
         assert!(host.propose("read_file", &json!({})).is_some());
         let _ = host.clone();
     }

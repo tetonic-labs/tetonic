@@ -9,8 +9,7 @@ use tokio::task::AbortHandle;
 #[derive(Clone)]
 pub struct ActiveAttempt {
     pub(super) delegation_closed: std::sync::Arc<std::sync::atomic::AtomicBool>,
-    pub deadline: Option<u64>,
-    pub(crate) deadline_instant: Option<tokio::time::Instant>,
+    pub(crate) clock: Arc<std::sync::Mutex<AttemptClock>>,
     pub work_scope: tetonic_domain::work_scope::WorkScope,
     pub binding: ManagedBinding,
     pub identity: tetonic_domain::AgentIdentity,
@@ -25,25 +24,56 @@ pub struct ActiveAttempt {
     pub sequence: u64,
 }
 
+pub(crate) struct AttemptClock {
+    pub deadline: Option<u64>,
+    pub instant: Option<tokio::time::Instant>,
+    pub suspension: Option<tetonic_domain::AttemptSuspension>,
+}
+
 impl ActiveAttempt {
     pub(crate) fn deadline_elapsed(&self) -> bool {
-        self.deadline.is_some_and(|deadline| unix_now() >= deadline)
-            || self
-                .deadline_instant
-                .is_some_and(|deadline| tokio::time::Instant::now() >= deadline)
+        let clock = self.clock.lock_recover();
+        clock.suspension.is_none()
+            && (clock
+                .deadline
+                .is_some_and(|deadline| unix_now() >= deadline)
+                || clock
+                    .instant
+                    .is_some_and(|deadline| tokio::time::Instant::now() >= deadline))
+    }
+
+    pub fn deadline(&self) -> Option<u64> {
+        self.clock.lock_recover().deadline
+    }
+
+    pub(crate) fn suspension(&self) -> Option<tetonic_domain::AttemptSuspension> {
+        self.clock.lock_recover().suspension.clone()
     }
 
     /// A monotonic bound prevents a backward wall-clock adjustment from buying
     /// more execution time. Recheck wall time as well for forward adjustments.
     pub(crate) async fn wait_for_deadline(&self) {
-        let Some(deadline) = self.deadline_instant else {
-            return std::future::pending().await;
-        };
         while !self.deadline_elapsed() {
-            tokio::time::sleep_until(
-                deadline.min(tokio::time::Instant::now() + std::time::Duration::from_secs(1)),
-            )
-            .await;
+            let wake = {
+                let clock = self.clock.lock_recover();
+                if clock.deadline.is_none() && clock.instant.is_none() {
+                    None
+                } else {
+                    let next_check =
+                        tokio::time::Instant::now() + std::time::Duration::from_secs(1);
+                    Some(if clock.suspension.is_some() {
+                        next_check
+                    } else {
+                        clock
+                            .instant
+                            .map_or(next_check, |instant| instant.min(next_check))
+                    })
+                }
+            };
+            match wake {
+                Some(wake) => tokio::time::sleep_until(wake).await,
+                None => return std::future::pending().await,
+            }
         }
     }
 }
@@ -153,7 +183,11 @@ impl super::service::ManagedRunService {
         self.active
             .lock_recover()
             .get(attempt)
-            .is_some_and(|active| active.work_scope.is_canceled() || active.deadline_elapsed())
+            .is_some_and(|active| {
+                active.work_scope.is_canceled()
+                    || active.deadline_elapsed()
+                    || active.suspension().is_some()
+            })
     }
 
     pub async fn attempt_authority_revoked(&self, attempt: &AttemptId) -> bool {
@@ -218,6 +252,9 @@ impl super::service::ManagedRunService {
             let active = guard
                 .get_mut(attempt)
                 .ok_or_else(|| ManagedRunError::InvalidRequest("attempt not active".into()))?;
+            if active.suspension().is_some() {
+                return Ok(());
+            }
             let next_seq = active.heartbeat_sequence.saturating_add(1);
             active.heartbeat_sequence = next_seq;
             (
@@ -232,7 +269,10 @@ impl super::service::ManagedRunService {
 
         let cmd = RecordHeartbeat {
             envelope: crate::command_envelope(
-                format!("heartbeat:{}_{}", attempt, next_seq),
+                format!(
+                    "heartbeat:{}_{}_{}",
+                    attempt, lease_proof.lease_epoch, next_seq
+                ),
                 None,
                 "lokai-manager",
             ),

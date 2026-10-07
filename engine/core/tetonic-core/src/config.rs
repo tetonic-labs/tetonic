@@ -2,7 +2,7 @@ use tetonic_domain::{DataClass, DisclosureTier};
 
 /// Agent loop configuration.
 
-#[derive(Clone)]
+#[derive(Clone, serde::Serialize)]
 pub struct AgentConfig {
     pub model: String,
     /// Effort cap: maximum model turns before we stop.
@@ -72,7 +72,7 @@ pub struct AgentConfig {
     pub response_schema: Option<serde_json::Value>,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, serde::Serialize)]
 pub struct EngineLimits {
     pub max_explain_whole_file_bytes: usize,
     pub default_grep_limit: usize,

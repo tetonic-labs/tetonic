@@ -7,6 +7,8 @@ use tetonic_run::managed::{
 
 #[path = "managed_delegation.rs"]
 mod delegation;
+#[path = "managed_suspension.rs"]
+mod suspension;
 
 struct Authority(Arc<AtomicBool>);
 #[async_trait::async_trait]

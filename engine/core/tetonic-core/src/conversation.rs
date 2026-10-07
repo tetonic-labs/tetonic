@@ -14,6 +14,7 @@ use tetonic_inference::Message;
 /// Hold one of these across multiple [`crate::Agent::turn`] calls to get a multi-turn
 /// conversation that remembers prior turns. A fresh `Conversation` is a new chat.
 pub struct Conversation {
+    pub(crate) pending_resume: Option<crate::WaitCheckpoint>,
     pub(crate) messages: Vec<Message>,
     pub(crate) prefix_len: usize,
     pub(crate) nonce: u128,
@@ -48,6 +49,7 @@ impl Conversation {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         Self {
+            pending_resume: None,
             messages,
             prefix_len,
             nonce,
@@ -64,6 +66,7 @@ impl Conversation {
             .map(|d| d.as_nanos())
             .unwrap_or(0);
         Self {
+            pending_resume: None,
             messages: Vec::new(),
             prefix_len: 1,
             nonce,
@@ -82,6 +85,7 @@ impl Conversation {
     /// Drop turns carried from another execution. The cancel handle stays so a
     /// stop requested on this conversation still reaches the attempt.
     pub fn discard_carried_turns(&mut self) {
+        self.pending_resume = None;
         self.messages.clear();
         self.prefix_len = 1;
         self.call_no = 0;
@@ -108,6 +112,10 @@ impl Conversation {
     /// Current turn id when a user turn is in flight.
     pub fn turn_id(&self) -> Option<&str> {
         self.turn_id.as_deref()
+    }
+
+    pub(crate) fn restore_turn_id(&mut self, id: Option<String>) {
+        self.turn_id = id;
     }
 
     /// Number of user/assistant/tool messages recorded so far.

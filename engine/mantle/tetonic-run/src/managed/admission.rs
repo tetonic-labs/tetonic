@@ -141,7 +141,7 @@ impl super::service::ManagedRunService {
             .parent_attempt
             .as_ref()
             .and_then(|parent| self.active.lock_recover().get(parent).cloned());
-        let parent_deadline = parent.as_ref().and_then(|active| active.deadline);
+        let parent_deadline = parent.as_ref().and_then(|active| active.deadline());
         let deadline = match (context.deadline, parent_deadline) {
             (Some(requested), Some(parent)) => Some(requested.min(parent)),
             (requested, parent) => requested.or(parent),
@@ -166,7 +166,8 @@ impl super::service::ManagedRunService {
                     })
             })
             .transpose()?;
-        if let Some(parent_instant) = parent.and_then(|active| active.deadline_instant) {
+        if let Some(parent_instant) = parent.and_then(|active| active.clock.lock_recover().instant)
+        {
             deadline_instant = Some(
                 deadline_instant.map_or(parent_instant, |instant| instant.min(parent_instant)),
             );
@@ -682,8 +683,11 @@ impl super::service::ManagedRunService {
                 attempt_id.clone(),
                 ActiveAttempt {
                     delegation_closed: Arc::new(AtomicBool::new(false)),
-                    deadline,
-                    deadline_instant,
+                    clock: Arc::new(std::sync::Mutex::new(super::lifetime::AttemptClock {
+                        deadline,
+                        instant: deadline_instant,
+                        suspension: None,
+                    })),
                     work_scope: Default::default(),
                     binding: binding.clone(),
                     identity: job.identity,

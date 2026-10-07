@@ -8,7 +8,9 @@ mod delegation;
 pub mod execution;
 pub mod finalization;
 pub mod lifetime;
+mod restore;
 pub mod service;
+mod suspension;
 
 pub use contracts::*;
 pub use delegation::DelegationParent;

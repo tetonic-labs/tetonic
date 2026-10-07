@@ -277,7 +277,10 @@ impl DurableRunSupervisor {
             .check_command_id_async(&run_id, &envelope.command_id)
             .await?
         {
-            if matches!(command, RunCommand::ClaimExecution(_)) {
+            if matches!(
+                command,
+                RunCommand::ClaimExecution(_) | RunCommand::ResumeAttempt(_)
+            ) {
                 return Err(RunSupervisorError::DuplicateDelivery(
                     "execution permission cannot be replayed".into(),
                 ));
@@ -288,7 +291,10 @@ impl DurableRunSupervisor {
 
         if let Some(key) = &envelope.idempotency_key {
             if let Some(hit) = self.check_idempotency_async(&run_id, key).await? {
-                if matches!(command, RunCommand::ClaimExecution(_)) {
+                if matches!(
+                    command,
+                    RunCommand::ClaimExecution(_) | RunCommand::ResumeAttempt(_)
+                ) {
                     return Err(RunSupervisorError::DuplicateDelivery(
                         "execution permission cannot be replayed".into(),
                     ));
