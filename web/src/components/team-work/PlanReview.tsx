@@ -90,6 +90,9 @@ export function PlanReview({
         setView(result);
         if (
           conversationActive ||
+          (result.recovery &&
+            !result.recovery.available &&
+            result.execution?.state !== 'recovery_required') ||
           result.plans[0]?.status === 'drafting' ||
           (result.execution &&
             ['starting', 'running', 'waiting_human', 'canceling'].includes(result.execution.state))

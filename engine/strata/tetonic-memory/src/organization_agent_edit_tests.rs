@@ -122,7 +122,7 @@ fn v61_upgrades_preserve_existing_agents() {
                 &serde_json::json!({"instructions":"keep me"}),
             )
             .unwrap();
-        db.conn.execute_batch("DROP TRIGGER agent_edit_immutable; DROP TABLE organization_agent_edits; DROP TABLE organization_agent_heads; DELETE FROM schema_versions WHERE version=62;").unwrap();
+        db.conn.execute_batch("DROP TRIGGER agent_edit_immutable; DROP TABLE organization_agent_edits; DROP TABLE organization_agent_heads; DROP TABLE plan_continuations; DELETE FROM schema_versions WHERE version>=62;").unwrap();
     }
     let db = Store::open(&path).unwrap();
     assert_eq!(

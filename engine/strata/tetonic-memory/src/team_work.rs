@@ -403,6 +403,19 @@ impl Store {
         input: Option<&str>,
         purpose: WorkPurpose,
     ) -> Result<TeamWorkItem> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        let row = self.create_team_work_item_in_transaction(command, input, purpose)?;
+        tx.commit()?;
+        Ok(row)
+    }
+
+    pub(crate) fn create_team_work_item_in_transaction(
+        &self,
+        command: crate::CreateTeamWorkItem<'_>,
+        input: Option<&str>,
+        purpose: WorkPurpose,
+    ) -> Result<TeamWorkItem> {
+        debug_assert!(!self.conn.is_autocommit());
         let crate::CreateTeamWorkItem {
             actor,
             org,
@@ -425,7 +438,6 @@ impl Store {
         if let Some(goal) = goal_id {
             validate_id(goal, "goal_id")?;
         }
-        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
         if let Some(goal) = goal_id {
             if self.get_team_goal(org, team, goal)?.is_none() {
@@ -441,7 +453,6 @@ impl Store {
             {
                 return Err(StoreError::ControlResourceConflict);
             }
-            tx.commit()?;
             return Ok(existing);
         }
         self.conn.execute(
@@ -465,7 +476,6 @@ impl Store {
         let row = self
             .get_team_work_item(org, team, work_id)?
             .ok_or(StoreError::ControlResourceConflict)?;
-        tx.commit()?;
         Ok(row)
     }
 

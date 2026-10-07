@@ -126,6 +126,37 @@
   border-bottom: 1px solid var(--brand-rule);
   padding: 8px 0;
 }
+.tw-plan-recovery {
+  margin: 16px 0;
+  padding: 16px 18px;
+  border-left: 2px solid var(--brand-field);
+  background: var(--brand-wash);
+}
+.tw-plan-recovery h4 {
+  margin: 0 0 8px;
+  color: var(--text-primary);
+}
+.tw-plan-recovery p {
+  line-height: 1.6;
+}
+.tw-plan-recovery a {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.tw-plan label.agent-hosted-consent {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  line-height: 1.5;
+}
+.tw-plan .agent-hosted-consent input {
+  flex: 0 0 auto;
+  width: 16px;
+  height: 16px;
+  margin: 2px 0 0;
+  accent-color: var(--brand-field);
+}
 .tw-plan-usage summary > span {
   float: right;
   color: var(--text-primary);

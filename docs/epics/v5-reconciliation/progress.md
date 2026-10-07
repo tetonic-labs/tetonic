@@ -1,5 +1,9 @@
 # MVP implementation progress
 
+## 2026-10-07 — Reviewable continuation of unfinished team plans
+
+Added [plan continuation](sprints/october-1-coherent-workspace/plan-continuation-2026-10-07.md) to the existing work panel. Owners can prepare a proposal from stopped unfinished work, retain completed evidence and answered questions, review potentially repeated actions, and start only the remaining assignments with a new allowance. Existing huddles, team-work records, agent revisions, runtime and accounting remain the owners; schema 63 records provenance and prevents duplicate continuations. Original histories and unknown usage are preserved. This closes a dead-end recovery journey for terminal plans; unresolved crash recovery, durable parking and the wider MVP remain open.
+
 ## 2026-10-07 — Teams use the chosen coordination model
 
 Added [provider-independent team coordination](sprints/october-1-coherent-workspace/hosted-team-coordination-2026-10-07.md). New plans use the Guide's selected provider/model for coordination, pin that choice in the existing registered coordinator revision, and retain each worker's saved identity/model/tools. Hosted team execution no longer requires Ollama. The existing plan view shows the coordination destination, requires consent for hosted shared context, and links missing setup directly to the relevant agent. Controlled provider tests demonstrate parallel file/MCP work, human-question handoff, stable model choice, safe retries and restart persistence. This closes the local-only coordinator gap; it does not claim live frontier-model quality or complete the wider MVP.

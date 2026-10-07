@@ -10,6 +10,7 @@ import { stateLabels } from '../../lib/workspaceRecords';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { HumanQuestion } from './HumanQuestion';
 import { PlanDirectionEditor } from './PlanDirectionEditor';
+import { PlanRecovery } from './PlanRecovery';
 
 export function PlanExecution({
   workId,
@@ -39,12 +40,17 @@ export function PlanExecution({
   const gate = useRef(false);
   const [error, setError] = useState('');
   const [approvedModel, setApprovedModel] = useState<string | null>(null);
+  const [reviewedActions, setReviewedActions] = useState<string | null>(null);
   const execution = view.execution;
   const plan = view.plans[0];
   const coordinator = execution ? execution.coordinator : pending?.coordinator || view.coordinator;
   const modelScope = JSON.stringify([plan?.revision, coordinator]);
   const hosted = !!coordinator && coordinator.provider !== 'ollama';
   const approved = approvedModel === modelScope;
+  const continuation = view.continuation_from;
+  const reviewScope = JSON.stringify([plan?.revision, continuation?.root_work_id]);
+  const needsActionReview = !!continuation?.review_before_repeat.length;
+  const actionsReviewed = reviewedActions === reviewScope;
   const providerName =
     (
       { openai: 'OpenAI', anthropic: 'Anthropic', google: 'Google', ollama: 'Ollama' } as Record<
@@ -58,7 +64,13 @@ export function PlanExecution({
   const coordination =
     content.token_budget - content.assignments.reduce((total, a) => total + a.token_budget, 0);
   async function start() {
-    if (gate.current || !plan || !isConnected || disabled || (!pending && hosted && !approved))
+    if (
+      gate.current ||
+      !plan ||
+      !isConnected ||
+      disabled ||
+      (!pending && ((hosted && !approved) || (needsActionReview && !actionsReviewed)))
+    )
       return;
     gate.current = true;
     setBusy(true);
@@ -66,6 +78,7 @@ export function PlanExecution({
     const request = pending || {
       request_id: crypto.randomUUID(),
       revision: plan.revision,
+      ...(needsActionReview ? { reviewed_previous_actions: actionsReviewed } : {}),
       ...(coordinator ? { coordinator, hosted_coordination_consent: hosted && approved } : {}),
     };
     try {
@@ -166,6 +179,71 @@ export function PlanExecution({
       )}
       {!execution ? (
         <>
+          {continuation && (
+            <div className="tw-plan-recovery">
+              <h4>Continue with what you’ve already learned</h4>
+              <p>
+                {continuation.retained.length} finished{' '}
+                {continuation.retained.length === 1 ? 'contribution is' : 'contributions are'}{' '}
+                included in the brief. This plan asks for an additional{' '}
+                {content.token_budget.toLocaleString()} tokens. Earlier history and usage stay in
+                the{' '}
+                <a href={`#shape=${encodeURIComponent(continuation.source_work_id)}`}>
+                  original plan
+                </a>
+                .
+              </p>
+              {!!continuation.retained.length && (
+                <details>
+                  <summary>Finished work kept</summary>
+                  <ul>
+                    {continuation.retained.map((item) => (
+                      <li key={item.work_id}>
+                        <a
+                          href={`#work=${encodeURIComponent(item.work_id)}`}
+                          onClick={(e) => openWork(e, item.work_id)}
+                        >
+                          {item.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                </details>
+              )}
+              {needsActionReview && (
+                <>
+                  <p>
+                    These unfinished assignments had tools that could change something. Review their
+                    activity and adjust the proposal to avoid repeating an action. A failed run does
+                    not undo earlier changes.
+                  </p>
+                  <ul>
+                    {continuation.review_before_repeat.map((item) => (
+                      <li key={item.work_id}>
+                        <a
+                          href={`#work=${encodeURIComponent(item.work_id)}&inspect=1`}
+                          onClick={(e) => openWork(e, item.work_id, true)}
+                        >
+                          Inspect {item.title}
+                        </a>
+                      </li>
+                    ))}
+                  </ul>
+                  <label className="agent-hosted-consent">
+                    <input
+                      type="checkbox"
+                      checked={pending ? !!pending.reviewed_previous_actions : actionsReviewed}
+                      disabled={busy || !!pending}
+                      onChange={(e) => setReviewedActions(e.target.checked ? reviewScope : null)}
+                    />
+                    <span>
+                      I reviewed the earlier actions and this continuation is safe to start.
+                    </span>
+                  </label>
+                </>
+              )}
+            </div>
+          )}
           {coordinator && (
             <p className="tw-small">
               Coordination: {coordinator.model} · {providerName}{' '}
@@ -230,6 +308,7 @@ export function PlanExecution({
               !isConnected ||
               (!pending &&
                 ((hosted && !approved) ||
+                  (needsActionReview && !actionsReviewed) ||
                   view.readiness.length > 0 ||
                   plan?.brief_revision !== view.brief_revision))
             }
@@ -252,6 +331,16 @@ export function PlanExecution({
             {execution.receipt.assignments.length} contributions ready
           </p>
           {execution.error && <p role="alert">{execution.error}</p>}
+          {continuation && (
+            <p>
+              This work continues an{' '}
+              <a href={`#shape=${encodeURIComponent(continuation.source_work_id)}`}>
+                earlier plan with {continuation.retained.length} retained contributions
+              </a>
+              .
+            </p>
+          )}
+          <PlanRecovery key={workId} workId={workId} view={view} />
           {coordinationOverrun && (
             <p role="status">
               {!isConnected ? 'Last recorded: ' : ''}Coordination used{' '}

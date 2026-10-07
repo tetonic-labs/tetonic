@@ -65,6 +65,14 @@ export interface PlanTaskLink {
   depends_on: string[];
 }
 export interface PlanView {
+  continuation_from?: PlanContinuation | null;
+  continuation_to?: PlanContinuation | null;
+  recovery?: {
+    available: boolean;
+    reason: string | null;
+    retained_count: number;
+    unfinished_count: number;
+  } | null;
   coordinator?: CoordinationModel | null;
   setup_issues?: { agent_key: string; message: string }[];
   execution_max_seconds?: number | null;
@@ -84,6 +92,20 @@ export interface StartPlanRequest {
   revision: number;
   coordinator?: CoordinationModel;
   hosted_coordination_consent?: boolean;
+  reviewed_previous_actions?: boolean;
+}
+export interface ContinuePlanRequest {
+  request_id: string;
+  expected_root_work_id: string;
+}
+export interface PlanContinuation {
+  source_work_id: string;
+  root_work_id: string;
+  continuation_work_id: string;
+  request_id: string;
+  retained: { work_id: string; title: string }[];
+  review_before_repeat: { work_id: string; title: string }[];
+  created_by: string;
 }
 export type PlanCommand =
   | {
@@ -436,6 +458,9 @@ export class LocalEngine {
   }
   startPlan(id: string, request: StartPlanRequest) {
     return this.request<PlanExecutionView>(`/plans/${encodeURIComponent(id)}/start`, request);
+  }
+  continuePlan(id: string, request: ContinuePlanRequest) {
+    return this.request<PlanContinuation>(`/plans/${encodeURIComponent(id)}/continue`, request);
   }
   answerPlanQuestion(id: string, request: AnswerPlanQuestion) {
     return this.request<WorkHumanQuestion>(`/tasks/${encodeURIComponent(id)}/answer`, request);

@@ -21,6 +21,59 @@ pub(crate) enum PlanMutation {
     },
 }
 impl ResourceService {
+    pub(crate) async fn plan_continuation_links(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        work: String,
+    ) -> Result<Vec<tetonic_memory::PlanContinuation>, ResourceError> {
+        let action = ResourceAction::ReadTeam {
+            org_id: org.clone(),
+            team_id: team.clone(),
+        };
+        let actor = self.authority.authorize(credential, &action).await?;
+        let rows = self
+            .store
+            .read(move |db| db.plan_continuation_links(&actor.principal_id, &org, &team, &work))
+            .await??;
+        self.authority.authorize(credential, &action).await?;
+        Ok(rows)
+    }
+
+    pub(crate) async fn create_plan_continuation(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        input: ContinuationDraft,
+    ) -> Result<tetonic_memory::PlanContinuation, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ManageTeam {
+                    org_id: org.clone(),
+                    team_id: team.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.create_plan_continuation(tetonic_memory::CreatePlanContinuation {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    receipt: &input.receipt,
+                    guide_key: &input.guide_key,
+                    brief: &input.brief,
+                    content: &input.content,
+                })
+            })
+            .await??)
+    }
+
     pub async fn huddle_generation_ids(
         &self,
         credential: &str,
@@ -117,4 +170,11 @@ impl ResourceService {
             })
             .await??)
     }
+}
+
+pub(crate) struct ContinuationDraft {
+    pub receipt: tetonic_memory::PlanContinuation,
+    pub guide_key: String,
+    pub brief: String,
+    pub content: PlanContent,
 }

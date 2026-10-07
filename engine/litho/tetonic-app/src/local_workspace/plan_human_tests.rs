@@ -700,6 +700,19 @@ async fn restarted_wait_remains_inspectable_but_an_answer_cannot_revive_its_atte
                 "running" | "waiting_human" | "completed"
             ));
             assert_eq!(view.assignments[0].human_questions[0].id, question.id);
+            assert!(
+                workspace
+                    .continue_plan(
+                        &source,
+                        ContinuePlan {
+                            request_id: uuid::Uuid::new_v4().to_string(),
+                            expected_root_work_id: view.receipt.root_work_id.clone(),
+                        }
+                    )
+                    .await
+                    .is_err(),
+                "a crashed unresolved attempt is not a terminal retry"
+            );
             assert!(workspace
                 .answer_plan_question(
                     &question.work_id,

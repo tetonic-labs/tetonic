@@ -281,6 +281,7 @@ async fn hosted_coordinators_dispatch_parallel_tool_using_teams_without_ollama()
                     revision: 1,
                     coordinator: Some(model.clone()),
                     hosted_coordination_consent: true,
+                    ..Default::default()
                 };
                 let view = workspace.plan_view(&source).await.unwrap();
                 assert!(view.readiness.is_empty(), "{:?}", view.readiness);
@@ -422,6 +423,7 @@ async fn hosted_coordinators_dispatch_parallel_tool_using_teams_without_ollama()
                             revision: 1,
                             coordinator: view.coordinator,
                             hosted_coordination_consent: true,
+                            ..Default::default()
                         }
                     )
                     .await

@@ -78,6 +78,17 @@ impl Store {
     }
 
     pub fn save_work_brief(&self, command: crate::SaveWorkBrief<'_>) -> Result<WorkBrief> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        let row = self.save_work_brief_in_transaction(command)?;
+        tx.commit()?;
+        Ok(row)
+    }
+
+    pub(crate) fn save_work_brief_in_transaction(
+        &self,
+        command: crate::SaveWorkBrief<'_>,
+    ) -> Result<WorkBrief> {
+        debug_assert!(!self.conn.is_autocommit());
         let crate::SaveWorkBrief {
             actor,
             org,
@@ -97,7 +108,6 @@ impl Store {
         {
             return Err(StoreError::InvalidControlResource("brief".into()));
         }
-        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
         let work_item = self
             .get_team_work_item(org, team, work)?
@@ -113,7 +123,6 @@ impl Store {
             if old_body != body || old_expected != expected || created_by != actor {
                 return Err(StoreError::ControlResourceConflict);
             }
-            tx.commit()?;
             return Ok(WorkBrief {
                 work_id: work.into(),
                 revision,
@@ -130,7 +139,6 @@ impl Store {
             .checked_add(1)
             .ok_or(StoreError::ControlResourceConflict)?;
         self.conn.execute("INSERT INTO work_brief_revisions(org_id,team_id,work_id,revision,body,request_id,expected_revision,created_by) VALUES(?1,?2,?3,?4,?5,?6,?7,?8)",params![org,team,work,revision,body,request,expected,actor])?;
-        tx.commit()?;
         Ok(WorkBrief {
             work_id: work.into(),
             revision,

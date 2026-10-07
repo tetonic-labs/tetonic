@@ -49,8 +49,19 @@ impl LocalWorkspace {
             let task = self.task(&parent).await?;
             root = task.id.clone();
             exploring = task.purpose == WorkPurpose::Explore;
+            // A host-prepared continuation has a saved brief/proposal but no
+            // inference turn. It is a valid conversation anchor, not a stuck run.
+            let prepared_continuation = exploring
+                && task.run_id.is_none()
+                && task.state == "not_started"
+                && self
+                    .continuation_links(&task.id)
+                    .await?
+                    .iter()
+                    .any(|r| r.continuation_work_id == task.id);
             if task.agent_key != agent
-                || !matches!(task.state.as_str(), "completed" | "failed" | "canceled")
+                || !(prepared_continuation
+                    || matches!(task.state.as_str(), "completed" | "failed" | "canceled"))
             {
                 return Err(AppError::InvalidRequest(
                     "Wait for this agent's current reply to finish before continuing.".into(),
@@ -63,6 +74,8 @@ impl LocalWorkspace {
                     .find(|m| m.role == "assistant")
                     .map(|m| m.content.as_str())
                     .unwrap_or("")
+            } else if prepared_continuation {
+                "[The owner prepared a continuation proposal; no model reply has run yet.]"
             } else {
                 "[This attempt did not complete; no final answer is available.]"
             };

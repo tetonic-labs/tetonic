@@ -9,7 +9,7 @@ use hyper_util::rt::{TokioIo, TokioTimer};
 use serde::Deserialize;
 use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf, rc::Rc, time::Duration};
 use tetonic_app::local_workspace::{
-    AmendPlanAssignment, AnswerPlanQuestion, BudgetSettingsRequest, CreateLocalAgent,
+    AmendPlanAssignment, AnswerPlanQuestion, BudgetSettingsRequest, ContinuePlan, CreateLocalAgent,
     CreateWorkItemRequest, LocalWorkspace, PlanCommand, RemoveProviderKey, ResolveApprovalRequest,
     SaveProviderKey, SaveWorkBrief, StartPlan, UpdateLocalAgent, WorkPurpose,
 };
@@ -351,11 +351,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
         }
     } else if method == hyper::Method::POST
         && path.starts_with("/api/local/plans/")
-        && path.ends_with("/start")
+        && (path.ends_with("/start") || path.ends_with("/continue"))
     {
+        let continuation = path.ends_with("/continue");
         let id = path
             .trim_start_matches("/api/local/plans/")
-            .trim_end_matches("/start");
+            .trim_end_matches(if continuation { "/continue" } else { "/start" });
         if request
             .headers()
             .get("content-type")
@@ -378,14 +379,28 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        let Ok(payload) = serde_json::from_slice::<StartPlan>(&body) else {
-            return error(StatusCode::BAD_REQUEST, "Invalid plan start request.");
-        };
-        state
-            .workspace
-            .start_plan(id, payload)
-            .await
-            .map(|v| serde_json::to_value(v).unwrap_or_default())
+        if continuation {
+            let Ok(payload) = serde_json::from_slice::<ContinuePlan>(&body) else {
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "Invalid plan continuation request.",
+                );
+            };
+            state
+                .workspace
+                .continue_plan(id, payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else {
+            let Ok(payload) = serde_json::from_slice::<StartPlan>(&body) else {
+                return error(StatusCode::BAD_REQUEST, "Invalid plan start request.");
+            };
+            state
+                .workspace
+                .start_plan(id, payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        }
     } else if method == hyper::Method::POST
         && ((path.starts_with("/api/local/plans/") && path.ends_with("/direction"))
             || (path.starts_with("/api/local/tasks/") && path.ends_with("/answer")))

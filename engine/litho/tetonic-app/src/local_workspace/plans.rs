@@ -52,6 +52,9 @@ pub enum PlanCommand {
 }
 #[derive(Serialize)]
 pub struct PlanView {
+    pub continuation_from: Option<tetonic_memory::PlanContinuation>,
+    pub continuation_to: Option<tetonic_memory::PlanContinuation>,
+    pub recovery: Option<plan_recovery::PlanRecovery>,
     pub coordinator: Option<plan_execution::CoordinationModel>,
     pub setup_issues: Vec<plan_execution::PlanSetupIssue>,
     pub execution_max_seconds: Option<u64>,
@@ -127,6 +130,14 @@ impl LocalWorkspace {
         };
         let mut readiness = Vec::new();
         let execution = self.execution_view(id).await?;
+        let links = self.continuation_links(id).await?;
+        let continuation_from = links.iter().find(|r| r.continuation_work_id == id).cloned();
+        let continuation_to = links.into_iter().find(|r| r.source_work_id == id);
+        let recovery = if let Some(execution) = &execution {
+            self.recovery_view(execution).await?
+        } else {
+            None
+        };
         let mut setup_issues = vec![];
         if let Some(plan) = plans.first() {
             if plan.brief_revision != brief_revision {
@@ -195,6 +206,9 @@ impl LocalWorkspace {
                     .map(|content| self.plan_deadline(content))
             });
         Ok(PlanView {
+            continuation_from,
+            continuation_to,
+            recovery,
             coordinator,
             setup_issues,
             execution_max_seconds,

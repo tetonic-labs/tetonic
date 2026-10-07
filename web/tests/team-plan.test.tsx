@@ -10,6 +10,7 @@ import {
   type PlanView,
   type PlanExecutionView,
   type WorkUsage,
+  type PlanContinuation,
 } from '../src/lib/localEngine';
 
 const content = {
@@ -172,6 +173,148 @@ function fixture(
 afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
+  window.history.replaceState(null, '', '/');
+});
+
+const continuation: PlanContinuation = {
+  source_work_id: 'shape',
+  root_work_id: 'old-root',
+  continuation_work_id: 'follow-up',
+  request_id: 'prepare',
+  created_by: 'owner',
+  retained: [{ work_id: 'compare', title: 'Compare formats' }],
+  review_before_repeat: [{ work_id: 'review', title: 'Check assumptions' }],
+};
+
+it('prepares only a reviewable continuation and reuses an uncertain command after reopening', async () => {
+  const f = fixture({
+    plans: [{ ...plan, status: 'agreed' }],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: false,
+    execution: {
+      receipt: {
+        source_work_id: 'shape',
+        root_work_id: 'old-root',
+        request_id: 'old-start',
+        revision: 1,
+        content,
+        assignments: [],
+      },
+      state: 'failed',
+      root: null,
+      assignments: [],
+      error: 'A worker failed',
+    },
+    recovery: { available: true, reason: null, retained_count: 1, unfinished_count: 1 },
+  });
+  const start = vi.spyOn(f.client, 'startPlan');
+  const prepare = vi
+    .spyOn(f.client, 'continuePlan')
+    .mockRejectedValueOnce(new Error('Proposal response lost'))
+    .mockResolvedValueOnce(continuation);
+  const page = f.render();
+  const button = await screen.findByRole('button', { name: 'Review unfinished work' });
+  fireEvent.click(button);
+  fireEvent.click(button);
+  await screen.findByText('Proposal response lost');
+  expect(prepare).toHaveBeenCalledTimes(1);
+  const request = prepare.mock.calls[0][1];
+  expect(request.expected_root_work_id).toBe('old-root');
+  page.unmount();
+  f.render();
+  fireEvent.click(await screen.findByRole('button', { name: 'Check this proposal again' }));
+  await screen.findByRole('link', { name: 'Open continuation →' });
+  expect(prepare.mock.calls[1][1]).toEqual(request);
+  await waitFor(() => expect(window.location.hash).toBe('#shape=follow-up'));
+  expect(start).not.toHaveBeenCalled();
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('explains a stopped-run prerequisite without offering a duplicate dispatch', async () => {
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: false,
+    execution: {
+      receipt: {
+        source_work_id: 'shape',
+        root_work_id: 'old-root',
+        request_id: 'old',
+        revision: 1,
+        content,
+        assignments: [],
+      },
+      state: 'recovery_required',
+      root: null,
+      assignments: [],
+      error: null,
+    },
+    recovery: {
+      available: false,
+      reason: 'The earlier run has not fully stopped.',
+      retained_count: 1,
+      unfinished_count: 1,
+    },
+  });
+  f.render();
+  await screen.findByText('The earlier run has not fully stopped.');
+  expect(screen.getByRole('button', { name: 'Review unfinished work' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('requires review of earlier tool actions, resets on plan edits, and retains it for uncertain starts', async () => {
+  const view: PlanView = {
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+    continuation_from: continuation,
+  };
+  const f = fixture(view);
+  const start = vi.spyOn(f.client, 'startPlan').mockRejectedValue(new Error('Start reply lost'));
+  const element = (v: PlanView) => (
+    <LocalEngineProvider client={f.client}>
+      <PlanExecution workId="follow-up" view={v} refresh={async () => {}} />
+    </LocalEngineProvider>
+  );
+  const page = render(element(view));
+  await waitFor(() => expect(screen.getByRole('checkbox')).toHaveProperty('disabled', false));
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty('disabled', true);
+  expect(screen.getByRole('link', { name: 'Inspect Check assumptions' }).getAttribute('href')).toBe(
+    '#work=review&inspect=1',
+  );
+  fireEvent.click(screen.getByRole('checkbox'));
+  await waitFor(() =>
+    expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
+      'disabled',
+      false,
+    ),
+  );
+  const revised = {
+    ...view,
+    plans: [{ ...plan, work_id: 'follow-up', revision: 2, status: 'agreed' as const }],
+  };
+  page.rerender(element(revised));
+  expect(screen.getByRole('checkbox')).toHaveProperty('checked', false);
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty('disabled', true);
+  fireEvent.click(screen.getByRole('checkbox'));
+  fireEvent.click(screen.getByRole('button', { name: 'Start this plan' }));
+  await screen.findByText('Start reply lost');
+  expect(start.mock.calls[0][1]).toMatchObject({ revision: 2, reviewed_previous_actions: true });
+  page.unmount();
+  render(element(revised));
+  fireEvent.click(await screen.findByRole('button', { name: 'Check this start again' }));
+  await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+  expect(start.mock.calls[1][1]).toEqual(start.mock.calls[0][1]);
 });
 
 it('reviews the coordination destination and retains consent with an uncertain start', async () => {

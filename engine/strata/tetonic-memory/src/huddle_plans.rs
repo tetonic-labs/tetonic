@@ -561,6 +561,17 @@ impl Store {
     /// Append a generation request or a human-edited draft to the existing huddle.
     /// A source brief is mandatory; stale direction cannot silently replace it.
     pub fn save_huddle_plan(&self, command: crate::SaveHuddlePlan<'_>) -> Result<HuddlePlan> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        let row = self.save_huddle_plan_in_transaction(command)?;
+        tx.commit()?;
+        Ok(row)
+    }
+
+    pub(crate) fn save_huddle_plan_in_transaction(
+        &self,
+        command: crate::SaveHuddlePlan<'_>,
+    ) -> Result<HuddlePlan> {
+        debug_assert!(!self.conn.is_autocommit());
         let crate::SaveHuddlePlan {
             actor,
             org,
@@ -582,7 +593,6 @@ impl Store {
         if let Some(content) = content {
             content.validate()?;
         }
-        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
         let rows = self.huddle_plans(actor, org, team, work)?;
         let retry: Option<i64> = self.conn.query_row("SELECT proposal_version FROM huddle_proposals WHERE org_id=?1 AND team_id=?2 AND request_id=?3",params![org,team,request],|r|r.get(0)).optional()?;
@@ -602,7 +612,6 @@ impl Store {
             {
                 return Err(StoreError::ControlResourceConflict);
             }
-            tx.commit()?;
             return Ok(old);
         }
         let source = self
@@ -635,7 +644,6 @@ impl Store {
             .unwrap_or_default();
         self.conn.execute("INSERT INTO huddle_proposals(org_id,team_id,huddle_id,proposal_version,status,request_id,created_by,work_titles_json,created_at,source_work_id,brief_revision,generation_id,generation_input,plan_json,expected_revision,plan_request_json) VALUES(?1,?2,?3,?4,?5,?6,?7,?8,?9,?3,?10,?11,?12,?13,?14,?15)",params![org,team,work,revision,status,request,actor,serde_json::to_string(&titles).unwrap(),crate::util::now(),brief_revision,generation_id,generation_input,json,expected,initial_json])?;
         let row = self.huddle_plans(actor, org, team, work)?.remove(0);
-        tx.commit()?;
         Ok(row)
     }
 

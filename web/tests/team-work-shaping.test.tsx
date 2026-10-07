@@ -132,7 +132,7 @@ describe('shaping in the team-work map', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Guide model' }));
     await screen.findByText(
-      'Choose who helps you think and plan. Changes apply to the next reply.',
+      'Choose who helps you think and plan. Changes apply to new replies and teams you start.',
     );
     expect(screen.queryByRole('textbox', { name: 'Name', exact: true })).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Back to previous view' }));

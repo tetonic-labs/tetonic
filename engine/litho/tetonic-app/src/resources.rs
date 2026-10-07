@@ -24,7 +24,7 @@ mod work_briefs;
 mod work_budgets;
 pub(crate) mod work_director;
 mod work_usage;
-pub(crate) use huddle_plans::PlanMutation;
+pub(crate) use huddle_plans::{ContinuationDraft, PlanMutation};
 mod team_work_activation;
 pub use team_work_activation::TeamWorkLaunch;
 mod context_artifacts;

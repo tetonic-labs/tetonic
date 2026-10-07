@@ -11,6 +11,9 @@ mod documents;
 #[path = "plan_group_tests.rs"]
 mod groups;
 
+#[path = "plan_recovery_tests.rs"]
+mod recovery;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;
@@ -90,7 +93,9 @@ pub(in crate::local_workspace) async fn scripted_server(
                     let (tool, args) = {
                         let mut calls = captured.lock().unwrap();
                         calls.push(request.clone());
-                        if matches!(scenario, 2..=4) {
+                        if matches!(scenario, 10..=12) {
+                            recovery::reply(scenario, child, &request)
+                        } else if matches!(scenario, 2..=4) {
                             if child {
                                 let input = request["messages"]
                                     .as_array()
@@ -189,6 +194,12 @@ pub(in crate::local_workspace) async fn scripted_server(
                             }
                         }
                     };
+                    if tool == "TEST_FAILURE" {
+                        let body = "{\"error\":\"scripted provider failure\"}";
+                        let response = format!("HTTP/1.1 500 Internal Server Error\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
+                        let _ = stream.write_all(response.as_bytes()).await;
+                        return;
+                    }
                     if child && matches!(scenario, 8 | 9) {
                         // Neither worker returns until both HTTP requests have arrived.
                         // This fails if either dispatch or model admission serializes them.
@@ -623,6 +634,19 @@ async fn stopping_a_plan_cancels_child_wait_without_starting_the_next_assignment
         })
         .await
         .unwrap();
+        assert!(
+            workspace
+                .continue_plan(
+                    &source,
+                    ContinuePlan {
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                        expected_root_work_id: started.receipt.root_work_id.clone(),
+                    }
+                )
+                .await
+                .is_err(),
+            "active work must not be duplicated through recovery"
+        );
         workspace
             .cancel(&started.receipt.root_work_id)
             .await
@@ -639,6 +663,24 @@ async fn stopping_a_plan_cancels_child_wait_without_starting_the_next_assignment
         .await
         .unwrap();
         assert_eq!(stopped.assignments[0].state, "canceled");
+        recovery::wait(&workspace, &source, "canceled").await;
+        let continuation = workspace
+            .continue_plan(
+                &source,
+                ContinuePlan {
+                    request_id: uuid::Uuid::new_v4().to_string(),
+                    expected_root_work_id: started.receipt.root_work_id.clone(),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(continuation.retained.is_empty());
+        assert!(workspace
+            .plan_view(&continuation.continuation_work_id)
+            .await
+            .unwrap()
+            .execution
+            .is_none());
         assert_eq!(stopped.assignments[1].state, "not_started");
         assert_eq!(calls.lock().unwrap().len(), 4);
     };
