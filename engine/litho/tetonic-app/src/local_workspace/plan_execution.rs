@@ -185,7 +185,12 @@ impl LocalWorkspace {
         let mut reasons = vec![];
         let used: u64 = content.assignments.iter().map(|a| a.token_budget).sum();
         let own = content.token_budget.saturating_sub(used);
-        let ceiling = self.host.settings.reported_token_ceiling.unwrap_or(4096);
+        let ceiling = self
+            .host
+            .settings
+            .reported_token_ceiling
+            .unwrap_or(DEFAULT_WORK_TOKENS)
+            .min(DEFAULT_WORK_TOKENS);
         if own < 256 || own > ceiling {
             reasons.push(format!("Leave 256–{ceiling} tokens within the plan total for coordination and the combined result. Currently {own} remain after assignments."));
         }
@@ -447,6 +452,7 @@ impl LocalWorkspace {
         ));
         let (sender, mut receiver) = tokio::sync::mpsc::channel::<DispatchCall>(1);
         let dispatch = PlanDispatch {
+            director: None,
             human: Some(self.human_handoff(&receipt.root_work_id)),
             binding: receipt.root_work_id.clone(),
             assignment_keys: receipt
@@ -704,6 +710,7 @@ impl LocalWorkspace {
         let mut settings = self.agent_execution_settings(&agent).await?;
         let (sender, _unused) = tokio::sync::mpsc::channel(1);
         settings.plan_dispatch = Some(PlanDispatch {
+            director: None,
             human: Some(self.human_handoff(&pin.work_id)),
             binding: pin.work_id.clone(),
             sender,

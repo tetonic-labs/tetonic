@@ -49,6 +49,8 @@ pub struct GeneralAgentPreferences {
 /// Trusted host preparation ceilings, not user-supplied execution grants.
 #[derive(Clone)]
 pub struct HarnessPreparationLimits {
+    /// Host-bound conversation planning, never inferred from employee input.
+    pub work_director: bool,
     /// Trusted host control capability, separately bound and authorized at admission.
     pub human_handoff: bool,
     pub max_steps: usize,
@@ -201,6 +203,18 @@ fn prepare(
         return Err(ResourceError::Invalid);
     }
     let mut config = envelope.configuration;
+    if limits.work_director {
+        if limits.human_handoff || !config.requested_tools.is_empty() {
+            return Err(ResourceError::Invalid);
+        }
+        config
+            .requested_tools
+            .push(super::work_director::CONTROL.into());
+        // The Guide may answer naturally as well as use its host-bound control
+        // hook. It cannot dispatch workers or access execution tools, so a text
+        // answer bypasses no work-completion guard.
+        config.explain_turn = Some(true);
+    }
     if limits.human_handoff
         && !config
             .requested_tools
@@ -272,11 +286,15 @@ fn prepare(
                 handoff_tool: limits
                     .human_handoff
                     .then(|| super::plan_dispatch::ASK_HUMAN.into()),
-                spawn_tool: config
-                    .requested_tools
-                    .iter()
-                    .any(|t| t == super::plan_dispatch::DISPATCH)
-                    .then(|| super::plan_dispatch::DISPATCH.into()),
+                spawn_tool: if limits.work_director {
+                    Some(super::work_director::CONTROL.into())
+                } else {
+                    config
+                        .requested_tools
+                        .iter()
+                        .any(|t| t == super::plan_dispatch::DISPATCH)
+                        .then(|| super::plan_dispatch::DISPATCH.into())
+                },
                 ..Default::default()
             },
         },
@@ -402,6 +420,7 @@ mod tests {
                 "user task".into(),
                 HarnessPreparationLimits {
                     human_handoff: false,
+                    work_director: false,
                     max_steps: 8,
                     max_input_bytes: 1024,
                 },
@@ -498,6 +517,7 @@ mod tests {
         .is_err());
         let limits = || HarnessPreparationLimits {
             human_handoff: false,
+            work_director: false,
             max_steps: 8,
             max_input_bytes: 1024,
         };
@@ -608,6 +628,7 @@ mod tests {
                 "Please do the assignment".into(),
                 HarnessPreparationLimits {
                     human_handoff: true,
+                    work_director: false,
                     max_steps: 8,
                     max_input_bytes: 1024,
                 },

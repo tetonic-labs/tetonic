@@ -273,6 +273,17 @@ impl LocalWorkspace {
             ));
         }
         let config = &value["configuration"];
+        let default_tokens = if key == shaping::GUIDE {
+            LOCAL_TOKEN_CEILING
+        } else {
+            DEFAULT_WORK_TOKENS
+        }
+        .min(
+            self.host
+                .settings
+                .reported_token_ceiling
+                .unwrap_or(DEFAULT_WORK_TOKENS),
+        );
         let prefs: GeneralAgentPreferences = if key == AGENT && config.get("preferences").is_none()
         {
             GeneralAgentPreferences {
@@ -283,7 +294,7 @@ impl LocalWorkspace {
                 display_name: AGENT.into(),
                 model: self.host.settings.model.clone(),
                 max_elapsed_seconds: self.host.settings.max_elapsed_seconds,
-                reported_token_ceiling: self.host.settings.reported_token_ceiling.unwrap_or(4096),
+                reported_token_ceiling: default_tokens,
             }
         } else if let Some(prefs_val) = config.get("preferences").filter(|v| !v.is_null()) {
             serde_json::from_value(prefs_val.clone()).map_err(|_| {
@@ -298,7 +309,7 @@ impl LocalWorkspace {
                 display_name: key.clone(),
                 model: self.host.settings.model.clone(),
                 max_elapsed_seconds: self.host.settings.max_elapsed_seconds,
-                reported_token_ceiling: self.host.settings.reported_token_ceiling.unwrap_or(4096),
+                reported_token_ceiling: default_tokens,
             }
         };
         let tools: Vec<String> = config

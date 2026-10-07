@@ -667,7 +667,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
             "agent".into(),
             registered.identity.bound_definition_digest.clone(),
             "A question".into(),
-            crate::resources::HarnessPreparationLimits { human_handoff: false,
+            crate::resources::HarnessPreparationLimits { human_handoff: false, work_director: false,
                 max_steps: 2,
                 max_input_bytes: 1024,
             },
@@ -755,7 +755,7 @@ async fn registered_general_revision_completes_through_existing_managed_runtime(
         execution_grant_id: "job-grant".into(), input: "A question".into(),
         recovery_id: "general-job".into(),
     };
-    let limits = || crate::resources::HarnessPreparationLimits { human_handoff: false, max_steps: 2, max_input_bytes: 1024 };
+    let limits = || crate::resources::HarnessPreparationLimits { human_handoff: false, work_director: false, max_steps: 2, max_input_bytes: 1024 };
     let executor = |extra_tool: bool| {
         let tools = tetonic_tools::Tools::new(tetonic_tools::Workspace::new(tmp.path()).unwrap(), false)
             .with_allowed_tools(if extra_tool { ["finish", "read_file"].into_iter().map(str::to_owned).collect() }

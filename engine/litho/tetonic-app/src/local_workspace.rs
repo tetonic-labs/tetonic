@@ -12,6 +12,10 @@ const ORG: &str = "local-ui";
 const TEAM: &str = "local-work";
 const AGENT: &str = "Local assistant";
 const AUDIENCE: &str = "tetonic-local-ui-v1";
+const DEFAULT_WORK_TOKENS: u64 = 4096;
+// Multi-call planning includes repeated context and tool receipts. This is a
+// host ceiling, not a grant: saved agent and workspace allowances still narrow it.
+const LOCAL_TOKEN_CEILING: u64 = 12_288;
 pub const INPUT_LIMIT: usize = 12_000;
 mod agents;
 mod bootstrap;
@@ -137,12 +141,13 @@ pub struct LocalMessage {
     pub content: String,
 }
 
+#[derive(Clone)]
 pub struct LocalWorkspace {
     local: LocalControl,
     host: PreparedLaunch,
     context: String,
     // Only admission is serialized. Inference and reads never hold this lock.
-    admission: tokio::sync::Mutex<()>,
+    admission: std::sync::Arc<tokio::sync::Mutex<()>>,
     keys: std::sync::Arc<providers::ProviderKeys>,
     #[cfg(test)]
     hosted_transport: Option<std::sync::Arc<dyn tetonic_inference::hosted::HostedTransport>>,
@@ -360,6 +365,7 @@ impl LocalWorkspace {
         }
         self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
         let mut settings = self.agent_execution_settings(&agent).await?;
+        let mut director = None;
         let planning = self.planning_ids().await?.contains_key(&id);
         if planning {
             if purpose != WorkPurpose::Explore || agent_key != shaping::GUIDE || parent_id.is_some()
@@ -374,6 +380,13 @@ impl LocalWorkspace {
             settings.workspace_root = None;
             if !planning {
                 conversation_input = self.director_input(&id, conversation_input).await?;
+                let (binding, receiver) = self.bind_director(&id).await?;
+                settings.limits.work_director = true;
+                settings
+                    .allowed_tools
+                    .insert(crate::resources::work_director::CONTROL.into());
+                settings.plan_dispatch = Some(binding);
+                director = Some(receiver);
             }
         }
         // New work inherits an explicit allowance from existing agent limits,
@@ -474,9 +487,13 @@ impl LocalWorkspace {
             .await?;
         // The shared Application owns execution. A disconnected browser cannot cancel it.
         if let Some(execution) = submission.execution {
-            tokio::task::spawn_local(async move {
-                let _ = execution.completion.await;
-            });
+            if let Some(receiver) = director {
+                self.serve_director(execution, receiver);
+            } else {
+                tokio::task::spawn_local(async move {
+                    let _ = execution.completion.await;
+                });
+            }
         }
         self.project_task(work).await
     }

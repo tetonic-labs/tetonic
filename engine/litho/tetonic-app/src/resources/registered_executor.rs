@@ -153,6 +153,34 @@ impl crate::Application {
             .plan_dispatch
             .as_ref()
             .is_some_and(|d| d.human.is_some());
+        let director = settings
+            .plan_dispatch
+            .as_ref()
+            .and_then(|d| d.director.as_ref());
+        let bound_director = director.is_some();
+        if settings.limits.work_director != bound_director
+            || settings
+                .allowed_tools
+                .contains(super::work_director::CONTROL)
+                != bound_director
+            || (bound_director
+                && (parent.is_some()
+                    || bound_dispatch
+                    || bound_human
+                    || settings.hosted.is_some()
+                    || settings.response_schema.is_some()
+                    || settings.workspace_root.is_some()
+                    || settings.mcp.is_some()
+                    || settings
+                        .allowed_tools
+                        .iter()
+                        .any(|t| t != super::work_director::CONTROL && t != "finish")))
+            || director.is_some_and(|d| work.as_ref().is_none_or(|(_, w)| w != &d.turn))
+        {
+            return Err(AppError::PolicyDenied(
+                "Conversation planning requires its trusted, local, output-scoped binding.".into(),
+            ));
+        }
         if wants_dispatch != bound_dispatch
             || settings
                 .allowed_tools
@@ -192,6 +220,7 @@ impl crate::Application {
             settings.limits.max_steps,
             settings.limits.max_input_bytes,
             settings.limits.human_handoff,
+            settings.limits.work_director,
         );
         let environment_settings = settings.clone();
         let mut approved_environment = false;
@@ -359,6 +388,7 @@ impl crate::Application {
                     && tool != "recall"
                     && tool != super::plan_dispatch::DISPATCH
                     && tool != super::plan_dispatch::ASK_HUMAN
+                    && tool != super::work_director::CONTROL
             });
         if repository_requested && settings.workspace_root.is_none() {
             return Err(AppError::WorkspaceUnavailable);
@@ -450,6 +480,14 @@ impl crate::Application {
         });
         if let Some(dispatch) = &settings.plan_dispatch {
             fingerprint["plan_dispatch"] = serde_json::json!(dispatch.binding);
+            if let Some(director) = &dispatch.director {
+                fingerprint["work_director"] = serde_json::json!([
+                    director.source,
+                    director.turn,
+                    director.revision,
+                    director.brief_revision
+                ]);
+            }
         }
         if let Some(binding) = &work {
             fingerprint["work_budget_binding"] = serde_json::json!(binding);
@@ -735,6 +773,7 @@ fn supported_registered_tool(tool: &str) -> bool {
             | "run_shell"
             | "dispatch_assignment"
             | "ask_human"
+            | "work_plan"
             | "recall"
             | "read_file"
             | "list_dir"

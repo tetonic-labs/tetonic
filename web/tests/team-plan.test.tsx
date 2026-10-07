@@ -173,6 +173,70 @@ afterEach(() => {
   sessionStorage.clear();
 });
 
+it('shows a proposal saved by the Guide when its reply finishes, without a prepare click or launch', async () => {
+  const f = fixture();
+  const start = vi.spyOn(f.client, 'startPlan');
+  const element = (active: boolean) => (
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" conversationActive={active} />
+    </LocalEngineProvider>
+  );
+  const page = render(element(true));
+  await waitFor(() => expect(f.client.plan).toHaveBeenCalled());
+  expect(screen.queryByRole('button', { name: 'Prepare a plan' })).toBeNull();
+  f.set({ plans: [plan], execution_available: true });
+  page.rerender(element(false));
+  await screen.findByRole('heading', { name: 'Compare formats' });
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty('disabled', false);
+  expect(f.update).not.toHaveBeenCalled();
+  expect(start).not.toHaveBeenCalled();
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('keeps unsaved owner edits when a Guide reply saves a newer proposal', async () => {
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  const element = (active: boolean) => (
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" conversationActive={active} />
+    </LocalEngineProvider>
+  );
+  const page = render(element(false));
+  fireEvent.click(await screen.findByRole('button', { name: 'Adjust plan' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
+    target: { value: 'Keep my unsaved direction' },
+  });
+  page.rerender(element(true));
+  f.set({
+    plans: [
+      {
+        ...plan,
+        revision: 2,
+        brief_revision: 3,
+        content: { ...content, summary: 'The new proposal' },
+      },
+    ],
+    brief_revision: 3,
+  });
+  page.rerender(element(false));
+  await screen.findByText(/A newer plan or brief is saved/);
+  expect(screen.getByRole('textbox', { name: 'Outcome' })).toHaveProperty(
+    'value',
+    'Keep my unsaved direction',
+  );
+  expect(screen.getByRole('button', { name: 'Save plan revision' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
 it('starts the agreed plan through its own engine door and reuses an uncertain request', async () => {
   const f = fixture({
     plans: [{ ...plan, status: 'agreed' }],

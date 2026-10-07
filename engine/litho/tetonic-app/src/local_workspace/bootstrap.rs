@@ -206,7 +206,7 @@ impl LocalWorkspace {
                     response_schema: None,
                     hosted: None,
                     max_elapsed_seconds: 120,
-                    reported_token_ceiling: Some(4096),
+                    reported_token_ceiling: Some(LOCAL_TOKEN_CEILING),
                     workspace_root,
                     model,
                     num_ctx: 8192,
@@ -214,6 +214,7 @@ impl LocalWorkspace {
                     allowed_tools,
                     limits: HarnessPreparationLimits {
                         human_handoff: false,
+                        work_director: false,
                         max_steps: if has_workspace { 8 } else { 4 },
                         max_input_bytes: INPUT_LIMIT,
                     },
@@ -234,7 +235,7 @@ impl LocalWorkspace {
             local,
             host,
             context,
-            admission: tokio::sync::Mutex::new(()),
+            admission: std::sync::Arc::new(tokio::sync::Mutex::new(())),
             keys,
             #[cfg(test)]
             hosted_transport: None,

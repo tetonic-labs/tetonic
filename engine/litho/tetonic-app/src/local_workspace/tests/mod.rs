@@ -370,7 +370,7 @@ async fn local_agents_persist_validate_and_execute_the_selected_definition() {
                     ..input.clone()
                 },
                 CreateLocalAgent {
-                    max_tokens: 4097,
+                    max_tokens: catalog.max_tokens + 1,
                     ..input.clone()
                 },
                 CreateLocalAgent {

@@ -82,7 +82,11 @@ impl LocalWorkspace {
             .await
             .map_err(resource)
     }
-    async fn plan_mutation(&self, id: &str, command: PlanMutation) -> Result<HuddlePlan, AppError> {
+    pub(super) async fn plan_mutation(
+        &self,
+        id: &str,
+        command: PlanMutation,
+    ) -> Result<HuddlePlan, AppError> {
         self.local.resources().mutate_huddle_plan(&self.host.credential,ORG.into(),TEAM.into(),id.into(),command).await.map_err(|e|match e {
             crate::resources::ResourceError::Conflict=>AppError::InvalidRequest("The plan or brief changed. Reload and review the current revision before trying again.".into()),
             other=>resource(other),
@@ -390,16 +394,15 @@ impl LocalWorkspace {
             }
         }
     }
-    async fn validate_plan_agents(&self, content: &PlanContent) -> Result<(), AppError> {
+    pub(super) async fn validate_plan_agents(&self, content: &PlanContent) -> Result<(), AppError> {
         content
             .validate()
             .map_err(|e| AppError::InvalidRequest(e.to_string()))?;
         let agents = self.agents().await?;
         for assignment in &content.assignments {
-            if !agents
-                .iter()
-                .any(|a| a.key == assignment.agent_key && a.key != shaping::GUIDE)
-            {
+            if !agents.iter().any(|a| {
+                a.key == assignment.agent_key && a.key != shaping::GUIDE && !a.plan_coordinator
+            }) {
                 return Err(AppError::InvalidRequest(format!(
                     "{} is not an available working agent. Review the proposed assignments.",
                     assignment.agent_key

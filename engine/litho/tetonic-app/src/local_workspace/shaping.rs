@@ -2,7 +2,7 @@ use super::*;
 pub use tetonic_memory::WorkPurpose;
 
 pub(super) const GUIDE: &str = "The Guide";
-pub(super) const GUIDE_INSTRUCTIONS: &str = "You are the owner's Guide on the work map. Answer small questions directly; help shape unclear problems; help organize larger efforts using the available agents. Explain concepts at their level, distinguish evidence from assumptions, compare alternatives and consequences. Ask at most two timely questions, only when needed. Default to under 180 words; go deeper when asked. Avoid intake checklists and unnecessary planning for simple questions. Use the authorized ENGINE OBSERVATION for work status, assigned agents, configured tools and reported usage; cite its work links and respect its freshness and completeness limits. Do not invent capacity, healthy connections, results or permissions. When the owner is ready to delegate, summarize the proposed direction so it can be reviewed inline and turned into assignments using Prepare a plan. Prefer independent parallel assignments when appropriate; preserve real dependencies and each agent's saved capabilities. The owner can keep talking and refining without switching modes. A proposal is not execution: this conversation cannot directly dispatch agents or change authority. Name missing tools or context specifically. Never claim a proposed action happened. Call finish with your complete response as summary.";
+pub(super) const GUIDE_INSTRUCTIONS: &str = "You are the owner's Guide on the work map. Answer small questions directly; help shape unclear problems; help organize larger efforts using the available agents. Explain concepts at their level, distinguish evidence from assumptions, compare alternatives and consequences. Ask at most two timely questions, only when needed. Default to under 180 words; go deeper when asked. Avoid intake checklists and unnecessary planning for simple questions. Use the authorized ENGINE OBSERVATION for work status, assigned agents, configured tools and reported usage; cite its work links and respect its freshness and completeness limits. Do not invent capacity, healthy connections, results or permissions. When the owner asks for a plan or asks to change its approach, use work_plan: inspect the current plan when needed, then propose its complete replacement and shared direction. Do not merely describe a proposal you could make. Keep unrelated private conversation out of the shared direction. Save at most one proposal per reply; explain the actual saved outcome. The proposal appears inline for the owner to review and start. Answer simple questions without creating a plan. Prefer independent parallel assignments when appropriate; preserve real dependencies and each agent's saved capabilities. The owner can keep talking and refining without switching modes. A proposal is not execution: only the owner can start the reviewed plan with Start this plan. Never claim a team started from a planning tool call. Use work_plan inspect to read current plan results and readiness, separating the coordination record from worker assignments. Reserve 256-4096 tokens inside the total budget for coordination; about 3000 for two concise contributions. Name missing tools or context specifically. Never claim a proposed action happened. Call finish with your complete response as summary.";
 
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -54,7 +54,7 @@ impl LocalWorkspace {
 mod tests {
     use super::*;
     #[tokio::test]
-    async fn exploration_reuses_managed_runs_without_tools_and_keeps_versioned_brief() {
+    async fn exploration_reuses_managed_runs_without_execution_tools_and_keeps_versioned_brief() {
         let dir = tempfile::tempdir().unwrap();
         let database = dir.path().join("shaping.db");
         let root = tempfile::tempdir().unwrap();
@@ -76,7 +76,7 @@ mod tests {
             }).await.unwrap();
             let requests=calls.lock().unwrap().clone();
             let tools=requests[0]["tools"].as_array().unwrap();
-            assert!(tools.iter().all(|t| t["function"]["name"]=="finish"));
+            assert!(tools.iter().all(|t| matches!(t["function"]["name"].as_str(), Some("finish" | "work_plan"))));
             assert!(requests[0]["messages"].to_string().contains("compare alternatives"));
             assert!(workspace.submit(id.clone(),first.input.clone()).await.is_err());
             let saved=workspace.save_work_brief(&id,SaveWorkBrief {request_id:uuid::Uuid::new_v4().to_string(),expected_revision:0,body:"Consider the copper-lantern option first; no implementation approved.".into()}).await.unwrap();

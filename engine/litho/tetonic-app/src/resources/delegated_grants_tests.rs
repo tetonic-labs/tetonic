@@ -77,6 +77,7 @@ async fn delegation_scenario(scenario: Scenario) {
         .unwrap();
     let limits = || HarnessPreparationLimits {
         human_handoff: false,
+        work_director: false,
         max_steps: 2,
         max_input_bytes: 1024,
     };

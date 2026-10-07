@@ -83,6 +83,7 @@ export function PlanReview({
         if (controller.signal.aborted) return;
         setView(result);
         if (
+          conversationActive ||
           result.plans[0]?.status === 'drafting' ||
           (result.execution &&
             ['starting', 'running', 'waiting_human', 'canceling'].includes(result.execution.state))
@@ -103,6 +104,7 @@ export function PlanReview({
     client,
     workId,
     isConnected,
+    conversationActive,
     current?.revision,
     current?.status,
     view?.execution?.receipt.root_work_id,

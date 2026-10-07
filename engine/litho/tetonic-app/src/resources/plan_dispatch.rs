@@ -92,6 +92,7 @@ pub(crate) struct DispatchCall {
 
 #[derive(Clone)]
 pub struct PlanDispatch {
+    pub(crate) director: Option<super::work_director::DirectorBinding>,
     pub(crate) human: Option<HumanHandoff>,
     pub(crate) binding: String,
     pub(crate) sender: tokio::sync::mpsc::Sender<DispatchCall>,
@@ -105,6 +106,12 @@ impl PlanDispatch {
         Box::new(move |request, _| {
             let dispatch = dispatch.clone();
             Box::pin(async move {
+                if request.tool_name == super::work_director::CONTROL {
+                    return match &dispatch.director {
+                        Some(director) => director.call(request).await,
+                        None => ToolOutcome::fail("Conversation planning unavailable", "denied"),
+                    };
+                }
                 if request.tool_name == ASK_HUMAN {
                     return match dispatch.human.clone() {
                         Some(h) => h.ask(request).await,
@@ -131,7 +138,9 @@ impl ToolHost for RegisteredToolHost {
         self.tools.propose(name, args)
     }
     fn is_tool_allowed(&self, name: &str) -> bool {
-        if name == DISPATCH {
+        if name == super::work_director::CONTROL {
+            self.dispatch.as_ref().is_some_and(|d| d.director.is_some())
+        } else if name == DISPATCH {
             self.dispatch
                 .as_ref()
                 .is_some_and(|d| !d.assignment_keys.is_empty())
@@ -142,7 +151,10 @@ impl ToolHost for RegisteredToolHost {
         }
     }
     fn is_read_only(&self, name: &str) -> bool {
-        name != DISPATCH && name != ASK_HUMAN && self.tools.is_read_only(name)
+        name != DISPATCH
+            && name != ASK_HUMAN
+            && name != super::work_director::CONTROL
+            && self.tools.is_read_only(name)
     }
     fn requires_action_broker(&self, name: &str) -> bool {
         self.tools.requires_action_broker(name)
@@ -152,6 +164,9 @@ impl ToolHost for RegisteredToolHost {
     }
     fn advertisements(&self) -> Vec<ToolAdvertisement> {
         let mut ads = self.tools.advertisements();
+        if let Some(director) = self.dispatch.as_ref().and_then(|d| d.director.as_ref()) {
+            ads.push(director.advertisement());
+        }
         if self
             .dispatch
             .as_ref()
@@ -174,6 +189,12 @@ impl ToolHost for RegisteredToolHost {
         ads
     }
     fn validate_tool_args(&self, name: &str, args: &serde_json::Value) -> Result<(), String> {
+        if name == super::work_director::CONTROL {
+            if !self.is_tool_allowed(name) {
+                return Err("Conversation planning unavailable".into());
+            }
+            return super::work_director::command(args.clone()).map(|_| ());
+        }
         if name == ASK_HUMAN {
             if !self.is_tool_allowed(name) {
                 return Err("Human handoff unavailable".into());
@@ -212,7 +233,7 @@ impl ToolHost for RegisteredToolHost {
         auth: Option<&AuthorizedAction>,
         cancel: &CancellationSignal,
     ) -> ToolOutcome {
-        if name == DISPATCH || name == ASK_HUMAN {
+        if name == DISPATCH || name == ASK_HUMAN || name == super::work_director::CONTROL {
             return ToolOutcome::fail("Dispatch requires a managed asynchronous parent", "denied");
         }
         ToolHost::execute_authorized(&self.tools, name, args, auth, cancel)

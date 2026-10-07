@@ -93,7 +93,7 @@ export function AgentCreateForm({
       value.limits = {
         maxSteps: connected.catalog.max_steps,
         maxSeconds: connected.catalog.max_seconds,
-        maxTokens: connected.catalog.max_tokens,
+        maxTokens: Math.min(value.limits.maxTokens, connected.catalog.max_tokens),
       };
     if (agent) {
       value.harness = agent.harness as typeof value.harness;

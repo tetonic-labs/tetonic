@@ -2,6 +2,7 @@
 use super::*;
 use std::path::PathBuf;
 
+#[derive(Clone)]
 pub struct LocalControl {
     store: SharedStore,
     credentials: Arc<LocalCredentials>,

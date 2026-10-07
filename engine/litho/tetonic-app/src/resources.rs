@@ -22,6 +22,7 @@ mod membership;
 mod team_work;
 mod work_briefs;
 mod work_budgets;
+pub(crate) mod work_director;
 mod work_usage;
 pub(crate) use huddle_plans::PlanMutation;
 mod team_work_activation;

@@ -92,6 +92,7 @@ pub fn host_settings_from_json(
             allowed_tools: file.allowed_tools.into_iter().collect(),
             limits: crate::resources::HarnessPreparationLimits {
                 human_handoff: false,
+                work_director: false,
                 max_steps: file.max_steps,
                 max_input_bytes: file.max_input_bytes,
             },
@@ -145,6 +146,7 @@ pub async fn launch_team_work(
         .await
 }
 
+#[derive(Clone)]
 pub(crate) struct PreparedLaunch {
     pub(crate) app: Arc<Application>,
     pub(crate) credential: String,
@@ -417,6 +419,7 @@ mod tests {
                 allowed_tools: ["read_file".into()].into_iter().collect(),
                 limits: HarnessPreparationLimits {
                     human_handoff: false,
+                    work_director: false,
                     max_steps: 3,
                     max_input_bytes: 1024,
                 },
@@ -468,6 +471,7 @@ mod tests {
             serde_json::json!({"instructions":"Read the fixture","requested_tools":["read_file"],"max_steps":3})).await.unwrap();
         let limits = || HarnessPreparationLimits {
             human_handoff: false,
+            work_director: false,
             max_steps: 3,
             max_input_bytes: 1024,
         };

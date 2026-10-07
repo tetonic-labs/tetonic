@@ -20,7 +20,7 @@ impl RegisteredExecutionSettings {
             "hosted":self.hosted.as_ref().map(|h| &h.binding),
             "seconds":self.max_elapsed_seconds,"tokens":self.reported_token_ceiling,
             "steps":self.limits.max_steps,"input":self.limits.max_input_bytes,
-            "handoff":self.limits.human_handoff,"schema":self.response_schema});
+            "handoff":self.limits.human_handoff,"director":self.limits.work_director,"schema":self.response_schema});
         Ok(format!(
             "{:x}",
             sha2::Sha256::digest(value.to_string().as_bytes())

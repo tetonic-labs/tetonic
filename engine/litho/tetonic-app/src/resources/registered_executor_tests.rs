@@ -39,6 +39,7 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
             serde_json::json!({"instructions":"Perform the requested workspace task", "requested_tools":[tool]})).await.unwrap();
         let limits = || HarnessPreparationLimits {
             human_handoff: false,
+            work_director: false,
             max_steps: 3,
             max_input_bytes: 1024,
         };
@@ -500,6 +501,7 @@ async fn team_execution_cannot_retrieve_unpublished_private_history() {
         serde_json::json!({"instructions":"Look up prior notes","requested_tools":["recall"],"max_steps":4})).await.unwrap();
     let limits = || HarnessPreparationLimits {
         human_handoff: false,
+        work_director: false,
         max_steps: 4,
         max_input_bytes: 1024,
     };
@@ -723,6 +725,7 @@ async fn noncoding_recall_job_runs_without_a_repository() {
         serde_json::json!({"instructions":"Use recall","requested_tools":["recall"],"max_steps":3})).await.unwrap();
     let limits = || HarnessPreparationLimits {
         human_handoff: false,
+        work_director: false,
         max_steps: 3,
         max_input_bytes: 1024,
     };
@@ -904,6 +907,7 @@ async fn unbound_registered_shell_is_rejected_before_inference() {
         .unwrap();
     let limits = HarnessPreparationLimits {
         human_handoff: false,
+        work_director: false,
         max_steps: 2,
         max_input_bytes: 1024,
     };
@@ -977,6 +981,7 @@ async fn unbound_registered_shell_is_rejected_before_inference() {
                 allowed_tools: ["run_shell".into()].into_iter().collect(),
                 limits: HarnessPreparationLimits {
                     human_handoff: false,
+                    work_director: false,
                     max_steps: 2,
                     max_input_bytes: 1024,
                 },
