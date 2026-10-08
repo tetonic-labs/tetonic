@@ -492,6 +492,7 @@ mod tests {
         .await;
         app.install_compute_services(&plane);
         let settings = || RegisteredExecutionSettings {
+            skills: None,
             mcp: None,
             plan_dispatch: None,
             response_schema: None,

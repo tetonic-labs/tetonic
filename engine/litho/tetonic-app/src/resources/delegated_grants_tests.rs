@@ -211,6 +211,7 @@ async fn delegation_scenario_with_lifetime(
                     recovery_id: "job-lead".into(),
                 },
                 RegisteredExecutionSettings {
+                    skills: None,
                     mcp: None,
                     plan_dispatch: None,
                     response_schema: None,
@@ -252,6 +253,7 @@ async fn delegation_scenario_with_lifetime(
             approved_environment: if scenario == Scenario::Complete {
                 Some(
                     RegisteredExecutionSettings {
+                        skills: None,
                         mcp: None,
                         plan_dispatch: None,
                         response_schema: None,
@@ -390,6 +392,7 @@ async fn delegation_scenario_with_lifetime(
                 recovery_id: "job-worker".into(),
             };
             let settings = || RegisteredExecutionSettings {
+                skills: None,
                 mcp: None,
                 plan_dispatch: None,
                 response_schema: None,

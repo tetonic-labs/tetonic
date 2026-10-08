@@ -131,6 +131,7 @@ impl Fixture {
     pub fn settings(&self) -> RegisteredExecutionSettings {
         let (sender, _) = tokio::sync::mpsc::channel(1);
         RegisteredExecutionSettings {
+            skills: None,
             mcp: None,
             hosted: None,
             response_schema: None,

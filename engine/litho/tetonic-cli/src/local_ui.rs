@@ -10,8 +10,9 @@ use serde::Deserialize;
 use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf, rc::Rc, time::Duration};
 use tetonic_app::local_workspace::{
     AmendPlanAssignment, AnswerPlanQuestion, BudgetSettingsRequest, ContinuePlan, CreateLocalAgent,
-    CreateWorkItemRequest, LocalWorkspace, PlanCommand, RemoveProviderKey, ResolveApprovalRequest,
-    SaveProviderKey, SaveWorkBrief, StartPlan, UpdateLocalAgent, WorkPurpose,
+    CreateWorkItemRequest, ImportSkill, LocalWorkspace, PlanCommand, RemoveProviderKey,
+    ResolveApprovalRequest, RevokeSkill, SaveProviderKey, SaveWorkBrief, StartPlan,
+    UpdateLocalAgent, WorkPurpose,
 };
 
 #[derive(Parser)]
@@ -204,6 +205,11 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             .agent_catalog()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path.starts_with("/api/local/skills/") {
+        state
+            .workspace
+            .workspace_skill_content(&path["/api/local/skills/".len()..])
+            .map(|content| serde_json::json!({ "content": content }))
     } else if method == hyper::Method::POST && path.starts_with("/api/local/mcp-discover/") {
         state
             .workspace
@@ -246,6 +252,8 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             "/api/local/tasks"
                 | "/api/local/agents"
                 | "/api/local/agents/update"
+                | "/api/local/skills"
+                | "/api/local/skills/revoke"
                 | "/api/local/work-items"
                 | "/api/local/provider-key"
                 | "/api/local/provider-key/remove"
@@ -274,7 +282,25 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/budget-settings" {
+        if path == "/api/local/skills" {
+            let Ok(payload) = serde_json::from_slice::<ImportSkill>(&body) else {
+                return error(StatusCode::BAD_REQUEST, "Invalid skill import.");
+            };
+            state
+                .workspace
+                .import_skill(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/skills/revoke" {
+            let Ok(payload) = serde_json::from_slice::<RevokeSkill>(&body) else {
+                return error(StatusCode::BAD_REQUEST, "Invalid skill revocation.");
+            };
+            state
+                .workspace
+                .revoke_skill(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/budget-settings" {
             let Ok(payload) = serde_json::from_slice::<BudgetSettingsRequest>(&body) else {
                 return error(StatusCode::BAD_REQUEST, "Invalid budget settings.");
             };

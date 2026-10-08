@@ -13,6 +13,7 @@ mod guide;
 mod local_shell;
 mod parity;
 mod shell;
+mod skills;
 mod team;
 mod tools;
 

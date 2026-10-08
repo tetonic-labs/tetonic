@@ -79,6 +79,7 @@ pub fn host_settings_from_json(
         audience,
         ollama: file.ollama,
         settings: RegisteredExecutionSettings {
+            skills: None,
             mcp: None,
             plan_dispatch: None,
             response_schema: None,
@@ -406,6 +407,7 @@ mod tests {
             audience: "test".into(),
             ollama: "http://127.0.0.1:9".into(),
             settings: RegisteredExecutionSettings {
+                skills: None,
                 mcp: None,
                 plan_dispatch: None,
                 response_schema: None,
@@ -537,6 +539,7 @@ mod tests {
             audience: "test".into(),
             ollama: url.clone(),
             settings: RegisteredExecutionSettings {
+                skills: None,
                 mcp: None,
                 plan_dispatch: None,
                 response_schema: None,

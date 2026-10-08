@@ -464,3 +464,4 @@ mod recovery_api;
 
 pub mod mcp;
 mod session_control;
+pub mod skills;

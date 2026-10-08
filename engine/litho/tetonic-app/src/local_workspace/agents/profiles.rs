@@ -31,6 +31,9 @@ impl LocalWorkspace {
                 .map(|m| m.tool_names())
                 .unwrap_or_default(),
         );
+        if let Some(skills) = &self.host.settings.skills {
+            tools.extend(skills.tool_names());
+        }
         ["ollama", "openai", "anthropic", "google"]
             .into_iter()
             .map(|provider| LocalAgentRuntimeProfile {

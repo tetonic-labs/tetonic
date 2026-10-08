@@ -37,6 +37,7 @@ base64 = "0.22"
 async-trait = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
+yaml-rust2 = { version = "=0.10.4", default-features = false }
 thiserror = { workspace = true }
 anyhow = { workspace = true }
 regex = { workspace = true }

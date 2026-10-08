@@ -16,6 +16,7 @@ mod wait_authority;
 /// grants constrain requested tool names; they do not grant arbitrary host paths.
 #[derive(Clone)]
 pub struct RegisteredExecutionSettings {
+    pub skills: Option<Arc<crate::skills::SkillLibrary>>,
     /// Operator-configured MCP inventory, never supplied by an employee request.
     pub mcp: Option<Arc<crate::mcp::McpRegistry>>,
     pub plan_dispatch: Option<super::plan_dispatch::PlanDispatch>,

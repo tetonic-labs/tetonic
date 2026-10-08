@@ -62,6 +62,8 @@ pub use delegated_grants::{
 };
 mod delegated_lifetime;
 mod local_provider_keys;
+mod workspace_skills;
+pub use workspace_skills::WorkspaceSkill;
 mod local_work_notes;
 pub use local_work_notes::LocalWorkData;
 mod child_capacity;

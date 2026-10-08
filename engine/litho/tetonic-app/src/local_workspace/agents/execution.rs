@@ -25,6 +25,14 @@ impl LocalWorkspace {
                     .filter(|tool| agent.tools.contains(tool)),
             );
         }
+        if let Some(skills) = &settings.skills {
+            settings.allowed_tools.extend(
+                skills
+                    .tool_names()
+                    .into_iter()
+                    .filter(|id| agent.tools.contains(id)),
+            );
+        }
         if agent
             .tools
             .iter()

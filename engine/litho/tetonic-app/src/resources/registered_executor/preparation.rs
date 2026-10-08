@@ -274,6 +274,10 @@ impl crate::Application {
             .find(|tool| {
                 !supported_registered_tool(tool)
                     && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
+                    && !settings
+                        .skills
+                        .as_ref()
+                        .is_some_and(|skills| skills.contains(tool))
             })
         {
             return Err(AppError::PolicyDenied(format!(
@@ -309,6 +313,10 @@ impl crate::Application {
             .any(|tool| {
                 tool != "finish"
                     && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
+                    && !settings
+                        .skills
+                        .as_ref()
+                        .is_some_and(|skills| skills.contains(tool))
                     && tool != "recall"
                     && tool != super::super::plan_dispatch::DISPATCH
                     && tool != super::super::plan_dispatch::ASK_HUMAN

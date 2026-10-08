@@ -28,6 +28,34 @@ impl crate::Application {
             restore,
         } = plan;
         let restoring = restore.is_some();
+        if prepared
+            .command
+            .job_spec
+            .capability_bindings
+            .iter()
+            .any(|id| id.starts_with("skill_"))
+        {
+            let library = settings
+                .skills
+                .clone()
+                .ok_or_else(|| AppError::PolicyDenied("Skill library unavailable".into()))?;
+            let selected = prepared
+                .command
+                .job_spec
+                .capability_bindings
+                .iter()
+                .cloned()
+                .collect();
+            if !library.authorized(&prepared.authorization.scope, &selected) {
+                return Err(AppError::PolicyDenied(
+                    "Skill access was revoked or belongs to another workspace".into(),
+                ));
+            }
+            prepared.authorization.authority = Arc::new(crate::skills::SkillAuthority {
+                inner: prepared.authorization.authority.clone(),
+                library,
+            });
+        }
         if let Some(human) = settings
             .plan_dispatch
             .as_ref()
@@ -194,27 +222,33 @@ impl crate::Application {
             tools,
             dispatch: settings.plan_dispatch.clone(),
         };
-        let agent = if let Some(registry) = settings.mcp {
-            tetonic_core::Agent::new(
-                provider,
-                crate::mcp::McpToolHost {
-                    inner: Box::new(host),
-                    registry,
-                    selected: prepared
-                        .command
-                        .job_spec
-                        .capability_bindings
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    consumer: runtime.capability_store().clone(),
-                    runtime: tokio::runtime::Handle::current(),
-                },
-                config,
-            )
+        let selected: std::collections::HashSet<String> = prepared
+            .command
+            .job_spec
+            .capability_bindings
+            .iter()
+            .cloned()
+            .collect();
+        let host: Box<dyn tetonic_domain::ToolHost> = if let Some(registry) = settings.mcp {
+            Box::new(crate::mcp::McpToolHost {
+                inner: Box::new(host),
+                registry,
+                selected: selected.clone(),
+                consumer: runtime.capability_store().clone(),
+                runtime: tokio::runtime::Handle::current(),
+            })
         } else {
-            tetonic_core::Agent::new(provider, host, config)
+            Box::new(host)
         };
+        let agent = tetonic_core::Agent::new(
+            provider,
+            crate::skills::SkillToolHost {
+                inner: host,
+                library: settings.skills,
+                selected,
+            },
+            config,
+        );
         let agent = agent.with_abort_staged(Arc::new(move || {
             let _ = abort_tools.abort_staged_if_any();
         }));

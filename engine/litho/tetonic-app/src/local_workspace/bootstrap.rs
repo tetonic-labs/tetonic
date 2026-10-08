@@ -194,13 +194,14 @@ impl LocalWorkspace {
             .team_participation_context(secret, ORG.into(), TEAM.into())
             .await
             .map_err(resource)?;
-        let host = prepare_launch(
+        let mut host = prepare_launch(
             secret,
             RegisteredLaunchHost {
                 database,
                 audience: AUDIENCE.into(),
                 ollama,
                 settings: RegisteredExecutionSettings {
+                    skills: None,
                     mcp: None,
                     plan_dispatch: None,
                     response_schema: None,
@@ -231,6 +232,12 @@ impl LocalWorkspace {
                 .ok_or(AppError::InferenceUnavailable)?,
             vault: std::sync::Arc::new(tetonic_secrets::key_storage::PlatformKeyStorage),
         });
+        host.settings.skills = Some(std::sync::Arc::new(crate::skills::SkillLibrary {
+            store: keys.store.clone(),
+            actor: OWNER.into(),
+            org: ORG.into(),
+            team: TEAM.into(),
+        }));
         Ok(Self {
             local,
             host,

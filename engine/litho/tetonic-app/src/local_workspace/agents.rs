@@ -33,6 +33,7 @@ pub struct LocalAgent {
 
 #[derive(Serialize)]
 pub struct LocalAgentCatalog {
+    pub skills: Vec<tetonic_memory::WorkspaceSkill>,
     pub mcp_connections: Vec<crate::mcp::McpConnectionView>,
     pub workspace_root: Option<String>,
     pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
@@ -98,7 +99,10 @@ impl LocalWorkspace {
                 .map(|m| m.tool_names())
                 .unwrap_or_default(),
         );
+        let skills = self.workspace_skills()?;
+        tools.extend(skills.iter().filter(|s| s.enabled).map(|s| s.id.clone()));
         Ok(LocalAgentCatalog {
+            skills,
             mcp_connections: self.mcp_connections(),
             workspace_root: self
                 .host
