@@ -1,81 +1,102 @@
-# Tetonic Architecture
+# Tetonic architecture
 
-Tetonic is built around a five-layer Earth model that isolates user interfaces (Lokai), multi-agent fleet orchestration (Mantle), execution safety, persistent memory, and external network interactions.
+Tetonic currently runs a local team workspace on a durable agent execution engine.
+People shape work in the map interface; application services turn accepted work
+into authorized agent jobs; managed execution owns their attempts and outcomes.
+Inference can use local or hosted models, with additional fabric machinery for
+inference workers. Distributed inference is not the same as distributed agent
+execution.
 
----
+This is the current architecture entry point, checked against source at
+`19a9af98` on October 8, 2026. The [ownership map](ownership.md) identifies where
+changes belong, the [terminology](terminology.md) distinguishes the records, and
+the [package inventory](ownership.md#package-inventory) covers all 28 workspace
+crates. These describe the integrated implementation, not the future deployment
+architecture.
 
-## Architectural Principles
+## Current execution path
 
-1. **Digital Sanctuary**: The developer machine is private by default. Outbound network traffic is forbidden except through explicit, allowlisted egress adapters.
-2. **Defensive Isolation**: The application and UI layers never touch the raw operating system directly. All file modifications use transactional staging, and all child processes execute within OS sandboxes.
-3. **Clean Product Separation**:
-   - **Lokai Coding Assistant** (`litho/`): The interactive developer tool, TUI, and editor daemon.
-   - **Mantle Platform** (`mantle/`): Generic fleet orchestration and digital autonomous organization infrastructure. Coding heuristics belong exclusively in Litho.
-
----
-
-## The Five Earth Layers
-
-```text
-┌─────────────────────────────────────────────────────────────┐
-│ Litho: User Interfaces, CLI, TUI, Editor Daemon, Tools     │
-├─────────────────────────────────────────────────────────────┤
-│ Mantle: Fleets, Run Lifecycles, Broker, Node Coordination   │
-├─────────────────────────────────────────────────────────────┤
-│ Core: Agent Loop, Sandboxing, Transactions, Policies        │
-├─────────────────────────────────────────────────────────────┤
-│ Strata: Durable Memory, Artifacts, Knowledge Index          │
-├─────────────────────────────────────────────────────────────┤
-│ Atmos: LLM Inference, Egress Guard, Wire RPC Protocols      │
-└─────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart TD
+    UI["Map, work inspector, agent and team editors"] --> HTTP["tetonic ui: local authenticated HTTP adapter"]
+    HTTP --> Workspace["LocalWorkspace: product use cases and projections"]
+    Control["tetonic control"] --> Resources["ResourceService: identities, grants, work and context access"]
+    Workspace --> Resources
+    Workspace --> Coordination["Work shaping and team coordination"]
+    Coordination --> Launch["Registered job preparation and harness composition"]
+    Job["tetonic job"] --> Launch
+    Launch --> Managed["ManagedRunService + DurableRunSupervisor"]
+    Managed --> Runtime["EngineRuntime + Agent: authorized model/action loop"]
+    Runtime --> Tools["Granted tools, MCP and skills"]
+    Runtime --> Inference["Usage accounting + inference broker"]
+    Inference --> Egress["Policy, secret scanning and egress-controlled transport"]
+    Egress --> Models["Ollama / hosted providers / configured inference workers"]
+    Resources --> Store[("Shared durable SQLite store")]
+    Coordination --> Store
+    Managed --> Store
+    Runtime --> Context["Scoped recall and artifact access"]
+    Context --> Store
+    Context --> Artifacts[("Artifact payload store")]
 ```
 
-### 1. Litho (`engine/litho/`)
-The interface layer between human developers and the agent engine.
-- [`lokai-cli`](../../engine/litho/tetonic-cli): Interactive terminal user interface (Ratatui-based).
-- [`lokai-app`](../../engine/litho/lokai-app): Application service layer, product definitions, and agent prompts.
-- [`lokaid`](../../engine/litho/tetonicd): Background daemon exposing JSON-RPC over stdio for IDE integration.
-- [`lokai-lsp`](../../engine/litho/lokai-lsp): Language Server Protocol client.
-- [`lokai-tools`](../../engine/litho/lokai-tools): Concrete coding tool implementations bound to sandboxed executors.
+Arrows show responsibility and calls, not a promise of separate deployable
+services or the order in which objects are constructed. The application composes
+the harness; managed execution admits and owns its execution; the runtime checks
+actions; tools implement effects. Only the managed lifecycle can establish the
+execution outcome. The map renders authorized projections of these records.
 
-### 2. Mantle (`engine/mantle/`)
-The digital autonomous organization and distributed execution layer.
-- [`lokai-run`](../../engine/mantle/lokai-run): Attempt lifecycle tracking, durable run supervision, and event dispatch.
-- [`lokai-orchestrator`](../../engine/mantle/lokai-orchestrator): Multi-agent role coordination and specialist delegation.
-- [`lokai-broker`](../../engine/mantle/lokai-broker): Compute scheduling, queue management, and fallback strategies.
-- [`lokai-node`](../../engine/mantle/lokai-node): Remote worker task runner and cluster fabric endpoint.
-- [`lokai-enroll`](../../engine/mantle/lokai-enroll): Mutual TLS node discovery and cluster joining.
-- [`lokai-capacity`](../../engine/mantle/lokai-capacity): Hardware topology, GPU, and VRAM sizing.
+The current [CLI](../../engine/litho/tetonic-cli/src/main.rs) exposes `ui`, `job`,
+`control`, and `estate`. `estate` manages worker enrollment and capacity outside
+the product-work path shown above. The web entry point is
+[`LocalEngineProvider` → `TeamWorkspace`](../../web/src/App.tsx).
 
-### 3. Core (`engine/core/`)
-The systems kernel providing execution primitives and safety boundaries.
-- [`lokai-core`](../../engine/core/lokai-core): Pure agent execution loop driving step-by-step model turns.
-- [`lokai-runtime`](../../engine/core/lokai-runtime): Runtime agent assembly and execution isolation.
-- [`lokai-sandbox`](../../engine/core/lokai-sandbox): Platform-specific OS sandboxing (Windows Job Objects / AppContainer, Linux Landlock/seccomp, macOS sandbox-exec).
-- [`lokai-transaction`](../../engine/core/lokai-transaction): Atomic file staging, transactional edits, and rollback mechanisms.
-- [`lokai-secrets`](../../engine/core/lokai-secrets): Secret scanning, credential detection, and redaction.
-- [`lokai-domain`](../../engine/core/lokai-domain): Domain models, tool traits, and core identifiers.
-- [`lokai-policy`](../../engine/core/lokai-policy): Dynamic policy evaluation and permission checks.
-- [`lokai-telemetry`](../../engine/core/lokai-telemetry): Structured tracing and audit spans.
+## Boundaries that matter
 
-### 4. Strata (`engine/strata/`)
-The durable state and knowledge repository layer.
-- [`lokai-memory`](../../engine/strata/lokai-memory): SQLite storage for sessions, runs, and memories.
-- [`lokai-artifact`](../../engine/strata/lokai-artifact): Content-addressed immutable artifact store.
-- [`lokai-context`](../../engine/strata/lokai-context): Token-budgeted context assembly and recall algorithms.
-- [`lokai-index`](../../engine/strata/lokai-index): AST-based code indexing and semantic search.
+- A saved agent has stable identity and versioned configuration. Configuration
+  expresses preferences and requested capabilities; activation still checks
+  current grants, scope, host limits and the pinned revision.
+- A work item describes intended work. A managed task and attempt describe its
+  execution. A model's plan, a chat message, or a UI status cannot grant execution
+  authority or prove completion.
+- Security teams govern participation. Reusable work teams select agents.
+  Joining a roster does not grant tools or expose private context.
+- Team coordination chooses eligible assignments and collects contributions.
+  Managed execution owns admission, leases, cancellation and finalization.
+  The inference broker places model requests; it does not plan the project.
+- Storage owns transactional records and integrity checks. Application and
+  runtime services own the operations that change them. Read projections and
+  telemetry must not become a second execution journal.
 
-### 5. Atmos (`engine/atmos/`)
-The external environment and network boundary layer.
-- [`lokai-inference`](../../engine/atmos/lokai-inference): Multi-provider model adapters (Anthropic Claude, OpenAI, Ollama).
-- [`lokai-egress`](../../engine/atmos/lokai-egress): Strict outbound network proxy enforcing default-deny policies.
-- [`lokai-rpc`](../../engine/atmos/lokai-rpc): Protocol schemas and framing contracts for stdio JSON-RPC.
-- [`lokai-fabric-client`](../../engine/atmos/lokai-fabric-client): Cluster fabric client transport.
-- [`lokai-fabric-protocol`](../../engine/atmos/lokai-fabric-protocol): Wire types and serialization for fabric communication.
+## Current limits
 
----
+The [local adapter](../../engine/litho/tetonic-cli/src/local_ui.rs) uses loopback,
+token, host and origin checks. Its
+[bootstrap](../../engine/litho/tetonic-app/src/local_workspace/bootstrap.rs)
+creates a local owner, organization, security team and default agents. It is not
+yet a general multi-user organization server or an empty first-run experience.
 
-## Tooling (`engine/tooling/`)
-- [`lokai-arch-gate`](../../engine/tooling/lokai-arch-gate): Mechanical checker validating structural layer boundaries, lint rules, and dependency constraints.
-- [`lokai-bench`](../../engine/tooling/lokai-bench): Performance benchmarking suite.
-- [`lokai-eval`](../../engine/tooling/lokai-eval): Behavioral eval corpus and grading harness.
+The [worker ingress](../../engine/mantle/tetonic-node/src/job_ingress.rs) accepts
+`JobKind::Infer`. Worker enrollment, placement records and configuration enums
+must not be advertised as an end-to-end distributed agent executor, replicated
+control store, or Keeper service. Production logging, telemetry and storage
+configuration still need coherent host composition.
+
+Interrupted execution and supported durable human-wait continuation are different
+contracts. Startup can identify recovery-required attempts; arbitrary interrupted
+effects are not automatically safe to replay. See the
+[integrated baseline and recovery limits](../epics/v5-reconciliation/sprints/architecture-baseline/BASE-001.md).
+
+## Navigation and historical material
+
+- [Ownership, dependency boundaries and change routing](ownership.md)
+- [Domain terminology and identifier relationships](terminology.md)
+- [Contribution workflow](../../CONTRIBUTING.md)
+- [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
+- [Retirement record](../epics/v5-reconciliation/retirement.md)
+- [September 24 audit](audits/2026-09-24/README.md) — dated findings and proposals
+
+Older documents in this directory, including the Village specifications and
+`live-agent-architecture.md`, preserve earlier designs. They are not the current
+ownership contract. The Earth-themed folders remain useful locations, but they
+are not a strictly descending dependency stack; use the ownership map and Cargo
+manifests when placing a change.

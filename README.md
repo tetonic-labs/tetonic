@@ -145,15 +145,19 @@ flowchart LR
 
 Tetonic separates decisions made by a model from authority granted by the runtime. The repository includes capability enforcement, controlled egress, process isolation, transactional file operations, scoped context, and execution accounting. Their availability and guarantees depend on the host and execution path; this is not a claim that arbitrary model actions are safe.
 
+For the current execution path, subsystem owners and source references, start
+with the [architecture map](docs/architecture/README.md) and
+[contributor ownership guide](docs/architecture/ownership.md).
+
 | Location                             | Responsibility                                                                         |
 | ------------------------------------ | -------------------------------------------------------------------------------------- |
 | [`web/`](web/)                       | React/TypeScript workspace, map, planning, inspection, and usage UI.                   |
-| [`engine/litho/`](engine/litho/)     | Application services, CLI, local API adapter, editor daemon, and tool integration.     |
-| [`engine/mantle/`](engine/mantle/)   | Managed runs, delegation, inference brokering, capacity, and server/node coordination. |
+| [`engine/litho/`](engine/litho/)     | Application services, CLI, local API adapter, tools, and retained LSP integration.     |
+| [`engine/mantle/`](engine/mantle/)   | Managed runs, delegation, compute brokering, capacity, and inference worker machinery. |
 | [`engine/core/`](engine/core/)       | Agent loop, runtime assembly, domain contracts, policy, sandboxing, and transactions.  |
 | [`engine/strata/`](engine/strata/)   | Durable records, scoped context, artifacts, and indexing.                              |
 | [`engine/atmos/`](engine/atmos/)     | Inference adapters, network egress, and transport boundaries.                          |
-| [`engine/tooling/`](engine/tooling/) | Architecture checks, evaluation, and benchmarks.                                       |
+| [`engine/tooling/`](engine/tooling/) | Architecture checks and retained benchmarking support.                                 |
 | [`docs/`](docs/)                     | Contracts, design history, sprint plans, and validation evidence.                      |
 
 ## Where we're going
