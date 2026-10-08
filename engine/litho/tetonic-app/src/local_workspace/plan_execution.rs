@@ -7,8 +7,8 @@ use std::{
 };
 use tetonic_memory::{HuddleExecution, PlanAgentPin, PlanContent};
 
+mod controller;
 mod coordinator;
-mod parallel;
 mod projection;
 pub use coordinator::{CoordinationModel, PlanSetupIssue};
 
@@ -361,7 +361,7 @@ impl LocalWorkspace {
                 .map(|p| p.assignment_key.clone())
                 .collect::<HashSet<_>>(),
         ));
-        let (sender, mut receiver) = tokio::sync::mpsc::channel::<DispatchCall>(1);
+        let (sender, receiver) = tokio::sync::mpsc::channel::<DispatchCall>(1);
         let dispatch = PlanDispatch {
             director: None,
             human: Some(self.human_handoff(&receipt.root_work_id)),
@@ -455,91 +455,24 @@ impl LocalWorkspace {
             .managed()
             .delegation_parent(&execution.attempt_id)
             .map_err(|_| AppError::InferenceUnavailable)?;
-        let workspace = self.clone();
-        let receipt = receipt.clone();
-        tokio::task::spawn_local(async move {
-            let mut completion = execution.completion;
-            loop {
-                tokio::select! {
-                    _ = &mut completion => break,
-                    call = receiver.recv() => {
-                        let Some(call)=call else{break};
-                        if call.attempt!=parent.binding().attempt_id.0 {let _=call.reply.send(tetonic_domain::ToolOutcome::fail("Wrong managed parent", "denied"));continue;}
-                        // The parent's watchdog/cancellation remains live while a child waits.
-                        let outcome=tokio::select! {
-                            _ = &mut completion => {break;},
-                            result = workspace.dispatch_plan_group(&receipt,&parent,call.keys,call.grouped,&remaining) => result,
-                        };
-                        let _=call.reply.send(outcome);
-                    }
-                }
-            }
-        });
+        let controller = crate::team_work_controller::TeamWorkController {
+            reader: self.controller_reader(),
+            host: self.clone(),
+            receipt: receipt.clone(),
+            parent,
+            remaining,
+        };
+        tokio::task::spawn_local(controller.run(execution.completion, receiver));
         Ok(())
     }
 
-    /// Deliver new durable results that became ready during this dispatch. The
-    /// completion guard advances only for contributions supplied to the model;
-    /// this is receipt reconciliation, not another scheduling authority.
-    async fn collect_plan_contributions(
-        &self,
-        receipt: &HuddleExecution,
-        requested: &str,
-        mut outcome: tetonic_domain::ToolOutcome,
-        remaining: &Arc<Mutex<HashSet<String>>>,
-    ) -> Result<tetonic_domain::ToolOutcome, AppError> {
-        let pending = remaining
-            .lock()
-            .map_err(|_| AppError::InferenceUnavailable)?
-            .clone();
-        let mut payload: serde_json::Value =
-            serde_json::from_str(&outcome.content).map_err(|_| AppError::InferenceUnavailable)?;
-        let mut delivered = vec![];
-        if payload["state"] == "completed" {
-            delivered.push(requested.to_owned());
-        }
-        let root = self.task(&receipt.root_work_id).await?;
-        let mut additional = vec![];
-        for pin in &receipt.assignments {
-            if pin.assignment_key == requested || !pending.contains(&pin.assignment_key) {
-                continue;
-            }
-            let task = self.task(&pin.work_id).await?;
-            if task.state == "completed" && task.run_id.is_some() && task.run_id == root.run_id {
-                let result = self
-                    .directed_contribution(receipt, &pin.assignment_key, &task)
-                    .await?;
-                let mut value: serde_json::Value = serde_json::from_str(&result.content)
-                    .map_err(|_| AppError::InferenceUnavailable)?;
-                value["assignment_key"] = serde_json::json!(pin.assignment_key);
-                additional.push(value);
-                delivered.push(pin.assignment_key.clone());
-            }
-        }
-        let mut pending = remaining
-            .lock()
-            .map_err(|_| AppError::InferenceUnavailable)?;
-        for key in delivered {
-            pending.remove(&key);
-        }
-        payload["also_completed"] = serde_json::json!(additional);
-        payload["outstanding_assignments"] = serde_json::json!(receipt
-            .assignments
-            .iter()
-            .filter(|p| pending.contains(&p.assignment_key))
-            .map(|p| &p.assignment_key)
-            .collect::<Vec<_>>());
-        outcome.content = payload.to_string();
-        Ok(outcome)
-    }
-
-    async fn dispatch_plan_assignment(
+    async fn admit_plan_assignment(
         &self,
         receipt: &HuddleExecution,
         parent: &tetonic_run::managed::DelegationParent,
         key: &str,
-    ) -> Result<tetonic_domain::ToolOutcome, AppError> {
-        let admission = self.admission.lock().await;
+    ) -> Result<(), AppError> {
+        let _admission = self.admission.lock().await;
         let pin = receipt
             .assignments
             .iter()
@@ -558,19 +491,21 @@ impl LocalWorkspace {
         if let Some(direction) = directions.iter().rev().find(|d| d.assignment_key == key) {
             assignment.instructions = direction.instructions.clone();
         }
-        // A repeat of a successful dispatch returns its recorded contribution.
-        let old = self.task(&pin.work_id).await?;
-        if old.state == "completed" {
-            return self.directed_contribution(receipt, key, &old).await;
+        // Read engine state, not a UI projection or an in-memory agent lock.
+        let progress = self.controller_reader().read(receipt).await?;
+        if progress.run_id.as_deref() != Some(parent.binding().run_id.0.as_str()) {
+            return Err(AppError::PolicyDenied("The team run changed.".into()));
         }
-        if old.run_id.is_some() {
-            if matches!(old.state.as_str(), "running" | "waiting_human" | "starting")
-                && old.run_id.as_deref() == Some(parent.binding().run_id.0.as_str())
-            {
-                drop(admission);
-                return self.await_plan_assignment(receipt, key, &pin.work_id).await;
-            }
-            return Err(AppError::InvalidRequest("This assignment already started. Its existing outcome must be resolved; it will not be launched again.".into()));
+        let old = progress
+            .assignments
+            .iter()
+            .find(|a| a.pin.assignment_key == key)
+            .ok_or(AppError::InferenceUnavailable)?;
+        use tetonic_memory::AssignmentState;
+        match old.state {
+            AssignmentState::Completed | AssignmentState::Executing | AssignmentState::WaitingHuman => return Ok(()),
+            AssignmentState::NotStarted => {},
+            _ => return Err(AppError::InvalidRequest("This assignment already started. Its existing outcome must be resolved; it will not be launched again.".into())),
         }
         let mut dependencies = vec![];
         for dependency in &assignment.depends_on {
@@ -579,12 +514,14 @@ impl LocalWorkspace {
                 .iter()
                 .find(|p| &p.assignment_key == dependency)
                 .ok_or(AppError::InferenceUnavailable)?;
-            let task = self.task(&other.work_id).await?;
-            if task.state != "completed" {
+            if !progress.assignments.iter().any(|a| {
+                a.pin.assignment_key == *dependency && a.state == AssignmentState::Completed
+            }) {
                 return Err(AppError::InvalidRequest(format!(
                     "{key} must wait for {dependency} to complete."
                 )));
             }
+            let task = self.task(&other.work_id).await?;
             dependencies.push(serde_json::json!({"assignment":dependency,"work_id":other.work_id,"contribution":contribution_text(&task)?}));
         }
         // Only clarifications explicitly answered in this plan's coordinator
@@ -703,61 +640,7 @@ impl LocalWorkspace {
                 let _ = execution.completion.await;
             });
         }
-        drop(admission);
-        self.await_plan_assignment(receipt, key, &pin.work_id).await
-    }
-
-    async fn await_plan_assignment(
-        &self,
-        receipt: &HuddleExecution,
-        key: &str,
-        work: &str,
-    ) -> Result<tetonic_domain::ToolOutcome, AppError> {
-        loop {
-            let task = self.task(work).await?;
-            if !matches!(
-                task.state.as_str(),
-                "running" | "starting" | "waiting_human"
-            ) {
-                return self.directed_contribution(receipt, key, &task).await;
-            }
-            if task.state == "waiting_human" {
-                let mut ready = vec![];
-                for a in &receipt.content.assignments {
-                    if a.key == key {
-                        continue;
-                    }
-                    let pin = receipt
-                        .assignments
-                        .iter()
-                        .find(|p| p.assignment_key == a.key)
-                        .unwrap();
-                    let other = self.task(&pin.work_id).await?;
-                    if other.state != "not_started" {
-                        continue;
-                    }
-                    let mut dependencies_done = true;
-                    for dependency in &a.depends_on {
-                        let p = receipt
-                            .assignments
-                            .iter()
-                            .find(|p| &p.assignment_key == dependency)
-                            .unwrap();
-                        if self.task(&p.work_id).await?.state != "completed" {
-                            dependencies_done = false;
-                            break;
-                        }
-                    }
-                    if dependencies_done {
-                        ready.push(a.key.clone());
-                    }
-                }
-                if !ready.is_empty() {
-                    return Ok(tetonic_domain::ToolOutcome::ok("Waiting for the owner; other work can proceed",serde_json::json!({"state":"waiting_human","work_id":work,"assignment_key":key,"ready_assignments":ready,"instruction":"Dispatch another ready assignment now. Revisit this key after other ready work; it waits at a tool boundary without polling the model."}).to_string()));
-                }
-            }
-            tokio::time::sleep(std::time::Duration::from_millis(200)).await;
-        }
+        Ok(())
     }
 
     async fn directed_contribution(

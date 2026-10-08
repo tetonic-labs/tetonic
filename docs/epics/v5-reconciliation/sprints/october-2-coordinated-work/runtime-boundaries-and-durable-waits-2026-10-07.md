@@ -186,3 +186,41 @@ The end-to-end composition test now uses the actual production human hook: read 
 - Application library regression suite: **243 passed, three existing opt-in tests ignored**. Memory/core/run suites, including integration and migration rollback/crash tests: **351 passed**. The final eight reconstruction/human-wait tests passed after adding crash-gap, schema-65 and post-answer stop cases (some repeat the broad-suite coverage).
 - Strict Clippy passed for application, memory, core, run and CLI with tests and `-D warnings`. Architecture/static quality gates, formatting and whitespace checks passed.
 - Evidence: `.lokai/manual-testing/human-wait-app-tests.log`, `human-wait-runtime-tests.log`, `human-wait-final-tests.log` and `human-wait-clippy.log`.
+
+
+## Team-controller extraction follow-on
+
+The product's current plan dispatch loop now runs in `tetonic-app/src/team_work_controller.rs`. `LocalWorkspace` supplies a narrow `TeamWorkHost` adapter for approved agent composition and readable contributions. The old `local_workspace/plan_execution/parallel.rs` implementation was removed; plan launch starts the extracted controller directly. Existing employee routes and UI components are unchanged.
+
+The controller owns the existing dependency selection, bounded parallel dispatch, capacity retry, human-wait observation and contribution delivery policy. It calls the same registered/delegated admissions, retains the parent completion/cancellation select, and continues using the same grants, stop scopes, immutable agent revisions, tools/MCPs and budget ledger. No alternative run service, agent registry, scheduler table or capacity semaphore was introduced.
+
+Readiness now comes from `Store::huddle_progress`, a single SQLite read transaction over the approved execution receipt, work bindings, run/task/attempt snapshot, human-question validation and `registered_child_capacity` projection. It does not load UI transcripts to decide whether work is ready. A pinned assignment must reference its own activation, original parent attempt and task/agent-definition version; another successful assignment cannot provide substitute completion. Context/team authorization still applies. Missing or mismatched state requires attention rather than a new launch.
+
+Capacity ownership is read from the existing child-admission projection, including finalization and ambiguous/nonquiescent attempts. The controller's per-pass selection set only orders requests that have not yet reached admission; it is not a lock or durable ownership record. Managed admission remains authoritative across controllers and other work. If a live or finishing peer still owns an agent, the local driver waits without consuming another model turn or announcing failure. Current live human waits still own their slot: the new reader does not pretend they have been durably released.
+
+A candidate's successful inference is not task completion. `AttemptState::Succeeded` with a still-running task is projected as executing until verification/commit and artifact acceptance complete. The broad mixed-provider tool test exposed this intermediate state during extraction; a focused fault-injection assertion now keeps that boundary covered. Only accepted task success unlocks dependent work and contribution reconciliation.
+
+```mermaid
+flowchart TD
+  Product[LocalWorkspace: start approved plan] --> Launch[Existing registered coordinator launch]
+  Product --> Controller[TeamWorkController]
+  Model[Coordinator dispatch tool] --> Controller
+  Controller --> Reader[Scoped huddle progress reader]
+  Reader --> Truth[(Existing work records, run journal, child capacity, questions)]
+  Controller --> Adapter[TeamWorkHost: local agent composition and output]
+  Adapter --> Managed[Existing delegated admission and managed runtime]
+  Managed --> Truth
+  Controller --> Results[Contribution delivery to coordinator]
+```
+
+Placement decision: the existing `tetonic-orchestrator` still supplies coding/session routing and spawn contracts, and its `FleetSupervisor` is used by the fleet/operator surfaces. The current approved-plan path already uses registered jobs and managed runs in application composition. Routing this extraction through the fleet's standing-agent state would add another lifecycle authority. Keeping the extracted controller beside the shared registered assembler preserves the existing layer boundaries; no new crate is needed.
+
+This is an integration/refactoring slice, not automatic team recovery. The controller's request queue and model-delivery cache still belong to the live coordinator. Pending dispatch acceptance must be made durable, approval must pin the intended authorization horizon, and related executors need supported subtree checkpoint/restoration before default team parking can be enabled. The three-assignment restart acceptance for OCT-203 remains open. No live engine, database or frontend was restarted or changed.
+
+
+### Controller validation
+
+- Final application and memory library suites: **424 passed, zero failures, three existing opt-in local-model tests ignored** (247 application, 177 memory). This includes parallel workers, dependency ordering, same-agent queueing, repeat dispatch, cancellation, human answers/directions, mixed-provider file/MCP/shell tools, contribution reuse, and migration rollback/crash regressions.
+- Added coverage rejects cross-scope reads and substituting another completed assignment's attempt, preserves executing/capacity state through finalization, and confirms a live human wait still holds its slot and does not satisfy a dependency.
+- Strict Clippy with tests passed for application, memory and CLI using `-D warnings`. Architecture/static quality, formatting and whitespace checks passed.
+- Logs: `.lokai/manual-testing/team-controller-targeted.log`, `team-controller-final-tests.log` and `team-controller-clippy.log`. The initial broad run exposed the finalization classification defect; the final complete rerun passed after the fix.

@@ -3,6 +3,9 @@
 use crate::{ControlPermission, PlanContent, Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
+mod progress;
+pub use progress::{AssignmentProgress, AssignmentState, HuddleProgress};
+
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct PlanAgentPin {
     pub assignment_key: String,

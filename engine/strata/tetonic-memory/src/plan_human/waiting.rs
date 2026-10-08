@@ -174,7 +174,7 @@ impl Store {
         self.control_stop_generation_binding(org, scopes)
     }
 
-    pub(super) fn validate_human_wait(
+    pub(crate) fn validate_human_wait(
         &self,
         org: &str,
         team: &str,

@@ -95,7 +95,9 @@ pub use plan_human::{
 };
 mod huddle_execution;
 mod plan_continuation;
-pub use huddle_execution::{HuddleExecution, PlanAgentPin};
+pub use huddle_execution::{
+    AssignmentProgress, AssignmentState, HuddleExecution, HuddleProgress, PlanAgentPin,
+};
 pub use huddle_plans::{HuddlePlan, PlanAssignment, PlanContent};
 pub use plan_continuation::{CreatePlanContinuation, PlanContinuation, RetainedPlanWork};
 pub use team_work::WorkPurpose;

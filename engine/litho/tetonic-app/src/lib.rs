@@ -31,6 +31,7 @@ pub mod services;
 pub mod session_live;
 pub mod spawn_budget;
 pub mod store_audit;
+mod team_work_controller;
 pub mod test_harness;
 pub mod thought_stream;
 pub mod turn_attestation;

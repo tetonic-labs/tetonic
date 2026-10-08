@@ -124,6 +124,31 @@ async fn human_wait_and_direction(scenario: u8) {
                 v.assignments[0].state == "waiting_human" && v.assignments[1].state == "completed"
             })
             .await;
+            let progress = workspace
+                .controller_reader()
+                .read(&waiting.receipt)
+                .await
+                .unwrap();
+            assert_eq!(
+                progress.assignments[0].state,
+                tetonic_memory::AssignmentState::WaitingHuman
+            );
+            assert!(
+                progress.assignments[0].holds_capacity,
+                "live-only waits must not pretend their slot is released"
+            );
+            assert_eq!(
+                progress.assignments[1].state,
+                tetonic_memory::AssignmentState::Completed
+            );
+            assert_eq!(
+                progress.assignments[2].state,
+                tetonic_memory::AssignmentState::NotStarted
+            );
+            assert!(
+                !crate::team_work_controller::ready_assignments(&progress).contains(&"wrap".into()),
+                "unanswered producer is not completed evidence"
+            );
             let question = waiting.assignments[0].human_questions[0].clone();
             assert_eq!(waiting.assignments[2].state, "not_started");
             // A reply must include a sibling which completed while another
