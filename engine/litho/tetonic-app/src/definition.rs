@@ -594,7 +594,7 @@ pub fn coding_identity_and_job_spec(job_input: &str) -> (AgentIdentity, AgentJob
 }
 
 /// Coding policy is compiled and supplied by the product, never constructed by manager.
-pub(crate) fn validate_coding_execution(
+pub fn validate_coding_execution(
     identity: Option<&tetonic_domain::AgentIdentity>,
     spec: &tetonic_domain::AgentJobSpec,
     role: Option<&str>,

@@ -82,24 +82,6 @@ pub fn check_context_compiler_wired(root: &Path) -> Vec<Violation> {
             detail: "EngineRuntime::assemble_agent must support with_context_compiler".into(),
         });
     }
-    let turn = crate::resolve_path(
-        root,
-        &[
-            "litho/tetonic-app/src/turn_execution.rs",
-            "litho/lokai-app/src/turn_execution.rs",
-        ],
-    );
-    let turn_text = std::fs::read_to_string(&turn).unwrap_or_default();
-    if !turn_text.contains("assemble_agent")
-        || !turn_text.contains("build_production_context_compiler")
-    {
-        out.push(Violation {
-            rule: "context_compiler_wired",
-            path: turn,
-            detail: "turn_execution::build_agent must wire ContextCompiler through EngineRuntime"
-                .into(),
-        });
-    }
     let provider = crate::resolve_path(
         root,
         &[
@@ -257,43 +239,19 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
             detail: "shared compute plane must attach PolicyDispatchGuard".into(),
         });
     }
-    let daemon = crate::resolve_path(
+    let launch = crate::resolve_path(
         root,
         &[
-            "litho/tetonic-app/src/daemon_bootstrap.rs",
-            "litho/lokai-app/src/daemon_bootstrap.rs",
+            "litho/tetonic-app/src/job_launch.rs",
+            "litho/lokai-app/src/job_launch.rs",
         ],
     );
-    let daemon_text = std::fs::read_to_string(&daemon).unwrap_or_default();
-    if !daemon_text.contains("build_compute_plane") {
+    let launch_text = std::fs::read_to_string(&launch).unwrap_or_default();
+    if !launch_text.contains("build_compute_plane") {
         out.push(Violation {
             rule: "compute_broker_wiring",
-            path: daemon,
-            detail: "daemon bootstrap must call the shared lokai-app compute-plane builder".into(),
-        });
-    }
-    let cli_boot = crate::resolve_path(
-        root,
-        &[
-            "litho/tetonic-app/src/cli_bootstrap.rs",
-            "litho/lokai-app/src/cli_bootstrap.rs",
-        ],
-    );
-    let cli_boot_text = std::fs::read_to_string(&cli_boot).unwrap_or_default();
-    if !cli_boot_text.contains("build_compute_plane") {
-        out.push(Violation {
-            rule: "compute_broker_wiring",
-            path: cli_boot,
-            detail: "cli bootstrap must call the shared compute-plane builder".into(),
-        });
-    }
-    let session = root.join("litho/tetonic-cli/src/session.rs");
-    let session_text = std::fs::read_to_string(&session).unwrap_or_default();
-    if session_text.contains("compute_broker: None") {
-        out.push(Violation {
-            rule: "compute_broker_wiring",
-            path: session,
-            detail: "CLI TurnExecutionHost must not hard-code compute_broker: None".into(),
+            path: launch,
+            detail: "host launch must call the shared lokai-app compute-plane builder".into(),
         });
     }
     let broker_lib = crate::resolve_path(
@@ -311,38 +269,6 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
         });
     }
     out
-}
-
-/// R3-2: leftover CLI commands must be labeled infrastructure-only.
-pub fn check_cli_infra_leftovers(root: &Path) -> Vec<Violation> {
-    let path = root.join("litho/tetonic-cli/src/offline.rs");
-    let text = std::fs::read_to_string(&path).unwrap_or_default();
-    if !text.contains("infrastructure-only") {
-        vec![Violation {
-            rule: "cli_infra_leftovers",
-            path,
-            detail: "offline.rs must document index/time-travel/history as infrastructure-only"
-                .into(),
-        }]
-    } else {
-        Vec::new()
-    }
-}
-
-/// R3-2: TUI inspector must not spawn subprocesses.
-pub fn check_cli_inspector_no_command(root: &Path) -> Vec<Violation> {
-    let path = root.join("litho/tetonic-cli/src/chat.rs");
-    let text = std::fs::read_to_string(&path).unwrap_or_default();
-    if text.contains("Command::new") {
-        vec![Violation {
-            rule: "cli_inspector_no_command",
-            path,
-            detail: "inspector must not call tokio::process::Command / std::process::Command"
-                .into(),
-        }]
-    } else {
-        Vec::new()
-    }
 }
 
 /// R29: production LSP must not keep a raw Command allowlist escape in lokai-lsp.
@@ -374,22 +300,6 @@ pub fn check_lsp_via_process_broker(root: &Path) -> Vec<Violation> {
                 ],
             ),
             detail: "lsp launcher must not be on subprocess allowlist (R29)".into(),
-        });
-    }
-    let tools_lsp = crate::resolve_path(
-        root,
-        &[
-            "litho/tetonic-app/src/lsp_launcher.rs",
-            "litho/lokai-app/src/lsp_launcher.rs",
-        ],
-    );
-    let tools_text = std::fs::read_to_string(&tools_lsp).unwrap_or_default();
-    if !tools_text.contains("SyncLongLivedService") || !tools_text.contains("SandboxLspLauncher") {
-        out.push(Violation {
-            rule: "lsp_via_process_broker",
-            path: tools_lsp,
-            detail: "production LSP spawn must use SandboxLspLauncher + SyncLongLivedService"
-                .into(),
         });
     }
     out

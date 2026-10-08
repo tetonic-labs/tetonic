@@ -26,8 +26,6 @@ pub fn arch_id(rule: &str) -> &'static str {
         "no_gates_ok_turn_abort" => "ARCH-APP-007",
         "no_duplicate_resume_cap" => "ARCH-APP-008",
         "no_duplicate_enrollment_helpers" => "ARCH-APP-009",
-        "cli_inspector_no_command" => "ARCH-APP-010",
-        "cli_infra_leftovers" => "ARCH-APP-011",
         "app_layer_isolation" => "ARCH-APP-012",
         "app_layer_io" => "ARCH-APP-013",
         "app_door_new" => "ARCH-APP-014",

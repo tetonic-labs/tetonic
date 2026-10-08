@@ -2,54 +2,6 @@
 
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::sync::Arc;
-
-use tetonic_app::commands;
-use tetonic_app::events;
-use tetonic_app::{Application, ApplicationDependencies};
-
-struct FakeEventSink;
-impl events::ApplicationEventSink for FakeEventSink {
-    fn send(&self, _event: events::ApplicationEvent) {}
-}
-
-static WORK02_DB: AtomicU64 = AtomicU64::new(0);
-
-fn make_app() -> Application {
-    let db_path = std::env::temp_dir().join(format!(
-        "lokai_work02_{}_{}.db",
-        std::process::id(),
-        WORK02_DB.fetch_add(1, Ordering::Relaxed)
-    ));
-    let store = tetonic_memory::SharedStore::open(&db_path, 1).unwrap();
-    let policy = Arc::new(tetonic_policy::PolicyEngine::default());
-    let artifact_store = Arc::new(
-        tetonic_artifact::LocalArtifactStore::new(
-            std::env::temp_dir().join("artifacts"),
-            tetonic_app::secret_scanner_factory::artifact_scan_policy(&None),
-        )
-        .unwrap(),
-    );
-    let runtime = tetonic_runtime::EngineRuntime::new(policy.clone(), None, artifact_store);
-    Application::new(ApplicationDependencies {
-        runtime: Arc::new(runtime),
-        store: Some(store),
-        policy,
-        event_sink: Arc::new(FakeEventSink),
-        index_db: None,
-        fabric_hint: None,
-    })
-}
-
-fn run_service_src() -> String {
-    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src");
-    let mut src = fs::read_to_string(dir.join("run_service.rs")).expect("run_service.rs");
-    src.push_str(
-        &fs::read_to_string(dir.join("turn_finalization.rs")).expect("turn_finalization.rs"),
-    );
-    src
-}
 
 fn production_prefix(src: &str) -> &str {
     src.split("#[cfg(test)]").next().unwrap_or(src)
@@ -60,124 +12,9 @@ fn work02_active_is_attempt_keyed() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::Registry);
 }
 
-#[tokio::test]
-async fn work02_complete_turn_has_no_session_run_fallback() {
-    let src = run_service_src();
-    assert!(!src.contains("unwrap_or_else(|| cmd.session_id.clone())"));
-    let app = make_app();
-    let started = app
-        .sessions
-        .start_session(commands::StartSessionCommand {
-            workspace_root: std::env::temp_dir().display().to_string(),
-            briefing: Some(false),
-            ..Default::default()
-        })
-        .await
-        .expect("session");
-    let err = app
-        .runs
-        .complete_turn(
-            &commands::CompleteTurnCommand {
-                session_id: started.session_id.clone(),
-                attempt_id: tetonic_domain::AttemptId::new("att_missing"),
-                workspace_root: std::env::temp_dir().display().to_string(),
-                canceled: false,
-                error: None,
-            },
-            None,
-            None,
-        )
-        .await
-        .expect_err("miss must not session-as-run");
-    assert!(err.to_string().contains("no active turn run"));
-}
-
-#[tokio::test]
-async fn work02_spawn_empty_active_inserts_by_attempt() {
-    let src = run_service_src();
-    assert!(
-        src.contains("insert(active.attempt_id.clone(), active")
-            || src.contains("insert(attempt_id.clone(), active)")
-    );
-    let app = make_app();
-    let started = app
-        .sessions
-        .start_session(commands::StartSessionCommand {
-            workspace_root: std::env::temp_dir().display().to_string(),
-            briefing: Some(false),
-            ..Default::default()
-        })
-        .await
-        .expect("session");
-    let attempt = app
-        .runs
-        .register_spawn_task(&started.session_id, "a0_s0", "coder", "")
-        .await
-        .expect("empty-active spawn");
-    assert!(!attempt.0.is_empty());
-    assert_ne!(attempt.0, started.session_id);
-}
-
-#[test]
-fn work02_attest_uses_attempt() {
-    lifecycle_contract::assert_contract(lifecycle_contract::Contract::Cleanup);
-}
-
-#[test]
-fn work02_finish_clears_live_by_session() {
-    lifecycle_contract::assert_contract(lifecycle_contract::Contract::Cleanup);
-}
-
 #[test]
 fn work02_heartbeat_uses_attempt() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::Heartbeat);
-}
-
-#[tokio::test]
-async fn work02_cancel_session_drops_attempt_entries() {
-    let app = make_app();
-    let started = app
-        .sessions
-        .start_session(commands::StartSessionCommand {
-            workspace_root: std::env::temp_dir().display().to_string(),
-            briefing: Some(false),
-            ..Default::default()
-        })
-        .await
-        .expect("session");
-    let plan = app
-        .runs
-        .plan_turn(&commands::RunTurnCommand {
-            session_id: started.session_id.clone(),
-            user_input: "cancel drop".into(),
-            verify_cmd: None,
-            llm_router: Some(false),
-        })
-        .await
-        .expect("plan");
-    app.sessions
-        .cancel_session(commands::CancelRunCommand {
-            session_id: started.session_id.clone(),
-            pooled_cancel: false,
-        })
-        .await
-        .expect("cancel");
-    let err = app
-        .runs
-        .complete_turn(
-            &commands::CompleteTurnCommand {
-                session_id: started.session_id,
-                attempt_id: plan.attempt_id,
-                workspace_root: std::env::temp_dir().display().to_string(),
-                canceled: false,
-                error: None,
-            },
-            None,
-            None,
-        )
-        .await
-        .expect_err("dropped attempt");
-    assert!(err.to_string().contains("no active turn run"));
 }
 
 #[test]
@@ -285,20 +122,6 @@ fn work02_infer_hop_still_no_job_spec() {
     assert!(src.contains("job_spec: None"));
     assert!(!src.contains("job_spec: Some"));
     assert!(tetonic_run::hop_job_spec_must_be_none(None));
-}
-
-#[test]
-fn work02_id001_not_established() {
-    let live =
-        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/session_live.rs"))
-            .expect("session_live.rs");
-    assert!(live.contains("pub struct LiveSession"));
-    assert!(!live.contains("AgentIdentity"));
-}
-
-#[test]
-fn work02_work002_not_established_portal_futures_remain() {
-    lifecycle_contract::assert_contract(lifecycle_contract::Contract::ProductDispatch);
 }
 
 #[test]

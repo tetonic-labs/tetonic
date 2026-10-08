@@ -32,8 +32,10 @@ fn make_app() -> Application {
         policy,
         event_sink: Arc::new(FakeEventSink),
         index_db: None,
-        fabric_hint: None,
     })
+    .with_execution_policy(std::sync::Arc::new(
+        crate::definition::validate_coding_execution,
+    ))
 }
 
 /// S-1(e): create a Run on SharedStore without start_session; persist NULL.
@@ -62,8 +64,10 @@ async fn create_run_without_session_persists_null_session_id() {
         policy: policy.clone(),
         event_sink: Arc::new(FakeEventSink),
         index_db: None,
-        fabric_hint: None,
-    });
+    })
+    .with_execution_policy(std::sync::Arc::new(
+        crate::definition::validate_coding_execution,
+    ));
 
     let run_id = app
         .runs
@@ -90,9 +94,8 @@ async fn create_run_without_session_persists_null_session_id() {
         .as_ref()
         .expect("inspect create_run must name a JobSpec");
     assert_eq!(
-        spec.identity_id.0,
-        crate::definition::CODING_IDENTITY_ID,
-        "inspect door names the coding identity, not a minted session"
+        spec.identity_id.0, "identity_default",
+        "a run created without an identity names the kernel default, not a minted session"
     );
     assert_eq!(spec.input_digest, tetonic_run::job_input_digest(""));
     let col = store
@@ -163,8 +166,10 @@ fn event_sink_send_is_observed() {
         policy: policy.clone(),
         event_sink: recorder,
         index_db: None,
-        fabric_hint: None,
-    });
+    })
+    .with_execution_policy(std::sync::Arc::new(
+        crate::definition::validate_coding_execution,
+    ));
     app.event_sink()
         .send(events::ApplicationEvent::InspectorClear);
     let kinds = recorded.lock().unwrap();

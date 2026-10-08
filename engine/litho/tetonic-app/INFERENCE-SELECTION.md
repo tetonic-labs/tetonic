@@ -1,5 +1,7 @@
 # Changing inference without changing agent identity
 
+> **Removed (October 2026).** This described session model selection for the legacy terminal chat, which was deleted with that chat. Agents now carry their provider/model in their registered definitions.
+
 Inference is a replaceable dependency, not the agent's identity. Conversation,
 tools, approval policy, workspace, run ownership, and cancellation remain owned by
 their existing components.

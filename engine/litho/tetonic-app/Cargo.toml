@@ -56,4 +56,3 @@ tempfile = "3"
 hex = "0.4"
 async-trait = { workspace = true }
 tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
-tetonic-eval = { path = "../../tooling/tetonic-eval" }

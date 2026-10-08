@@ -74,8 +74,10 @@ fn make_test_app() -> Application {
         policy,
         event_sink: Arc::new(TestEventSink),
         index_db: None,
-        fabric_hint: None,
     })
+    .with_execution_policy(std::sync::Arc::new(
+        tetonic_app::definition::validate_coding_execution,
+    ))
 }
 
 struct FinisherProvider;

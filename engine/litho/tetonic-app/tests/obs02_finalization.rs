@@ -82,7 +82,6 @@ async fn sessionless_completion_failure_is_reported_by_inline_and_detached_doors
             Arc::new(tetonic_policy::PolicyEngine::default()),
             sink.clone(),
             supervisor.clone(),
-            Arc::new(tetonic_app::SessionLiveStore::new()),
             artifacts,
         )
         .with_execution_policy(Arc::new(move |identity, spec, role, _, _| {

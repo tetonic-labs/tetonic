@@ -1,22 +1,15 @@
 //! Product submit/await: portal-as-transport door (PORTAL-01).
 
-use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
 
-use tetonic_core::{Conversation, ExactTokenizer, HeuristicTokenizer, Tokenizer};
+use tetonic_core::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 use tetonic_egress::EgressGuard;
 use tetonic_inference::InferenceProvider;
 use tetonic_memory::RecoverMutex;
-use tetonic_orchestrator::SpawnLimits;
-use tokio::sync::oneshot;
 
-use crate::commands::{RunTurnCommand, SpawnAgentCommand, TurnFinish};
 use crate::errors::AppError;
 use crate::events::ApplicationEventSink;
-use crate::session_live::{admit_chat_turn, LiveSession, TurnAdmitDecision, TurnAdmitError};
-use crate::store_audit::product_audit_factory;
-use crate::turn_execution::{outbound_event_scanner, TurnExecutionHost};
 use crate::Application;
 
 /// One installed binding: the provider and its broker cannot be replaced independently.
@@ -34,7 +27,6 @@ type InferenceSnapshot = (
 );
 
 pub struct TurnBind {
-    pub(crate) inference_profiles: crate::inference_selection::InferenceProfiles,
     pub runtime: Arc<tetonic_runtime::EngineRuntime>,
     pub store: Option<tetonic_memory::SharedStore>,
     pub index_db: Option<std::path::PathBuf>,
@@ -48,7 +40,6 @@ pub struct TurnBind {
     pooled: Mutex<Option<Arc<tetonic_inference::PooledProvider>>>,
     compute_registry: Mutex<Option<Arc<tetonic_inference::ComputeTargetRegistry>>>,
     tokenizer: Mutex<Arc<dyn Tokenizer>>,
-    joins: Mutex<HashMap<String, oneshot::Sender<TurnFinish>>>,
 }
 
 impl TurnBind {
@@ -62,7 +53,6 @@ impl TurnBind {
         policy: Arc<tetonic_policy::PolicyEngine>,
     ) -> Arc<Self> {
         Arc::new(Self {
-            inference_profiles: Default::default(),
             runtime,
             store,
             index_db,
@@ -76,7 +66,6 @@ impl TurnBind {
             pooled: Mutex::new(None),
             compute_registry: Mutex::new(None),
             tokenizer: Mutex::new(Arc::new(HeuristicTokenizer) as Arc<dyn Tokenizer>),
-            joins: Mutex::new(HashMap::new()),
         })
     }
 
@@ -131,48 +120,6 @@ impl TurnBind {
 
     pub fn compute_broker(&self) -> Option<Arc<tetonic_broker::DefaultComputeBroker>> {
         self.inference_snapshot().and_then(|(_, broker)| broker)
-    }
-}
-
-pub(crate) struct OwnedTurn {
-    pub(crate) live: Arc<LiveSession>,
-    pub(crate) convo: Option<Conversation>,
-    pub(crate) join: Option<oneshot::Sender<TurnFinish>>,
-    pub(crate) delivery: Arc<crate::turn_delivery::TurnDelivery>,
-}
-
-impl Drop for OwnedTurn {
-    fn drop(&mut self) {
-        let Some(c) = self.convo.take() else {
-            return; // Normal completion already released the lease and published its outcome.
-        };
-        self.live.restore_conversation(c);
-        self.live.end_turn();
-        self.delivery.finish(
-            self.live.cancel.load(Ordering::Relaxed),
-            Some("turn execution dropped".into()),
-        );
-        if let Some(tx) = self.join.take() {
-            let canceled = self.live.cancel.load(Ordering::Relaxed);
-            let _ = tx.send(TurnFinish {
-                ok: false,
-                canceled,
-                error: Some("dropped".into()),
-            });
-        }
-    }
-}
-
-fn admit_err(err: TurnAdmitError) -> AppError {
-    match err {
-        TurnAdmitError::Draining => AppError::InvalidRequest("daemon is shutting down".into()),
-        TurnAdmitError::CapacityBusy => AppError::InvalidRequest(
-            "capacity optimize in progress — interactive chat blocked".into(),
-        ),
-        TurnAdmitError::TurnInFlight => {
-            AppError::InvalidRequest("a turn is already running for this session".into())
-        }
-        TurnAdmitError::CapacityGate { detail, .. } => AppError::InvalidRequest(detail),
     }
 }
 
@@ -411,321 +358,5 @@ impl Application {
             policy_epoch,
             audit,
         })
-    }
-
-    pub fn cancel_session_broker_jobs(&self, session_id: &str) {
-        let selected = self
-            .session_inference(session_id)
-            .ok()
-            .and_then(|s| self.turn.inference_profiles.get(&s.profile));
-        let broker = selected
-            .and_then(|p| p.broker)
-            .or_else(|| self.turn.compute_broker());
-        if let Some(broker) = broker {
-            broker.cancel_session_jobs(session_id);
-            if let Ok(live) = self.sessions.live(session_id) {
-                if let Some(run_id) = live.current_run_id() {
-                    broker.cancel_run_jobs(&run_id);
-                }
-            }
-        } else if let Some(ref pooled) = *self.turn.pooled.lock_recover() {
-            pooled.cancel_session_jobs(session_id);
-        }
-    }
-
-    pub fn reclassify_session_live(&self, session_id: &str, data_class: &str) {
-        if let Some(class) = tetonic_policy::parse_data_class(data_class) {
-            if let Ok(live) = self.sessions.live(session_id) {
-                live.set_plan_data_class(class);
-            }
-        }
-        self.bump_policy_epoch();
-    }
-
-    pub fn reload_inference_services(&self) -> Option<tetonic_capacity::InferenceDefaults> {
-        let store = self.turn.store.as_ref()?;
-        store
-            .read_sync(|db| {
-                tetonic_capacity::load_inference_defaults(db, tetonic_capacity::LOCAL_NODE_ID)
-            })
-            .ok()
-    }
-
-    pub async fn daemon_capacity_status(
-        &self,
-    ) -> Result<tetonic_capacity::CapacityStatus, AppError> {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
-        let provider = Arc::new(tetonic_inference::OllamaProvider::new(&base, guard));
-        let client: Arc<dyn tetonic_capacity::InferenceClient> = Arc::new(
-            tetonic_capacity::OllamaInferenceClient::new(&base, provider),
-        );
-        let ver = client.version().await;
-        let result = self
-            .capacity
-            .get_capacity_status(crate::commands::CapacityStatusCommand {
-                client,
-                node_id: tetonic_capacity::LOCAL_NODE_ID.to_string(),
-                ollama_version: ver,
-            })
-            .await?;
-        Ok(result.status)
-    }
-
-    pub async fn daemon_capacity_doctor(
-        &self,
-    ) -> Result<
-        (
-            tetonic_capacity::CapacityStatus,
-            tetonic_capacity::CapacityDiagnosis,
-        ),
-        AppError,
-    > {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
-        let provider = Arc::new(tetonic_inference::OllamaProvider::new(&base, guard));
-        let client: Arc<dyn tetonic_capacity::InferenceClient> = Arc::new(
-            tetonic_capacity::OllamaInferenceClient::new(&base, provider),
-        );
-        let ver = client.version().await;
-        let result = self
-            .capacity
-            .get_capacity_doctor(crate::commands::CapacityDoctorCommand {
-                client,
-                node_id: tetonic_capacity::LOCAL_NODE_ID.to_string(),
-                ollama_version: ver,
-            })
-            .await?;
-        Ok((result.status, result.diagnosis))
-    }
-
-    pub async fn daemon_run_capacity_optimize(
-        &self,
-        depth: String,
-        auto_apply: bool,
-        prebegin: Option<crate::commands::BeginOptimizeResultPayload>,
-        cancel: &std::sync::atomic::AtomicBool,
-    ) -> Result<tetonic_capacity::OptimizeOutcome, AppError> {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
-        let provider = Arc::new(tetonic_inference::OllamaProvider::new(&base, guard));
-        let client: Arc<dyn tetonic_capacity::InferenceClient> = Arc::new(
-            tetonic_capacity::OllamaInferenceClient::new(&base, provider),
-        );
-        self.capacity
-            .run_optimize(
-                crate::commands::RunOptimizeCommand {
-                    sessions_busy: false,
-                    capacity_busy: false,
-                    depth,
-                    auto_apply,
-                    client,
-                    prebegin,
-                },
-                cancel,
-            )
-            .await
-    }
-
-    pub fn bind_num_ctx(&self, num_ctx: u32) {
-        self.turn.num_ctx.store(num_ctx, Ordering::Relaxed);
-    }
-
-    pub fn arm_turn_join(&self, session_id: &str) -> oneshot::Receiver<TurnFinish> {
-        let (tx, rx) = oneshot::channel();
-        self.turn
-            .joins
-            .lock_recover()
-            .insert(session_id.to_string(), tx);
-        rx
-    }
-
-    pub(crate) fn build_session_host(
-        &self,
-        session_id: &str,
-    ) -> Result<TurnExecutionHost, AppError> {
-        let live = self.sessions.live(session_id)?;
-        let selection = live.inference_selection();
-        let selected_profile = if selection.profile == "default" {
-            None
-        } else {
-            Some(
-                self.turn
-                    .inference_profiles
-                    .get(&selection.profile)
-                    .ok_or_else(|| {
-                        AppError::InvalidRequest("selected inference profile unavailable".into())
-                    })?,
-            )
-        };
-        let (provider, compute_broker) = self
-            .turn
-            .inference_snapshot()
-            .ok_or_else(|| AppError::InvalidRequest("inference provider not bound".into()))?;
-        let (scanner, sink) = outbound_event_scanner(&self.turn.store);
-        Ok(TurnExecutionHost {
-            live_session: Some(Arc::downgrade(&live)),
-            runtime: self.turn.runtime.clone(),
-            provider: selected_profile
-                .as_ref()
-                .map(|p| p.provider.clone() as Arc<dyn InferenceProvider>)
-                .unwrap_or(provider),
-            store: self.turn.store.clone(),
-            index_db: self.turn.index_db.clone(),
-            workspace_root: self.turn.workspace_root.clone(),
-            tool_workspace: live.tool_workspace.clone(),
-            model_fast: selection.model_fast,
-            model_hard: selection.model_hard,
-            num_ctx: selected_profile
-                .as_ref()
-                .map(|p| p.num_ctx)
-                .unwrap_or_else(|| self.turn.num_ctx.load(Ordering::Relaxed)),
-            session_max_steps: live.session_max_steps,
-            explicit_hard_tier: live.explicit_hard_tier,
-            orchestration: live.orchestration,
-            critic_enabled: live.critic_enabled,
-            llm_router: live.llm_router,
-            plan: live.plan(),
-            session_id: session_id.to_string(),
-            allow_shell: live.allow_shell,
-            force_explain: live.force_explain,
-            spawn_limits: SpawnLimits::from_env(),
-            tokenizer: if selection.revision > 0 {
-                Arc::new(HeuristicTokenizer) as Arc<dyn Tokenizer>
-            } else {
-                self.turn.tokenizer.lock_recover().clone()
-            },
-            cancel: live.cancel.clone(),
-            approvals: self.approvals.clone(),
-            audit_factory: product_audit_factory(&self.turn.store),
-            spawn_track: Some(live.spawn_track.clone()),
-            turn_spawn_count: Arc::new(AtomicU32::new(live.turn_spawn_count())),
-            compute_broker: selected_profile
-                .as_ref()
-                .and_then(|p| p.broker.clone())
-                .or(compute_broker),
-            secret_scanner: Some(scanner),
-            redaction_sink: Some(sink),
-            auto_grant_approvals: live.auto_grant_approvals,
-        })
-    }
-
-    pub fn submit_chat_turn(&self, mut cmd: RunTurnCommand) -> Result<(), AppError> {
-        let live = self.sessions.live(&cmd.session_id)?;
-        if cmd.verify_cmd.is_none() {
-            cmd.verify_cmd = live.plan().verify_cmd.clone();
-        }
-        if cmd.llm_router.is_none() {
-            cmd.llm_router = Some(live.llm_router);
-        }
-        let cap = self
-            .capacity
-            .snapshot_admission_status(tetonic_capacity::LOCAL_NODE_ID);
-        match admit_chat_turn(false, false, &live, cap.as_ref()) {
-            TurnAdmitDecision::Admit { .. } => {}
-            TurnAdmitDecision::Reject(err) => return Err(admit_err(err)),
-        }
-        let convo = match live.take_conversation() {
-            Ok(c) => c,
-            Err(e) => {
-                live.end_turn();
-                return Err(e);
-            }
-        };
-        let host = match self.build_session_host(&cmd.session_id) {
-            Ok(h) => h,
-            Err(e) => {
-                live.restore_conversation(convo);
-                live.end_turn();
-                return Err(e);
-            }
-        };
-        let join = self.turn.joins.lock_recover().remove(&cmd.session_id);
-        let owned = OwnedTurn {
-            live: live.clone(),
-            convo: Some(convo),
-            join,
-            delivery: Arc::new(crate::turn_delivery::TurnDelivery::new(
-                cmd.session_id.clone(),
-                self.turn.event_sink.clone(),
-            )),
-        };
-        self.run_manager.dispatch_chat_turn(cmd, host, owned)?;
-        Ok(())
-    }
-
-    pub fn submit_spawn(&self, cmd: SpawnAgentCommand) -> Result<(), AppError> {
-        crate::turn_execution::parse_spawn_role(&cmd.role)?;
-        let live = self.sessions.live(&cmd.session_id)?;
-        let cap = self
-            .capacity
-            .snapshot_admission_status(tetonic_capacity::LOCAL_NODE_ID);
-        match admit_chat_turn(false, false, &live, cap.as_ref()) {
-            TurnAdmitDecision::Admit { .. } => {}
-            TurnAdmitDecision::Reject(err) => return Err(admit_err(err)),
-        }
-        let convo = match live.take_conversation() {
-            Ok(c) => c,
-            Err(e) => {
-                live.end_turn();
-                return Err(e);
-            }
-        };
-        let host = match self.build_session_host(&cmd.session_id) {
-            Ok(h) => h,
-            Err(e) => {
-                live.restore_conversation(convo);
-                live.end_turn();
-                return Err(e);
-            }
-        };
-        let join = self.turn.joins.lock_recover().remove(&cmd.session_id);
-        let owned = OwnedTurn {
-            live: live.clone(),
-            convo: Some(convo),
-            join,
-            delivery: Arc::new(crate::turn_delivery::TurnDelivery::new(
-                cmd.session_id.clone(),
-                self.turn.event_sink.clone(),
-            )),
-        };
-        self.run_manager.dispatch_spawn(cmd, host, owned)?;
-        Ok(())
-    }
-}
-
-pub(crate) fn complete_dispatched_turn(
-    mut owned: OwnedTurn,
-    host: &TurnExecutionHost,
-    result: Result<(), AppError>,
-    spawn_serial: u32,
-) {
-    owned
-        .live
-        .spawn_serial
-        .store(spawn_serial, Ordering::Relaxed);
-    owned
-        .live
-        .store_turn_spawn_count(host.turn_spawn_count.load(Ordering::Relaxed));
-    let canceled = owned.live.cancel.load(Ordering::Relaxed);
-    let finish = match &result {
-        Ok(()) => TurnFinish {
-            ok: !canceled,
-            canceled,
-            error: None,
-        },
-        Err(e) => TurnFinish {
-            ok: false,
-            canceled,
-            error: Some(e.employee_message()),
-        },
-    };
-    if let Some(c) = owned.convo.take() {
-        owned.live.restore_conversation(c);
-    }
-    owned.live.end_turn();
-    owned.delivery.finish(canceled, finish.error.clone());
-    if let Some(tx) = owned.join.take() {
-        let _ = tx.send(finish);
     }
 }

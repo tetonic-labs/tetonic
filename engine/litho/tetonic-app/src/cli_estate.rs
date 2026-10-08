@@ -39,6 +39,42 @@ pub struct WorkerTrustAuditSummary {
 }
 
 impl Application {
+    /// Kernel for offline operator commands (`tetonic estate`, capacity):
+    /// opens the default audit store and restores enrolled-worker egress rules.
+    pub async fn bootstrap_offline(workspace: Option<&str>) -> Result<Arc<Application>, AppError> {
+        let store = open_default_audit_store();
+        let guard = Arc::new(EgressGuard::new());
+        if let Some(ref s) = store {
+            let _ = s.read_sync(|db| {
+                let _ = crate::estate_enrollment::reload_enrollment_egress(db, guard.as_ref());
+            });
+        }
+        let workspace_root = match workspace {
+            Some(w) => tetonic_tools::Workspace::new(std::path::Path::new(w))
+                .map_err(|e| AppError::InvalidRequest(format!("opening workspace '{w}': {e}")))?
+                .root()
+                .display()
+                .to_string(),
+            None => std::env::current_dir()
+                .map(|p| p.display().to_string())
+                .unwrap_or_else(|_| ".".to_string()),
+        };
+        let (app, _, _) = Application::bootstrap(
+            crate::commands::InitializeCommand {
+                workspace_root,
+                rpc_token_provided: false,
+                rpc_auth_disabled: true,
+            },
+            store,
+            Arc::new(crate::events::NoopEventSink),
+            None,
+        )
+        .await?;
+        let app = Arc::new(app);
+        app.attach_egress(guard, "http://127.0.0.1:11434".to_string());
+        Ok(app)
+    }
+
     // --- Estate Fleet & Worker Trust ---
 
     pub fn list_worker_enrollments(&self) -> Result<Vec<WorkerEnrollmentSummary>, AppError> {
@@ -519,6 +555,13 @@ fn format_ps(v: &serde_json::Value) -> String {
         ));
     }
     display
+}
+
+/// Default operator audit store in the per-user data directory.
+pub fn open_default_audit_store() -> Option<tetonic_memory::SharedStore> {
+    let dirs = directories::ProjectDirs::from("", "", "lokai")?;
+    let path = dirs.data_dir().join("lokai.db");
+    tetonic_memory::SharedStore::open(&path, 5).ok()
 }
 
 #[cfg(test)]

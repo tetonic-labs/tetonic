@@ -7,14 +7,14 @@ use std::sync::Arc;
 use serde_json::Value;
 use std::sync::atomic::{AtomicU64, Ordering};
 use tetonic_app::commands;
-use tetonic_app::definition::{CodingAgentDefinition, CODING_IDENTITY_ID};
+use tetonic_app::definition::CODING_IDENTITY_ID;
 use tetonic_app::events;
 use tetonic_app::{Application, ApplicationDependencies};
 use tetonic_core::{Agent, AgentConfig, Conversation};
 use tetonic_domain::{
     ActionKind, AgentAttemptExecutor, AgentIdentity, AgentInvocation, AgentJobSpec,
     AttemptExecutionContext, AttemptId, AuthorizedAction, CandidateOutcome, IdentityId, RunId,
-    TaskId, TaskInputBinding, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal,
+    TaskInputBinding, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal,
 };
 use tetonic_inference::{
     ChatRequest, ChatResponse, InferenceError, InferenceProvider, Message, TokenSink,
@@ -51,21 +51,11 @@ fn make_app() -> (Application, tetonic_memory::SharedStore) {
         policy,
         event_sink: Arc::new(FakeEventSink),
         index_db: None,
-        fabric_hint: None,
-    });
+    })
+    .with_execution_policy(std::sync::Arc::new(
+        tetonic_app::definition::validate_coding_execution,
+    ));
     (app, store)
-}
-
-async fn start_fresh(app: &Application) -> commands::StartSessionResultPayload {
-    let tmp = std::env::temp_dir();
-    app.sessions
-        .start_session(commands::StartSessionCommand {
-            workspace_root: tmp.display().to_string(),
-            briefing: Some(false),
-            ..Default::default()
-        })
-        .await
-        .expect("session start")
 }
 
 async fn inspect(app: &Application, run_id: &RunId) -> tetonic_domain::RunSnapshot {
@@ -75,38 +65,6 @@ async fn inspect(app: &Application, run_id: &RunId) -> tetonic_domain::RunSnapsh
         })
         .await
         .expect("inspect_run")
-}
-
-#[tokio::test]
-async fn work01_begin_turn_run_names_job_spec() {
-    let (app, _store) = make_app();
-    let started = start_fresh(&app).await;
-    let user_input = "work01 distinctive user input";
-    let plan = app
-        .runs
-        .plan_turn(&commands::RunTurnCommand {
-            session_id: started.session_id.clone(),
-            user_input: user_input.into(),
-            verify_cmd: None,
-            llm_router: Some(false),
-        })
-        .await
-        .expect("plan_turn");
-    let snap = inspect(&app, &plan.run_id).await;
-    let spec = snap.job_spec.as_ref().expect("job_spec");
-    assert_eq!(spec.identity_id.0, CODING_IDENTITY_ID);
-    assert_ne!(spec.identity_id.0, started.session_id);
-    assert_eq!(
-        spec.definition_digest,
-        CodingAgentDefinition::production().definition_digest()
-    );
-    assert_eq!(spec.input_digest, job_input_digest(user_input));
-    assert_eq!(plan.job_spec, spec.clone());
-    let attempt = snap
-        .attempts
-        .get(&plan.attempt_id)
-        .expect("attempt after plan");
-    assert_eq!(attempt.input_digest, spec.input_digest);
 }
 
 #[tokio::test]
@@ -124,33 +82,9 @@ async fn work01_create_run_names_job_spec_without_session() {
     let snap = inspect(&app, &run_id).await;
     assert!(snap.session_id.is_none());
     let spec = snap.job_spec.expect("job_spec");
-    assert_eq!(spec.identity_id.0, CODING_IDENTITY_ID);
+    // Without a supplied identity the kernel names its generic default, not the coding identity.
+    assert_eq!(spec.identity_id.0, "identity_default");
     assert_eq!(spec.input_digest, job_input_digest(""));
-}
-
-#[tokio::test]
-async fn work01_identity_record_is_not_session() {
-    let (app, store) = make_app();
-    let started = start_fresh(&app).await;
-    app.runs
-        .plan_turn(&commands::RunTurnCommand {
-            session_id: started.session_id.clone(),
-            user_input: "after a turn".into(),
-            verify_cmd: None,
-            llm_router: Some(false),
-        })
-        .await
-        .expect("plan_turn");
-    let id = IdentityId::new(CODING_IDENTITY_ID);
-    let rec = store
-        .read(move |db| tetonic_run::get_identity(db, &id))
-        .await
-        .expect("read")
-        .expect("get_identity")
-        .expect("identity row");
-    assert_eq!(rec.id.0, CODING_IDENTITY_ID);
-    assert_ne!(rec.id.0, started.session_id);
-    assert_eq!(rec.owning_application, "coding");
 }
 
 #[test]
@@ -173,70 +107,6 @@ fn work01_code01_absence_pin_replaced() {
             "{name} must not import CodingAgentDefinition"
         );
     }
-}
-
-#[tokio::test]
-async fn work01_spawn_create_run_names_job_spec() {
-    let (app, _store) = make_app();
-    let started = start_fresh(&app).await;
-    app.runs
-        .register_spawn_task(&started.session_id, "a0_s0", "coder", "")
-        .await
-        .expect("register_spawn_task");
-    let live = app.sessions.live(&started.session_id).expect("live");
-    let run_id = live.current_run_id().expect("spawn minted a run");
-    let snap = inspect(&app, &run_id).await;
-    let spec = snap
-        .job_spec
-        .as_ref()
-        .expect("spawn CreateRun names JobSpec");
-    assert_eq!(spec.identity_id.0, CODING_IDENTITY_ID);
-    assert_ne!(spec.identity_id.0, started.session_id);
-    assert_eq!(spec.input_digest, job_input_digest(""));
-    assert_ne!(spec.input_digest, job_input_digest(&started.session_id));
-    let root = TaskId::new(format!("task_root_{}", run_id));
-    assert!(
-        snap.tasks.contains_key(&root),
-        "empty register_spawn_task is a root job"
-    );
-    assert!(
-        !snap.tasks.contains_key(&TaskId::new("task_spawn_a0_s0")),
-        "empty execute_spawn must not AddTask a child"
-    );
-}
-
-#[tokio::test]
-async fn work01_job_spec_is_not_invocation() {
-    let (app, _store) = make_app();
-    let started = start_fresh(&app).await;
-    let user_input = "work01 invocation pin";
-    let plan = app
-        .runs
-        .plan_turn(&commands::RunTurnCommand {
-            session_id: started.session_id,
-            user_input: user_input.into(),
-            verify_cmd: None,
-            llm_router: Some(false),
-        })
-        .await
-        .expect("plan_turn");
-    let snap = inspect(&app, &plan.run_id).await;
-    let spec_json = serde_json::to_string(snap.job_spec.as_ref().expect("job_spec")).unwrap();
-    assert!(!spec_json.contains("instructions"));
-    assert!(!spec_json.contains("empty_tool_nudge"));
-    assert!(!spec_json.contains("completion_tool"));
-    let invocation = CodingAgentDefinition::production().compile_invocation(
-        "",
-        "",
-        Path::new("."),
-        &AgentConfig::default(),
-        user_input,
-    );
-    assert_eq!(
-        job_input_digest(&invocation.user_input),
-        plan.job_spec.input_digest
-    );
-    assert_ne!(invocation.instructions, plan.job_spec.input_digest);
 }
 
 #[tokio::test]
@@ -322,29 +192,6 @@ fn work01_infer_hop_create_run_has_no_job_spec() {
     assert!(tetonic_run::hop_job_spec_must_be_none(None));
 }
 
-#[tokio::test]
-async fn work01_active_still_session_keyed() {
-    let (app, _store) = make_app();
-    let started = start_fresh(&app).await;
-    let plan = app
-        .runs
-        .plan_turn(&commands::RunTurnCommand {
-            session_id: started.session_id.clone(),
-            user_input: "session leftover".into(),
-            verify_cmd: None,
-            llm_router: Some(false),
-        })
-        .await
-        .expect("plan_turn");
-    let live = app.sessions.live(&started.session_id).expect("live");
-    assert_eq!(live.current_run_id(), Some(plan.run_id));
-    let src =
-        fs::read_to_string(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/run_service.rs"))
-            .expect("run_service.rs");
-    assert!(src.contains("fn bind_live_run(&self, session_id: &str"));
-    assert!(!src.contains("insert(cmd.session_id.clone(), active.clone())"));
-}
-
 #[test]
 fn work01_app001_identity_inventory_not_established() {
     let engine_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
@@ -390,7 +237,7 @@ async fn work01_create_run_projects_job_spec() {
         .await
         .expect("inspect_run");
     let projected = snap.job_spec.expect("create_run projects job_spec");
-    assert_eq!(projected.identity_id, IdentityId::new(CODING_IDENTITY_ID));
+    assert_eq!(projected.identity_id, IdentityId::new("identity_default"));
 }
 
 struct DummyHost;

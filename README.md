@@ -119,25 +119,6 @@ The local adapter binds to loopback and uses a dedicated SQLite database. Run on
 
 </details>
 
-<details>
-<summary><strong>Terminal interface</strong></summary>
-
-The existing coding interface remains available. From `engine/`:
-
-```sh
-cargo run -p tetonic-cli
-```
-
-Or submit a single task:
-
-```sh
-cargo run -p tetonic-cli -- "Inspect this repository and explain its structure"
-```
-
-The package is `tetonic-cli`; its executable is `tetonic`. The repository also contains `tetonicd` for editor integration and server/node components for infrastructure work. Their capabilities are separate from the local web preview.
-
-</details>
-
 ## Inside the engine
 
 The web workspace calls the authenticated local API. Application services use the existing agent registry, work records, managed runtime, inference broker, and durable store.

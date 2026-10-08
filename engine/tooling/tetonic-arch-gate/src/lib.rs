@@ -236,7 +236,6 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     "strata/tetonic-memory/src/lib.rs",
     "atmos/lokai-inference/src/lib.rs",
     "atmos/tetonic-inference/src/lib.rs",
-    "litho/tetonic-cli/src/main.rs",
     "core/lokai-core/src/agent.rs",
     "core/tetonic-core/src/agent.rs",
     // Owner: M5-3. Reason: pooled dispatch tests cover trust downgrade,
@@ -261,11 +260,6 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     "mantle/tetonic-node/src/fabric_chat.rs",
     "atmos/lokai-fabric-client/src/legacy.rs",
     "atmos/tetonic-fabric-client/src/legacy.rs",
-    // Owner: app turn path (pre-existing WIP). Reason: rustfmt expansion during M0 VERIFY
-    // pushed this file over 900. Not an M0 freeze split.
-    // Removal: extract event/redact helpers; delete this row.
-    "litho/lokai-app/src/turn_execution.rs",
-    "litho/tetonic-app/src/turn_execution.rs",
     // Owner: lokai-context. Reason: `src/tests.rs` is not skipped by `_tests.rs`/`/tests/`.
     // Removal: move to strata/lokai-context/tests/ or rename to *_tests.rs.
     "strata/lokai-context/src/tests.rs",
@@ -396,11 +390,11 @@ pub fn check_app_workflow_delegation(root: &Path) -> Vec<Violation> {
     out
 }
 
-/// M1-3: CLI agent path must delegate to lokai-app; no direct orchestration or agent assembly.
+/// M1-3: CLI command handlers must delegate to lokai-app; no direct orchestration or agent assembly.
 pub fn check_cli_workflow_delegation(root: &Path) -> Vec<Violation> {
     const FILES: &[&str] = &[
-        "litho/tetonic-cli/src/main.rs",
-        "litho/tetonic-cli/src/chat.rs",
+        "litho/tetonic-cli/src/local_ui.rs",
+        "litho/tetonic-cli/src/job.rs",
         "litho/tetonic-cli/src/estate.rs",
         "litho/tetonic-cli/src/capacity.rs",
     ];
@@ -621,11 +615,9 @@ pub fn run_all(root: &Path) -> Vec<Violation> {
     v.extend(check_inference_no_enroll(root));
     v.extend(check_fabric_client_uses_protocol(root));
     v.extend(check_compute_broker_wiring(root));
-    v.extend(check_cli_inspector_no_command(root));
     v.extend(check_production_tools_sandboxed(root));
     v.extend(check_git_via_process_broker(root));
     v.extend(check_lsp_via_process_broker(root));
-    v.extend(check_cli_infra_leftovers(root));
     v.extend(check_tetonicd_session_authority(root));
     v.extend(check_no_gates_ok_turn_abort(root));
     v.extend(check_no_duplicate_resume_cap(root));

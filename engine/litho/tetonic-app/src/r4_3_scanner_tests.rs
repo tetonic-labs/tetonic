@@ -141,23 +141,3 @@ fn stopped_reason_does_not_repeat_a_secret() {
         ApplicationEvent::LogDiagnostic { message, .. } if message.starts_with("stopped:")
     )));
 }
-
-#[test]
-fn failure_text_does_not_repeat_a_secret() {
-    let scanner = ScannerEngine::default_engine();
-    let secret = "AKIAIOSFODNN7EXAMPLE";
-    let redacted = crate::turn_execution::redact_failure_text(
-        Some(&scanner),
-        None,
-        "sess",
-        format!("provider failed while echoing {secret}"),
-    );
-    assert!(
-        !redacted.contains(secret),
-        "failure text repeated the secret: {redacted}"
-    );
-    assert_eq!(
-        crate::turn_execution::redact_failure_text(None, None, "sess", "file not found".into()),
-        "file not found"
-    );
-}

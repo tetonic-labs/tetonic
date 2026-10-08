@@ -93,40 +93,6 @@ fn workfin01_finish_order_still_complete_accept_finish() {
 }
 
 #[test]
-fn workfin01_coding_build_agent_does_not_bind_completion_check() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    let body = fn_body(src, "fn build_agent(");
-    assert!(!body.contains("make_completion_check"));
-    assert!(!body.contains("with_completion_check"));
-    assert!(!body.contains("Tools::new"));
-    assert!(body.contains("with_orchestration(build.orchestration_tools)"));
-}
-
-#[test]
-fn workfin01_build_agent_does_not_construct_tools() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    let body = fn_body(src, "fn build_agent(");
-    assert!(!body.contains("runtime.build_tools"));
-    assert!(body.contains("ensure_turn_tools") || body.contains("turn_tools"));
-}
-
-#[test]
-fn workfin01_complete_turn_does_not_read_session_rows() {
-    let src = crate_src("src/run_service.rs");
-    let start = src
-        .rfind("async fn complete_turn(")
-        .expect("complete_turn impl");
-    let body = fn_body(&src[start..], "async fn complete_turn(");
-    assert!(!body.contains("attest_turn"));
-    assert!(!body.contains("attest_active_turn"));
-    assert!(!body.contains("session_file_changes"));
-    assert!(!body.contains("last_assistant"));
-    assert!(body.contains("finalize_attempt"));
-}
-
-#[test]
 fn workfin01_session_attest_helpers_are_gone() {
     let src = std::fs::read_to_string(
         std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -201,39 +167,6 @@ fn workfin01_sessionless_claims_without_session() {
 }
 
 #[test]
-fn workfin01_explain_root_skips_verify_after_revision() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    assert!(src.contains("CodingPack.root_explain_turn"));
-    assert!(src.contains("RouteMode::Specialist"));
-    assert!(!fn_body(src, "async fn execute_turn(").contains("build.explain_turn"));
-}
-
-#[test]
-fn workfin01_planner_root_skips_verify_when_text_is_not_explain() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    assert!(src.contains("CodingPack.explain_turn(r, false)"));
-}
-
-#[test]
-fn workfin01_revision_clone_does_not_advertise_spawn_agent() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    let ensure = fn_body(src, "fn ensure_turn_tools(");
-    assert!(!ensure.contains("with_orchestration"));
-    let build = fn_body(src, "fn build_agent(");
-    assert!(build.contains("with_orchestration(build.orchestration_tools)"));
-}
-
-#[test]
-fn workfin01_root_auto_clone_advertises_spawn_agent() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    assert!(src.contains("with_orchestration(build.orchestration_tools)"));
-}
-
-#[test]
 fn workfin01_fin003_not_established_fabric_complete_remains() {
     // WORK-FIN-02 deleted fabric CompleteAttempt submit. FIN-003 stays unestablished.
     let src = crate_src("src/fabric_run_bridge.rs");
@@ -241,21 +174,6 @@ fn workfin01_fin003_not_established_fabric_complete_remains() {
     let turn = crate_src("../../mantle/tetonic-orchestrator/src/turn.rs");
     assert!(turn.contains("child_job"));
     assert!(turn.contains("complete_child"));
-}
-
-#[test]
-fn workfin01_app002_not_established_run_turn_remains() {
-    let owned = crate_src("src/turn_execution.rs");
-    let src = production_prefix(&owned);
-    assert!(src.contains("async fn execute_turn"));
-    let run = crate_src("src/run_service.rs");
-    assert!(run.contains("async fn run_turn("));
-}
-
-#[test]
-fn workfin01_id001_not_established_session_chat_remains() {
-    let live = crate_src("src/session_live.rs");
-    assert!(live.contains("pub struct LiveSession"));
 }
 
 #[test]

@@ -11,15 +11,6 @@ fn gate_passes_on_engine_tree() {
 }
 
 #[test]
-fn cli_inspector_does_not_spawn_command() {
-    let root = engine_root();
-    assert!(
-        check_cli_inspector_no_command(&root).is_empty(),
-        "tetonic-cli chat.rs must not call Command::new"
-    );
-}
-
-#[test]
 fn production_tools_are_sandboxed() {
     let root = engine_root();
     assert!(

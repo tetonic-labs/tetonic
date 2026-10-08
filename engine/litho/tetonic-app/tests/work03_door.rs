@@ -50,8 +50,10 @@ fn make_app() -> Application {
         policy,
         event_sink: Arc::new(FakeEventSink),
         index_db: None,
-        fabric_hint: None,
     })
+    .with_execution_policy(std::sync::Arc::new(
+        tetonic_app::definition::validate_coding_execution,
+    ))
 }
 
 fn crate_src(rel: &str) -> String {
@@ -89,12 +91,6 @@ fn fn_body<'a>(src: &'a str, sig: &str) -> &'a str {
         }
     }
     &after[brace..]
-}
-
-fn impl_run_service(src: &str) -> &str {
-    src.split("impl RunService for DefaultRunService")
-        .nth(1)
-        .expect("DefaultRunService impl")
 }
 
 fn door_src() -> String {
@@ -249,34 +245,6 @@ fn work03_start_identity_job_inserts_active_by_attempt() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::Registry);
 }
 
-#[tokio::test]
-async fn work03_create_run_still_does_not_execute() {
-    let src = crate_src("src/run_service.rs");
-    let body = fn_body(impl_run_service(&src), "async fn create_run(");
-    assert!(!body.contains("LocalAgentAttemptExecutor"));
-    assert!(!body.contains("start_identity_job"));
-    let app = make_app();
-    let run_id = app
-        .runs
-        .create_run(commands::CreateRunCommand {
-            session_id: None,
-            root_task_id: None,
-            ..Default::default()
-        })
-        .await
-        .expect("create_run persist-only");
-    let snap = app
-        .runs
-        .inspect_run(commands::InspectRunCommand {
-            run_id: run_id.to_string(),
-        })
-        .await
-        .expect("inspect");
-    assert!(snap.session_id.is_none());
-    assert!(snap.attempts.is_empty());
-    assert_eq!(snap.state, RunState::Created);
-}
-
 #[test]
 fn work03_run_turn_still_requires_session() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::RootKeys);
@@ -334,22 +302,10 @@ async fn work03_start_identity_job_removes_active() {
         )
         .await
         .expect("door");
-    let err = app
-        .runs
-        .complete_turn(
-            &commands::CompleteTurnCommand {
-                session_id: String::new(),
-                attempt_id: result.attempt_id,
-                workspace_root: std::env::temp_dir().display().to_string(),
-                canceled: false,
-                error: None,
-            },
-            None,
-            None,
-        )
-        .await
-        .expect_err("active must be removed");
-    assert!(err.to_string().contains("no active turn run"));
+    assert!(
+        app.runs.run_id_for_attempt(&result.attempt_id).is_none(),
+        "active binding must be removed after the door completes"
+    );
 }
 
 #[test]
@@ -412,22 +368,6 @@ fn work03_broker_has_no_session_as_run() {
 }
 
 #[test]
-fn work03_session_cancel_uses_current_run_id() {
-    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
-    assert!(ui.contains(".cancel(id)"));
-    let workspace = crate_src("src/local_workspace.rs");
-    let cancel = fn_body(&workspace, "pub async fn cancel(");
-    assert!(cancel.contains("let task = self.task(id).await?"));
-    assert!(cancel.contains("if let Some(run_id) = task.run_id"));
-    assert!(cancel.contains(".managed()"));
-    assert!(cancel.contains(".cancel_run(&tetonic_domain::RunId::new(run_id))"));
-    let src = crate_src("src/product_submit.rs");
-    assert!(src.contains("broker.cancel_session_jobs(session_id)"));
-    assert!(src.contains("live.current_run_id()"));
-    assert!(src.contains("broker.cancel_run_jobs(&run_id)"));
-}
-
-#[test]
 fn work03_session_cancel_cancels_indexed_hops_by_stored_run_id() {
     let src = crate_src("../../atmos/tetonic-inference/src/pooled.rs");
     let body = fn_body(&src, "pub fn cancel_session_jobs(");
@@ -469,25 +409,6 @@ fn work03_job_record_run_id_is_never_session() {
 }
 
 #[test]
-fn work03_spawn_budget_uses_run_id() {
-    let src = crate_src("src/spawn_budget.rs");
-    assert!(src.contains("run_id: RunId"));
-    assert!(!src.contains("session_id"));
-    assert!(!src.contains("RunId::new(self.session_id)"));
-    let turn = crate_src("src/turn_execution.rs");
-    assert!(turn.contains("turn_plan.run_id.clone()"));
-    assert!(turn.contains("spawn_run_id.clone()"));
-}
-
-#[test]
-fn work03_release_session_uses_stored_run_id() {
-    let src = crate_src("src/spawn_budget.rs");
-    let body = fn_body(&src, "fn release_session(");
-    assert!(body.contains("release_for_run(&self.run_id"));
-    assert!(!body.contains("RunId::new(self.session_id)"));
-}
-
-#[test]
 fn work03_chat_request_no_session_run_fallback() {
     let src = crate_src("../../mantle/tetonic-broker/src/chat_request.rs");
     let body = fn_body(&src, "pub fn compute_request_from_chat(");
@@ -512,32 +433,6 @@ fn work03_agent_fabric_run_id_no_session_fallback() {
     let prod = production_prefix(&src);
     assert!(prod.contains(".or_else(|| compiled_run_id.clone())"));
     assert!(!prod.contains("or_else(|| self.config.session_id.clone())"));
-}
-
-#[test]
-fn work03_app002_not_established_run_turn_remains() {
-    let src = crate_src("src/run_service.rs");
-    assert!(src.contains("async fn run_turn("));
-    assert!(src.contains("begin_turn_run(&cmd.session_id"));
-}
-
-#[test]
-fn work03_id001_not_established_session_chat_remains() {
-    let src = crate_src("src/session_live.rs");
-    assert!(src.contains("struct LiveSession"));
-    let sessions = crate_src("src/services.rs");
-    assert!(sessions.contains("fn start_session"));
-}
-
-#[test]
-fn work03_work001_not_established_leftover_turn_remains() {
-    let exec = crate_src("src/turn_execution.rs");
-    assert!(exec.contains("async fn execute_spawn"));
-    let run = crate_src("src/run_service.rs");
-    assert!(run.contains("async fn run_turn("));
-    let fixture = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-        .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-WORK-001.v4fix");
-    assert!(fixture.is_file(), "WORK-001 remains planted inventory");
 }
 
 #[test]

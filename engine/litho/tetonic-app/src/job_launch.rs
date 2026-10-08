@@ -181,7 +181,6 @@ pub(crate) async fn prepare_launch(
         Some(store.clone()),
         Arc::new(NoopEventSink),
         None,
-        None,
     )
     .await?;
     let app = Arc::new(app);

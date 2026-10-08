@@ -59,69 +59,6 @@ fn gate01_create_run_persist_only() {
 }
 
 #[test]
-fn gate01_app_root_execute_bound() {
-    let src = crate_src("src/turn_execution.rs");
-    assert!(src.contains("struct AppRootExecute"));
-    assert!(fn_body(&src, "impl RootExecute for AppRootExecute").contains(".execute_attempt("));
-    let run_body = fn_body(&src, "async fn run_turn_body(");
-    assert!(run_body.contains("AppRootExecute"));
-    let spawn = fn_body(&src, "async fn execute_spawn(");
-    assert!(spawn.contains("AppRootExecute"));
-}
-
-#[test]
-fn gate01_portals_submit_only() {
-    let cli = crate_src("../../litho/tetonic-cli/src/chat.rs");
-    let ui = crate_src("../../litho/tetonic-cli/src/local_ui.rs");
-    let eval = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
-    assert!(cli.contains("submit_chat_turn"));
-    assert!(ui.contains(".submit_with_purpose("));
-    assert!(eval.contains("submit_chat_turn"));
-    assert!(!eval.contains("submit_spawn"));
-    for (name, src) in [
-        ("cli chat", cli.as_str()),
-        ("local UI", ui.as_str()),
-        ("eval kernel", eval.as_str()),
-    ] {
-        assert!(
-            !src.contains("take_conversation("),
-            "{name} must not take_conversation("
-        );
-        assert!(
-            !src.contains("restore_conversation("),
-            "{name} must not restore_conversation("
-        );
-        assert!(!src.contains(".run_turn("), "{name} must not .run_turn(");
-    }
-}
-
-#[test]
-fn gate01_eval_verify_cmd_none() {
-    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
-    assert!(src.contains("verify_cmd: None"));
-}
-
-#[test]
-fn gate01_run_turn_symbol_remains() {
-    let src = crate_src("src/run_service.rs");
-    assert!(src.contains("async fn run_turn("));
-}
-
-#[test]
-fn gate01_live_session_remains() {
-    let src = crate_src("src/session_live.rs");
-    assert!(src.contains("pub struct LiveSession"));
-}
-
-#[test]
-fn gate01_bh_id_session_stays_defect() {
-    let src = crate_src("src/aud01_characterization_tests.rs");
-    assert!(src.contains("fn aud01_defect_bh_id_session_current"));
-    assert!(src.contains("pub struct LiveSession"));
-    assert!(src.contains("does not ESTABLISH INV-V4-ID-001"));
-}
-
-#[test]
 fn gate01_no_invariant_established() {
     let corpus = crate_src("../../tooling/tetonic-arch-gate/src/v4_corpus.rs");
     assert!(corpus.contains("not ARCH-V4-GATE-001 satisfied"));
@@ -155,15 +92,6 @@ fn gate01_patch_pipeline_not_in_src() {
     assert!(!PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../atmos/tetonic-fabric-client/tests/patch_pipeline.rs")
         .exists());
-}
-
-#[test]
-fn gate01_eval_cargo_has_no_lokai_tools() {
-    let toml = crate_src("../../tooling/tetonic-eval/Cargo.toml");
-    assert!(
-        !cargo_prod_deps(&toml).contains("tetonic-tools")
-            && !cargo_prod_deps(&toml).contains("lokai-tools")
-    );
 }
 
 #[test]
@@ -212,12 +140,6 @@ fn gate01_explain_floor_left_the_loop() {
 }
 
 #[test]
-fn gate01_daemon_catalogue_tools_new_untouched() {
-    let src = crate_src("src/daemon_bootstrap.rs");
-    assert!(src.contains("Tools::new"));
-}
-
-#[test]
 fn gate01_start_identity_job_still_none() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::Sessionless);
 }
@@ -227,19 +149,6 @@ fn gate01_create_run_still_persist_only() {
     let src = crate_src("src/run_service.rs");
     let body = fn_body(&src, "async fn create_run(");
     assert!(!body.contains("StartRun"));
-}
-
-#[test]
-fn gate01_eval_kernel_untouched() {
-    let src = crate_src("../../tooling/tetonic-eval/src/kernel.rs");
-    assert!(src.contains("verify_cmd: None"));
-    assert!(src.contains("submit_chat_turn"));
-}
-
-#[test]
-fn gate01_bh_id_session_still_defect() {
-    let src = crate_src("src/aud01_characterization_tests.rs");
-    assert!(src.contains("fn aud01_defect_bh_id_session_current"));
 }
 
 #[test]

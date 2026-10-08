@@ -147,11 +147,6 @@ fn attempt(state: AttemptState) -> AttemptRecord {
 }
 
 #[test]
-fn workfin02_finish_does_not_remove_before_terminal() {
-    lifecycle_contract::assert_contract(lifecycle_contract::Contract::Cleanup);
-}
-
-#[test]
 fn workfin02_failed_uses_fail_attempt_not_complete() {
     lifecycle_contract::assert_contract(lifecycle_contract::Contract::Failures);
 }
@@ -374,26 +369,6 @@ fn workfin02_bridge_does_not_submit_complete_attempt() {
 }
 
 #[test]
-fn workfin02_no_public_remote_patch_commit() {
-    let app = crate_src("src/lib.rs");
-    assert!(!production_prefix(&app).contains("apply_authorized_remote_patch"));
-    let fabric = crate_src("../../atmos/tetonic-fabric-client/src/legacy_result.rs");
-    assert!(!production_prefix(&fabric).contains("apply_authorized_remote_patch"));
-    let fin = crate_src("src/run_service.rs");
-    assert!(!fin.contains("apply_verified_remote_patch"));
-}
-
-#[test]
-fn workfin02_fin002_not_established_run_turn_and_leftover_turn_remain() {
-    let run = crate_src("src/run_service.rs");
-    assert!(run.contains("async fn run_turn("));
-    let exec = crate_src("src/turn_execution.rs");
-    assert!(exec.contains("async fn execute_spawn"));
-    let live = crate_src("src/session_live.rs");
-    assert!(live.contains("pub struct LiveSession"));
-}
-
-#[test]
 fn workfin02_cmp001_not_established_until_gate() {
     let fix = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .join("../../tooling/tetonic-arch-gate/fixtures/v4/ARCH-V4-CMP-001.v4fix");
@@ -401,12 +376,6 @@ fn workfin02_cmp001_not_established_until_gate() {
     let text = fs::read_to_string(&fix).unwrap();
     assert!(text.contains("production-failing detector live"));
     assert!(text.contains("Not ESTABLISHED"));
-}
-
-#[test]
-fn workfin02_id001_not_established_session_chat_remains() {
-    let live = crate_src("src/session_live.rs");
-    assert!(live.contains("pub struct LiveSession"));
 }
 
 #[test]

@@ -134,14 +134,16 @@ impl Application {
             None,
             artifact_store,
         ));
-        let app = Arc::new(Self::new(ApplicationDependencies {
-            runtime,
-            store,
-            policy,
-            event_sink,
-            index_db: None,
-            fabric_hint: None,
-        }));
+        let app = Arc::new(
+            Self::new(ApplicationDependencies {
+                runtime,
+                store,
+                policy,
+                event_sink,
+                index_db: None,
+            })
+            .with_execution_policy(Arc::new(crate::definition::validate_coding_execution)),
+        );
         let provider: Arc<dyn InferenceProvider> = Arc::new(MockProvider::new(turns));
         app.bind_inference(provider, None);
         app

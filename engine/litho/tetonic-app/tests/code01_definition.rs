@@ -49,19 +49,6 @@ fn code01_pack_is_facade_over_production() {
 }
 
 #[test]
-fn code01_daemon_parse_uses_production() {
-    let def = production();
-    for alias in ALIASES {
-        assert_eq!(
-            tetonic_app::coding_pack::CodingPack.parse(alias),
-            def.parse(alias)
-        );
-    }
-    assert_eq!(CodingPack.parse("unknown-role"), None);
-    assert_eq!(def.parse("unknown-role"), None);
-}
-
-#[test]
 fn code01_identity_policy_is_not_session_and_is_not_persisted() {
     let def = production();
     let policy = def.identity_policy();

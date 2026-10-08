@@ -1,8 +1,17 @@
 # Retirement and relocation register
 
-No production deletions were performed by this audit. These are concrete proposed dispositions. A deletion must include its consumers, tests, exports, manifests, release scripts and data compatibility implications. Test-only reachability is evidence for review, not proof of universal dead code.
+No production deletions were performed by the original audit; see October 2026 removals below. These are concrete proposed dispositions. A deletion must include its consumers, tests, exports, manifests, release scripts and data compatibility implications. Test-only reachability is evidence for review, not proof of universal dead code.
 
 The [MVP reuse/removal map](mvp-reuse-and-removal.md) extends this register with D13–D15 and current product requirements. References to sprint numbers below describe the earlier REC sequence; use the [active MVP sequence](sprints/README.md) for scheduling. Deletion gates remain mandatory.
+
+## October 2026 removals
+
+Branch `retire/legacy-chat-and-world`, by owner decision (October 8, 2026):
+
+- **D01–D06 deleted.** `fleet_api`, `operator_control`, `ThoughtStreamHub` (D10's volatile hub), the orchestrator `fleet`/`fleet_supervisor` model and the node `KeeperRegistry`/`RunnerClient` prototype had no callers. Persisted teams, rosters and operator controls in the governed workspace replace them.
+- **D07/D08 deleted without a world harness.** `tetonic-server`, `Agent::run_in_world`/`run_continuous`, `Brain::perceive`, the Perception/WorldAction/WorldAdapter types, world adapters/executors and the world-coupled `IntentCharter` were removed. World actions are out of scope until a governed world harness is designed.
+- **D11/D12 closed for the legacy coding chat.** The terminal chat, TUI, offline coding flags, daemon/CLI bootstraps, session service, chat-turn submission and the default `id_coding_production` identity on every run were removed. `tetonic` now dispatches only `ui`, `job`, `control` and `estate`. `tetonic-eval` (a chat-path harness) was removed.
+- **Kept on purpose as unwired libraries:** `tetonic-orchestrator`, `tetonic-index`, `tetonic-lsp`, `tetonic-bench`, `CodingAgentDefinition` and `coding_pack`, to be wired into governed agents as tools when needed.
 
 ## Implementations that should die after replacement
 

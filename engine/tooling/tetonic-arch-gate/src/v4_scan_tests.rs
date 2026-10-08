@@ -266,7 +266,7 @@ fn fin_001_contracts_mutant_trips() {
 #[test]
 fn fin_001_contracts_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
-    for rel in ["run_service.rs", "turn_finalization.rs"] {
+    for rel in ["run_service.rs", "identity_job.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
         assert!(

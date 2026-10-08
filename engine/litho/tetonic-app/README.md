@@ -1,6 +1,6 @@
 # tetonic-app
 
-Application kernel: workflow decisions for sessions, runs, estate, capacity, policy, and approvals. Transport adapters (`tetonicd`, `tetonic-cli`) hold `Arc<Application>` and must not reimplement owned workflows.
+Application kernel: workflow decisions for managed runs, estate, capacity, policy, and approvals. The local workspace host and `tetonic-cli` operator commands hold `Arc<Application>` and must not reimplement owned workflows.
 
 `local_workspace::LocalWorkspace` composes the first single-owner web connection:
 durable local work and agent registration, guarded local model discovery, bounded
@@ -9,21 +9,15 @@ Agent preferences can lower host limits but never grant capabilities. It reuses
 this kernel and its store; it is not a fleet dispatcher.
 See [the local UI contract](../../../docs/implementation/contracts/local-ui-v1.md).
 
-Live model/provider changes use the shared application operation described in
-[inference selection](INFERENCE-SELECTION.md). Changes are revision-checked and
-accepted between turns; portals select registered profiles and never construct providers.
-
 ## Role
 
 | Service | Owns |
 |---------|------|
 | `InitializationService` | Runtime bootstrap (artifacts, GC, scanners) |
-| `SessionService` / `SessionLiveStore` | Session lifecycle + turn admission |
-| `RunService` / `turn_execution` | Turn plan/run/complete, spawn |
+| `RunService` / `turn_execution` | Identity jobs, inspection, replay, cancellation; shared finalization, event and workspace hooks |
 | `PolicyService` / `ApprovalService` | Policy mode + approvals |
 | `EstateService` + `estate_enrollment` | Enroll/remove/status; coordinator key + enrollment egress reload |
 | `CapacityService` | Optimize, doctor, status, profiles |
-| `resume` | Message rehydrate + `RESUME_MESSAGE_CAP` |
 
 ## Resource operation inputs
 

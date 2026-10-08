@@ -1,33 +1,22 @@
 pub mod approval;
 pub mod capacity_service;
-pub mod cli_bootstrap;
 pub mod cli_estate;
-pub mod cli_facade;
-pub mod cli_index;
 pub mod coding_pack;
 pub mod commands;
 pub mod compute_plane;
-pub mod daemon_bootstrap;
 pub mod definition;
 pub mod errors;
 pub mod estate_enrollment;
 pub mod events;
 pub mod fabric_run_bridge;
-pub mod inference_selection;
 pub mod job_launch;
 pub mod local_workspace;
-pub mod lsp_launcher;
-pub mod lsp_session;
 pub mod node_worker;
 pub mod product_submit;
 pub mod redaction_audit;
 pub mod resources;
-pub mod resume;
 pub mod secret_scanner_factory;
-pub mod semantic_effect;
 pub mod services;
-pub mod session_live;
-pub mod spawn_budget;
 pub mod store_audit;
 mod team_work_controller;
 pub mod test_harness;
@@ -40,36 +29,17 @@ mod inspect_api_tests;
 mod r12_secret_override_tests;
 #[cfg(test)]
 mod r4_3_scanner_tests;
-#[cfg(test)]
-mod recovery_contract_tests;
-#[cfg(test)]
-mod session_authority_tests;
-#[cfg(test)]
-mod turn_attestation_tests;
 
-pub use cli_bootstrap::{open_default_audit_store, CliBootstrapOutput, CliBootstrapParams};
 pub use cli_estate::WorkerTrustAuditSummary;
-pub use cli_facade::{
-    CheckpointInfo, CheckpointsReport, ProjectStatusInfo, RestoreFileChange, RestoreSummary,
-    SessionSummaryInfo,
-};
 pub use commands::TurnFinish;
 pub use compute_plane::{build_compute_plane, ComputePlane, ComputePlaneRequest};
-pub use daemon_bootstrap::{
-    inference_port_from_base, load_coordinator_key, DaemonBootstrapOutput, DaemonBootstrapParams,
-};
 pub use job_launch::{
     host_settings_from_json, launch_registered_job, launch_team_work, RegisteredLaunchHost,
     RegisteredLaunchReceipt,
 };
-pub use resume::{rehydrate_messages, RESUME_MESSAGE_CAP};
 pub use secret_scanner_factory::{
     install_shared_scanner_from_store, scanner_engine_from_store, scanner_from_shared_store,
     to_store_scope,
-};
-pub use session_live::{
-    admit_chat_turn, capacity_gate_warning, CapacityGateWarning, LiveSession, SessionLiveStore,
-    TurnAdmitDecision, TurnAdmitError,
 };
 pub use test_harness::{turn as test_turn, MockProvider, ScriptTurn};
 pub use turn_attestation::{encode_candidate_bytes, seal_output_set, SealedTurn};
@@ -114,11 +84,10 @@ pub(crate) fn build_supervisor(
 }
 
 /// Central Application Kernel — owns service implementations and their shared
-/// dependencies.  Transport adapters (`tetonicd`, CLI) hold an `Arc<Application>`
+/// dependencies.  The local workspace host and operator CLI hold an `Arc<Application>`
 /// and delegate orchestration decisions to its services.
 pub struct Application {
     pub init: Arc<dyn InitializationService>,
-    pub sessions: Arc<dyn SessionService>,
     pub runs: Arc<dyn RunService>,
     pub(crate) run_manager: Arc<services::DefaultRunService>,
     pub(crate) supervisor: Arc<dyn tetonic_run::RunSupervisor>,
@@ -136,7 +105,6 @@ pub struct ApplicationDependencies {
     pub policy: Arc<tetonic_policy::PolicyEngine>,
     pub event_sink: Arc<dyn events::ApplicationEventSink>,
     pub index_db: Option<std::path::PathBuf>,
-    pub fabric_hint: Option<String>,
 }
 
 impl Application {
@@ -146,7 +114,6 @@ impl Application {
         store: Option<tetonic_memory::SharedStore>,
         event_sink: Arc<dyn events::ApplicationEventSink>,
         index_db: Option<std::path::PathBuf>,
-        fabric_hint: Option<String>,
     ) -> Result<
         (
             Self,
@@ -159,7 +126,7 @@ impl Application {
             Arc::new(services::DefaultInitializationService::new());
         let init_result = init.initialize_workspace(init_cmd.clone()).await?;
         let bootstrap = init.bootstrap_runtime(&init_cmd, &store)?;
-        let app = Self::from_bootstrap(init, &bootstrap, store, event_sink, index_db, fabric_hint);
+        let app = Self::from_bootstrap(init, &bootstrap, store, event_sink, index_db);
         Ok((app, init_result, bootstrap))
     }
 
@@ -170,7 +137,6 @@ impl Application {
         store: Option<tetonic_memory::SharedStore>,
         event_sink: Arc<dyn events::ApplicationEventSink>,
         index_db: Option<std::path::PathBuf>,
-        fabric_hint: Option<String>,
     ) -> Self {
         Self::from_bootstrap_with_supervisor(
             init,
@@ -178,7 +144,6 @@ impl Application {
             store.clone(),
             event_sink,
             index_db,
-            fabric_hint,
             build_supervisor(store),
         )
     }
@@ -191,24 +156,15 @@ impl Application {
         store: Option<tetonic_memory::SharedStore>,
         event_sink: Arc<dyn events::ApplicationEventSink>,
         index_db: Option<std::path::PathBuf>,
-        fabric_hint: Option<String>,
         supervisor: Arc<dyn tetonic_run::RunSupervisor>,
     ) -> Self {
-        let live = Arc::new(session_live::SessionLiveStore::new());
-        let run_manager = Arc::new(
-            services::DefaultRunService::new(
-                store.clone(),
-                bootstrap.policy.clone(),
-                event_sink.clone(),
-                supervisor.clone(),
-                live.clone(),
-                bootstrap.runtime.artifact_store().clone(),
-            )
-            .with_execution_policy(Arc::new(definition::validate_coding_execution))
-            .with_identity_supplier(Arc::new(|input| {
-                definition::coding_identity_and_job_spec(input)
-            })),
-        );
+        let run_manager = Arc::new(services::DefaultRunService::new(
+            store.clone(),
+            bootstrap.policy.clone(),
+            event_sink.clone(),
+            supervisor.clone(),
+            bootstrap.runtime.artifact_store().clone(),
+        ));
         let runs: Arc<dyn services::RunService> = run_manager.clone();
         let approvals: Arc<dyn approval::ApprovalService> = Arc::new(
             approval::DefaultApprovalService::new(store.clone(), event_sink.clone()),
@@ -217,17 +173,6 @@ impl Application {
         run_manager.attach_runtime(bootstrap.runtime.clone());
         Self {
             init,
-            sessions: Arc::new(services::DefaultSessionService::new(
-                bootstrap.policy.clone(),
-                store.clone(),
-                index_db.clone(),
-                fabric_hint.clone(),
-                event_sink.clone(),
-                live,
-                supervisor.clone(),
-                run_manager.clone(),
-                approvals.clone(),
-            )),
             runs,
             run_manager,
             supervisor,
@@ -259,21 +204,13 @@ impl Application {
 
     pub fn new(deps: ApplicationDependencies) -> Self {
         let supervisor = build_supervisor(deps.store.clone());
-        let live = Arc::new(session_live::SessionLiveStore::new());
-        let run_manager = Arc::new(
-            services::DefaultRunService::new(
-                deps.store.clone(),
-                deps.policy.clone(),
-                deps.event_sink.clone(),
-                supervisor.clone(),
-                live.clone(),
-                deps.runtime.artifact_store().clone(),
-            )
-            .with_execution_policy(Arc::new(definition::validate_coding_execution))
-            .with_identity_supplier(Arc::new(|input| {
-                definition::coding_identity_and_job_spec(input)
-            })),
-        );
+        let run_manager = Arc::new(services::DefaultRunService::new(
+            deps.store.clone(),
+            deps.policy.clone(),
+            deps.event_sink.clone(),
+            supervisor.clone(),
+            deps.runtime.artifact_store().clone(),
+        ));
         let runs: Arc<dyn services::RunService> = run_manager.clone();
         let approvals: Arc<dyn approval::ApprovalService> = Arc::new(
             approval::DefaultApprovalService::new(deps.store.clone(), deps.event_sink.clone()),
@@ -282,17 +219,6 @@ impl Application {
         run_manager.attach_runtime(deps.runtime.clone());
         Self {
             init: Arc::new(services::DefaultInitializationService::new()),
-            sessions: Arc::new(services::DefaultSessionService::new(
-                deps.policy.clone(),
-                deps.store.clone(),
-                deps.index_db.clone(),
-                deps.fabric_hint,
-                deps.event_sink.clone(),
-                live,
-                supervisor.clone(),
-                run_manager.clone(),
-                approvals.clone(),
-            )),
             runs,
             run_manager,
             supervisor,
@@ -320,6 +246,21 @@ impl Application {
                 deps.policy.clone(),
             ),
         }
+    }
+
+    /// Install the definition validator for this kernel's identity-job door.
+    /// Without one, the door fails closed. Product launches pin a harness policy
+    /// per admission instead (see `resources::activation`).
+    pub fn with_execution_policy(mut self, policy: tetonic_run::ExecutionPolicy) -> Self {
+        let runs = Arc::new((*self.run_manager).clone().with_execution_policy(policy));
+        self.runs = runs.clone();
+        self.run_manager = runs;
+        self
+    }
+
+    /// Durable audit store backing this kernel, when configured.
+    pub fn store(&self) -> Option<&tetonic_memory::SharedStore> {
+        self.turn.store.as_ref()
     }
 
     /// In-process subscribe door (`00` §14). Daemon public events still go
@@ -439,13 +380,8 @@ fn parse_secret_override_scope(
 #[path = "lib_tests.rs"]
 mod tests;
 
-mod turn_delivery;
-
 #[cfg(test)]
 mod tui_mvp_tests;
 
-mod recovery_api;
-
 pub mod mcp;
-mod session_control;
 pub mod skills;
