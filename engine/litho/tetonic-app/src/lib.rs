@@ -9,10 +9,10 @@ pub mod errors;
 pub mod estate_enrollment;
 pub mod events;
 pub mod fabric_run_bridge;
+pub mod host;
 pub mod job_launch;
 pub mod local_workspace;
 pub mod node_worker;
-pub mod product_submit;
 pub mod redaction_audit;
 pub mod resources;
 pub mod secret_scanner_factory;
@@ -62,27 +62,6 @@ pub use tetonic_telemetry;
 use crate::services::*;
 use std::sync::Arc;
 
-struct RunCommitEventHook;
-
-impl tetonic_run::RunEventHook for RunCommitEventHook {
-    fn on_run_committed(&self, result: &tetonic_domain::RunCommandResult) {
-        tracing::debug!(
-            run_id = %result.run_id,
-            sequence = result.sequence,
-            "run command committed"
-        );
-    }
-}
-
-pub(crate) fn build_supervisor(
-    store: Option<tetonic_memory::SharedStore>,
-) -> Arc<dyn tetonic_run::RunSupervisor> {
-    // Startup storage failures enter Safe Mode inside the manager. An individual
-    // interrupted run stays quarantined by its own RecoveryRequired state.
-    let sup = tetonic_run::DurableRunSupervisor::new(store).with_hook(Arc::new(RunCommitEventHook));
-    Arc::new(sup)
-}
-
 /// Central Application Kernel — owns service implementations and their shared
 /// dependencies.  The local workspace host and operator CLI hold an `Arc<Application>`
 /// and delegate orchestration decisions to its services.
@@ -95,7 +74,7 @@ pub struct Application {
     pub approvals: Arc<dyn approval::ApprovalService>,
     pub estate: Arc<dyn EstateService>,
     pub capacity: Arc<dyn CapacityService>,
-    pub turn: Arc<product_submit::TurnBind>,
+    pub host: Arc<host::HostServices>,
 }
 
 /// Explicit constructor dependencies — avoids global/process state inside lokai-app.
@@ -108,146 +87,6 @@ pub struct ApplicationDependencies {
 }
 
 impl Application {
-    /// Bootstrap workspace + runtime, returning a fully wired `Application`.
-    pub async fn bootstrap(
-        init_cmd: commands::InitializeCommand,
-        store: Option<tetonic_memory::SharedStore>,
-        event_sink: Arc<dyn events::ApplicationEventSink>,
-        index_db: Option<std::path::PathBuf>,
-    ) -> Result<
-        (
-            Self,
-            commands::InitializeResultPayload,
-            commands::InitializeBootstrapPayload,
-        ),
-        errors::AppError,
-    > {
-        let init: Arc<dyn InitializationService> =
-            Arc::new(services::DefaultInitializationService::new());
-        let init_result = init.initialize_workspace(init_cmd.clone()).await?;
-        let bootstrap = init.bootstrap_runtime(&init_cmd, &store)?;
-        let app = Self::from_bootstrap(init, &bootstrap, store, event_sink, index_db);
-        Ok((app, init_result, bootstrap))
-    }
-
-    /// Wire services from a completed bootstrap using the same init service instance.
-    pub fn from_bootstrap(
-        init: Arc<dyn InitializationService>,
-        bootstrap: &commands::InitializeBootstrapPayload,
-        store: Option<tetonic_memory::SharedStore>,
-        event_sink: Arc<dyn events::ApplicationEventSink>,
-        index_db: Option<std::path::PathBuf>,
-    ) -> Self {
-        Self::from_bootstrap_with_supervisor(
-            init,
-            bootstrap,
-            store.clone(),
-            event_sink,
-            index_db,
-            build_supervisor(store),
-        )
-    }
-
-    /// Same as [`Self::from_bootstrap`] but reuses an existing RunSupervisor
-    /// (so the compute plane can bind it before index/submit).
-    pub fn from_bootstrap_with_supervisor(
-        init: Arc<dyn InitializationService>,
-        bootstrap: &commands::InitializeBootstrapPayload,
-        store: Option<tetonic_memory::SharedStore>,
-        event_sink: Arc<dyn events::ApplicationEventSink>,
-        index_db: Option<std::path::PathBuf>,
-        supervisor: Arc<dyn tetonic_run::RunSupervisor>,
-    ) -> Self {
-        let run_manager = Arc::new(services::DefaultRunService::new(
-            store.clone(),
-            bootstrap.policy.clone(),
-            event_sink.clone(),
-            supervisor.clone(),
-            bootstrap.runtime.artifact_store().clone(),
-        ));
-        let runs: Arc<dyn services::RunService> = run_manager.clone();
-        let approvals: Arc<dyn approval::ApprovalService> = Arc::new(
-            approval::DefaultApprovalService::new(store.clone(), event_sink.clone()),
-        );
-        run_manager.attach_approvals(approvals.clone());
-        run_manager.attach_runtime(bootstrap.runtime.clone());
-        Self {
-            init,
-            runs,
-            run_manager,
-            supervisor,
-            policies: Arc::new(services::DefaultPolicyService::new(
-                bootstrap.policy.clone(),
-                store.clone(),
-                event_sink.clone(),
-            )),
-            approvals,
-            estate: Arc::new(services::DefaultEstateService::new(
-                store.clone(),
-                Some(bootstrap.policy.clone()),
-            )),
-            capacity: Arc::new(services::DefaultCapacityService::new(
-                store.clone(),
-                event_sink.clone(),
-            )),
-            turn: product_submit::TurnBind::new(
-                bootstrap.runtime.clone(),
-                store,
-                index_db,
-                bootstrap.workspace_root.clone(),
-                bootstrap.inference_defaults.num_ctx,
-                event_sink,
-                bootstrap.policy.clone(),
-            ),
-        }
-    }
-
-    pub fn new(deps: ApplicationDependencies) -> Self {
-        let supervisor = build_supervisor(deps.store.clone());
-        let run_manager = Arc::new(services::DefaultRunService::new(
-            deps.store.clone(),
-            deps.policy.clone(),
-            deps.event_sink.clone(),
-            supervisor.clone(),
-            deps.runtime.artifact_store().clone(),
-        ));
-        let runs: Arc<dyn services::RunService> = run_manager.clone();
-        let approvals: Arc<dyn approval::ApprovalService> = Arc::new(
-            approval::DefaultApprovalService::new(deps.store.clone(), deps.event_sink.clone()),
-        );
-        run_manager.attach_approvals(approvals.clone());
-        run_manager.attach_runtime(deps.runtime.clone());
-        Self {
-            init: Arc::new(services::DefaultInitializationService::new()),
-            runs,
-            run_manager,
-            supervisor,
-            policies: Arc::new(services::DefaultPolicyService::new(
-                deps.policy.clone(),
-                deps.store.clone(),
-                deps.event_sink.clone(),
-            )),
-            approvals,
-            estate: Arc::new(services::DefaultEstateService::new(
-                deps.store.clone(),
-                Some(deps.policy.clone()),
-            )),
-            capacity: Arc::new(services::DefaultCapacityService::new(
-                deps.store.clone(),
-                deps.event_sink.clone(),
-            )),
-            turn: product_submit::TurnBind::new(
-                deps.runtime,
-                deps.store,
-                deps.index_db,
-                String::new(),
-                tetonic_capacity::InferenceDefaults::fallback().num_ctx,
-                deps.event_sink,
-                deps.policy.clone(),
-            ),
-        }
-    }
-
     /// Install the definition validator for this kernel's identity-job door.
     /// Without one, the door fails closed. Product launches pin a harness policy
     /// per admission instead (see `resources::activation`).
@@ -260,7 +99,7 @@ impl Application {
 
     /// Durable audit store backing this kernel, when configured.
     pub fn store(&self) -> Option<&tetonic_memory::SharedStore> {
-        self.turn.store.as_ref()
+        self.host.store.as_ref()
     }
 
     /// In-process subscribe door (`00` §14). Daemon public events still go
@@ -299,7 +138,7 @@ impl Application {
         let scope = parse_secret_override_scope(scope_kind, scope_id)?;
         let mut override_id = None;
         if durable {
-            let store = self.turn.store.as_ref().ok_or_else(|| {
+            let store = self.host.store.as_ref().ok_or_else(|| {
                 errors::AppError::PersistenceFailed("durable override requires audit store".into())
             })?;
             let fp = fingerprint.to_string();
@@ -329,7 +168,7 @@ impl Application {
     ) -> Result<commands::RevokeSecretFingerprintResult, errors::AppError> {
         let scope = parse_secret_override_scope(scope_kind, scope_id)?;
         let mut revoked = false;
-        if let Some(store) = self.turn.store.as_ref() {
+        if let Some(store) = self.host.store.as_ref() {
             let fp = fingerprint.to_string();
             let store_scope = to_store_scope(&scope);
             revoked = store

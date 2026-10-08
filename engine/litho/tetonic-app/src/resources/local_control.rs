@@ -12,6 +12,14 @@ impl LocalControl {
     /// Local operator door: filesystem access to this database is administrative
     /// authority. This is not a remote employee client or multiuser transport.
     pub async fn open(path: PathBuf, audience: String) -> Result<Self, ResourceError> {
+        Self::open_with_read_connections(path, audience, 2).await
+    }
+
+    pub(crate) async fn open_with_read_connections(
+        path: PathBuf,
+        audience: String,
+        read_connections: usize,
+    ) -> Result<Self, ResourceError> {
         if path.as_os_str().is_empty()
             || path == std::path::Path::new(":memory:")
             || path.to_str().is_some_and(|p| p.starts_with("file:"))
@@ -21,7 +29,10 @@ impl LocalControl {
         if audience.trim().is_empty() || audience.len() > 256 || audience.contains('\0') {
             return Err(ResourceError::Invalid);
         }
-        let store = tokio::task::spawn_blocking(move || SharedStore::open(path, 2))
+        if !(1..=16).contains(&read_connections) {
+            return Err(ResourceError::Invalid);
+        }
+        let store = tokio::task::spawn_blocking(move || SharedStore::open(path, read_connections))
             .await
             .map_err(|_| ResourceError::Storage)??;
         let credentials = Arc::new(LocalCredentials {
@@ -29,6 +40,10 @@ impl LocalControl {
             audience,
         });
         Ok(Self { store, credentials })
+    }
+
+    pub(crate) fn store(&self) -> &SharedStore {
+        &self.store
     }
 
     pub async fn bootstrap(

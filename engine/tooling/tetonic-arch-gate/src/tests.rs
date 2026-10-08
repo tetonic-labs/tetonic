@@ -1,6 +1,50 @@
 use super::*;
 
 #[test]
+fn compute_wiring_gate_follows_host_composition_and_rejects_missing_boundaries() {
+    let source = engine_root();
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    for path in [
+        "litho/tetonic-app/Cargo.toml",
+        "litho/tetonic-app/src/compute_plane.rs",
+        "litho/tetonic-app/src/job_launch.rs",
+        "litho/tetonic-app/src/host/mod.rs",
+        "mantle/tetonic-broker/src/lib.rs",
+    ] {
+        let target = root.join(path);
+        std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+        std::fs::copy(source.join(path), target).unwrap();
+    }
+    assert!(check_compute_broker_wiring(root).is_empty());
+    for (path, boundary) in [
+        (
+            "litho/tetonic-app/src/job_launch.rs",
+            "ApplicationHost::open(",
+        ),
+        (
+            "litho/tetonic-app/src/job_launch.rs",
+            "ApplicationHost::from_control(",
+        ),
+        ("litho/tetonic-app/src/host/mod.rs", "build_compute_plane("),
+        (
+            "litho/tetonic-app/src/host/mod.rs",
+            "install_compute_services(",
+        ),
+        ("litho/tetonic-app/src/host/mod.rs", "attach_egress("),
+    ] {
+        let target = root.join(path);
+        let original = std::fs::read_to_string(&target).unwrap();
+        std::fs::write(&target, original.replace(boundary, "missing_boundary(")).unwrap();
+        assert!(
+            !check_compute_broker_wiring(root).is_empty(),
+            "missed {boundary}"
+        );
+        std::fs::write(target, original).unwrap();
+    }
+}
+
+#[test]
 fn gate_passes_on_engine_tree() {
     let root = engine_root();
     let violations = run_all(&root);

@@ -1,17 +1,14 @@
 //! Employee launch of a registered job. Host settings are supplied by the
 //! operator composition, not by the job request. The receipt is a locator and,
 //! when this process owns execution, the terminal outcome. It never reports Running.
-use std::net::IpAddr;
 use std::path::PathBuf;
 use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tetonic_domain::CandidateOutcome;
-use tetonic_egress::EgressGuard;
 
-use crate::commands::InitializeCommand;
 use crate::errors::AppError;
-use crate::events::NoopEventSink;
+use crate::host::{ApplicationHost, HostConfiguration};
 use crate::resources::{
     LocalControl, RegisteredAgentExecution, RegisteredAgentJob, RegisteredAgentSubmission,
     RegisteredExecutionSettings, TeamWorkLaunch,
@@ -19,6 +16,7 @@ use crate::resources::{
 use crate::Application;
 
 pub struct RegisteredLaunchHost {
+    pub configuration: HostConfiguration,
     pub database: PathBuf,
     pub audience: String,
     pub ollama: String,
@@ -52,6 +50,8 @@ pub struct RegisteredEventReceipt {
 #[serde(deny_unknown_fields)]
 struct HostSettingsFile {
     #[serde(default)]
+    host: HostConfiguration,
+    #[serde(default)]
     workspace: Option<PathBuf>,
     ollama: String,
     model: String,
@@ -74,7 +74,9 @@ pub fn host_settings_from_json(
 ) -> Result<RegisteredLaunchHost, AppError> {
     let file: HostSettingsFile = serde_json::from_slice(bytes)
         .map_err(|_| AppError::InvalidRequest("invalid host settings".into()))?;
+    file.host.validate()?;
     Ok(RegisteredLaunchHost {
+        configuration: file.host,
         database,
         audience,
         ollama: file.ollama,
@@ -160,54 +162,46 @@ pub(crate) async fn prepare_launch(
     host: RegisteredLaunchHost,
 ) -> Result<PreparedLaunch, AppError> {
     validate_host(&host)?;
-    let local = LocalControl::open(host.database.clone(), host.audience)
-        .await
-        .map_err(|error| AppError::PersistenceFailed(error.to_string()))?;
-    let store = tetonic_memory::SharedStore::open(&host.database, 2)
-        .map_err(|error| AppError::PersistenceFailed(error.to_string()))?;
-    let workspace = host.settings.workspace_root.clone().unwrap_or_else(|| {
-        host.database
-            .parent()
-            .filter(|path| !path.as_os_str().is_empty())
-            .map(std::path::Path::to_path_buf)
-            .unwrap_or_else(std::env::temp_dir)
-    });
-    let (app, _, bootstrap) = Application::bootstrap(
-        InitializeCommand {
-            workspace_root: workspace.display().to_string(),
-            rpc_token_provided: false,
-            rpc_auth_disabled: true,
-        },
-        Some(store.clone()),
-        Arc::new(NoopEventSink),
-        None,
+    let application = ApplicationHost::open(
+        host.database,
+        host.audience,
+        host.settings.workspace_root.clone(),
+        host.ollama,
+        host.configuration,
     )
     .await?;
-    let app = Arc::new(app);
-    let guard = match loopback_port(&host.ollama) {
-        Some(port) => Arc::new(EgressGuard::loopback_inference(port)),
-        None => Arc::new(EgressGuard::new()),
-    };
-    let plane = crate::build_compute_plane(crate::ComputePlaneRequest {
-        guard: guard.clone(),
-        ollama_base: host.ollama.clone(),
-        policy: bootstrap.policy.clone(),
-        workspace_root: workspace,
-        artifact_store: bootstrap.runtime.artifact_store().clone(),
-        store: Some(store),
-        coordinator: None,
-        placement_sink: None,
-        previous_pooled: None,
-    })
-    .await;
-    app.install_compute_services(&plane);
-    app.attach_egress(guard, host.ollama);
-    Ok(PreparedLaunch {
-        app,
+    Ok(prepared_launch(credential, application, host.settings))
+}
+
+/// The workspace already opened and bootstrapped control state. Reuse that same
+/// writer/pool and credential verifier rather than reopening the database twice.
+pub(crate) async fn prepare_launch_with_control(
+    credential: &str,
+    host: RegisteredLaunchHost,
+    control: LocalControl,
+) -> Result<PreparedLaunch, AppError> {
+    validate_host(&host)?;
+    let application = ApplicationHost::from_control(
+        control,
+        host.settings.workspace_root.clone(),
+        host.ollama,
+        host.configuration,
+    )
+    .await?;
+    Ok(prepared_launch(credential, application, host.settings))
+}
+
+fn prepared_launch(
+    credential: &str,
+    application: ApplicationHost,
+    settings: RegisteredExecutionSettings,
+) -> PreparedLaunch {
+    PreparedLaunch {
+        app: application.app,
         credential: credential.to_string(),
-        verifier: local.credentials().clone(),
-        settings: host.settings,
-    })
+        verifier: application.control.credentials().clone(),
+        settings,
+    }
 }
 
 async fn finish_launch(
@@ -245,6 +239,7 @@ async fn finish_launch(
 }
 
 fn validate_host(host: &RegisteredLaunchHost) -> Result<(), AppError> {
+    host.configuration.validate()?;
     let settings = &host.settings;
     if host.audience.trim().is_empty()
         || host.ollama.trim().is_empty()
@@ -263,16 +258,6 @@ fn validate_host(host: &RegisteredLaunchHost) -> Result<(), AppError> {
         ));
     }
     Ok(())
-}
-
-fn loopback_port(ollama: &str) -> Option<u16> {
-    let rest = ollama
-        .strip_prefix("http://")
-        .or_else(|| ollama.strip_prefix("https://"))?;
-    let (host, port) = rest.split('/').next()?.rsplit_once(':')?;
-    let ip = host.parse::<IpAddr>().ok();
-    let loopback = host == "localhost" || ip.is_some_and(|ip| ip.is_loopback());
-    loopback.then(|| port.parse().ok()).flatten()
 }
 
 fn event_receipts(events: &[tetonic_domain::RunEventEnvelope]) -> Vec<RegisteredEventReceipt> {
@@ -402,6 +387,7 @@ mod tests {
     #[tokio::test]
     async fn launch_reports_a_terminal_outcome_and_rejects_bad_host_settings() {
         let host = RegisteredLaunchHost {
+            configuration: HostConfiguration::default(),
             database: PathBuf::from("unused"),
             audience: "test".into(),
             ollama: "http://127.0.0.1:9".into(),
@@ -534,6 +520,7 @@ mod tests {
             recovery_id: "job".into(),
         };
         let host = || RegisteredLaunchHost {
+            configuration: HostConfiguration::default(),
             database: database.clone(),
             audience: "test".into(),
             ollama: url.clone(),

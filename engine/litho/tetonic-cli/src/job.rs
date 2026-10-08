@@ -74,6 +74,20 @@ pub async fn dispatch(args: JobCli) -> anyhow::Result<()> {
         input_file,
         view,
     } = args.command;
+    let mut host = host_settings_from_json(
+        &std::fs::read(&args.host_settings)?,
+        args.database.clone(),
+        args.audience.clone(),
+    )?;
+    let config_file = std::fs::canonicalize(&args.host_settings)?;
+    if let Some(base) = config_file.parent() {
+        host.configuration.resolve_relative_paths(base);
+    }
+    let _diagnostics = tetonic_app::tetonic_telemetry::host::install_host_diagnostics(
+        &host.configuration.logging,
+        &host.configuration.telemetry,
+    )
+    .map_err(|e| anyhow::anyhow!("host diagnostics: {e}"))?;
     let credential = credential_from_stdin().await?;
     let team_id = team.clone();
     let context = match team {
@@ -92,11 +106,6 @@ pub async fn dispatch(args: JobCli) -> anyhow::Result<()> {
         }
         None => context.expect("context is required when --team is absent"),
     };
-    let host = host_settings_from_json(
-        &std::fs::read(&args.host_settings)?,
-        args.database,
-        args.audience,
-    )?;
     let receipt = if let Some(work_id) = work {
         let team = team_id.ok_or_else(|| anyhow::anyhow!("--work requires --team"))?;
         let (_work, receipt) = launch_team_work(

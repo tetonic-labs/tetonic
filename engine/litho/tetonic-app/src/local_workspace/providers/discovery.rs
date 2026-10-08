@@ -32,7 +32,7 @@ impl LocalWorkspace {
             "google" => "https://generativelanguage.googleapis.com/v1beta/models",
             _ => unreachable!(),
         };
-        let guard = self.host.app.turn.guard();
+        let guard = self.host.app.host.guard();
         guard.allow_hosted_endpoint(endpoint).map_err(|_| {
             AppError::InvalidRequest("Model discovery endpoint unavailable.".into())
         })?;

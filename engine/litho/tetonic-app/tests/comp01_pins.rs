@@ -135,7 +135,7 @@ fn comp01_public_run_service_has_no_turn_execution_host() {
 
 #[test]
 fn comp01_build_supervisor_not_pub() {
-    let src = crate_src("src/lib.rs");
+    let src = crate_src("src/host/composition.rs");
     assert!(src.contains("pub(crate) fn build_supervisor("));
     assert!(!src.contains("pub fn build_supervisor("));
 }
@@ -155,9 +155,9 @@ fn comp01_local_ui_uses_application_owned_bootstrap() {
     assert!(!src.contains("app.supervisor"));
     assert!(!src.contains("RunSupervisor"));
     assert!(!src.contains("SupervisorRunBridge"));
-    assert!(src.contains("LocalWorkspace::open_with_workspace("));
+    assert!(src.contains("LocalWorkspace::open_with_configuration("));
     let bootstrap = crate_src("src/local_workspace/bootstrap.rs");
-    assert!(bootstrap.contains("prepare_launch("));
+    assert!(bootstrap.contains("prepare_launch_with_control("));
     assert!(bootstrap.contains("RegisteredLaunchHost"));
 }
 

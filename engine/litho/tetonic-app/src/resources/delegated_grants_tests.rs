@@ -184,9 +184,9 @@ async fn delegation_scenario_with_lifetime(
     let plane = crate::build_compute_plane(ComputePlaneRequest {
         guard,
         ollama_base: url,
-        policy: app.turn.runtime.policy().clone(),
+        policy: app.host.runtime.policy().clone(),
         workspace_root: dir.path().to_path_buf(),
-        artifact_store: app.turn.runtime.artifact_store().clone(),
+        artifact_store: app.host.runtime.artifact_store().clone(),
         store: Some(store.clone()),
         coordinator: None,
         placement_sink: None,
@@ -369,9 +369,9 @@ async fn delegation_scenario_with_lifetime(
                 let child_plane = crate::build_compute_plane(ComputePlaneRequest {
                     guard,
                     ollama_base: child_url,
-                    policy: app.turn.runtime.policy().clone(),
+                    policy: app.host.runtime.policy().clone(),
                     workspace_root: dir.path().into(),
-                    artifact_store: app.turn.runtime.artifact_store().clone(),
+                    artifact_store: app.host.runtime.artifact_store().clone(),
                     store: Some(store.clone()),
                     coordinator: None,
                     placement_sink: None,

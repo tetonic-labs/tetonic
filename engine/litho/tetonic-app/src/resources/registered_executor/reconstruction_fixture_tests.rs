@@ -177,9 +177,9 @@ impl Fixture {
         let plane = crate::build_compute_plane(ComputePlaneRequest {
             guard,
             ollama_base: url.into(),
-            policy: app.turn.runtime.policy().clone(),
+            policy: app.host.runtime.policy().clone(),
             workspace_root: self.dir.path().join("workspace"),
-            artifact_store: app.turn.runtime.artifact_store().clone(),
+            artifact_store: app.host.runtime.artifact_store().clone(),
             store: Some(store),
             coordinator: None,
             placement_sink: None,

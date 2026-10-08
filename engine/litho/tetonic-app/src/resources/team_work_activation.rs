@@ -481,9 +481,9 @@ mod tests {
         let plane = crate::build_compute_plane(ComputePlaneRequest {
             guard,
             ollama_base: url,
-            policy: app.turn.runtime.policy().clone(),
+            policy: app.host.runtime.policy().clone(),
             workspace_root: workspace.clone(),
-            artifact_store: app.turn.runtime.artifact_store().clone(),
+            artifact_store: app.host.runtime.artifact_store().clone(),
             store: app.run_manager.managed().store().cloned(),
             coordinator: None,
             placement_sink: None,

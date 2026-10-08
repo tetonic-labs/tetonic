@@ -129,8 +129,8 @@ impl LocalWorkspace {
         &self,
     ) -> Result<Vec<String>, AppError> {
         let provider = tetonic_inference::OllamaProvider::new(
-            self.host.app.turn.ollama_base(),
-            self.host.app.turn.guard(),
+            self.host.app.host.ollama_base(),
+            self.host.app.host.guard(),
         );
         let mut models =
             tokio::time::timeout(std::time::Duration::from_secs(3), provider.list_models())

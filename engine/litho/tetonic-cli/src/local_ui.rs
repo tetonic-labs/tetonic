@@ -21,6 +21,9 @@ use tetonic_app::local_workspace::{
     about = "Connect the web UI to a bounded local assistant"
 )]
 pub struct UiCli {
+    /// Operator JSON configuration for storage, sanitized logging and telemetry.
+    #[arg(long)]
+    host_config: Option<PathBuf>,
     /// Dedicated local workspace database. Filesystem ownership is administrative authority.
     #[arg(long)]
     database: PathBuf,
@@ -52,6 +55,24 @@ struct State {
 }
 
 pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
+    let configuration = match args.host_config {
+        Some(path) => {
+            let path = tokio::fs::canonicalize(path).await?;
+            let mut configuration =
+                tetonic_app::host::HostConfiguration::from_json(&tokio::fs::read(&path).await?)
+                    .map_err(|e| anyhow::anyhow!(e.employee_message()))?;
+            if let Some(base) = path.parent() {
+                configuration.resolve_relative_paths(base);
+            }
+            configuration
+        }
+        None => Default::default(),
+    };
+    let _diagnostics = tetonic_app::tetonic_telemetry::host::install_host_diagnostics(
+        &configuration.logging,
+        &configuration.telemetry,
+    )
+    .map_err(|e| anyhow::anyhow!("host diagnostics: {e}"))?;
     let origin = local_origin(&args.ui_origin)?;
     let ollama = local_origin(&args.ollama)?;
     if let Some(parent) = args.database.parent().filter(|p| !p.as_os_str().is_empty()) {
@@ -61,10 +82,15 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
     let address = listener.local_addr()?;
     // Opening a UI is not permission to grant the process working directory.
     let workspace_root = args.workspace_root;
-    let mut workspace =
-        LocalWorkspace::open_with_workspace(args.database, args.model, ollama, workspace_root)
-            .await
-            .map_err(|error| anyhow::anyhow!(error.employee_message()))?;
+    let mut workspace = LocalWorkspace::open_with_configuration(
+        args.database,
+        args.model,
+        ollama,
+        workspace_root,
+        configuration,
+    )
+    .await
+    .map_err(|error| anyhow::anyhow!(error.employee_message()))?;
     if let Some(path) = args.mcp_config {
         let bytes = tokio::fs::read(path).await?;
         workspace = workspace

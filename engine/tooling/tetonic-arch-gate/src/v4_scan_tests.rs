@@ -293,11 +293,11 @@ fn work_004_product_spawn_local_mutant_trips() {
 #[test]
 fn work_004_product_spawn_local_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
-    let path = root.join("product_submit.rs");
-    let src = fs::read_to_string(&path).expect("read product_submit.rs");
+    let path = root.join("host/bindings.rs");
+    let src = fs::read_to_string(&path).expect("read host/bindings.rs");
     assert!(
         !detect_product_spawn_local_attempt_violations(&src),
-        "production product_submit.rs must not contain spawn_local for attempt execution"
+        "production host/bindings.rs must not contain spawn_local for attempt execution"
     );
 }
 

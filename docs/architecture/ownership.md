@@ -1,8 +1,9 @@
 # System ownership
 
 This map assigns behavior to existing implementation owners. It is the review
-contract for incremental architecture work, based on `19a9af98` on October 8,
-2026. No new service, crate or runtime is implied by an owner below. Entry points
+contract for incremental architecture work, based on the integrated baseline and
+updated for the October 8, 2026 host refactor. No new execution authority is
+implied by an owner below. Entry points
 include public Rust/local API interfaces and identified internal composition
 functions; they are not necessarily remote APIs.
 
@@ -33,22 +34,24 @@ execution paths intact when extracting modules. The
 credentials and resource services; expose the current operator/product adapters.
 
 - **Entry points:** [CLI commands](../../engine/litho/tetonic-cli/src/main.rs),
-  [`LocalWorkspace::open_with_workspace`](../../engine/litho/tetonic-app/src/local_workspace/bootstrap.rs),
+  [`LocalWorkspace::open_with_configuration`](../../engine/litho/tetonic-app/src/local_workspace/bootstrap.rs),
   [`prepare_launch` and registered launch functions](../../engine/litho/tetonic-app/src/job_launch.rs).
-- **Composition:** [`Application`](../../engine/litho/tetonic-app/src/lib.rs),
-  [`services`](../../engine/litho/tetonic-app/src/services.rs),
-  [`TurnBind`](../../engine/litho/tetonic-app/src/product_submit.rs), and
+- **Composition:** [`ApplicationHost`](../../engine/litho/tetonic-app/src/host/mod.rs),
+  [shared application wiring](../../engine/litho/tetonic-app/src/host/composition.rs),
+  [`HostServices`](../../engine/litho/tetonic-app/src/host/bindings.rs), and
   [`build_compute_plane`](../../engine/litho/tetonic-app/src/compute_plane.rs).
   These hold shared dependencies; they are not additional authorities for agent
   identity, work or run state.
-- **Boundary evidence:** tests in `job_launch.rs` and `compute_plane.rs`,
+- **Boundary evidence:** [host ownership/configuration tests](../../engine/litho/tetonic-app/src/host/tests.rs), tests in `job_launch.rs` and `compute_plane.rs`,
   [CLI operator journeys](../../engine/litho/tetonic-cli/tests/control_cli.rs),
   and local HTTP validation in
   [`local_ui.rs`](../../engine/litho/tetonic-cli/src/local_ui.rs).
 
-**Current seam:** initialization is spread across these files, and `TurnBind`
-still has an old lifecycle-oriented name. Host construction and operator config
-are the next extraction boundary, not a reason to replace managed execution.
+The UI and registered job paths now compose through one host and share one store
+writer/pool with their control/credential services. Bootstrap and injected
+applications use the same service-wiring function. See
+[host configuration and lifetime](host-configuration.md) for supported settings
+and the remaining offline-adapter/distributed boundaries.
 The broad [engine configuration schema](../../engine/core/tetonic-domain/src/engine_config.rs)
 does not establish that every mode or storage choice is wired into startup.
 

@@ -293,7 +293,7 @@ impl LocalWorkspace {
                     .into(),
             ));
         }
-        let guard = self.host.app.turn.guard();
+        let guard = self.host.app.host.guard();
         guard
             .allow_hosted_endpoint(&endpoint)
             .map_err(|_| AppError::InvalidRequest("Provider endpoint unavailable.".into()))?;
@@ -320,7 +320,7 @@ impl LocalWorkspace {
         let provider = HostedChatProvider::new(
             config,
             tetonic_policy::HostedInferencePolicy::allow_up_to(DataClass::SensitiveSource),
-            crate::secret_scanner_factory::scanner_from_shared_store(&self.host.app.turn.store),
+            crate::secret_scanner_factory::scanner_from_shared_store(&self.host.app.host.store),
             transport,
         )
         .map_err(|_| AppError::InvalidRequest("Could not configure hosted model.".into()))?;

@@ -7,8 +7,8 @@ Inference can use local or hosted models, with additional fabric machinery for
 inference workers. Distributed inference is not the same as distributed agent
 execution.
 
-This is the current architecture entry point, checked against source at
-`19a9af98` on October 8, 2026. The [ownership map](ownership.md) identifies where
+This is the current architecture entry point, updated with the October 8, 2026
+[host composition refactor](host-configuration.md). The [ownership map](ownership.md) identifies where
 changes belong, the [terminology](terminology.md) distinguishes the records, and
 the [package inventory](ownership.md#package-inventory) covers all 28 workspace
 crates. These describe the integrated implementation, not the future deployment
@@ -78,8 +78,9 @@ yet a general multi-user organization server or an empty first-run experience.
 The [worker ingress](../../engine/mantle/tetonic-node/src/job_ingress.rs) accepts
 `JobKind::Infer`. Worker enrollment, placement records and configuration enums
 must not be advertised as an end-to-end distributed agent executor, replicated
-control store, or Keeper service. Production logging, telemetry and storage
-configuration still need coherent host composition.
+control store, or Keeper service. The local UI/job hosts now share
+[storage and diagnostics configuration](host-configuration.md); external telemetry
+exporters and distributed storage/host operation remain separate future work.
 
 Interrupted execution and supported durable human-wait continuation are different
 contracts. Startup can identify recovery-required attempts; arbitrary interrupted
@@ -90,6 +91,7 @@ effects are not automatically safe to replay. See the
 
 - [Ownership, dependency boundaries and change routing](ownership.md)
 - [Domain terminology and identifier relationships](terminology.md)
+- [Application host and operator configuration](host-configuration.md)
 - [Contribution workflow](../../CONTRIBUTING.md)
 - [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
 - [Retirement record](../epics/v5-reconciliation/retirement.md)

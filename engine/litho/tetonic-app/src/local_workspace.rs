@@ -731,7 +731,7 @@ impl LocalWorkspace {
                     .bind_artifacts(
                         &self.host.credential,
                         context.clone(),
-                        self.host.app.turn.runtime.artifact_store().clone(),
+                        self.host.app.host.runtime.artifact_store().clone(),
                     )
                     .await
                     .map_err(resource)?;

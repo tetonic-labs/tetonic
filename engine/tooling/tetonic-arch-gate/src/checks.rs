@@ -247,11 +247,26 @@ pub fn check_compute_broker_wiring(root: &Path) -> Vec<Violation> {
         ],
     );
     let launch_text = std::fs::read_to_string(&launch).unwrap_or_default();
-    if !launch_text.contains("build_compute_plane") {
+    if !launch_text.contains("ApplicationHost::open(")
+        || !launch_text.contains("ApplicationHost::from_control(")
+    {
         out.push(Violation {
             rule: "compute_broker_wiring",
             path: launch,
-            detail: "host launch must call the shared lokai-app compute-plane builder".into(),
+            detail: "registered launch must compose through the shared application host".into(),
+        });
+    }
+    let host = root.join("litho/tetonic-app/src/host/mod.rs");
+    let host_text = std::fs::read_to_string(&host).unwrap_or_default();
+    if !host_text.contains("build_compute_plane(")
+        || !host_text.contains("install_compute_services(")
+        || !host_text.contains("attach_egress(")
+    {
+        out.push(Violation {
+            rule: "compute_broker_wiring",
+            path: host,
+            detail: "application host must build/install the shared compute plane and egress guard"
+                .into(),
         });
     }
     let broker_lib = crate::resolve_path(

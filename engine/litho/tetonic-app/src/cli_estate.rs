@@ -185,7 +185,7 @@ impl Application {
         port: Option<u16>,
     ) -> Result<(), AppError> {
         if let Ok(ip_addr) = ip.parse::<IpAddr>() {
-            self.turn.guard().allow_node(label, ip_addr, port);
+            self.host.guard().allow_node(label, ip_addr, port);
         }
         let store = self
             .store()
@@ -201,7 +201,7 @@ impl Application {
     }
 
     pub fn remove_egress_allow_rule(&self, label: &str) -> Result<bool, AppError> {
-        self.turn.guard().remove_allow_label(label);
+        self.host.guard().remove_allow_label(label);
         let store = self
             .store()
             .ok_or_else(|| AppError::PersistenceFailed("no store available".into()))?;
@@ -215,7 +215,7 @@ impl Application {
     }
 
     pub fn egress_allow(&self, label: &str, ip: IpAddr, port: Option<u16>) {
-        self.turn.guard().allow_node(label, ip, port);
+        self.host.guard().allow_node(label, ip, port);
     }
 
     pub fn egress_allow_cidr(
@@ -226,7 +226,7 @@ impl Application {
     ) -> Result<(), AppError> {
         // Parse IP or fallback
         if let Ok(ip) = cidr.parse::<IpAddr>() {
-            self.turn.guard().allow_node(label, ip, port);
+            self.host.guard().allow_node(label, ip, port);
             return Ok(());
         }
         Err(AppError::InvalidRequest(format!(
@@ -236,7 +236,7 @@ impl Application {
 
     pub fn reload_enrollment_egress(&self) -> Result<(), AppError> {
         if let Some(store) = self.store() {
-            let guard = self.turn.guard();
+            let guard = self.host.guard();
             store
                 .read_sync(move |db| crate::estate_enrollment::reload_enrollment_egress(db, &guard))
                 .map_err(AppError::hide_store_failure)?
@@ -246,7 +246,7 @@ impl Application {
     }
 
     pub fn egress_activity_log(&self) -> Vec<EgressEvent> {
-        self.turn.guard().activity_log()
+        self.host.guard().activity_log()
     }
 
     pub fn record_egress_and_consolidate(&self, session_id: &str) -> Result<(), AppError> {
@@ -379,8 +379,8 @@ impl Application {
             return Ok(out);
         }
 
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
+        let guard = self.host.guard();
+        let base = self.host.ollama_base();
         let provider = Arc::new(OllamaProvider::new(&base, guard));
         let client: Arc<dyn tetonic_capacity::InferenceClient> =
             Arc::new(OllamaInferenceClient::new(&base, provider));
@@ -418,8 +418,8 @@ impl Application {
             return Ok((out, ok));
         }
 
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
+        let guard = self.host.guard();
+        let base = self.host.ollama_base();
         let provider = Arc::new(OllamaProvider::new(&base, guard));
         let client: Arc<dyn tetonic_capacity::InferenceClient> =
             Arc::new(OllamaInferenceClient::new(&base, provider));
@@ -438,8 +438,8 @@ impl Application {
     }
 
     pub async fn run_capacity_optimize(&self, depth: &str) -> Result<OptimizeOutcome, AppError> {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
+        let guard = self.host.guard();
+        let base = self.host.ollama_base();
         let provider = Arc::new(OllamaProvider::new(&base, guard));
         let client: Arc<dyn tetonic_capacity::InferenceClient> =
             Arc::new(OllamaInferenceClient::new(&base, provider));
@@ -462,8 +462,8 @@ impl Application {
     // --- Ollama PS / Evict ---
 
     pub async fn ollama_ps(&self) -> Result<String, AppError> {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
+        let guard = self.host.guard();
+        let base = self.host.ollama_base();
         let url = format!("{}/api/ps", base.trim_end_matches('/'));
         let v: serde_json::Value = guard
             .get_json(&url, "inference:ollama:ps")
@@ -473,8 +473,8 @@ impl Application {
     }
 
     pub async fn ollama_evict(&self) -> Result<String, AppError> {
-        let guard = self.turn.guard();
-        let base = self.turn.ollama_base();
+        let guard = self.host.guard();
+        let base = self.host.ollama_base();
         let ps_url = format!("{}/api/ps", base.trim_end_matches('/'));
         let v: serde_json::Value = guard
             .get_json(&ps_url, "inference:ollama:ps")

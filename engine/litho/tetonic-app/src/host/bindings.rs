@@ -1,4 +1,4 @@
-//! Product submit/await: portal-as-transport door (PORTAL-01).
+//! Shared runtime, policy and compute bindings owned by the application host.
 
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::sync::{Arc, Mutex};
@@ -26,7 +26,7 @@ type InferenceSnapshot = (
     Option<Arc<tetonic_broker::DefaultComputeBroker>>,
 );
 
-pub struct TurnBind {
+pub struct HostServices {
     pub runtime: Arc<tetonic_runtime::EngineRuntime>,
     pub store: Option<tetonic_memory::SharedStore>,
     pub index_db: Option<std::path::PathBuf>,
@@ -42,7 +42,7 @@ pub struct TurnBind {
     tokenizer: Mutex<Arc<dyn Tokenizer>>,
 }
 
-impl TurnBind {
+impl HostServices {
     pub fn new(
         runtime: Arc<tetonic_runtime::EngineRuntime>,
         store: Option<tetonic_memory::SharedStore>,
@@ -129,7 +129,7 @@ impl Application {
         provider: Arc<dyn InferenceProvider>,
         compute_broker: Option<Arc<tetonic_broker::DefaultComputeBroker>>,
     ) {
-        *self.turn.inference.lock_recover() = Some(InstalledInference::Host {
+        *self.host.inference.lock_recover() = Some(InstalledInference::Host {
             provider,
             broker: compute_broker,
         });
@@ -139,7 +139,7 @@ impl Application {
     pub fn install_compute_services(&self, plane: &crate::ComputePlane) {
         self.set_fabric_plane(plane.pooled.clone(), plane.compute_registry.clone());
         self.attach_compute_lifecycle(Some(plane.provider.broker()), &plane.fabric_remotes);
-        *self.turn.inference.lock_recover() =
+        *self.host.inference.lock_recover() =
             Some(InstalledInference::Compute(plane.provider.clone()));
     }
 
@@ -169,7 +169,7 @@ impl Application {
     }
 
     pub fn bind_tokenizer(&self, tokenizer: Arc<dyn Tokenizer>) {
-        *self.turn.tokenizer.lock_recover() = tokenizer;
+        *self.host.tokenizer.lock_recover() = tokenizer;
     }
 
     pub fn bind_exact_tokenizer(&self, path: &str) -> Result<(), AppError> {
@@ -184,23 +184,23 @@ impl Application {
     }
 
     pub fn attach_egress(&self, guard: Arc<EgressGuard>, ollama_base: String) {
-        self.turn.attach_egress(guard, ollama_base);
+        self.host.attach_egress(guard, ollama_base);
     }
 
     pub fn egress_guard(&self) -> Arc<EgressGuard> {
-        self.turn.guard()
+        self.host.guard()
     }
 
     pub fn inference_provider(&self) -> Option<Arc<dyn InferenceProvider>> {
-        self.turn.provider()
+        self.host.provider()
     }
 
     pub fn compute_broker(&self) -> Option<Arc<tetonic_broker::DefaultComputeBroker>> {
-        self.turn.compute_broker()
+        self.host.compute_broker()
     }
 
     pub fn ollama_base(&self) -> String {
-        self.turn.ollama_base()
+        self.host.ollama_base()
     }
 
     pub fn set_fabric_plane(
@@ -208,15 +208,15 @@ impl Application {
         pooled: Option<Arc<tetonic_inference::PooledProvider>>,
         compute_registry: Option<Arc<tetonic_inference::ComputeTargetRegistry>>,
     ) {
-        self.turn.set_fabric_plane(pooled, compute_registry);
+        self.host.set_fabric_plane(pooled, compute_registry);
     }
 
     pub fn egress_allow_rules(&self) -> Vec<tetonic_egress::AllowRule> {
-        self.turn.guard().allow_rules()
+        self.host.guard().allow_rules()
     }
 
     pub fn policy_epoch(&self) -> u64 {
-        self.turn
+        self.host
             .compute_registry
             .lock_recover()
             .as_ref()
@@ -225,29 +225,29 @@ impl Application {
     }
 
     pub fn bump_policy_epoch(&self) {
-        if let Some(ref reg) = *self.turn.compute_registry.lock_recover() {
+        if let Some(ref reg) = *self.host.compute_registry.lock_recover() {
             reg.policy_epoch().fetch_add(1, Ordering::Relaxed);
         }
-        if let Some(ref pooled) = *self.turn.pooled.lock_recover() {
+        if let Some(ref pooled) = *self.host.pooled.lock_recover() {
             pooled.policy_epoch().fetch_add(1, Ordering::Relaxed);
             pooled.on_policy_invalidation();
         }
     }
 
     pub fn policy_mode(&self) -> String {
-        self.turn.policy.mode().as_str().to_string()
+        self.host.policy.mode().as_str().to_string()
     }
 
     pub async fn fabric_status(&self) -> Result<serde_json::Value, AppError> {
-        if let Some(ref pooled) = *self.turn.pooled.lock_recover() {
+        if let Some(ref pooled) = *self.host.pooled.lock_recover() {
             pooled.invalidate_snapshot_cache();
         }
         let provider = self
-            .turn
+            .host
             .provider()
             .ok_or_else(|| AppError::InternalViolation("no provider installed".into()))?;
         let mut snap = provider.fabric_snapshot().await;
-        if let Some(ref store) = self.turn.store {
+        if let Some(ref store) = self.host.store {
             let cap = store
                 .read_sync(tetonic_capacity::status_for_node)
                 .unwrap_or_default();
@@ -255,7 +255,7 @@ impl Application {
         }
         let mut value =
             serde_json::to_value(snap).map_err(|e| AppError::InternalViolation(e.to_string()))?;
-        if let Some(broker) = self.turn.compute_broker() {
+        if let Some(broker) = self.host.compute_broker() {
             let metrics = broker.scheduler_metrics();
             if let (Some(obj), Some(mae)) = (
                 value.as_object_mut(),
@@ -279,7 +279,7 @@ impl Application {
         let trust = tetonic_domain::WorkerTrust::parse(trust_str).ok_or_else(|| {
             AppError::InvalidRequest(format!("unknown worker trust tier '{trust_str}'"))
         })?;
-        let reg_opt = self.turn.compute_registry.lock_recover().clone();
+        let reg_opt = self.host.compute_registry.lock_recover().clone();
         let Some(reg) = reg_opt else {
             return Err(AppError::InvalidRequest(
                 "fabric pooling not active — no compute registry".into(),
@@ -291,10 +291,10 @@ impl Application {
             )));
         }
         let epoch = reg.current_epoch();
-        if let Some(ref pooled) = *self.turn.pooled.lock_recover() {
+        if let Some(ref pooled) = *self.host.pooled.lock_recover() {
             pooled.on_trust_change(worker_id, trust);
         }
-        if let Some(ref store) = self.turn.store {
+        if let Some(ref store) = self.host.store {
             let wid = worker_id.to_string();
             let trust_s = trust.as_str().to_string();
             store
@@ -317,12 +317,12 @@ impl Application {
         &self,
         worker_id: &str,
     ) -> Result<crate::commands::GetWorkerTrustResult, AppError> {
-        let reg_opt = self.turn.compute_registry.lock_recover().clone();
+        let reg_opt = self.host.compute_registry.lock_recover().clone();
         let trust = reg_opt
             .as_ref()
             .and_then(|r| r.trust_for_worker(worker_id))
             .or_else(|| {
-                self.turn.store.as_ref().and_then(|store| {
+                self.host.store.as_ref().and_then(|store| {
                     store
                         .read_sync(|db| db.worker_trust(worker_id))
                         .ok()
@@ -334,7 +334,7 @@ impl Application {
             .ok_or_else(|| AppError::InvalidRequest(format!("worker '{worker_id}' not found")))?;
         let policy_epoch = reg_opt.as_ref().map(|r| r.current_epoch()).unwrap_or(0);
         let audit = self
-            .turn
+            .host
             .store
             .as_ref()
             .and_then(|store| {

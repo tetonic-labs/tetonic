@@ -99,7 +99,7 @@ impl crate::Application {
             });
         }
         let provider = self
-            .turn
+            .host
             .registered_provider()
             .filter(|provider| provider.has_secret_scanner())
             .ok_or(AppError::InferenceUnavailable)?;
@@ -107,7 +107,7 @@ impl crate::Application {
             Some(hosted) => Arc::new(provider.for_hosted(hosted.provider)),
             None => provider,
         };
-        let runtime = &self.turn.runtime;
+        let runtime = &self.host.runtime;
         let history = prepared
             .activation
             .as_ref()
@@ -130,7 +130,7 @@ impl crate::Application {
         .with_enforcement_level(tetonic_tools::EnforcementLevel::Sandboxed)
         .with_capability_consumer(runtime.capability_store().clone())
         .with_allowed_tools(allowed);
-        if let Some(store) = &self.turn.store {
+        if let Some(store) = &self.host.store {
             if let Ok(path) = store.read_sync(|db| db.path().to_path_buf()) {
                 tools = tools.protect_store_file(path);
             }

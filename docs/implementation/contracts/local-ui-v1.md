@@ -4,6 +4,11 @@ This connection is a single-owner local profile, not the shared-organization tra
 
 ## Start
 
+The optional `--host-config <file.json>` configures storage, sanitized logging and
+telemetry through the shared application host. See the
+[host configuration contract](../../architecture/host-configuration.md).
+Existing command arguments and HTTP/UI behavior remain supported.
+
 From `web`, run `npm run dev -- --host 127.0.0.1 --strictPort`. From `engine`, run:
 
 ```powershell

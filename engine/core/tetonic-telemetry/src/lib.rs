@@ -1,6 +1,7 @@
 pub mod context;
 pub mod event;
 pub mod fault;
+pub mod host;
 pub mod performance;
 pub mod propagation;
 pub mod sampling;

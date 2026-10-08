@@ -15,107 +15,10 @@ use crate::{commands::*, errors::AppError, events::*};
 use async_trait::async_trait;
 use std::sync::Arc;
 
-// ---------------------------------------------------------------------------
-// Slice 1 — Initialization
-// ---------------------------------------------------------------------------
-
-#[async_trait]
-pub trait InitializationService: Send + Sync {
-    async fn initialize_workspace(
-        &self,
-        cmd: InitializeCommand,
-    ) -> Result<InitializeResultPayload, AppError>;
-    fn bootstrap_runtime(
-        &self,
-        cmd: &InitializeCommand,
-        store: &Option<tetonic_memory::SharedStore>,
-    ) -> Result<InitializeBootstrapPayload, AppError>;
-}
-
-pub struct DefaultInitializationService {}
-
-impl Default for DefaultInitializationService {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl DefaultInitializationService {
-    pub fn new() -> Self {
-        Self {}
-    }
-}
-
-#[async_trait]
-impl InitializationService for DefaultInitializationService {
-    async fn initialize_workspace(
-        &self,
-        cmd: InitializeCommand,
-    ) -> Result<InitializeResultPayload, AppError> {
-        let path = std::path::Path::new(&cmd.workspace_root)
-            .canonicalize()
-            .map_err(|e| AppError::InvalidRequest(format!("workspace: {}", e)))?;
-        Ok(InitializeResultPayload {
-            workspace_root: path.display().to_string(),
-            index_db_path: None,
-        })
-    }
-
-    fn bootstrap_runtime(
-        &self,
-        cmd: &InitializeCommand,
-        store: &Option<tetonic_memory::SharedStore>,
-    ) -> Result<InitializeBootstrapPayload, AppError> {
-        let path = std::path::Path::new(&cmd.workspace_root)
-            .canonicalize()
-            .map_err(|e| AppError::InvalidRequest(format!("workspace: {}", e)))?;
-        let policy = match store {
-            Some(s) => s
-                .read_sync(|db| tetonic_runtime::load_policy_engine(Some(db)))
-                .unwrap_or_else(|_| tetonic_runtime::load_policy_engine(None)),
-            None => tetonic_runtime::load_policy_engine(None),
-        };
-        let local_artifacts = tetonic_artifact::LocalArtifactStore::new(
-            path.join(".lokai").join("artifacts"),
-            crate::secret_scanner_factory::artifact_scan_policy(store),
-        )
-        .map_err(|e| AppError::PersistenceFailed(format!("artifact store: {e}")))?;
-        // R4-2 AC4: GC/quota runs on CLI and daemon initialize (shared bootstrap).
-        if let Err(e) =
-            tetonic_artifact::enforce_at_startup(&local_artifacts, local_artifacts.quota())
-        {
-            tracing::warn!("artifact GC at bootstrap: {e}");
-        }
-        let artifact_store = Arc::new(local_artifacts);
-
-        let runtime = Arc::new(
-            tetonic_runtime::EngineRuntime::new_with_capability_store(
-                policy.clone(),
-                None,
-                artifact_store,
-                store.as_ref().map(|s| Arc::new(s.clone())),
-            )
-            .map_err(|e| AppError::PersistenceFailed(format!("capability store: {e}")))?,
-        );
-        let inference_defaults = match store {
-            Some(s) => s
-                .read_sync(|db| {
-                    tetonic_capacity::load_inference_defaults(db, tetonic_capacity::LOCAL_NODE_ID)
-                })
-                .unwrap_or_else(|_| tetonic_capacity::InferenceDefaults::fallback()),
-            None => tetonic_capacity::InferenceDefaults::fallback(),
-        };
-        Ok(InitializeBootstrapPayload {
-            workspace_root: path.display().to_string(),
-            policy,
-            runtime,
-            inference_defaults,
-        })
-    }
-}
+pub use crate::host::initialization::{DefaultInitializationService, InitializationService};
 
 // ---------------------------------------------------------------------------
-// Slice 2 — Session lifecycle
+// Policy services
 // ---------------------------------------------------------------------------
 
 #[async_trait]

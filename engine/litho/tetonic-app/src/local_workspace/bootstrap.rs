@@ -2,7 +2,8 @@
 use std::path::PathBuf;
 
 use super::*;
-use crate::job_launch::{prepare_launch, RegisteredLaunchHost};
+use crate::host::HostConfiguration;
+use crate::job_launch::{prepare_launch_with_control, RegisteredLaunchHost};
 use crate::resources::{HarnessPreparationLimits, RegisteredExecutionSettings};
 
 impl LocalWorkspace {
@@ -18,9 +19,31 @@ impl LocalWorkspace {
         ollama: String,
         workspace_root: Option<PathBuf>,
     ) -> Result<Self, AppError> {
-        let local = LocalControl::open(database.clone(), AUDIENCE.into())
-            .await
-            .map_err(resource)?;
+        Self::open_with_configuration(
+            database,
+            model,
+            ollama,
+            workspace_root,
+            HostConfiguration::default(),
+        )
+        .await
+    }
+
+    pub async fn open_with_configuration(
+        database: PathBuf,
+        model: String,
+        ollama: String,
+        workspace_root: Option<PathBuf>,
+        configuration: HostConfiguration,
+    ) -> Result<Self, AppError> {
+        configuration.validate()?;
+        let local = LocalControl::open_with_read_connections(
+            database.clone(),
+            AUDIENCE.into(),
+            configuration.storage.read_connections,
+        )
+        .await
+        .map_err(resource)?;
         match local
             .bootstrap(OWNER.into(), ORG.into(), "My workspace".into())
             .await
@@ -194,9 +217,10 @@ impl LocalWorkspace {
             .team_participation_context(secret, ORG.into(), TEAM.into())
             .await
             .map_err(resource)?;
-        let mut host = prepare_launch(
+        let mut host = prepare_launch_with_control(
             secret,
             RegisteredLaunchHost {
+                configuration,
                 database,
                 audience: AUDIENCE.into(),
                 ollama,
@@ -221,12 +245,13 @@ impl LocalWorkspace {
                     },
                 },
             },
+            local.clone(),
         )
         .await?;
         let keys = std::sync::Arc::new(providers::ProviderKeys {
             store: host
                 .app
-                .turn
+                .host
                 .store
                 .clone()
                 .ok_or(AppError::InferenceUnavailable)?,
