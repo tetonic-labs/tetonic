@@ -238,6 +238,43 @@ OpenAI uses Responses with `stream: true`, `store: false`, `max_output_tokens` a
 
 ### Local MCP connections
 
+The authenticated local owner can now create persistent connections from **Tools
+& MCPs → Add tools, MCPs or skills → Connect a service**, also embedded in agent
+setup. `POST /api/local/mcp-connections` accepts an ID, expected revision, name,
+endpoint, `auth` (`none` or `bearer`), optional replacement token, enabled state
+and optional reviewed tool IDs. The catalog advertises `mcp_management: true`.
+This is a local-owner API, not a tool exposed to models or an employee grant API.
+
+Connections accept public HTTPS or numeric loopback HTTP without userinfo, query
+or fragment. Service tokens live in the existing OS KeyStorage; SQLite contains
+opaque references, endpoint-bound credential generations and reviewed manifests.
+Remote requests pin freshly checked public DNS answers, verify TLS, prohibit
+redirects and bypass ambient proxies. No LAN HTTPS profile or browser OAuth flow
+is implemented. A service token must have been issued for the exact target service.
+
+Connecting/discovering alone grants no tool access. Discovery offers advertised
+read tools; the owner explicitly reviews them for workspace availability and then
+selects them in saved agent definitions. Server read-only annotations are not
+proof of harmless behavior. The owner must trust the service. Agents' existing
+permissions, provider disclosure approvals, budgets and action broker still apply.
+
+Definitions and reviewed manifests survive restart; each invocation rechecks the
+complete server manifest before dispatch. Changing credentials clears the review
+and changes tool IDs. Existing agents retain their old selections and need repair;
+they cannot silently use a different account. Changing an endpoint requires a new
+connection. Saves use optimistic revisions and reject stale edits; an uncertain
+response requires reloading the saved record before retrying, not a duplicate save.
+Disconnecting durably denies further execution and releases the stored token
+reference. In-flight waits stop via existing execution authority checks; Tetonic
+does not claim to undo or confirm termination of work already sent to a service.
+
+OAuth, refresh tokens, stdio lifecycle, MCP mutations, background tasks, media,
+sampling, elicitation, and automatic blocked-task resumption remain outside this
+profile. The shared runtime supports granted reads for local and supported hosted
+models; no new native vendor harness is enabled here.
+
+#### Startup-configured local connections
+
 The operator can attach an existing local Streamable HTTP MCP server to this local
 UI host. Start and configure the approved server separately. Save a configuration
 file such as:

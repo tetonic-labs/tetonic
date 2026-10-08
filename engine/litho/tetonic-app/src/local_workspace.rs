@@ -23,6 +23,7 @@ mod conversations;
 mod director;
 mod mcp;
 mod skills;
+pub use mcp::SaveMcpConnection;
 pub use skills::{ImportSkill, RevokeSkill};
 mod plan_execution;
 mod plan_human;

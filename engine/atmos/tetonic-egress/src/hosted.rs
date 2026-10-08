@@ -122,7 +122,7 @@ fn failure(message: &str) -> EgressError {
     EgressError::StreamDecode(message.into())
 }
 
-fn endpoint(url: &str) -> Result<url::Url, EgressError> {
+pub(super) fn endpoint(url: &str) -> Result<url::Url, EgressError> {
     let parsed = url::Url::parse(url).map_err(|_| failure("invalid hosted endpoint"))?;
     if parsed.scheme() != "https"
         || parsed.host_str().is_none()
@@ -139,7 +139,7 @@ fn endpoint(url: &str) -> Result<url::Url, EgressError> {
 }
 
 /// Conservative public-unicast filter; hosted grants never grant LAN access.
-fn public_address(ip: IpAddr) -> bool {
+pub(super) fn public_address(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(ip) => {
             let [a, b, _, _] = ip.octets();

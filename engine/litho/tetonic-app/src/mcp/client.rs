@@ -8,15 +8,24 @@ struct Session<'a> {
 impl<'a> Session<'a> {
     async fn close(&self) {
         if let Some(id) = &self.id {
+            let Ok(credential) = self.connection.credential().await else {
+                return;
+            };
             let _ = self
                 .connection
                 .guard
-                .end_local_mcp(&self.connection.config.endpoint, id, &self.version)
+                .end_mcp(
+                    &self.connection.config.endpoint,
+                    id,
+                    &self.version,
+                    credential.as_ref(),
+                )
                 .await;
         }
     }
     async fn open(c: &'a Connection) -> Result<Self, String> {
-        let response = c.guard.post_local_mcp(&c.config.endpoint, &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":VERSION,"capabilities":{},"clientInfo":{"name":"tetonic","version":"0.1"}}}), None, VERSION).await.map_err(|_| "MCP initialization failed. Check the configured local server.")?;
+        let credential = c.credential().await?;
+        let response = c.guard.post_mcp(&c.config.endpoint, &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":VERSION,"capabilities":{},"clientInfo":{"name":"tetonic","version":"0.1"}}}), None, VERSION, credential.as_ref()).await.map_err(connection_error)?;
         let result = result(
             response
                 .message
@@ -44,8 +53,19 @@ impl<'a> Session<'a> {
         Ok(session)
     }
     async fn post(&self, body: Value) -> Result<Option<Value>, String> {
-        self.connection.guard.post_local_mcp(&self.connection.config.endpoint, &body, self.id.as_deref(), &self.version).await
-            .map(|r| r.message).map_err(|_| "MCP request failed, timed out, or returned an unsupported response. Refresh the connection.".into())
+        let credential = self.connection.credential().await?;
+        self.connection
+            .guard
+            .post_mcp(
+                &self.connection.config.endpoint,
+                &body,
+                self.id.as_deref(),
+                &self.version,
+                credential.as_ref(),
+            )
+            .await
+            .map(|r| r.message)
+            .map_err(connection_error)
     }
     async fn tools(&self) -> Result<Vec<McpTool>, String> {
         let mut cursor: Option<String> = None;
@@ -76,7 +96,11 @@ impl<'a> Session<'a> {
                 if !names.insert(name.to_string()) || names.len() > 128 {
                     return Err("MCP list has duplicate tools or exceeds 128 tools".into());
                 }
-                if self.connection.config.read_tools.iter().any(|n| n == name) {
+                if self.connection.config.read_tools.iter().any(|n| n == name)
+                    || (self.connection.stored.is_some()
+                        && manifest.pointer("/annotations/readOnlyHint")
+                            == Some(&Value::Bool(true)))
+                {
                     if manifest.pointer("/annotations/readOnlyHint") != Some(&Value::Bool(true)) {
                         return Err("An operator-approved read tool does not advertise read-only behavior. Check the server configuration.".into());
                     }
@@ -135,6 +159,7 @@ pub(super) async fn call(
     let opened = tokio::select! {
         session = Session::open(c) => session,
         _ = canceled(cancel) => return ToolOutcome::fail("MCP setup canceled", "canceled"),
+        _ = c.revoked() => return ToolOutcome::fail("MCP connection disconnected or changed", "denied"),
     };
     let session = match opened {
         Ok(s) => s,
@@ -146,16 +171,17 @@ pub(super) async fn call(
             .iter()
             .any(|t| t.id == tool.id && t.manifest == tool.manifest)
         {
-            return Err("MCP tool changed or was removed. Refresh discovery and create an agent with the reviewed tool version.".into());
+            return Err("MCP tool changed or was removed. Refresh discovery and review the tool and update the agent selection.".into());
         }
-        if cancel.is_canceled() {
-            return Err("MCP call canceled before dispatch".into());
+        if cancel.is_canceled() || !c.allowed(&tool) {
+            return Err("MCP call canceled or access removed before dispatch".into());
         }
         result(session.post(json!({"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":tool.name,"arguments":args}})).await?.ok_or("MCP call returned no response")?)
     };
     tokio::pin!(operation);
     let response = tokio::select! {
         value = tokio::time::timeout(std::time::Duration::from_secs(20), &mut operation) => value.unwrap_or_else(|_| Err("MCP operation timed out; no automatic retry was sent".into())),
+        _ = c.tool_revoked(&tool) => Err("MCP access revoked; waiting stopped. Remote completion is not confirmed.".into()),
         _ = canceled(cancel) => {
             let _ = tokio::time::timeout(std::time::Duration::from_millis(500), session.post(json!({"jsonrpc":"2.0","method":"notifications/cancelled","params":{"requestId":10,"reason":"Tetonic attempt stopped"}}))).await;
             Err("MCP call canceled; cancellation was requested from the server, not confirmed".into())
@@ -205,5 +231,13 @@ pub(super) async fn call(
 async fn canceled(cancel: &CancellationSignal) {
     while !cancel.is_canceled() {
         tokio::time::sleep(std::time::Duration::from_millis(25)).await;
+    }
+}
+
+fn connection_error(error: tetonic_egress::EgressError) -> String {
+    match error {
+        tetonic_egress::EgressError::StreamDecode(ref message) if message == "MCP HTTP 401" => "Service rejected authentication. Update its token; browser OAuth is not supported in this profile.".into(),
+        tetonic_egress::EgressError::StreamDecode(ref message) if message == "MCP HTTP 403" => "Service denied access. Check the token permissions.".into(),
+        _ => "Could not reach this MCP service, or it returned an unsupported response. Check its endpoint and access.".into(),
     }
 }

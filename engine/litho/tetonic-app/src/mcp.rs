@@ -13,6 +13,9 @@ use tetonic_egress::EgressGuard;
 
 mod client;
 mod host;
+mod persistence;
+pub(crate) use persistence::McpAuthority;
+pub(crate) use persistence::McpScope;
 #[cfg(test)]
 pub(crate) mod tests;
 pub(crate) use host::McpToolHost;
@@ -38,6 +41,7 @@ pub struct McpTool {
     pub name: String,
     pub description: String,
     pub input_schema: Value,
+    pub approved: bool,
     #[serde(skip)]
     manifest: Value,
 }
@@ -49,15 +53,20 @@ pub struct McpConnectionView {
     pub status: String,
     pub message: String,
     pub tools: Vec<McpTool>,
+    pub editable: bool,
+    pub revision: u64,
+    pub auth: String,
+    pub enabled: bool,
 }
 struct Connection {
     config: McpConnectionConfig,
+    stored: Option<(McpScope, u64)>,
     guard: EgressGuard,
     view: RwLock<McpConnectionView>,
     refresh: tokio::sync::Mutex<()>,
 }
 pub struct McpRegistry {
-    connections: Vec<Connection>,
+    connections: RwLock<Vec<Arc<Connection>>>,
 }
 
 impl McpRegistry {
@@ -104,48 +113,53 @@ impl McpRegistry {
                     "Discover tools to check this connection. No tools are granted by connecting."
                         .into(),
                 tools: vec![],
+                editable: false,
+                revision: 0,
+                auth: "none".into(),
+                enabled: true,
             };
-            connections.push(Connection {
+            connections.push(Arc::new(Connection {
+                stored: None,
                 config: c,
                 guard,
                 view: RwLock::new(view),
                 refresh: tokio::sync::Mutex::new(()),
-            });
+            }));
         }
-        Ok(Arc::new(Self { connections }))
+        Ok(Arc::new(Self {
+            connections: RwLock::new(connections),
+        }))
     }
     pub fn views(&self) -> Vec<McpConnectionView> {
-        self.connections
-            .iter()
-            .map(|c| c.view.read().unwrap_or_else(|e| e.into_inner()).clone())
-            .collect()
+        self.all().iter().map(|c| c.view()).collect()
     }
     pub fn tool_names(&self) -> Vec<String> {
         self.views()
             .into_iter()
-            .flat_map(|v| v.tools.into_iter().map(|t| t.id))
+            .flat_map(|v| v.tools.into_iter().filter(|t| t.approved).map(|t| t.id))
             .collect()
     }
     pub fn contains(&self, name: &str) -> bool {
-        self.tool_names().iter().any(|n| n == name)
+        self.binding(name).is_some()
     }
     pub async fn refresh(&self, id: &str) -> Result<McpConnectionView, String> {
         let c = self
-            .connections
-            .iter()
-            .find(|c| c.config.id == id)
+            .connection(id)
             .ok_or("Unknown configured MCP connection")?;
+        if !c.view.read().unwrap_or_else(|e| e.into_inner()).enabled {
+            return Ok(c.view.read().unwrap_or_else(|e| e.into_inner()).clone());
+        }
         let _lock = c
             .refresh
             .try_lock()
             .map_err(|_| "This connection is already being checked")?;
-        let result = client::discover(c).await;
+        let result = client::discover(&c).await;
         let mut view = c.view.write().unwrap_or_else(|e| e.into_inner());
         match result {
             Ok(tools) => {
                 view.tools = tools;
                 view.status = "discovered".into();
-                view.message = "Discovery succeeded. Only operator-approved read tools are listed. Each call rechecks its manifest.".into();
+                view.message = "Connection checked. Select the read tools to make available, then assign them to agents.".into();
             }
             Err(error) => {
                 view.tools.clear();
@@ -155,23 +169,24 @@ impl McpRegistry {
         }
         Ok(view.clone())
     }
-    fn binding(&self, name: &str) -> Option<(&Connection, McpTool)> {
-        self.connections.iter().find_map(|c| {
-            c.view
+    fn binding(&self, name: &str) -> Option<(Arc<Connection>, McpTool)> {
+        self.all().into_iter().find_map(|c| {
+            let tool = c
+                .view
                 .read()
                 .ok()?
                 .tools
                 .iter()
-                .find(|t| t.id == name)
-                .cloned()
-                .map(|t| (c, t))
+                .find(|t| t.id == name && t.approved)
+                .cloned();
+            tool.filter(|t| c.allowed(t)).map(|t| (c.clone(), t))
         })
     }
     pub(crate) fn advertisements(&self, selected: &HashSet<String>) -> Vec<ToolAdvertisement> {
         self.views()
             .into_iter()
             .flat_map(|c| c.tools.into_iter().map(move |t| (c.name.clone(), t)))
-            .filter(|(_, t)| selected.contains(&t.id))
+            .filter(|(_, t)| selected.contains(&t.id) && t.approved && self.contains(&t.id))
             .map(|(connection, t)| ToolAdvertisement {
                 name: t.id,
                 description: format!("{} — {}. {}", connection, t.name, t.description),
@@ -198,7 +213,7 @@ impl McpRegistry {
         if !args.is_object() || args.to_string().len() > 16_384 {
             return ToolOutcome::fail("MCP arguments must be an object under 16 KiB", "bad_args");
         }
-        client::call(connection, tool, args, cancel).await
+        client::call(&connection, tool, args, cancel).await
     }
 }
 fn tool_name(value: &str) -> bool {
@@ -221,9 +236,20 @@ fn pinned_tool(c: &Connection, manifest: Value) -> Result<McpTool, String> {
         return Err("MCP tool manifest exceeds supported limits".into());
     }
     let digest = Sha256::digest(
-        json!([c.config.endpoint, c.config.id, manifest])
-            .to_string()
-            .as_bytes(),
+        (if let Some((scope, epoch)) = &c.stored {
+            json!([
+                c.config.endpoint,
+                c.config.id,
+                manifest,
+                epoch,
+                scope.org,
+                scope.team
+            ])
+        } else {
+            json!([c.config.endpoint, c.config.id, manifest])
+        })
+        .to_string()
+        .as_bytes(),
     );
     Ok(McpTool {
         id: format!("mcp_{}_{:x}", c.config.id, digest)[..(5 + c.config.id.len() + 24)].to_owned(),
@@ -236,6 +262,11 @@ fn pinned_tool(c: &Connection, manifest: Value) -> Result<McpTool, String> {
             .take(1500)
             .collect(),
         input_schema: schema.clone(),
+        approved: c.stored.as_ref().is_none_or(|(scope, epoch)| {
+            scope.record(&c.config.id).is_some_and(|r| {
+                r.enabled && r.binding_epoch == *epoch && r.approved_manifests.contains(&manifest)
+            })
+        }),
         manifest,
     })
 }

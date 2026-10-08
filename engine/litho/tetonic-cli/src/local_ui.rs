@@ -262,6 +262,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 | "/api/local/agents"
                 | "/api/local/agents/update"
                 | "/api/local/skills"
+                | "/api/local/mcp-connections"
                 | "/api/local/skills/revoke"
                 | "/api/local/work-items"
                 | "/api/local/provider-key"
@@ -291,7 +292,18 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/work-teams" {
+        if path == "/api/local/mcp-connections" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::local_workspace::SaveMcpConnection>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid connection settings.");
+            };
+            state
+                .workspace
+                .save_mcp_connection(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/work-teams" {
             let Ok(payload) =
                 serde_json::from_slice::<tetonic_app::local_workspace::SaveWorkTeam>(&body)
             else {

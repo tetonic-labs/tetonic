@@ -66,6 +66,8 @@ mod work_teams;
 pub use work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
 mod workspace_skills;
 pub use workspace_skills::WorkspaceSkill;
+mod workspace_mcp;
+pub use workspace_mcp::WorkspaceMcpConnection;
 mod local_work_notes;
 pub use local_work_notes::LocalWorkData;
 mod child_capacity;

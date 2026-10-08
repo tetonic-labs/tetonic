@@ -238,6 +238,16 @@ impl LocalWorkspace {
             org: ORG.into(),
             team: TEAM.into(),
         }));
+        host.settings.mcp = Some(
+            crate::mcp::McpRegistry::load(crate::mcp::McpScope {
+                store: keys.store.clone(),
+                vault: keys.vault.clone(),
+                actor: OWNER.into(),
+                org: ORG.into(),
+                team: TEAM.into(),
+            })
+            .map_err(AppError::InvalidRequest)?,
+        );
         Ok(Self {
             local,
             host,

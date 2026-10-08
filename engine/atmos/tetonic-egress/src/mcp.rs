@@ -1,11 +1,13 @@
 //! Bounded MCP Streamable HTTP transport. Caller must explicitly enroll the
 //! loopback port; no credential, redirect, DNS name or arbitrary remote endpoint.
-use crate::{EgressError, EgressGuard};
+use crate::{EgressError, EgressGuard, HostedCredential};
 use futures_util::StreamExt;
 use serde_json::Value;
 
+mod endpoint;
 #[cfg(test)]
 mod tests;
+pub use endpoint::mcp_endpoint;
 
 pub struct McpReply {
     pub session: Option<String>,
@@ -67,14 +69,27 @@ impl EgressGuard {
         session: &str,
         version: &str,
     ) -> Result<(), EgressError> {
-        let (url, client) = self.local_mcp_client(endpoint).await?;
-        let response = client
+        self.end_mcp(endpoint, session, version, None).await
+    }
+    pub async fn end_mcp(
+        &self,
+        endpoint: &str,
+        session: &str,
+        version: &str,
+        credential: Option<&HostedCredential>,
+    ) -> Result<(), EgressError> {
+        let (url, client) = self.mcp_client(endpoint).await?;
+        let mut request = client
             .delete(url)
             .timeout(std::time::Duration::from_millis(500))
             .header("MCP-Session-Id", session)
-            .header("MCP-Protocol-Version", version)
-            .send()
-            .await?;
+            .header("MCP-Protocol-Version", version);
+        if let Some(credential) = credential {
+            for (name, value) in &credential.headers {
+                request = request.header(name, value);
+            }
+        }
+        let response = request.send().await?;
         if response.status().is_success() || matches!(response.status().as_u16(), 404 | 405) {
             Ok(())
         } else {
@@ -90,7 +105,17 @@ impl EgressGuard {
         session: Option<&str>,
         version: &str,
     ) -> Result<McpReply, EgressError> {
-        let (url, client) = self.local_mcp_client(endpoint).await?;
+        self.post_mcp(endpoint, body, session, version, None).await
+    }
+    pub async fn post_mcp(
+        &self,
+        endpoint: &str,
+        body: &Value,
+        session: Option<&str>,
+        version: &str,
+        credential: Option<&HostedCredential>,
+    ) -> Result<McpReply, EgressError> {
+        let (url, client) = self.mcp_client(endpoint).await?;
         let mut request = client
             .post(url)
             .timeout(std::time::Duration::from_secs(8))
@@ -99,6 +124,11 @@ impl EgressGuard {
             .json(body);
         if let Some(id) = session {
             request = request.header("MCP-Session-Id", id);
+        }
+        if let Some(credential) = credential {
+            for (name, value) in &credential.headers {
+                request = request.header(name, value);
+            }
         }
         let response = request.send().await?;
         if !response.status().is_success() {

@@ -2,6 +2,97 @@ use super::*;
 use serde_json::json;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+#[tokio::test]
+async fn remote_mcp_is_exactly_granted_and_private_destinations_are_rejected() {
+    let guard = EgressGuard::new();
+    let credential = HostedCredential::bearer("TEST_ONLY").unwrap();
+    let endpoint = "https://example.invalid/mcp";
+    assert!(matches!(
+        guard
+            .post_mcp(
+                endpoint,
+                &json!({"id":1}),
+                None,
+                "2025-11-25",
+                Some(&credential)
+            )
+            .await,
+        Err(EgressError::Denied { .. })
+    ));
+    guard.allow_hosted_endpoint(endpoint).unwrap();
+    assert!(matches!(
+        guard
+            .post_mcp(
+                "https://example.invalid/other",
+                &json!({"id":1}),
+                None,
+                "2025-11-25",
+                Some(&credential)
+            )
+            .await,
+        Err(EgressError::Denied { .. })
+    ));
+    for url in [
+        "https://127.0.0.1/mcp",
+        "https://169.254.169.254/mcp",
+        "https://[::1]/mcp",
+    ] {
+        guard.allow_hosted_endpoint(url).unwrap();
+        assert!(guard
+            .post_mcp(url, &json!({"id":1}), None, "2025-11-25", Some(&credential))
+            .await
+            .is_err());
+    }
+    for url in [
+        "http://example.com/mcp",
+        "https://token@example.com/mcp",
+        "https://example.com/mcp?key=secret",
+        "https://example.com/mcp#secret",
+        "https://example.com:0/mcp",
+    ] {
+        assert!(mcp_endpoint(url).is_err());
+    }
+}
+
+#[tokio::test]
+async fn service_credentials_are_headers_and_never_follow_a_redirect() {
+    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let address = listener.local_addr().unwrap();
+    let trap = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
+    let trap_address = trap.local_addr().unwrap();
+    let server = tokio::spawn(async move {
+        let (mut socket, _) = listener.accept().await.unwrap();
+        let mut bytes = [0; 8192];
+        let n = socket.read(&mut bytes).await.unwrap();
+        let text = String::from_utf8_lossy(&bytes[..n]);
+        assert!(text
+            .to_lowercase()
+            .contains("authorization: bearer fixture_secret"));
+        assert!(!text.lines().next().unwrap().contains("SECRET"));
+        let response = format!("HTTP/1.1 307 Temporary Redirect\r\nLocation: http://{trap_address}/stolen\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+        socket.write_all(response.as_bytes()).await.unwrap();
+    });
+    let guard = EgressGuard::new();
+    guard.allow_node("fixture", address.ip(), Some(address.port()));
+    let token = HostedCredential::bearer("FIXTURE_SECRET").unwrap();
+    let result = guard
+        .post_mcp(
+            &format!("http://{address}/mcp"),
+            &json!({"jsonrpc":"2.0","id":1,"method":"initialize"}),
+            None,
+            "2025-11-25",
+            Some(&token),
+        )
+        .await;
+    assert!(result.is_err());
+    server.await.unwrap();
+    assert!(
+        tokio::time::timeout(std::time::Duration::from_millis(100), trap.accept())
+            .await
+            .is_err()
+    );
+}
+
 #[test]
 fn sse_handles_fragmented_utf8_multiline_events_and_all_line_endings() {
     for newline in ["\n", "\r\n", "\r"] {

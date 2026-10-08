@@ -245,6 +245,7 @@ impl Store {
         }
         self.migrate_workspace_skills_v67()?;
         self.migrate_work_teams_v68()?;
+        self.migrate_workspace_mcp_v69()?;
         if applied < 66 {
             // Saved human answers bind checkpoints and stop generations. Older
             // writers must not accept them under live-only question semantics.

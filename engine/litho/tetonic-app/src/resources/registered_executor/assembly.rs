@@ -33,6 +33,30 @@ impl crate::Application {
             .job_spec
             .capability_bindings
             .iter()
+            .any(|id| id.starts_with("mcp_"))
+        {
+            let registry = settings
+                .mcp
+                .clone()
+                .ok_or_else(|| AppError::PolicyDenied("MCP library unavailable".into()))?;
+            if !registry.authorized(
+                &prepared.authorization.scope,
+                &prepared.command.job_spec.capability_bindings,
+            ) {
+                return Err(AppError::PolicyDenied(
+                    "MCP access unavailable or revoked".into(),
+                ));
+            }
+            prepared.authorization.authority = Arc::new(crate::mcp::McpAuthority {
+                inner: prepared.authorization.authority.clone(),
+                registry,
+            });
+        }
+        if prepared
+            .command
+            .job_spec
+            .capability_bindings
+            .iter()
             .any(|id| id.starts_with("skill_"))
         {
             let library = settings

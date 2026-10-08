@@ -85,6 +85,14 @@ async fn serve(
         assert!(headers.contains("mcp-session-id: fixture-session"));
     }
     let mode = mode.load(Ordering::SeqCst);
+    if mode == 6 || (mode == 8 && !headers.contains("authorization: bearer test_service_token")) {
+        let _ = socket
+            .write_all(
+                b"HTTP/1.1 401 Unauthorized\r\nContent-Length: 0\r\nConnection: close\r\n\r\n",
+            )
+            .await;
+        return;
+    }
     if mode == 3 && method == "tools/call" {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }

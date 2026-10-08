@@ -21,7 +21,7 @@
 
 mod hosted;
 mod mcp;
-pub use mcp::{local_mcp_endpoint, McpReply};
+pub use mcp::{local_mcp_endpoint, mcp_endpoint, McpReply};
 mod ndjson;
 mod pinned_tls;
 pub use hosted::{BearerCredential, HostedCredential};
