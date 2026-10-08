@@ -56,6 +56,12 @@ Each ticket records implementation, exact checks, limitations and evidence. Unit
 
 ## Current evidence
 
+October 7 model discovery follow-on: [current model catalog experience](model-catalog-experience-2026-10-07.md)
+adds provider names/dates, newest-first ordering when dates exist, search, freshness,
+safe refresh and official public-catalog links to the existing agent/Guide picker.
+Account catalogs still require saved provider API credentials. No hardcoded model
+shortlist, live account qualification or vendor-harness enablement is implied.
+
 Latest October 6 increment: the common disclosure binding is implemented, and direct Ollama/OpenAI/Anthropic/Google general agents use the same granted file/MCP execution path. Google discovery/native function calling and Anthropic native-ID/private-continuation fixes are integrated. Hosted file writes reuse staging/finalization; MCP remains local HTTP reads. Shared fixtures cover real effects/results and denial/stop behavior. See FAR-004 and FAR-008 for the current evidence; earlier entries below describe historical slices. No live-provider or installed vendor-harness completion is claimed.
 
 The next integration boundary is FAR-007: resolve each delegated worker's provider, exact tools and authorized input/result disclosure, preserving derived grants, context privacy, budgets and parent stop. FAR-005 must then bridge vendor harnesses into that same execution contract. These remain substantive work, not configuration toggles.

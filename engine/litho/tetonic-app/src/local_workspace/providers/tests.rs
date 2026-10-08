@@ -184,6 +184,8 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                 // Rotation publishes the new reference before deleting the old entry.
                 let discovered = workspace.provider_models(provider).await.unwrap();
                 assert_eq!(discovered.models, vec![model]);
+                assert_eq!(discovered.entries[0].id, model);
+                assert!(chrono::DateTime::parse_from_rfc3339(&discovered.fetched_at).is_ok());
                 assert!(!discovered.capabilities_verified);
                 assert_eq!(discovered.provider, provider);
                 workspace

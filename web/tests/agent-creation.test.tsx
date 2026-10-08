@@ -168,10 +168,7 @@ describe('agent configuration', () => {
     await user.type(screen.getByRole('textbox', { name: 'Name', exact: true }), 'Claude Assistant');
     await user.selectOptions(screen.getByRole('combobox', { name: 'Model provider' }), 'anthropic');
     await screen.findByRole('option', { name: 'claude-sonnet-4-6', exact: true });
-    await user.selectOptions(
-      screen.getByRole('combobox', { name: 'Model', exact: true }),
-      'claude-sonnet-4-6',
-    );
+    await user.selectOptions(screen.getByLabelText('Model', { exact: true }), 'claude-sonnet-4-6');
     const generalConsent = screen.getByRole('checkbox', {
       name: /instructions, prompts, and conversation history/,
     });

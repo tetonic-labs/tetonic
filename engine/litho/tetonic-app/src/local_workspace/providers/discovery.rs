@@ -6,7 +6,16 @@ use tetonic_inference::hosted::HostedTransport;
 pub struct LocalModelCatalog {
     pub provider: String,
     pub models: Vec<String>,
+    pub entries: Vec<LocalModelEntry>,
+    pub fetched_at: String,
     pub capabilities_verified: bool,
+}
+
+#[derive(Serialize)]
+pub struct LocalModelEntry {
+    pub id: String,
+    pub display_name: Option<String>,
+    pub created_at: Option<i64>,
 }
 
 impl LocalWorkspace {
@@ -37,13 +46,15 @@ impl LocalWorkspace {
         ));
         #[cfg(test)]
         let transport = self.hosted_transport.clone().unwrap_or(transport);
-        let models = tokio::time::timeout(std::time::Duration::from_secs(20),
+        let entries = tokio::time::timeout(std::time::Duration::from_secs(20),
             discover(transport.as_ref(), endpoint)).await
             .map_err(|_| AppError::InvalidRequest("Model discovery timed out. Retry or enter a model ID.".into()))?
             .map_err(|_| AppError::InvalidRequest("Could not discover models. Check the provider key, account access and network, then retry or enter a model ID.".into()))?;
         Ok(LocalModelCatalog {
             provider: provider.into(),
-            models,
+            models: entries.iter().map(|entry| entry.id.clone()).collect(),
+            entries,
+            fetched_at: chrono::Utc::now().to_rfc3339(),
             capabilities_verified: false,
         })
     }
@@ -52,8 +63,9 @@ impl LocalWorkspace {
 async fn discover(
     transport: &dyn HostedTransport,
     endpoint: &str,
-) -> Result<Vec<String>, InferenceError> {
-    let mut models = std::collections::BTreeSet::new();
+) -> Result<Vec<LocalModelEntry>, InferenceError> {
+    let mut models = Vec::new();
+    let mut ids = std::collections::HashSet::new();
     let mut cursors = std::collections::HashSet::new();
     let mut cursor: Option<String> = None;
     // Bounded pagination, with no provider-returned URL or endpoint following.
@@ -89,7 +101,33 @@ async fn discover(
                 super::inference_endpoint("google", id)
                     .map_err(|_| InferenceError::Decode("invalid Gemini model ID".into()))?;
             }
-            models.insert(id.to_owned());
+            if ids.insert(id.to_owned()) {
+                let display_name = model
+                    .get(if google {
+                        "displayName"
+                    } else {
+                        "display_name"
+                    })
+                    .and_then(serde_json::Value::as_str)
+                    .map(str::trim)
+                    .filter(|name| {
+                        !name.is_empty() && name.len() <= 256 && !name.chars().any(char::is_control)
+                    })
+                    .map(str::to_owned);
+                let created_at = model["created"]
+                    .as_i64()
+                    .or_else(|| {
+                        chrono::DateTime::parse_from_rfc3339(model["created_at"].as_str()?)
+                            .ok()
+                            .map(|date| date.timestamp())
+                    })
+                    .filter(|timestamp| *timestamp > 0);
+                models.push(LocalModelEntry {
+                    id: id.to_owned(),
+                    display_name,
+                    created_at,
+                });
+            }
             if models.len() > 5000 {
                 return Err(InferenceError::Decode("model catalog too large".into()));
             }
@@ -97,7 +135,10 @@ async fn discover(
         if (google && (page.get("nextPageToken").is_none() || page["nextPageToken"] == ""))
             || (!google && (page.get("has_more").is_none() || page["has_more"] == false))
         {
-            return Ok(models.into_iter().collect());
+            // Stable ordering: newest dated models first; preserve the provider's
+            // order where it supplies no date. Never rank by a pinned family list.
+            models.sort_by_key(|model| std::cmp::Reverse(model.created_at));
+            return Ok(models);
         }
         if !google && page["has_more"] != true {
             return Err(InferenceError::Decode("invalid catalog pagination".into()));
@@ -141,6 +182,7 @@ mod tests {
             assert!(matches!(
                 endpoint,
                 "https://api.anthropic.com/v1/models"
+                    | "https://api.openai.com/v1/models"
                     | "https://generativelanguage.googleapis.com/v1beta/models"
             ));
             self.cursors.lock().unwrap().push(cursor.map(str::to_owned));
@@ -162,8 +204,11 @@ mod tests {
                 "https://generativelanguage.googleapis.com/v1beta/models"
             )
             .await
-            .unwrap(),
-            vec!["gemini-next", "gemini-test"]
+            .unwrap()
+            .into_iter()
+            .map(|model| model.id)
+            .collect::<Vec<_>>(),
+            vec!["gemini-test", "gemini-next"]
         );
         assert_eq!(
             *catalog.cursors.lock().unwrap(),
@@ -192,14 +237,80 @@ mod tests {
         assert_eq!(
             discover(&catalog, "https://api.anthropic.com/v1/models")
                 .await
-                .unwrap(),
-            vec!["a", "b", "z"]
+                .unwrap()
+                .into_iter()
+                .map(|model| model.id)
+                .collect::<Vec<_>>(),
+            vec!["z", "a", "b"]
         );
         assert_eq!(
             *catalog.cursors.lock().unwrap(),
             vec![None, Some("a".into())]
         );
     }
+    #[tokio::test]
+    async fn current_catalog_keeps_new_ids_and_provider_metadata_without_a_shortlist() {
+        for (endpoint, page) in [
+            (
+                "https://api.openai.com/v1/models",
+                json!({"data":[
+                    {"id":"old-generation", "created":100},
+                    {"id":"unrecognized-future-model", "created":300},
+                    {"id":"account-fine-tune", "created":200},
+                    {"id":"alias-without-date"}
+                ]}),
+            ),
+            (
+                "https://api.anthropic.com/v1/models",
+                json!({"data":[
+                {"id":"old-generation", "created_at":"2025-01-01T00:00:00Z"},
+                {"id":"unrecognized-future-model", "display_name":"New model", "created_at":"2026-01-01T00:00:00Z"},
+                {"id":"account-fine-tune", "created_at":"2025-06-01T00:00:00Z"},
+                {"id":"alias-without-date", "display_name":"bad\nname", "created_at":"not-a-date"}
+            ], "has_more":false}),
+            ),
+        ] {
+            let catalog = Catalog {
+                pages: Mutex::new(vec![page]),
+                cursors: Mutex::default(),
+            };
+            let models = discover(&catalog, endpoint).await.unwrap();
+            assert_eq!(
+                models
+                    .iter()
+                    .map(|model| model.id.as_str())
+                    .collect::<Vec<_>>(),
+                vec![
+                    "unrecognized-future-model",
+                    "account-fine-tune",
+                    "old-generation",
+                    "alias-without-date"
+                ]
+            );
+            assert!(models[0].created_at > models[1].created_at);
+            assert!(models[3].created_at.is_none());
+            assert!(models[3].display_name.is_none());
+            if endpoint.contains("anthropic") {
+                assert_eq!(models[0].display_name.as_deref(), Some("New model"));
+            }
+        }
+        let catalog = Catalog {
+            pages: Mutex::new(vec![json!({"models":[
+                {"name":"models/new-generation", "displayName":"New Gemini", "supportedGenerationMethods":["generateContent"]}
+            ]})]),
+            cursors: Mutex::default(),
+        };
+        let models = discover(
+            &catalog,
+            "https://generativelanguage.googleapis.com/v1beta/models",
+        )
+        .await
+        .unwrap();
+        assert_eq!(models[0].id, "new-generation");
+        assert_eq!(models[0].display_name.as_deref(), Some("New Gemini"));
+        assert!(models[0].created_at.is_none());
+    }
+
     #[tokio::test]
     async fn rejects_malformed_and_non_advancing_catalogs() {
         for page in [

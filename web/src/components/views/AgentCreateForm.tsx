@@ -342,7 +342,6 @@ export function AgentCreateForm({
                     : 'This profile works with your prompts and conversation only.'}
                 </p>
               )}
-              <p>Choose a text model with tool calling available to your provider account.</p>
             </>
           )}
           {!hosted && connected?.catalog.local_error && (

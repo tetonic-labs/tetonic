@@ -168,7 +168,7 @@ it('edits the Guide model with planning disclosure and no execution tool or iden
     target: { value: 'openai' },
   });
   await screen.findByRole('option', { name: 'account-model' });
-  fireEvent.change(screen.getByRole('combobox', { name: 'Model' }), {
+  fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
     target: { value: 'account-model' },
   });
   const save = screen.getByRole('button', { name: 'Save changes' });

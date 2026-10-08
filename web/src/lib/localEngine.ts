@@ -263,6 +263,8 @@ export interface EngineProvider {
 export interface ProviderModelCatalog {
   provider: string;
   models: string[];
+  entries?: { id: string; display_name: string | null; created_at: number | null }[];
+  fetched_at?: string;
   capabilities_verified: boolean;
 }
 export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key'> & {

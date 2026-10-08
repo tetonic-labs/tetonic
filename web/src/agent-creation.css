@@ -189,6 +189,39 @@
   color: var(--text-secondary);
   margin: 7px 0 12px;
 }
+.agent-runtime-fields .agent-model-list {
+  min-height: 136px;
+  padding: 4px;
+  background-image: none;
+}
+.agent-model-list option {
+  padding: 7px 9px;
+  border-radius: 3px;
+}
+.agent-model-note {
+  margin: 0;
+}
+.agent-selected-model {
+  overflow-wrap: anywhere;
+}
+.agent-model-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 6px 0;
+}
+.agent-model-actions a,
+.agent-model-actions button,
+.tw-live .px-inspector .agent-create-form .agent-model-actions button {
+  color: var(--on-ink);
+  font-size: 12px;
+  text-underline-offset: 3px;
+}
+.agent-model-actions button {
+  padding: 4px 0;
+  text-decoration: underline;
+}
 .agent-advanced {
   border-top: 1px solid var(--brand-rule);
   border-bottom: 1px solid var(--brand-rule);
