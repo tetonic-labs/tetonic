@@ -15,7 +15,7 @@ pub(super) enum HarnessPreparation {
 
 /// Ephemeral composition, never a second run record or permission grant.
 pub(super) struct RegisteredHarnessPlan {
-    pub prepared: super::super::activation::PreparedRegisteredJob,
+    pub prepared: super::admission::PreparedRegisteredJob,
     pub settings: RegisteredExecutionSettings,
     pub workspace: Option<tetonic_tools::Workspace>,
     pub root: Option<std::path::PathBuf>,

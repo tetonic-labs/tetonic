@@ -1,3 +1,5 @@
+//! Retained coding harness policy and role filters. This is not the product
+//! team scheduler; registered general agents use resources::registered instead.
 use std::sync::Arc;
 
 use tetonic_orchestrator::{DomainPack, PackManifest, RoleId, SpecialistPack};

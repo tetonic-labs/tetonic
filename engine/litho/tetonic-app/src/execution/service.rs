@@ -11,9 +11,7 @@ use tetonic_memory::RecoverMutex;
 use tetonic_run::{job_input_digest, RunSupervisor};
 use tokio::sync::oneshot;
 
-#[path = "attempt_completion.rs"]
-mod attempt_completion;
-#[path = "identity_job.rs"]
+mod dispatch;
 mod identity_job;
 
 pub use tetonic_run::{ExecutionPolicy, FinalizationEffectDriver, FinalizationPolicy};
@@ -133,7 +131,7 @@ impl DefaultRunService {
         );
         let approvals = Arc::new(Mutex::new(None));
         let runtime = Arc::new(Mutex::new(None));
-        managed.attach_hooks(Arc::new(super::run_service_hooks::ProductRunHooks {
+        managed.attach_hooks(Arc::new(super::observer::ProductRunHooks {
             bindings: Mutex::new(HashMap::new()),
             scanner: tetonic_secrets::ScannerEngine::default_engine(),
             events: events.clone(),
@@ -297,5 +295,5 @@ impl RunService for DefaultRunService {
 }
 
 #[cfg(test)]
-#[path = "execution_regression_tests.rs"]
+#[path = "regression_tests.rs"]
 mod execution_regression_tests;

@@ -198,7 +198,7 @@ fn check_iface_002(root: &Path) -> Vec<Violation> {
         crate::resolve_path(
             root,
             &[
-                "litho/tetonic-app/src/turn_execution.rs",
+                "litho/tetonic-app/src/execution/workspace_hooks.rs",
                 "litho/lokai-app/src/turn_execution.rs",
             ],
         ),
@@ -222,7 +222,7 @@ fn check_iface_002(root: &Path) -> Vec<Violation> {
 
 fn check_obs_001(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
-    let job_path = root.join("litho/lokai-app/src/identity_job.rs");
+    let job_path = root.join("litho/tetonic-app/src/execution/service/identity_job.rs");
     if job_path.exists() {
         let text = std::fs::read_to_string(&job_path).unwrap_or_default();
         let prod = production_prefix(&text);
@@ -236,7 +236,7 @@ fn check_obs_001(root: &Path) -> Vec<Violation> {
             });
         }
     }
-    let events_path = root.join("litho/lokai-app/src/events.rs");
+    let events_path = root.join("litho/tetonic-app/src/events.rs");
     if events_path.exists() {
         let text = std::fs::read_to_string(&events_path).unwrap_or_default();
         let prod = production_prefix(&text);
@@ -348,13 +348,18 @@ mod tests;
 fn check_manager_owner(root: &Path) -> Vec<Violation> {
     let mut out = Vec::new();
     for module in [
-        "run_service.rs",
-        "identity_job.rs",
-        "turn_finalization.rs",
-        "attempt_completion.rs",
+        "execution/service.rs",
+        "execution/service/identity_job.rs",
+        "execution/finalization.rs",
+        "execution/service/dispatch.rs",
     ] {
-        let path = root.join("litho/lokai-app/src").join(module);
+        let path = root.join("litho/tetonic-app/src").join(module);
         let Ok(text) = std::fs::read_to_string(&path) else {
+            out.push(Violation {
+                rule: "ARCH-V4-WORK-002",
+                path,
+                detail: "execution adapter is missing or unreadable; update the ownership check when moving it".into(),
+            });
             continue;
         };
         let source = production_prefix(&text);
@@ -371,7 +376,7 @@ fn check_manager_owner(root: &Path) -> Vec<Violation> {
             "RunCommand::FinishRun",
         ] {
             if source.contains(marker) {
-                out.push(Violation { rule: "ARCH-V4-WORK-002", path: path.clone(), detail: format!("product adapter owns lifecycle primitive `{marker}`; delegate to lokai-run") });
+                out.push(Violation { rule: "ARCH-V4-WORK-002", path: path.clone(), detail: format!("product adapter owns lifecycle primitive `{marker}`; delegate to tetonic-run") });
             }
         }
     }

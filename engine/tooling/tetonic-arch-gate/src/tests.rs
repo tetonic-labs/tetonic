@@ -80,6 +80,41 @@ fn context_compiler_is_wired_in_assembly() {
 }
 
 #[test]
+fn sandbox_gate_checks_workspace_hooks_not_the_compatibility_module() {
+    let dir = tempfile::tempdir().unwrap();
+    let root = dir.path();
+    let hooks = root.join("litho/tetonic-app/src/execution/workspace_hooks.rs");
+    std::fs::create_dir_all(hooks.parent().unwrap()).unwrap();
+    std::fs::copy(
+        engine_root().join("litho/tetonic-app/src/execution/workspace_hooks.rs"),
+        &hooks,
+    )
+    .unwrap();
+    let original = std::fs::read_to_string(&hooks).unwrap();
+    assert!(check_production_tools_sandboxed(root).is_empty());
+    std::fs::write(
+        root.join("litho/tetonic-app/src/turn_execution.rs"),
+        "EnforcementLevel::Sandboxed",
+    )
+    .unwrap();
+    std::fs::write(
+        &hooks,
+        original.replace(
+            "EnforcementLevel::Sandboxed",
+            "EnforcementLevel::Constrained",
+        ),
+    )
+    .unwrap();
+    assert!(check_production_tools_sandboxed(root)
+        .iter()
+        .any(|v| v.path == hooks));
+    std::fs::remove_file(&hooks).unwrap();
+    assert!(check_production_tools_sandboxed(root)
+        .iter()
+        .any(|v| v.path == hooks));
+}
+
+#[test]
 fn subprocess_check_catches_disallowed_file() {
     let dir = tempfile::tempdir().unwrap();
     let bad = dir.path().join("evil.rs");

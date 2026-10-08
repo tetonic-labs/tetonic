@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
+pub mod agent_steps;
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum EngineStage {
     Routing { mode: String },

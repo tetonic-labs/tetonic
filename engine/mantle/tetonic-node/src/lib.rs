@@ -3,7 +3,7 @@ mod conn;
 mod event;
 mod fabric;
 mod fabric_chat;
-mod job_ingress;
+mod inference_ingress;
 mod lease_table;
 mod limits;
 mod revoke;

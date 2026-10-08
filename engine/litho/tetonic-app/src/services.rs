@@ -2,12 +2,7 @@
 //! policy, estate and capacity. `RunSupervisor` is the sole authority for
 //! run/task/attempt transitions.
 
-#[path = "run_service.rs"]
-mod run_service;
-#[path = "run_service_hooks.rs"]
-mod run_service_hooks;
-
-pub use run_service::{
+pub use crate::execution::{
     DefaultRunService, FinalizationEffectDriver, FinalizationPolicy, RunService,
 };
 

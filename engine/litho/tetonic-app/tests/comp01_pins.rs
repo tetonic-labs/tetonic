@@ -126,7 +126,7 @@ fn comp01_fabric_client_transaction_untouched() {
 
 #[test]
 fn comp01_public_run_service_has_no_turn_execution_host() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let trait_body = trait_run_service(&src);
     assert!(!trait_body.contains("TurnExecutionHost"));
     assert!(!trait_body.contains("async fn run_turn("));
@@ -171,14 +171,14 @@ fn comp01_compute_plane_request_has_no_supervisor_field() {
 
 #[test]
 fn comp01_inspect_run_remains() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     assert!(src.contains("async fn inspect_run("));
     assert!(src.contains("async fn resume_events("));
 }
 
 #[test]
 fn comp01_internal_run_service_still_has_supervisor() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     assert!(src.contains("supervisor: Arc<dyn RunSupervisor>"));
 }
 
@@ -189,7 +189,7 @@ fn comp01_start_identity_job_stays_sessionless() {
 
 #[test]
 fn comp01_create_run_stays_persist_only() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let body = fn_body(&src, "async fn create_run(");
     assert!(!body.contains("execute_turn"));
     assert!(!body.contains("submit_chat_turn"));

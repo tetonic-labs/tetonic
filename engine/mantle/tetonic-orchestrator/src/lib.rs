@@ -1,4 +1,6 @@
-//! Session orchestrator host (D3) + briefing (D5).
+//! Retained coding/session strategies: briefing, routing, specialists and critics.
+//! Current product team coordination lives in tetonic-app's WorkService and
+//! TeamWorkController. Managed execution in tetonic-run owns attempts and outcomes.
 
 mod briefing;
 mod critic;

@@ -1,82 +1,46 @@
 # tetonic-app
 
-Application kernel: workflow decisions for managed runs, estate, capacity, policy, and approvals. The local workspace host and `tetonic-cli` operator commands hold `Arc<Application>` and must not reimplement owned workflows.
+Application composition and authorized product services for Tetonic. This crate
+connects work, saved agents, capabilities and context to the existing managed
+execution engine. It does not own a second run journal or executor lifecycle.
 
-`local_workspace::LocalWorkspace` composes the first single-owner web connection:
-durable local work and agent registration, guarded local model discovery, bounded
-execution of a selected agent, authorized result inspection, and cancellation.
-Agent preferences can lower host limits but never grant capabilities. It reuses
-this kernel and its store; it is not a fleet dispatcher.
-See [the local UI contract](../../../docs/implementation/contracts/local-ui-v1.md).
+## Where changes belong
 
-## Role
+| Owner | Responsibility |
+|---|---|
+| `host` | Shared application dependencies, storage and diagnostics configuration |
+| `work::WorkService` | Work shaping, plans, submission, human questions, continuation and inspection |
+| `workspace::WorkspaceServices` | Scoped agent editing, providers and capability operations |
+| `resources` | Authenticated identity, grants, context, work and control operations |
+| `resources::registered` | Authorized revision/job preparation, harness assembly and supported reconstruction |
+| `execution` | Run-service adapter, audit interface, managed observation hooks and finalization effects |
+| `events` | Product observations and redacted agent-step projection |
+| `team_work_controller` | Assignment readiness, parallel dispatch and contribution collection |
+| `coding_pack` | Retained coding-specific strategy integration |
+| `estate_enrollment`, capacity and policy services | Existing operator and infrastructure operations |
 
-| Service | Owns |
-|---------|------|
-| `InitializationService` | Runtime bootstrap (artifacts, GC, scanners) |
-| `RunService` / `turn_execution` | Identity jobs, inspection, replay, cancellation; shared finalization, event and workspace hooks |
-| `PolicyService` / `ApprovalService` | Policy mode + approvals |
-| `EstateService` + `estate_enrollment` | Enroll/remove/status; coordinator key + enrollment egress reload |
-| `CapacityService` | Optimize, doctor, status, profiles |
+`local_workspace::LocalWorkspace` remains the public compatibility name for
+`WorkService`. Local bootstrap composes the single-owner host and defaults;
+scoped resource operations still check current authority. The local HTTP adapter
+lives in `tetonic-cli`.
 
-## Resource operation inputs
+`execution::RunService` adapts the existing `tetonic-run::ManagedRunService`.
+The latter owns admission, attempts, leases, cancellation and accepted outcomes.
+The public `turn_execution` and `turn_attestation` modules retain compatibility
+reexports; new callers should use `execution` and `events::agent_steps`.
 
-Work creation and delegation, brief updates, scoped message publication, approvals,
-effort recording, workstation enrollment/claims, delegated execution grants and
-hierarchical stops use named Rust inputs exported from `resources`. These inputs
-adapt the existing service methods; they do not introduce another resource store
-or execution path.
+Credentials remain separate from named resource-operation inputs. Request bodies,
+saved tool names and team membership cannot manufacture grants. A live managed
+`DelegationParent` remains required for governed child execution.
 
-Credentials remain separate method arguments. Services derive the principal from
-verified authority and retain their scope, retry, version and generation checks.
-Device secrets authorize worker claims; a live `DelegationParent` remains required
-for delegated execution. Neither is supplied as ordinary request data. These are
-Rust API inputs, not serialized HTTP contracts. Existing CLI flags, local UI
-payloads and database formats are unchanged.
+## Architecture and tests
 
-## Named exceptions (R26 / M1-2)
+- [System overview](../../../docs/architecture/README.md)
+- [Ownership map](../../../docs/architecture/ownership.md)
+- [Host configuration](../../../docs/architecture/host-configuration.md)
+- [Scoped work services](../../../docs/architecture/work-services.md)
+- [Execution, harness and inference boundaries](../../../docs/architecture/execution-boundaries.md)
+- [Local UI contract](../../../docs/implementation/contracts/local-ui-v1.md)
 
-Every residual production decision that stays in `tetonicd` / `tetonic-cli` must appear here. **No silent dual paths.** New exceptions require a README row before merge.
-
-| Exception | Owner string | Why not migrated | Gate / removal |
-|-----------|--------------|------------------|----------------|
-| Egress CRUD (CLI `/egress`, optional RPC) | `M1-4 transport infra` | Persist allow/remove is infra; default-deny RPC; R26 OOS beyond inventory | Document only until egress service sprint |
-| Worker trust set/get (CLI + fabric RPC) | `estate trust adapter` | Persist + live registry invalidation still split; migrate to `EstateService` later | No second grant algorithm in a third bin |
-| Secret override grant/revoke RPC | `secrets adapter` | Durable store mutation in handler; no app service yet | Do not add CLI duplicate grant path |
-| CLI resume-if-running heuristic | `tetonic-cli session UX` | Terminal resume predicate; app owns rehydrate | Do not redefine `RESUME_MESSAGE_CAP` (gated) |
-| CapacityJobRuntime busy/cancel/job flags | `tetonicd CapacityJobRuntime` | Daemon exclusive lease for optimize job | Existing `tetonicd_no_capacity_workflow` |
-| Initialize compute/index/caps assembly | `tetonicd initialize adapter` | Transport/infra seam around `Application::from_bootstrap*` | — |
-| Fabric/node/enroll/serve modes | `tetonicd node` | Explicit remainder OOS | — |
-| CLI offline index/history/time-travel/project | `tetonic-cli offline` | Infra leftover | `cli_infra_leftovers` |
-| Worker `--worker` fabric capacity GET | `tetonic-cli capacity` | Fabric transport after app coordinator load | Uses `estate_enrollment` helpers |
-| TUI `/ps` `/evict` Ollama HTTP | `tetonic-cli chat` | Local inspector infra | `cli_inspector_no_command` |
-
-### Migrated (must not reappear in bins)
-
-| Helper | Owner | Gate |
-|--------|-------|------|
-| `reload_enrollment_egress` | `tetonic_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
-| `load_or_create_coordinator` | `tetonic_app::estate_enrollment` | `no_duplicate_enrollment_helpers` |
-| `RESUME_MESSAGE_CAP` | `tetonic_app::resume` | `no_duplicate_resume_cap` |
-
-## Tests
-
-```bash
-cargo test -p tetonic-app
-cargo test -p tetonic-arch-gate
-cargo run -p tetonic-arch-gate -- verify package
-```
-
-## Product plan
-
-| ID | Status |
-|----|--------|
-| M1-2 Application kernel ownership | **Complete** (R26 exception inventory + enrollment helper collapse) |
-| R26 M1-2 exception closeout | **Done** |
-
-The local UI also supports explicit prompt-only OpenAI/Anthropic agents, native
-vault credential setup/rotation/removal, and provider-specific failure messages.
-Hosted calls share broker admission and managed-run lifecycle; they never enter
-local/worker model routing. See the local UI contract for disclosure boundaries.
-
-LocalWorkspace::submit_in_conversation accepts an optional parent task ID. Follow-ups reuse authorized same-agent history within a bounded prompt, preserving per-turn execution grants, cancellation, and idempotency.
+From `engine`, run `cargo test -p tetonic-app` and
+`cargo run -p tetonic-arch-gate -- verify package`.

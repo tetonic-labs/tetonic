@@ -33,14 +33,25 @@ pub struct AgentJobSpec {
     pub recovery_id: String,
 }
 
-/// Runtime leftover context for one local executor call. Conversation stays
-/// on the implementation (CODE-02 leftover), not here.
+/// Manager-assigned identity for one executor call. This identifier is not an
+/// execution grant. Cancellation, deadlines and ownership fencing are installed
+/// by managed execution on the assembled agent, not carried as caller authority.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct AttemptExecutionContext {
     pub attempt_id: AttemptId,
 }
 
-/// Manager executor boundary. One implementation; first placement local.
+/// Runs a prepared invocation and returns a candidate outcome, not acceptance.
+///
+/// Production managed execution validates the pinned identity/input, claims the
+/// attempt, attaches its cancellation and per-action authority/lease gates, and
+/// then calls the local implementation. The executor must preserve that attempt
+/// binding; it cannot create/reassign attempts or declare a durable success.
+/// Verification, effects, artifact sealing and final acceptance remain manager-owned.
+///
+/// This trait currently has one local implementation. It is not a remote worker
+/// protocol or an installed backend registry; implementing it alone does not wire
+/// an alternative harness into managed admission, cancellation or recovery.
 #[async_trait]
 pub trait AgentAttemptExecutor: Send {
     async fn execute(

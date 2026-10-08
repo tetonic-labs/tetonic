@@ -68,7 +68,7 @@ async fn scoped_compiler_persists_retrievable_artifacts_and_revokes_future_use()
         &workspace,
         None,
         None,
-        crate::turn_execution::composition_fs_hooks(Vec::new()),
+        crate::execution::workspace_hooks::composition_fs_hooks(Vec::new()),
     )))
     .with_artifact_store(raw.clone());
     let compiler = contexts
@@ -168,8 +168,9 @@ fn compiler_file_hook_refuses_the_control_database() {
     let db = dir.path().join("lokai.db");
     std::fs::write(&db, "PRIVATECANARY in the control database").unwrap();
     std::fs::write(dir.path().join("note.txt"), "ordinary note").unwrap();
-    let hooks =
-        crate::turn_execution::composition_fs_hooks(tetonic_tools::store_sidecar_paths(&db));
+    let hooks = crate::execution::workspace_hooks::composition_fs_hooks(
+        tetonic_tools::store_sidecar_paths(&db),
+    );
     let denied = (hooks.jailed_read)(dir.path(), "lokai.db");
     let message = denied.expect_err("control database must be refused");
     assert!(

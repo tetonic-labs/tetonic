@@ -39,7 +39,7 @@ impl ManagedRunHooks for ProductRunHooks {
     }
     fn step(&self, binding: &ManagedBinding, step: &tetonic_core::Step) {
         if binding.execution_scope.is_none() && binding.session_id.is_none() {
-            crate::turn_execution::step_to_events(
+            crate::events::agent_steps::step_to_events(
                 &self.events,
                 "",
                 &binding.job_spec.identity_id.0,

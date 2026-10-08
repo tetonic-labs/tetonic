@@ -48,7 +48,7 @@ fail closed when no supervisor is bound. Ineligible placement still `continue`s
 | `CircuitBreakerRegistry` | per-worker Closed/Open/HalfOpen |
 | `chat_with_failover` / `continue_after_worker_loss` | broker-driven fallback |
 | `HierarchicalAdmissionController` | budgets + queue decisions |
-| `dispatch::revalidate_before_dispatch` | placement + capability freshness gate for **remote** workers only. Local (`node_local` / `LocalOnly`) skips the capability cache so a down enrolled worker cannot fail-close loopback Ollama. Also refuses process-class jobs (`TestShard` / `IndexShard`) aimed at a worker with `WorkerTargetRefused` — those are the kinds that would otherwise be silently downgraded to local execution (M1, INV-EXEC-002; test `tests/no_v4_dispatch.rs`). WorkerTarget implements **Infer only** (`lokai-node` `job_ingress.rs` refuses everything else with `UnsupportedJobKind`), so `Embed` / `AnalyzeCode` / `ReviewArtifact` are refused at the worker rather than at placement — M1 CONVERGE C-4. |
+| `dispatch::revalidate_before_dispatch` | placement + capability freshness gate for **remote** workers only. Local (`node_local` / `LocalOnly`) skips the capability cache so a down enrolled worker cannot fail-close loopback Ollama. Also refuses process-class jobs (`TestShard` / `IndexShard`) aimed at a worker with `WorkerTargetRefused` — those are the kinds that would otherwise be silently downgraded to local execution (M1, INV-EXEC-002; test `tests/no_v4_dispatch.rs`). WorkerTarget implements **Infer only** (`tetonic-node` `inference_ingress.rs` refuses everything else with `UnsupportedJobKind`), so `Embed` / `AnalyzeCode` / `ReviewArtifact` are refused at the worker rather than at placement — M1 CONVERGE C-4. |
 
 ## Status
 

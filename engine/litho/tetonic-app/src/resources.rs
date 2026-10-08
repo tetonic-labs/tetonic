@@ -254,13 +254,6 @@ mod context_pipeline_tests;
 mod agents;
 pub use agents::EditAgent;
 
-mod general_harness;
-pub use general_harness::{
-    GeneralAgentPreferences, HarnessPreparationLimits, PreparedAgentRevision,
-};
-
-mod execution_authority;
-
 mod execution_grants;
 mod execution_limits;
 pub use execution_limits::OrganizationExecutionLimits;
@@ -268,16 +261,14 @@ pub use execution_limits::OrganizationExecutionLimits;
 mod run_inspection;
 pub use run_inspection::RunPoll;
 
-mod activation;
-pub use activation::RegisteredAgentJob;
-
 pub(crate) mod plan_dispatch;
-mod registered_executor;
+pub mod registered;
 pub use plan_dispatch::PlanDispatch;
-pub(crate) use registered_executor::HOSTED_READ_TOOLS;
-pub use registered_executor::{
-    RegisteredAgentExecution, RegisteredAgentSubmission, RegisteredExecutionSettings,
-    RegisteredHostedInference,
+pub(crate) use registered::HOSTED_READ_TOOLS;
+pub use registered::{
+    GeneralAgentPreferences, HarnessPreparationLimits, PreparedAgentRevision,
+    RegisteredAgentExecution, RegisteredAgentJob, RegisteredAgentSubmission,
+    RegisteredExecutionSettings, RegisteredHostedInference,
 };
 mod tool_disclosure;
 pub use tool_disclosure::{uses_workspace, ToolDisclosure, WORKSPACE_TOOLS};

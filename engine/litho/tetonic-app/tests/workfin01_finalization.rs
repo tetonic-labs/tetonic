@@ -5,14 +5,7 @@ use std::path::{Path, PathBuf};
 
 fn crate_src(rel: &str) -> String {
     let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(rel);
-    let mut src = fs::read_to_string(&path).expect(rel);
-    if rel == "src/run_service.rs" {
-        src.push_str(
-            &fs::read_to_string(path.with_file_name("turn_finalization.rs"))
-                .expect("turn_finalization.rs"),
-        );
-    }
-    src
+    fs::read_to_string(&path).expect(rel)
 }
 
 fn production_prefix(src: &str) -> &str {

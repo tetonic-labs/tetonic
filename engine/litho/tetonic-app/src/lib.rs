@@ -8,6 +8,7 @@ pub mod definition;
 pub mod errors;
 pub mod estate_enrollment;
 pub mod events;
+pub mod execution;
 pub mod fabric_run_bridge;
 pub mod host;
 pub mod job_launch;
@@ -35,6 +36,7 @@ mod r4_3_scanner_tests;
 pub use cli_estate::WorkerTrustAuditSummary;
 pub use commands::TurnFinish;
 pub use compute_plane::{build_compute_plane, ComputePlane, ComputePlaneRequest};
+pub use execution::attestation::{encode_candidate_bytes, seal_output_set, SealedTurn};
 pub use job_launch::{
     host_settings_from_json, launch_registered_job, launch_team_work, RegisteredLaunchHost,
     RegisteredLaunchReceipt,
@@ -44,7 +46,6 @@ pub use secret_scanner_factory::{
     to_store_scope,
 };
 pub use test_harness::{turn as test_turn, MockProvider, ScriptTurn};
-pub use turn_attestation::{encode_candidate_bytes, seal_output_set, SealedTurn};
 
 pub use tetonic_capacity::{
     parse_tier_role, CapacityDoctorStatus, CapacityStatus, DiagnosisCode, InferenceDefaults,
@@ -91,7 +92,7 @@ pub struct ApplicationDependencies {
 impl Application {
     /// Install the definition validator for this kernel's identity-job door.
     /// Without one, the door fails closed. Product launches pin a harness policy
-    /// per admission instead (see `resources::activation`).
+    /// per admission instead (see `resources::registered` admission).
     pub fn with_execution_policy(mut self, policy: tetonic_run::ExecutionPolicy) -> Self {
         let runs = Arc::new((*self.run_manager).clone().with_execution_policy(policy));
         self.runs = runs.clone();

@@ -388,7 +388,7 @@ pub fn check_production_tools_sandboxed(root: &Path) -> Vec<Violation> {
     let turn = crate::resolve_path(
         root,
         &[
-            "litho/tetonic-app/src/turn_execution.rs",
+            "litho/tetonic-app/src/execution/workspace_hooks.rs",
             "litho/lokai-app/src/turn_execution.rs",
         ],
     );

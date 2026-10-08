@@ -25,7 +25,7 @@ use tetonic_sandbox::platform_backend;
 use tokio::sync::Mutex;
 
 use crate::event::IngressDecision;
-use crate::job_ingress::JobIngressManager;
+use crate::inference_ingress::InferenceIngress;
 use crate::lease_table::LeaseTable;
 use crate::limits::{BODY_TIMEOUT, MAX_FABRIC_BODY_BYTES};
 use crate::revoke::RevokeRequest;
@@ -45,7 +45,7 @@ pub struct FabricState {
     pub worker_db_path: std::path::PathBuf,
     pub estate_id: String,
     pub scheduler: Arc<WorkerScheduler>,
-    pub job_ingress: Arc<JobIngressManager>,
+    pub inference_ingress: Arc<InferenceIngress>,
     pub boot_id: String,
     pub capability_revision: Arc<AtomicU64>,
     pub inventory_fingerprint: Arc<AtomicU64>,
@@ -424,7 +424,7 @@ pub fn fabric_state(
     scheduler: Arc<WorkerScheduler>,
 ) -> Arc<FabricState> {
     let inference: Arc<dyn InferenceProvider + Send + Sync> = ollama.clone();
-    let job_ingress = JobIngressManager::load(worker_db_path.clone());
+    let inference_ingress = InferenceIngress::load(worker_db_path.clone());
     let boot_id = format!(
         "boot_{}",
         std::time::SystemTime::now()
@@ -445,7 +445,7 @@ pub fn fabric_state(
         worker_db_path,
         estate_id,
         scheduler,
-        job_ingress,
+        inference_ingress,
         boot_id,
         capability_revision: Arc::new(AtomicU64::new(1)),
         inventory_fingerprint: Arc::new(AtomicU64::new(0)),
@@ -668,7 +668,7 @@ mod tests {
             worker_db_path: db_path.clone(),
             estate_id: "estate".into(),
             scheduler: Arc::new(WorkerScheduler::new()),
-            job_ingress: JobIngressManager::load(db_path),
+            inference_ingress: InferenceIngress::load(db_path),
             boot_id: "boot_test".into(),
             capability_revision: Arc::new(AtomicU64::new(1)),
             inventory_fingerprint: Arc::new(AtomicU64::new(0)),

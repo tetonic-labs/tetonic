@@ -305,7 +305,6 @@ impl super::service::ManagedRunService {
                 })?;
             }
             let run_id = parent_active.binding.run_id;
-            let current_seq = self.current_sequence(&run_id).await;
             let task_id = if let (Some(activation), Some(auth)) =
                 (&context.activation, &context.authorization)
             {
@@ -353,12 +352,16 @@ impl super::service::ManagedRunService {
             }
             let attempt_id = AttemptId::new(format!("att_{}", uuid::Uuid::new_v4()));
 
-            let added = self
-                .supervisor
+            // These manager-issued commands target a new, fixed child task/attempt.
+            // A sibling heartbeat or completion may advance the shared run sequence
+            // between commands. The supervisor serializes each transition and checks
+            // current run/task state, parent authority and lease proofs; a run-wide
+            // optimistic version here would reject unrelated parallel progress.
+            self.supervisor
                 .handle(RunCommand::AddTask(tetonic_domain::AddTask {
                     envelope: command_envelope(
                         format!("spawn_task_{attempt_id}"),
-                        Some(current_seq),
+                        None,
                         "lokai-manager",
                     ),
                     run_id: run_id.clone(),
@@ -411,12 +414,11 @@ impl super::service::ManagedRunService {
                 })?;
 
             let delivery_key = format!("turn:{}:{}", run_id, attempt_id);
-            let created = self
-                .supervisor
+            self.supervisor
                 .handle(RunCommand::CreateAttempt(CreateAttempt {
                     envelope: command_envelope(
                         format!("child_attempt:{attempt_id}"),
-                        Some(added.sequence),
+                        None,
                         "lokai-manager",
                     ),
                     run_id: run_id.clone(),
@@ -433,7 +435,7 @@ impl super::service::ManagedRunService {
                 .handle(RunCommand::LeaseAttempt(LeaseAttempt {
                     envelope: command_envelope(
                         format!("child_lease:{attempt_id}"),
-                        Some(created.sequence),
+                        None,
                         "lokai-manager",
                     ),
                     run_id: run_id.clone(),
@@ -466,7 +468,7 @@ impl super::service::ManagedRunService {
                 .handle(RunCommand::StartAttempt(StartAttempt {
                     envelope: command_envelope(
                         format!("child_start:{attempt_id}"),
-                        Some(leased.sequence),
+                        None,
                         "lokai-manager",
                     ),
                     run_id: run_id.clone(),

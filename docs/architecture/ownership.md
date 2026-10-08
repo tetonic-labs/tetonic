@@ -2,7 +2,7 @@
 
 This map assigns behavior to existing implementation owners. It is the review
 contract for incremental architecture work, based on the integrated baseline and
-updated for the October 8, 2026 host and scoped work-service refactors. No new execution authority is
+updated for the October 8, 2026 host, scoped work-service and execution-boundary refactors. No new execution authority is
 implied by an owner below. Entry points
 include public Rust/local API interfaces and identified internal composition
 functions; they are not necessarily remote APIs.
@@ -10,7 +10,9 @@ functions; they are not necessarily remote APIs.
 For each change, identify its behavioral owner, the durable records it affects,
 and the boundary test that should change with it. Keep the authorization and
 execution paths intact when extracting modules. The
-[terminology](terminology.md) explains similarly named records.
+[terminology](terminology.md) explains similarly named records. The
+[execution trace](execution-boundaries.md) maps registered assembly, execution
+adapters and provider/backend extension points.
 
 ## Change routing
 
@@ -62,7 +64,7 @@ of its harness configuration. Resolve saved preferences within current host and
 authorization limits when preparing execution.
 
 - **Entry points:** [`ResourceService::register_agent`, `edit_agent`, `publish_agent_revision`](../../engine/litho/tetonic-app/src/resources/agents.rs);
-  [`PreparedAgentRevision` and general harness preparation](../../engine/litho/tetonic-app/src/resources/general_harness.rs).
+  [`PreparedAgentRevision` and general harness preparation](../../engine/litho/tetonic-app/src/resources/registered/harness.rs).
   The [agent product adapter](../../engine/litho/tetonic-app/src/workspace/agents.rs)
   supplies editor/catalog behavior.
 - **Durable owner:** [`organization_agents`](../../engine/strata/tetonic-memory/src/organization_agents.rs),
@@ -85,7 +87,7 @@ resource actions, and bind separately authorized execution and context access.
 - **Entry points:** [`ResourceService` / `ResourceAuthority`](../../engine/litho/tetonic-app/src/resources.rs),
   [`LocalControl`](../../engine/litho/tetonic-app/src/resources/local_control.rs),
   [`execution_grants`](../../engine/litho/tetonic-app/src/resources/execution_grants.rs)
-  and [`execution_authority`](../../engine/litho/tetonic-app/src/resources/execution_authority.rs).
+  and [`registered authority`](../../engine/litho/tetonic-app/src/resources/registered/authority.rs).
 - **Durable owner:** [`team_store`](../../engine/strata/tetonic-memory/src/team_store.rs),
   [`execution_grants`](../../engine/strata/tetonic-memory/src/execution_grants.rs),
   context-access records and delegated grants in `tetonic-memory`.
@@ -148,7 +150,7 @@ interrupted execution and restore explicitly supported checkpoints.
 
 - **Entry points:** [`ManagedRunService`](../../engine/mantle/tetonic-run/src/managed/service.rs)
   and [`DurableRunSupervisor`](../../engine/mantle/tetonic-run/src/service.rs).
-  [`registered_executor`](../../engine/litho/tetonic-app/src/resources/registered_executor.rs)
+  [`registered execution`](../../engine/litho/tetonic-app/src/resources/registered/mod.rs)
   prepares and submits to this owner; it is not another supervisor.
 - **Durable owner:** [`RunSnapshot`, `TaskRecord`, `AttemptRecord` and commands/events](../../engine/core/tetonic-domain/src/run.rs)
   persisted by [`commit_run_command`](../../engine/strata/tetonic-memory/src/run_store.rs).
@@ -160,7 +162,7 @@ interrupted execution and restore explicitly supported checkpoints.
   inspection must not construct a new executor merely because work exists.
 - **Boundary evidence:** [managed service tests](../../engine/mantle/tetonic-run/tests/managed_service_tests.rs),
   [execution claims](../../engine/mantle/tetonic-run/tests/execution_claim.rs),
-  [durable human waits](../../engine/litho/tetonic-app/src/resources/registered_executor/human_wait_tests.rs),
+  [durable human waits](../../engine/litho/tetonic-app/src/resources/registered/human_wait_tests.rs),
   [hard process-loss regression](../../engine/litho/tetonic-app/src/workspace/providers/tests/process_recovery_tests.rs).
 
 Cancellation controls managed execution and its attached descendants/resources;
@@ -195,9 +197,9 @@ and connect them to work continuation and managed execution lifetime.
 an agent loop, then enforce model/tool action boundaries throughout execution.
 
 - **Entry points:** application
-  [`submit_registered_job`](../../engine/litho/tetonic-app/src/resources/registered_executor.rs),
-  with internal [`prepare_registered_harness`](../../engine/litho/tetonic-app/src/resources/registered_executor/preparation.rs)
-  and [`assemble_registered_harness`](../../engine/litho/tetonic-app/src/resources/registered_executor/assembly.rs);
+  [`submit_registered_job`](../../engine/litho/tetonic-app/src/resources/registered/mod.rs),
+  with internal [`prepare_registered_harness`](../../engine/litho/tetonic-app/src/resources/registered/preparation.rs)
+  and [`assemble_registered_harness`](../../engine/litho/tetonic-app/src/resources/registered/assembly.rs);
   runtime [`EngineRuntime::assemble_agent`](../../engine/core/tetonic-runtime/src/assembly.rs),
   [`RuntimeActionBroker`](../../engine/core/tetonic-runtime/src/action_broker.rs),
   and the [`tetonic-core` agent loop](../../engine/core/tetonic-core/src/lib.rs).
@@ -211,7 +213,7 @@ an agent loop, then enforce model/tool action boundaries throughout execution.
   Switching provider must not bypass tool authorization, approved data scope,
   cancellation, audit or usage accounting.
 - **Boundary evidence:** [runtime assembly tests](../../engine/core/tetonic-runtime/src/assembly_tests.rs),
-  [registered execution tests](../../engine/litho/tetonic-app/src/resources/registered_executor_tests.rs),
+  [registered execution tests](../../engine/litho/tetonic-app/src/resources/registered/execution_tests.rs),
   [provider parity](../../engine/litho/tetonic-app/src/workspace/providers/tests/parity.rs),
   [independent shell approvals](../../engine/litho/tetonic-app/src/workspace/providers/tests/parallel_approval_tests.rs).
 
@@ -269,7 +271,7 @@ with configured inference workers.
   [`WorkerStore`](../../engine/strata/tetonic-memory/src/worker_store.rs), separate
   from the agent run journal.
 - **Rule:** a remote model request does not move the agent's tools or workspace
-  onto the model server. The [current worker](../../engine/mantle/tetonic-node/src/job_ingress.rs)
+  onto the model server. The [current worker](../../engine/mantle/tetonic-node/src/inference_ingress.rs)
   accepts inference jobs, not general agent execution. Workstation placement
   records are not by themselves a remote executor or distributed lease service.
 - **Boundary evidence:** `compute_plane.rs` tests, broker/egress/provider crate
@@ -322,7 +324,7 @@ only from permitted sources.
   default coding context compiler.
 - **Boundary evidence:** [context pipeline tests](../../engine/litho/tetonic-app/src/resources/context_pipeline_tests.rs),
   access/history tests in `tetonic-memory`, and
-  [registered execution tests](../../engine/litho/tetonic-app/src/resources/registered_executor_tests.rs).
+  [registered execution tests](../../engine/litho/tetonic-app/src/resources/registered/execution_tests.rs).
 
 ## Persistence, projections and presentation
 

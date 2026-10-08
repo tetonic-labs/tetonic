@@ -10,6 +10,12 @@ fn source(module: &str) -> String {
     .unwrap()
 }
 fn product(module: &str) -> String {
+    let module = match module {
+        "identity_job" => "execution/service/identity_job",
+        "attempt_completion" => "execution/service/dispatch",
+        "run_service" => "execution/service",
+        other => other,
+    };
     std::fs::read_to_string(
         PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("src")

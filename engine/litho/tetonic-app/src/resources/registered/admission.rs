@@ -20,7 +20,7 @@ pub struct RegisteredAgentJob {
     pub recovery_id: String,
 }
 
-pub(super) fn resource_error(error: ResourceError) -> AppError {
+pub(in crate::resources) fn resource_error(error: ResourceError) -> AppError {
     match error {
         ResourceError::Denied => AppError::PolicyDenied("registered job access denied".into()),
         ResourceError::Storage | ResourceError::StorageRequired => {
@@ -65,7 +65,7 @@ impl crate::services::DefaultRunService {
     }
 
     #[cfg(test)]
-    pub(super) async fn prepare_registered_job(
+    pub(in crate::resources) async fn prepare_registered_job(
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
@@ -76,7 +76,7 @@ impl crate::services::DefaultRunService {
             .await
     }
 
-    pub(super) async fn prepare_registered_job_with_parent(
+    pub(in crate::resources) async fn prepare_registered_job_with_parent(
         &self,
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
@@ -159,7 +159,7 @@ impl crate::services::DefaultRunService {
         })
     }
 
-    pub(super) async fn submit_prepared_registered_job(
+    pub(in crate::resources) async fn submit_prepared_registered_job(
         &self,
         prepared: PreparedRegisteredJob,
         agent: tetonic_core::Agent,
@@ -168,7 +168,7 @@ impl crate::services::DefaultRunService {
             .await
     }
 
-    pub(super) async fn execute_prepared_registered_job(
+    pub(in crate::resources) async fn execute_prepared_registered_job(
         &self,
         prepared: PreparedRegisteredJob,
         agent: tetonic_core::Agent,
@@ -226,7 +226,7 @@ impl crate::services::DefaultRunService {
 }
 
 /// In-memory preparation owned by the application, not a new lifecycle record.
-pub(super) struct PreparedRegisteredJob {
+pub(in crate::resources) struct PreparedRegisteredJob {
     pub delegation_parent: Option<tetonic_run::managed::DelegationParent>,
     pub activation: Option<tetonic_domain::ActivationBinding>,
     pub deadline: Option<u64>,

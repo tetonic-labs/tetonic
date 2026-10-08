@@ -17,7 +17,7 @@ fn is_process_class(kind: &JobKind) -> bool {
     matches!(kind, JobKind::IndexShard | JobKind::TestShard)
 }
 
-/// V3 implements WorkerTarget for **Infer only** — `job_ingress.rs` answers every other
+/// V3 implements WorkerTarget for **Infer only** — `inference_ingress.rs` answers every other
 /// kind with `UnsupportedJobKind`. Process-class kinds are refused here so they are not
 /// silently downgraded to local execution (INV-EXEC-002). Non-process kinds not in the
 /// cached `supported_job_types` advertisement are refused at dispatch (C-4 / ads ≤ enforce).

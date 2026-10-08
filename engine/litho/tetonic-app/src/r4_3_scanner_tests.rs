@@ -20,7 +20,7 @@ fn tool_summary_secret_is_redacted() {
 
 #[test]
 fn outbound_event_scanner_pair_builds() {
-    let (scanner, _sink) = crate::turn_execution::outbound_event_scanner(&None);
+    let (scanner, _sink) = crate::events::agent_steps::outbound_event_scanner(&None);
     let (out, hit) = tetonic_secrets::redact_text_sync(
         &scanner,
         "password=SuperSecretRandomBase64StringWithManyChars123!",
@@ -35,7 +35,7 @@ fn missing_scanner_does_not_emit_payload() {
     let (rec, events) = RecordingEventSink::new();
     let sink: std::sync::Arc<dyn ApplicationEventSink> = rec;
     let secret = "AKIAIOSFODNN7EXAMPLE";
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",
@@ -44,7 +44,7 @@ fn missing_scanner_does_not_emit_payload() {
         None,
         None,
     );
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",
@@ -70,7 +70,7 @@ fn tool_call_args_and_thoughts_go_through_scanner() {
     let (rec, events) = RecordingEventSink::new();
     let sink: std::sync::Arc<dyn ApplicationEventSink> = rec;
     let secret = "AKIAIOSFODNN7EXAMPLE";
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",
@@ -79,7 +79,7 @@ fn tool_call_args_and_thoughts_go_through_scanner() {
         None,
         None,
     );
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",
@@ -112,7 +112,7 @@ fn stopped_reason_does_not_repeat_a_secret() {
     let (rec, events) = RecordingEventSink::new();
     let sink: std::sync::Arc<dyn ApplicationEventSink> = rec;
     let secret = "AKIAIOSFODNN7EXAMPLE";
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",
@@ -121,7 +121,7 @@ fn stopped_reason_does_not_repeat_a_secret() {
         None,
         None,
     );
-    crate::turn_execution::step_to_events(
+    crate::events::agent_steps::step_to_events(
         &sink,
         "sess",
         "a0",

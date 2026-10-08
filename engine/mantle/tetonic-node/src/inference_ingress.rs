@@ -1,4 +1,5 @@
-//! Worker-side job ingress dedup (M5-1).
+//! Inference-only worker ingress and delivery deduplication.
+//! This worker does not execute agent harnesses, workspace tools or managed attempts.
 
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
@@ -10,12 +11,12 @@ use tetonic_fabric_protocol::{
 use tetonic_memory::WorkerStore;
 use tokio::sync::Mutex;
 
-pub struct JobIngressManager {
+pub struct InferenceIngress {
     inner: Mutex<IngressState>,
     db_path: PathBuf,
 }
 
-impl JobIngressManager {
+impl InferenceIngress {
     pub fn load(db_path: PathBuf) -> Arc<Self> {
         let records = WorkerStore::open(&db_path)
             .ok()
@@ -168,10 +169,10 @@ mod tests {
         let db_path = dir.join("worker.db");
 
         let job = sample_job("att_persist");
-        let mgr = JobIngressManager::load(db_path.clone());
+        let mgr = InferenceIngress::load(db_path.clone());
         assert_eq!(mgr.accept(&job).await.unwrap(), IngressDecision::AcceptNew);
 
-        let reloaded = JobIngressManager::load(db_path.clone());
+        let reloaded = InferenceIngress::load(db_path.clone());
         assert_eq!(
             reloaded.accept(&job).await.unwrap(),
             IngressDecision::DuplicateInFlight
@@ -186,7 +187,7 @@ mod tests {
             .await
             .unwrap();
 
-        let after_terminal = JobIngressManager::load(db_path);
+        let after_terminal = InferenceIngress::load(db_path);
         assert!(matches!(
             after_terminal.accept(&job).await.unwrap(),
             IngressDecision::ReplayExisting(_)
@@ -206,14 +207,25 @@ mod tests {
         ));
         std::fs::create_dir_all(&dir).unwrap();
         let db_path = dir.join("worker.db");
-        let mut job = sample_job("att_embed");
-        job.job_kind = JobKind::Embed;
-        let mgr = JobIngressManager::load(db_path);
-        let err = mgr.accept(&job).await.expect_err("embed refused");
-        assert_eq!(
-            err.code,
-            tetonic_fabric_protocol::FabricErrorCode::UnsupportedJobKind
-        );
+        let mgr = InferenceIngress::load(db_path);
+        for kind in [
+            JobKind::Embed,
+            JobKind::AnalyzeCode,
+            JobKind::IndexShard,
+            JobKind::TestShard,
+            JobKind::ReviewArtifact,
+        ] {
+            let mut job = sample_job("att_unsupported");
+            job.job_kind = kind;
+            let err = mgr
+                .accept(&job)
+                .await
+                .expect_err("non-inference work refused");
+            assert_eq!(
+                err.code,
+                tetonic_fabric_protocol::FabricErrorCode::UnsupportedJobKind
+            );
+        }
         let _ = std::fs::remove_dir_all(dir);
     }
 
@@ -229,7 +241,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         let db_path = dir.join("worker.db");
         let job = sample_job("att_reject");
-        let mgr = JobIngressManager::load(db_path);
+        let mgr = InferenceIngress::load(db_path);
         assert_eq!(mgr.accept(&job).await.unwrap(), IngressDecision::AcceptNew);
         mgr.mark_terminal(
             &job,
@@ -261,7 +273,7 @@ mod tests {
         let db_path = dir.join("worker.db");
         std::fs::create_dir_all(&db_path).unwrap();
         let job = sample_job("att_persist_err");
-        let mgr = JobIngressManager::load(db_path);
+        let mgr = InferenceIngress::load(db_path);
         let err = mgr.accept(&job).await.expect_err("persist must surface");
         assert_eq!(err.code, FabricErrorCode::InternalFailure);
         assert!(

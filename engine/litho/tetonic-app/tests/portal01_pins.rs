@@ -88,7 +88,7 @@ fn portal01_start_identity_job_still_none() {
 
 #[test]
 fn portal01_create_run_still_persist_only() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let body = fn_body(&src, "async fn create_run(");
     assert!(body.contains("RunCommand::CreateRun"));
     assert!(!body.contains("StartRun"));
@@ -135,7 +135,7 @@ fn portal01_register_request_no_live_lookup() {
 
 #[test]
 fn portal01_cancel_run_does_not_require_session() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let body = fn_body(&src, "async fn cancel_run(");
     assert!(!body.contains("fail_session_waits"));
     assert!(!body.contains("LiveSession"));
@@ -143,7 +143,7 @@ fn portal01_cancel_run_does_not_require_session() {
 
 #[test]
 fn portal01_step_to_events_remains() {
-    let src = crate_src("src/turn_execution.rs");
+    let src = crate_src("src/events/agent_steps.rs");
     assert!(src.contains("fn step_to_events("));
 }
 

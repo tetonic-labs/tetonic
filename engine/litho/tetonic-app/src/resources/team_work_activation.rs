@@ -1,7 +1,7 @@
 //! Activate durable team work through the one registered managed-job path.
 use super::*;
 use crate::errors::AppError;
-use crate::resources::activation::resource_error;
+use crate::resources::registered::resource_error;
 use tetonic_memory::TeamWorkItem;
 
 /// Host selectors for launching an existing work item. Request identity comes

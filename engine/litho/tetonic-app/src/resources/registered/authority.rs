@@ -6,7 +6,7 @@ use tetonic_run::managed::{AuthorizedExecution, ExecutionAuthority};
 
 struct ScopedAuthority {
     store: SharedStore,
-    credential: super::credential_binding::BoundCredential,
+    credential: crate::resources::credential_binding::BoundCredential,
     scope: ExecutionScope,
     agent_key: String,
     definition_digest: String,
@@ -109,7 +109,7 @@ impl ContextService {
             scope: scope.clone(),
             authority: Arc::new(ScopedAuthority {
                 store: self.store.clone(),
-                credential: super::credential_binding::BoundCredential::new(
+                credential: crate::resources::credential_binding::BoundCredential::new(
                     self.verifier.clone(),
                     credential,
                 ),

@@ -90,7 +90,7 @@ fn sub02_compile_invocation_does_not_use_toolhost_catalog() {
         "compile must not call ToolHost::workspace_root"
     );
 
-    let turn_src = production_src("tetonic-app", "turn_execution.rs");
+    let turn_src = production_src("tetonic-app", "execution/workspace_hooks.rs");
     assert!(
         !turn_src.contains("ToolHost::operator_card")
             && !turn_src.contains("tools.operator_card()"),

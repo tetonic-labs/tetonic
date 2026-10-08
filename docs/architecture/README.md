@@ -8,6 +8,7 @@ inference workers. Distributed inference is not the same as distributed agent
 execution.
 
 This is the current architecture entry point, updated with the October 8, 2026
+[execution-boundary refactor](execution-boundaries.md),
 [scoped work-service extraction](work-services.md) and
 [host composition refactor](host-configuration.md). The [ownership map](ownership.md) identifies where
 changes belong, the [terminology](terminology.md) distinguishes the records, and
@@ -83,7 +84,7 @@ token, host and origin checks. Its
 creates a local owner, organization, security team and default agents. It is not
 yet a general multi-user organization server or an empty first-run experience.
 
-The [worker ingress](../../engine/mantle/tetonic-node/src/job_ingress.rs) accepts
+The [worker ingress](../../engine/mantle/tetonic-node/src/inference_ingress.rs) accepts
 `JobKind::Infer`. Worker enrollment, placement records and configuration enums
 must not be advertised as an end-to-end distributed agent executor, replicated
 control store, or Keeper service. The local UI/job hosts now share
@@ -101,6 +102,7 @@ effects are not automatically safe to replay. See the
 - [Domain terminology and identifier relationships](terminology.md)
 - [Application host and operator configuration](host-configuration.md)
 - [Scoped workspace services and work lifecycle](work-services.md)
+- [Execution, harness and inference boundaries](execution-boundaries.md)
 - [Contribution workflow](../../CONTRIBUTING.md)
 - [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
 - [Retirement record](../epics/v5-reconciliation/retirement.md)

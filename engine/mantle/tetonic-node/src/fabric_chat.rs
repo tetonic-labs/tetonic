@@ -37,7 +37,7 @@ async fn respond_terminal(
     body: serde_json::Value,
 ) -> Response<FabricBody> {
     match state
-        .job_ingress
+        .inference_ingress
         .mark_terminal(envelope, outcome, Some(body.to_string()))
         .await
     {
@@ -91,7 +91,7 @@ async fn mark_stream_terminal(
     cache: serde_json::Value,
 ) {
     if let Err(e) = state
-        .job_ingress
+        .inference_ingress
         .mark_terminal(envelope, outcome, Some(cache.to_string()))
         .await
     {
@@ -384,7 +384,7 @@ pub(super) async fn jobs(state: Arc<FabricState>, req: Request<Incoming>) -> Res
         }
     }
 
-    match state.job_ingress.accept(&job_envelope).await {
+    match state.inference_ingress.accept(&job_envelope).await {
         Ok(ProtocolIngressDecision::ReplayExisting(rec)) => {
             if let Some(cached) = rec.cached_response_json {
                 return Response::builder()
@@ -550,7 +550,7 @@ pub(super) async fn chat(state: Arc<FabricState>, req: Request<Incoming>) -> Res
             );
         }
     };
-    match state.job_ingress.accept(&envelope).await {
+    match state.inference_ingress.accept(&envelope).await {
         Ok(ProtocolIngressDecision::ReplayExisting(rec)) => {
             if let Some(cached) = rec.cached_response_json {
                 return Response::builder()
@@ -972,7 +972,7 @@ mod tests {
     };
 
     use crate::fabric::{default_ollama, FabricState};
-    use crate::job_ingress::JobIngressManager;
+    use crate::inference_ingress::InferenceIngress;
     use crate::scheduler::WorkerScheduler;
     use crate::trust::TrustStore;
 
@@ -1028,7 +1028,7 @@ mod tests {
             worker_db_path: db_path.clone(),
             estate_id: "estate".into(),
             scheduler: Arc::new(WorkerScheduler::new()),
-            job_ingress: JobIngressManager::load(db_path),
+            inference_ingress: InferenceIngress::load(db_path),
             boot_id: "boot_test".into(),
             capability_revision: Arc::new(std::sync::atomic::AtomicU64::new(1)),
             inventory_fingerprint: Arc::new(std::sync::atomic::AtomicU64::new(0)),
@@ -1161,7 +1161,7 @@ mod tests {
             turn_affinity: None,
         };
         let envelope = tetonic_fabric_client::fabric_job_to_envelope(&job).unwrap();
-        let _ = state.job_ingress.accept(&envelope).await.unwrap();
+        let _ = state.inference_ingress.accept(&envelope).await.unwrap();
         let resp = chat_json(state, job, envelope).await;
         assert_eq!(resp.status(), StatusCode::OK);
         let bytes = resp.collect().await.unwrap().to_bytes();
@@ -1196,14 +1196,14 @@ mod tests {
         };
         let envelope = tetonic_fabric_client::fabric_job_to_envelope(&job).unwrap();
         assert_eq!(
-            state.job_ingress.accept(&envelope).await.unwrap(),
+            state.inference_ingress.accept(&envelope).await.unwrap(),
             tetonic_fabric_protocol::IngressDecision::AcceptNew
         );
         let resp = chat_json(state.clone(), job, envelope.clone()).await;
         assert_eq!(resp.status(), StatusCode::SERVICE_UNAVAILABLE);
         assert!(
             !matches!(
-                state.job_ingress.accept(&envelope).await.unwrap(),
+                state.inference_ingress.accept(&envelope).await.unwrap(),
                 tetonic_fabric_protocol::IngressDecision::DuplicateInFlight
             ),
             "scheduler refuse must mark_terminal"

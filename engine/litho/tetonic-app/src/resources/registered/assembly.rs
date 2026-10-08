@@ -3,7 +3,7 @@ use super::*;
 use preparation::RegisteredHarnessPlan;
 
 pub(super) struct RegisteredHarness {
-    pub prepared: super::super::activation::PreparedRegisteredJob,
+    pub prepared: super::admission::PreparedRegisteredJob,
     pub agent: tetonic_core::Agent,
     pub history: String,
     pub store: tetonic_memory::SharedStore,
@@ -218,9 +218,9 @@ impl crate::Application {
             None => provider,
         };
         prepared.finalization = Some(tetonic_run::FinalizationPolicy {
-            effect_driver: Some(Arc::new(crate::turn_execution::ToolsFinalizationDriver(
-                Arc::new(tools.clone()),
-            ))),
+            effect_driver: Some(Arc::new(
+                crate::execution::finalization::ToolsFinalizationDriver(Arc::new(tools.clone())),
+            )),
             verify_cmd: None,
         });
         let abort_tools = tools.clone();
@@ -277,7 +277,7 @@ impl crate::Application {
             let _ = abort_tools.abort_staged_if_any();
         }));
         let (post_edit_snapshot, resolve_under_root, capture_workspace_version) =
-            crate::turn_execution::composition_capability_hooks();
+            crate::execution::workspace_hooks::composition_capability_hooks();
         let agent = runtime
             .assemble_agent(
                 tetonic_runtime::AssemblyMode::Session,

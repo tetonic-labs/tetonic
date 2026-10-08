@@ -9,7 +9,7 @@ use tetonic_core::AuditSink;
 use tetonic_memory::SharedStore;
 use tetonic_runtime::NullAudit;
 
-use crate::turn_execution::AuditFactory;
+use crate::execution::audit::AuditFactory;
 
 pub struct StoreAuditFactory {
     store: SharedStore,

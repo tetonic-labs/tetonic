@@ -51,7 +51,7 @@ fn gate01_start_identity_job_sessionless() {
 
 #[test]
 fn gate01_create_run_persist_only() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let body = fn_body(&src, "async fn create_run(");
     assert!(!body.contains("StartRun"));
     assert!(!body.contains("executor"));
@@ -146,7 +146,7 @@ fn gate01_start_identity_job_still_none() {
 
 #[test]
 fn gate01_create_run_still_persist_only() {
-    let src = crate_src("src/run_service.rs");
+    let src = crate_src("src/execution/service.rs");
     let body = fn_body(&src, "async fn create_run(");
     assert!(!body.contains("StartRun"));
 }

@@ -14,6 +14,17 @@ fn write(path: &Path, body: &str) {
 fn temp_engine() -> (tempfile::TempDir, PathBuf) {
     let dir = tempfile::tempdir().unwrap();
     let root = dir.path().to_path_buf();
+    for module in [
+        "execution/service.rs",
+        "execution/service/identity_job.rs",
+        "execution/finalization.rs",
+        "execution/service/dispatch.rs",
+    ] {
+        write(
+            &root.join("litho/tetonic-app/src").join(module),
+            "// adapter\n",
+        );
+    }
     write(
         &root.join("core/lokai-core/Cargo.toml"),
         "[dependencies]\nlokai-domain = { path = \"../lokai-domain\" }\n\n[dev-dependencies]\nlokai-tools = { path = \"../lokai-tools\" }\n",
@@ -50,6 +61,36 @@ fn temp_engine() -> (tempfile::TempDir, PathBuf) {
 fn clean_tree_passes() {
     let (_keep, root) = temp_engine();
     assert!(check_v4_promoted(&root).is_empty());
+}
+
+#[test]
+fn manager_owner_checks_moved_adapters_and_rejects_missing_files() {
+    let (_keep, root) = temp_engine();
+    let source_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+    let modules = [
+        "execution/service.rs",
+        "execution/service/identity_job.rs",
+        "execution/finalization.rs",
+        "execution/service/dispatch.rs",
+    ];
+    for module in modules {
+        let rel = PathBuf::from("litho/tetonic-app/src").join(module);
+        fs::copy(source_root.join(&rel), root.join(&rel)).unwrap();
+    }
+    assert!(check_manager_owner(&root).is_empty());
+    for module in modules {
+        let path = root.join("litho/tetonic-app/src").join(module);
+        let original = fs::read_to_string(&path).unwrap();
+        write(
+            &path,
+            &format!("fn rogue() {{ RunCommand::ClaimExecution; }}\n{original}"),
+        );
+        assert!(check_manager_owner(&root).iter().any(|v| v.path == path));
+        fs::remove_file(&path).unwrap();
+        assert!(check_manager_owner(&root).iter().any(|v| v.path == path));
+        write(&path, &original);
+    }
+    assert!(check_manager_owner(&root).is_empty());
 }
 
 #[test]
@@ -266,7 +307,7 @@ fn fin_001_contracts_mutant_trips() {
 #[test]
 fn fin_001_contracts_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
-    for rel in ["run_service.rs", "identity_job.rs"] {
+    for rel in ["execution/service.rs", "execution/service/identity_job.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
         assert!(
@@ -402,7 +443,7 @@ fn work_006_session_authority_mutant_trips() {
 #[test]
 fn work_006_session_authority_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
-    for rel in ["run_service.rs", "services.rs"] {
+    for rel in ["execution/service.rs", "services.rs"] {
         let path = root.join(rel);
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {rel}"));
         assert!(
@@ -436,7 +477,7 @@ fn iface_002_approval_singleton_production_clean() {
     let paths = [
         root.join("core/tetonic-runtime/src/assembly.rs"),
         root.join("core/tetonic-runtime/src/action_broker.rs"),
-        root.join("litho/tetonic-app/src/turn_execution.rs"),
+        root.join("litho/tetonic-app/src/execution/workspace_hooks.rs"),
     ];
     for path in paths {
         let src = fs::read_to_string(&path).unwrap_or_else(|_| panic!("read {:?}", path));
@@ -469,7 +510,7 @@ fn obs_001_sessionless_noop_mutant_trips() {
 #[test]
 fn obs_001_sessionless_noop_production_clean() {
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../litho/tetonic-app/src");
-    let job_path = root.join("identity_job.rs");
+    let job_path = root.join("execution/service/identity_job.rs");
     let job_src = fs::read_to_string(&job_path).expect("read identity_job.rs");
     assert!(
         !detect_sessionless_noop_violations(&job_src),

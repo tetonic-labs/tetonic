@@ -1,8 +1,13 @@
 //! Production assembly for registered workspace jobs. Reuses runtime, tools,
 //! brokered inference and the product audit writer; no coding session is created.
-use super::activation::resource_error;
+pub(super) use admission::resource_error;
+mod admission;
+mod authority;
+mod harness;
 use super::*;
 use crate::errors::AppError;
+pub use admission::RegisteredAgentJob;
+pub use harness::{GeneralAgentPreferences, HarnessPreparationLimits, PreparedAgentRevision};
 use std::sync::atomic::{AtomicBool, Ordering};
 mod assembly;
 mod environment;
@@ -315,5 +320,4 @@ mod isolation_tests {
 }
 
 #[cfg(test)]
-#[path = "registered_executor_tests.rs"]
-mod tests;
+mod execution_tests;

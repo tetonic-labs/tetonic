@@ -2,6 +2,8 @@
 
 #[path = "support/managed_activations.rs"]
 mod activations;
+#[path = "support/managed_admission_interleaving.rs"]
+mod admission_interleaving;
 #[path = "support/managed_cancellation.rs"]
 mod cancellation;
 #[path = "support/managed_deadlines.rs"]
