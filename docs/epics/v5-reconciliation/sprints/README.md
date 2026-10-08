@@ -6,6 +6,13 @@ The release should prove that digital autonomous teams can carry out the person'
 
 ## Active schedule
 
+October 8 product planning: the [ranked product experience backlog](october-1-coherent-workspace/product-experience-priorities-2026-10-08.md)
+breaks seven experience improvements into 28 proposed tasks with impact, effort,
+ROI, dependencies, explicit UI behavior and completion checks. It refines the
+existing October parents and does not add a sprint, close a gate or commit all
+28 tasks to the remaining calendar. Its delivery order accounts for engine
+dependencies as well as immediate UX value.
+
 October 6 priority update: the dedicated [frontier agent creation sprint](frontier-agent-creation/plan.md)
 is now the immediate implementation focus, following the source audit and explicit
 user request. It covers real model discovery, modern streaming/tool protocols,
