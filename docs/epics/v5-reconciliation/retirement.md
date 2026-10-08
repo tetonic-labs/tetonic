@@ -1,12 +1,16 @@
 # Retirement and relocation register
 
-No production deletions were performed by the original audit; see October 2026 removals below. These are concrete proposed dispositions. A deletion must include its consumers, tests, exports, manifests, release scripts and data compatibility implications. Test-only reachability is evidence for review, not proof of universal dead code.
+The original audit proposed the dispositions below. The October 2026 section records subsequent approved removals; older replacement prerequisites below are historical where that section explicitly supersedes them. A deletion must include its consumers, tests, exports, manifests, release scripts and data compatibility implications. Test-only reachability is evidence for review, not proof of universal dead code.
 
 The [MVP reuse/removal map](mvp-reuse-and-removal.md) extends this register with D13–D15 and current product requirements. References to sprint numbers below describe the earlier REC sequence; use the [active MVP sequence](sprints/README.md) for scheduling. Deletion gates remain mandatory.
 
 ## October 2026 removals
 
 Branch `retire/legacy-chat-and-world`, by owner decision (October 8, 2026):
+
+Integrated into `main` at `7ff613ec`, preserving feature commit `76fcd6f7` and its
+web tree. See [BASE-001](sprints/architecture-baseline/BASE-001.md) for the retained
+coverage map, added regressions, validation and explicit recovery/evaluation limits.
 
 - **D01–D06 deleted.** `fleet_api`, `operator_control`, `ThoughtStreamHub` (D10's volatile hub), the orchestrator `fleet`/`fleet_supervisor` model and the node `KeeperRegistry`/`RunnerClient` prototype had no callers. Persisted teams, rosters and operator controls in the governed workspace replace them.
 - **D07/D08 deleted without a world harness.** `tetonic-server`, `Agent::run_in_world`/`run_continuous`, `Brain::perceive`, the Perception/WorldAction/WorldAdapter types, world adapters/executors and the world-coupled `IntentCharter` were removed. World actions are out of scope until a governed world harness is designed.
@@ -62,7 +66,7 @@ Do not move generic perception/event contracts to the Village solely because the
 - Run replay/migration/backups: historical data remains valuable even if product entrypoints change.
 - Lease, attestation, result-integrity, side-effect and cancellation tests: these protect the future product goal.
 - Sandbox, egress, secret scanning and approval checks: disconnected world code should adopt them, not remove them for convenience.
-- Coding corpus/evaluations: retain for the coding harness; add infrastructure-focused scenarios rather than replacing all tests.
+- Coding corpus/evaluations: the October removal of `tetonic-eval` supersedes the original blanket-retention recommendation. No replacement coding outcome runner is claimed; see BASE-001 before promising coding-harness evaluation parity.
 - Architecture gates: change obsolete rules with new boundary checks; do not disable gates wholesale.
 
 ## Removal procedure

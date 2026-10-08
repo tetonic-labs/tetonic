@@ -56,6 +56,34 @@ async fn assert_timed_out(service: &ManagedRunService, binding: &tetonic_run::Ma
 }
 
 #[tokio::test]
+async fn recovery_detects_elapsed_execution_before_its_lease_expires() {
+    let (service, _dir) = test_service();
+    let deadline = now() + 60;
+    let binding = admit(&service, None, Some(deadline)).await.unwrap();
+    let snapshot = service.inspect_run(&binding.run_id).await.unwrap();
+    assert!(
+        snapshot.attempts[&binding.attempt_id]
+            .lease
+            .as_ref()
+            .unwrap()
+            .expires_at
+            > deadline
+    );
+    assert!(!tetonic_run::detect_recovery_required(
+        &snapshot,
+        deadline - 1
+    ));
+    assert!(tetonic_run::detect_recovery_required(&snapshot, deadline));
+    assert!(tetonic_run::detect_recovery_required(
+        &snapshot,
+        deadline + 1
+    ));
+    service.cancel_run(&binding.run_id).await.unwrap();
+    let stopped = service.inspect_run(&binding.run_id).await.unwrap();
+    assert!(!tetonic_run::detect_recovery_required(&stopped, deadline));
+}
+
+#[tokio::test]
 async fn durable_result_gates_reject_at_the_exact_deadline() {
     let (service, _dir) = test_service();
     let deadline = now() + 60;

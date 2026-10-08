@@ -66,6 +66,18 @@ pub fn detect_recovery_required(snapshot: &RunSnapshot, now: u64) -> bool {
             attempt.state,
             AttemptState::Leased | AttemptState::Starting | AttemptState::Running
         ) {
+            // A worker's lease can outlive its execution allowance. After a
+            // crash the in-process deadline watcher is gone; startup must still
+            // quarantine that execution, without granting a retry or new owner.
+            if snapshot.state == RunState::Active
+                && snapshot.tasks.get(&attempt.task_id).is_some_and(|task| {
+                    task.binding
+                        .deadline
+                        .is_some_and(|deadline| now >= deadline)
+                })
+            {
+                return true;
+            }
             if let Some(lease) = &attempt.lease {
                 if lease.expires_at < now {
                     return true;
