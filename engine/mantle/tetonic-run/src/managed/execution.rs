@@ -239,30 +239,7 @@ impl super::service::ManagedRunService {
         let ctx = tetonic_domain::AttemptExecutionContext {
             attempt_id: binding.attempt_id.clone(),
         };
-        let world_adapter = agent.world_adapter();
-        let outcome = if let Some(adapter) = world_adapter {
-            let mut executor = tetonic_runtime::LocalWorldAttemptExecutor::new(agent, adapter);
-            let canceled = async {
-                let mut next_grant_check =
-                    tokio::time::Instant::now() + std::time::Duration::from_millis(200);
-                loop {
-                    if active.work_scope.is_canceled()
-                        || active.deadline_elapsed()
-                        || self.is_canceled(&attempt)
-                        || execution_revoked(&grant_watch, &mut next_grant_check).await
-                    {
-                        active.work_scope.cancel();
-                        break;
-                    }
-                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                }
-            };
-            tokio::select! {
-                biased;
-                _ = canceled => CandidateOutcome::Canceled { reason: "attempt canceled during execution".into() },
-                outcome = executor.execute(invocation, ctx) => outcome,
-            }
-        } else {
+        let outcome = {
             let mut executor =
                 tetonic_runtime::LocalAgentAttemptExecutor::new(agent, conversation, &mut step_fn);
             let canceled = async {

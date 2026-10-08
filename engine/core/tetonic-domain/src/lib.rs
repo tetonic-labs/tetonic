@@ -3,8 +3,6 @@
 pub mod artifact;
 pub mod brain;
 pub mod canonical;
-pub mod charter;
-pub mod checkpoint;
 pub mod classify;
 pub mod code_index;
 pub mod context_compiler;
@@ -18,7 +16,6 @@ pub mod ids;
 pub mod invocation;
 pub mod key_storage;
 pub mod lsp_session;
-pub mod perception;
 pub mod placement;
 pub mod policy;
 pub mod result_integrity;
@@ -30,7 +27,6 @@ pub mod tool_host;
 pub mod trust;
 pub mod work_scope;
 pub mod workspace;
-pub mod world_adapter;
 pub use brain::{
     Brain, BrainCost, BrainError, BrainFinishReason, BrainMessage, BrainPathway, BrainRequest,
     BrainResponse, BrainRole, BrainTokenSink,
@@ -39,8 +35,6 @@ pub use canonical::{
     compute_canonical_digest, finalize_parameters, prepare_proposed_action,
     validate_authorized_action, CANONICAL_SCHEMA_VERSION,
 };
-pub use charter::{IntentCharter, OperationalBoundary, SteeringVector};
-pub use checkpoint::{AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError};
 pub use classify::{
     combine_data_classes, data_class_sensitivity_rank, Classification, ClassificationSource,
     ClassificationSummary, DataClass, DisclosureTier, PolicyVersion, CLASSIFICATION_POLICY_VERSION,
@@ -82,10 +76,6 @@ pub use invocation::{
     LoopDisciplineLimits, LoopNotes,
 };
 pub use lsp_session::{LspSession, LspSessionOpen};
-pub use perception::{
-    ActionResult, Perception, Signal, SignalValue, Trend, Urgency, WorldAction, WorldError,
-    WorldEvent, WorldState,
-};
 pub use placement::{
     EligibleTarget, PlacementDecision as TrustPlacementDecision, PlacementExplanation,
     PlacementJobKind, PlacementReason, PlacementRequest, ProjectPlacementPolicy,
@@ -122,7 +112,4 @@ pub use workspace::{
     PatchApproval, RepositoryId, StagedOperation, StagedOperationKind, TransactionArtifact,
     TransactionPreview, TransactionState, VerificationRecord, WorkspaceBinding, WorkspaceConflict,
     WorkspacePath, WorkspaceVersionScheme,
-};
-pub use world_adapter::{
-    Affordance, EstopSwitch, PerceptionReceiver, PerceptionSender, WorldAdapter, WorldManifest,
 };

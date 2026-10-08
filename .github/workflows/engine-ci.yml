@@ -83,4 +83,4 @@ jobs:
           workspaces: engine
 
       - name: Build release binaries
-        run: cargo build --release -p tetonic-cli -p tetonic-server
+        run: cargo build --release -p tetonic-cli

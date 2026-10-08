@@ -13,7 +13,6 @@ mod context;
 mod conversation;
 pub mod demuxer;
 mod error;
-pub mod filter;
 mod hooks;
 mod inference_binding;
 mod monitor;
@@ -28,25 +27,19 @@ pub use conversation::Conversation;
 mod wait_checkpoint;
 pub use demuxer::{DemuxedChunk, TokenDemuxer};
 pub use error::AgentError;
-pub use filter::{FilterDecision, SensoryFilter};
 pub use hooks::{
     AbortStaged, ApprovalHook, ApprovalRequest, AuditSink, CaptureWorkspaceVersion,
     ConfinementWarning, PostEditSnapshot, ResolveUnderRoot, SpawnHook, SpawnRequest,
 };
 pub use inference_binding::{AgentInferenceBinding, InvalidInferenceBinding};
 pub use step::Step;
-pub use wait_checkpoint::WaitCheckpoint;
-pub mod checkpoint;
-pub use checkpoint::CheckpointManager;
-pub use tetonic_domain::checkpoint::{
-    AgentStateCheckpoint, AgentStateCheckpointHeader, CheckpointError,
-};
 pub use tetonic_domain::engine_config::{
     EngineConfig, EngineConfigError, InferenceConfig, InferenceProviderKind, NodeConfig, NodeMode,
     StorageConfig, StorageMode, TelemetryConfig, TelemetrySinkKind,
 };
 pub use tokenizer::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 pub use turn::{validate_transition, TurnOpsEvent, TurnOpsHook, TurnState};
+pub use wait_checkpoint::WaitCheckpoint;
 
 mod execution_gate;
 pub use execution_gate::{ExecutionGate, ScopeCancellationGate};

@@ -171,80 +171,6 @@ impl Brain for SingleModelBrain {
         })
     }
 
-    async fn perceive(
-        &self,
-        perception: tetonic_domain::Perception,
-    ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
-        // If background urgency and no events occurred, avoid expensive model forward pass
-        if perception.urgency == tetonic_domain::Urgency::Background && perception.events.is_empty()
-        {
-            return Ok(None);
-        }
-
-        let system_msg = Message::system(
-            "You are an autonomous agent perceiving a live environment. If an action is required, output a JSON object with 'kind' and 'payload'. If no action is needed, return empty content.",
-        );
-        let perception_summary = serde_json::to_string(&perception).unwrap_or_else(|_| "{}".into());
-        let user_msg = Message::user(format!("Current Perception:\n{perception_summary}"));
-
-        let mut chat_req = ChatRequest {
-            model: self.model.clone(),
-            messages: vec![system_msg, user_msg],
-            num_ctx: Some(self.num_ctx as u32),
-            max_tokens: Some(256),
-            ..Default::default()
-        };
-
-        scan_request(&mut chat_req)?;
-        let mut noop = |_: &str| {};
-        let resp =
-            self.provider
-                .chat(chat_req, &mut noop)
-                .await
-                .map_err(|e| BrainError::Inference {
-                    pathway: self.model.clone(),
-                    detail: e.to_string(),
-                })?;
-
-        let cost = BrainCost {
-            input_tokens: resp.usage.prompt_tokens.unwrap_or(0),
-            output_tokens: resp.usage.eval_tokens.unwrap_or(0),
-            model_calls: 1,
-        };
-        *self.last_cost.lock().unwrap() = cost;
-
-        let content = resp.message.content.trim();
-        if content.is_empty() {
-            return Ok(None);
-        }
-
-        // Attempt to parse JSON action from model output
-        if let Ok(val) = serde_json::from_str::<serde_json::Value>(content) {
-            if let Some(kind) = val.get("kind").and_then(|k| k.as_str()) {
-                let payload = val
-                    .get("payload")
-                    .cloned()
-                    .unwrap_or(serde_json::Value::Null);
-                return Ok(Some(tetonic_domain::WorldAction::with_payload(
-                    kind,
-                    payload,
-                    BrainPathway::Single {
-                        model: self.model.clone(),
-                    },
-                )));
-            }
-        }
-
-        // If not structured JSON, default to speech/log action
-        Ok(Some(tetonic_domain::WorldAction::with_payload(
-            "speech",
-            serde_json::json!({ "text": content }),
-            BrainPathway::Single {
-                model: self.model.clone(),
-            },
-        )))
-    }
-
     fn describe(&self) -> &str {
         &self.description
     }
@@ -281,8 +207,6 @@ fn brain_messages_to_inference(msgs: Vec<BrainMessage>) -> Vec<Message> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use tetonic_domain::{Perception, Urgency, WorldAction, WorldState};
 
     // Public AWS documentation example, not a live credential.
     const EXAMPLE_SECRET: &str = "AKIAIOSFODNN7EXAMPLE";
@@ -373,33 +297,6 @@ mod tests {
             .contains(EXAMPLE_SECRET));
     }
 
-    #[tokio::test]
-    async fn perception_redacts_world_state_before_provider() {
-        let provider = Arc::new(RecordingProvider::default());
-        let brain = SingleModelBrain::new(provider.clone(), "test", 4096);
-        let perception = Perception {
-            when: Utc::now(),
-            sequence: 1,
-            urgency: Urgency::Medium,
-            signals: vec![],
-            events: vec![],
-            state: WorldState {
-                schema_id: "test".into(),
-                data: serde_json::json!({"note": "inspect the environment", "key": EXAMPLE_SECRET}),
-            },
-        };
-        assert!(brain.perceive(perception).await.unwrap().is_none());
-        let requests = provider.0.lock().unwrap();
-        assert_eq!(requests.len(), 1);
-        let sent = &requests[0];
-        assert!(sent.outbound_scan.is_scanned());
-        assert!(sent.outbound_scan.blocks_remote());
-        let contents = serde_json::to_string(&sent.messages).unwrap();
-        assert!(!contents.contains(EXAMPLE_SECRET));
-        assert!(contents.contains("[REDACTED:aws-access-key]"));
-        assert!(contents.contains("inspect the environment"));
-    }
-
     struct TraceProvider;
     #[async_trait]
     impl InferenceProvider for TraceProvider {
@@ -464,110 +361,5 @@ mod tests {
         assert!(events.iter().all(|e| e.0 == "decision-1"));
         assert_eq!(events[0].2["messages"][0]["content"], "local observation");
         assert_eq!(events[3].2["message"]["content"], "not valid JSON");
-    }
-
-    type PerceptionHandler = Arc<dyn Fn(&Perception) -> Option<WorldAction> + Send + Sync>;
-
-    struct ScriptedBrain {
-        handler: PerceptionHandler,
-        description: String,
-    }
-
-    impl ScriptedBrain {
-        fn new<F>(name: impl Into<String>, handler: F) -> Self
-        where
-            F: Fn(&tetonic_domain::Perception) -> Option<tetonic_domain::WorldAction>
-                + Send
-                + Sync
-                + 'static,
-        {
-            Self {
-                description: format!("scripted:{}", name.into()),
-                handler: Arc::new(handler),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl Brain for ScriptedBrain {
-        async fn complete(
-            &self,
-            _req: BrainRequest,
-            _on_token: &mut BrainTokenSink<'_>,
-        ) -> Result<BrainResponse, BrainError> {
-            Ok(BrainResponse {
-                content: "scripted response".into(),
-                tool_calls: None,
-                pathway: BrainPathway::Single {
-                    model: "scripted".into(),
-                },
-                finish_reason: BrainFinishReason::Stop,
-                cost: BrainCost::default(),
-            })
-        }
-
-        async fn perceive(
-            &self,
-            perception: tetonic_domain::Perception,
-        ) -> Result<Option<tetonic_domain::WorldAction>, BrainError> {
-            Ok((self.handler)(&perception))
-        }
-
-        fn describe(&self) -> &str {
-            &self.description
-        }
-
-        fn last_cost(&self) -> BrainCost {
-            BrainCost::default()
-        }
-    }
-
-    #[tokio::test]
-    async fn test_scripted_brain_perceives_and_acts() {
-        let brain = ScriptedBrain::new("patrol", |p| {
-            if p.urgency >= Urgency::Medium {
-                Some(WorldAction::bare(
-                    "alert",
-                    BrainPathway::Single {
-                        model: "scripted".into(),
-                    },
-                ))
-            } else {
-                None
-            }
-        });
-
-        assert_eq!(brain.describe(), "scripted:patrol");
-
-        let p_low = Perception {
-            when: Utc::now(),
-            sequence: 1,
-            urgency: Urgency::Low,
-            signals: vec![],
-            events: vec![],
-            state: WorldState {
-                schema_id: "test".into(),
-                data: serde_json::Value::Null,
-            },
-        };
-        assert!(brain.perceive(p_low).await.unwrap().is_none());
-
-        let p_med = Perception {
-            when: Utc::now(),
-            sequence: 2,
-            urgency: Urgency::Medium,
-            signals: vec![],
-            events: vec![],
-            state: WorldState {
-                schema_id: "test".into(),
-                data: serde_json::Value::Null,
-            },
-        };
-        let action = brain
-            .perceive(p_med)
-            .await
-            .unwrap()
-            .expect("action emitted");
-        assert_eq!(action.kind, "alert");
     }
 }

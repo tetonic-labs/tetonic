@@ -744,134 +744,7 @@ async fn legacy_admission_rejects_scoped_and_unknown_sessions_before_identity_wr
     service.cancel_dispatch(&ticket.id).unwrap();
 }
 
-struct CountingAuthority {
-    calls: Arc<std::sync::atomic::AtomicUsize>,
-    allow: usize,
-}
-
-#[async_trait::async_trait]
-impl tetonic_run::managed::ExecutionAuthority for CountingAuthority {
-    async fn authorize(
-        &self,
-        _: &tetonic_domain::ExecutionScope,
-        _: &AgentIdentity,
-        _: &AgentJobSpec,
-    ) -> Result<(), ()> {
-        let call = self.calls.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        (call < self.allow).then_some(()).ok_or(())
-    }
-}
-
-struct ActionBrain {
-    perceived: Arc<std::sync::atomic::AtomicBool>,
-}
-
-#[async_trait::async_trait]
-impl tetonic_domain::Brain for ActionBrain {
-    async fn complete(
-        &self,
-        _: tetonic_domain::BrainRequest,
-        _: &mut tetonic_domain::BrainTokenSink<'_>,
-    ) -> Result<tetonic_domain::BrainResponse, tetonic_domain::BrainError> {
-        Err(tetonic_domain::BrainError::Configuration(
-            "world attempt must not run a coding turn".into(),
-        ))
-    }
-
-    async fn perceive(
-        &self,
-        perception: tetonic_domain::Perception,
-    ) -> Result<Option<tetonic_domain::WorldAction>, tetonic_domain::BrainError> {
-        self.perceived
-            .store(true, std::sync::atomic::Ordering::SeqCst);
-        if perception.urgency == tetonic_domain::Urgency::High {
-            Ok(Some(tetonic_domain::WorldAction::bare(
-                "emergency_action",
-                tetonic_domain::BrainPathway::Reflexive {
-                    model: "managed-world".into(),
-                },
-            )))
-        } else {
-            Ok(None)
-        }
-    }
-
-    fn describe(&self) -> &str {
-        "managed-world"
-    }
-
-    fn last_cost(&self) -> tetonic_domain::BrainCost {
-        Default::default()
-    }
-}
-
-struct RecordingWorld {
-    manifest: tetonic_domain::WorldManifest,
-    executed: std::sync::Mutex<Vec<String>>,
-    perception_rx:
-        std::sync::Mutex<Option<tokio::sync::mpsc::Receiver<tetonic_domain::Perception>>>,
-}
-
-impl RecordingWorld {
-    fn new() -> (
-        Arc<Self>,
-        tokio::sync::mpsc::Sender<tetonic_domain::Perception>,
-    ) {
-        let (tx, rx) = tokio::sync::mpsc::channel(4);
-        let adapter = Arc::new(Self {
-            manifest: tetonic_domain::WorldManifest::new("managed", "1").with_affordance(
-                tetonic_domain::Affordance::instant("emergency_action", "test action"),
-            ),
-            executed: std::sync::Mutex::new(Vec::new()),
-            perception_rx: std::sync::Mutex::new(Some(rx)),
-        });
-        (adapter, tx)
-    }
-}
-
-#[async_trait::async_trait]
-impl tetonic_domain::WorldAdapter for RecordingWorld {
-    fn open(
-        &self,
-    ) -> (
-        tetonic_domain::PerceptionSender,
-        tetonic_domain::PerceptionReceiver,
-    ) {
-        let rx = self
-            .perception_rx
-            .lock()
-            .expect("perception lock")
-            .take()
-            .expect("world opens once");
-        let (tx, _) = tokio::sync::mpsc::channel(1);
-        (tx, rx)
-    }
-
-    async fn execute(
-        &self,
-        action: tetonic_domain::WorldAction,
-    ) -> Result<tetonic_domain::ActionResult, tetonic_domain::WorldError> {
-        self.executed
-            .lock()
-            .expect("executed lock")
-            .push(action.kind);
-        Ok(tetonic_domain::ActionResult {
-            success: true,
-            feedback: Some("executed".into()),
-            state_changed: true,
-        })
-    }
-
-    fn describe(&self) -> &str {
-        "recording-world"
-    }
-
-    fn manifest(&self) -> tetonic_domain::WorldManifest {
-        self.manifest.clone()
-    }
-}
-
-fn world_invocation() -> tetonic_domain::AgentInvocation {
+fn test_invocation() -> tetonic_domain::AgentInvocation {
     tetonic_domain::AgentInvocation {
         instructions: String::new(),
         user_input: "hello".into(),
@@ -883,106 +756,6 @@ fn world_invocation() -> tetonic_domain::AgentInvocation {
     }
 }
 
-fn world_perception() -> tetonic_domain::Perception {
-    tetonic_domain::Perception {
-        when: chrono::Utc::now(),
-        sequence: 1,
-        urgency: tetonic_domain::Urgency::High,
-        signals: vec![],
-        events: vec![],
-        state: tetonic_domain::WorldState {
-            schema_id: "test".into(),
-            data: serde_json::Value::Null,
-        },
-    }
-}
-
-fn world_agent(brain: Arc<ActionBrain>, world: Arc<RecordingWorld>) -> tetonic_core::Agent {
-    tetonic_core::Agent::default()
-        .with_brain(brain)
-        .with_world_adapter(world)
-}
-
-async fn submit_world(
-    service: &ManagedRunService,
-    agent: tetonic_core::Agent,
-    context: tetonic_run::managed::AdmissionContext,
-) -> tetonic_run::managed::ManagedSubmission {
-    let (identity, job_spec) = test_identity_and_spec();
-    service
-        .submit_identity_job_with_context(
-            tetonic_run::StartIdentityJobCommand {
-                identity,
-                job_spec,
-                invocation: world_invocation(),
-            },
-            agent,
-            context,
-            None,
-        )
-        .await
-        .expect("world submission")
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn managed_world_attempt_reaches_the_adapter_and_records_completion() {
-    let local = tokio::task::LocalSet::new();
-    local
-        .run_until(async {
-            let (service, _dir) = test_service();
-            let perceived = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let (world, perception) = RecordingWorld::new();
-            let agent = world_agent(
-                Arc::new(ActionBrain {
-                    perceived: perceived.clone(),
-                }),
-                world.clone(),
-            );
-            let started = submit_world(
-                &service,
-                agent,
-                tetonic_run::managed::AdmissionContext::default(),
-            )
-            .await;
-            let tetonic_run::managed::ManagedSubmission::Started { completion, .. } = started
-            else {
-                panic!("world work must be admitted, not replayed");
-            };
-            perception
-                .send(world_perception())
-                .await
-                .expect("perception delivered");
-            tokio::time::timeout(std::time::Duration::from_secs(2), async {
-                while !perceived.load(std::sync::atomic::Ordering::SeqCst) {
-                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                }
-            })
-            .await
-            .expect("managed world loop must perceive");
-            drop(perception);
-            let result = tokio::time::timeout(std::time::Duration::from_secs(5), completion)
-                .await
-                .expect("world completion")
-                .expect("completion receipt");
-            assert!(
-                matches!(
-                    result.outcome,
-                    CandidateOutcome::Completed {
-                        kind: CompletionKind::Finish,
-                        ..
-                    }
-                ),
-                "managed world completion must be recorded, got {:?}",
-                result.outcome
-            );
-            assert_eq!(
-                world.executed.lock().expect("executed").as_slice(),
-                ["emergency_action"]
-            );
-        })
-        .await;
-}
-
 #[tokio::test(flavor = "current_thread")]
 async fn context_bindings_do_not_grant_unadvertised_capabilities() {
     let local = tokio::task::LocalSet::new();
@@ -992,7 +765,7 @@ async fn context_bindings_do_not_grant_unadvertised_capabilities() {
             let (mut identity, mut job_spec) = test_identity_and_spec();
             identity.context_bindings = vec!["recall".into()];
             job_spec.capability_bindings = vec!["recall".into()];
-            let mut invocation = world_invocation();
+            let mut invocation = test_invocation();
             invocation.instructions = "do not run".into();
             let agent = tetonic_core::Agent::new(
                 Arc::new(BlockOnceProvider),
@@ -1125,7 +898,7 @@ async fn managed_cancel_reaches_a_blocking_tool() {
             let entered = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let saw_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let (identity, job_spec) = test_identity_and_spec();
-            let mut invocation = world_invocation();
+            let mut invocation = test_invocation();
             invocation.instructions = "wait until canceled".into();
             let agent = tetonic_core::Agent::new(
                 Arc::new(BlockOnceProvider),
@@ -1303,7 +1076,7 @@ async fn revoking_execution_stops_the_owned_tool() {
             let saw_cancel = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let revoked = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let (identity, job_spec) = test_identity_and_spec();
-            let mut invocation = world_invocation();
+            let mut invocation = test_invocation();
             invocation.instructions = "wait until the grant is revoked".into();
             let agent = tetonic_core::Agent::new(
                 Arc::new(BlockOnceProvider),
@@ -1384,7 +1157,7 @@ async fn managed_cancel_stops_the_owned_process() {
             let entered = Arc::new(std::sync::atomic::AtomicBool::new(false));
             let stopped = Arc::new(std::sync::Mutex::new(String::new()));
             let (identity, job_spec) = test_identity_and_spec();
-            let mut invocation = world_invocation();
+            let mut invocation = test_invocation();
             invocation.instructions = "wait until canceled".into();
             let agent = tetonic_core::Agent::new(
                 Arc::new(BlockOnceProvider),
@@ -1447,99 +1220,6 @@ async fn managed_cancel_stops_the_owned_process() {
                 stopped, "command canceled",
                 "cancel must stop the process the attempt owns, got {stopped}"
             );
-        })
-        .await;
-}
-
-#[tokio::test(flavor = "current_thread")]
-async fn managed_world_denial_never_reaches_the_adapter_and_cancel_stops_the_wait() {
-    let local = tokio::task::LocalSet::new();
-    local
-        .run_until(async {
-            let (base, dir) = test_service();
-            let database = dir.path().join("world-deny.db");
-            let store = tetonic_memory::SharedStore::open(&database, 1).unwrap();
-            store
-                .write_sync(|db| {
-                    db.create_organization(&tetonic_memory::OrganizationRow {
-                        org_id: "org".into(),
-                        name: "Org".into(),
-                    })
-                })
-                .unwrap()
-                .unwrap();
-            let service = ManagedRunService::new(
-                Arc::new(DurableRunSupervisor::new(Some(store.clone()))),
-                Some(store),
-                base.artifacts().clone(),
-                Arc::new(tetonic_policy::PolicyEngine::new(
-                    tetonic_policy::PolicyMode::EstateStub,
-                )),
-            );
-            let perceived = Arc::new(std::sync::atomic::AtomicBool::new(false));
-            let (world, perception) = RecordingWorld::new();
-            let calls = Arc::new(std::sync::atomic::AtomicUsize::new(0));
-            let agent = world_agent(
-                Arc::new(ActionBrain {
-                    perceived: perceived.clone(),
-                }),
-                world.clone(),
-            );
-            let started = submit_world(
-                &service,
-                agent,
-                tetonic_run::managed::AdmissionContext {
-                    authorization: Some(tetonic_run::managed::AuthorizedExecution {
-                        grant_id: Some("grant".into()),
-                        scope: tetonic_domain::ExecutionScope {
-                            principal_id: "alice".into(),
-                            organization_id: "org".into(),
-                            information_context_id: "private".into(),
-                        },
-                        authority: Arc::new(CountingAuthority {
-                            calls: calls.clone(),
-                            // Admission and the pre-execution check pass. The effect gate denies.
-                            allow: 2,
-                        }),
-                    }),
-                    ..Default::default()
-                },
-            )
-            .await;
-            let tetonic_run::managed::ManagedSubmission::Started {
-                binding,
-                completion,
-            } = started
-            else {
-                panic!("denied world work must still be admitted before the effect");
-            };
-            perception
-                .send(world_perception())
-                .await
-                .expect("perception delivered");
-            tokio::time::timeout(std::time::Duration::from_secs(2), async {
-                while !perceived.load(std::sync::atomic::Ordering::SeqCst) {
-                    tokio::time::sleep(std::time::Duration::from_millis(10)).await;
-                }
-            })
-            .await
-            .expect("managed world loop must perceive before denial");
-            tokio::time::sleep(std::time::Duration::from_millis(50)).await;
-            assert!(
-                world.executed.lock().expect("executed").is_empty(),
-                "a denied world effect must not reach the adapter"
-            );
-            service.cancel_run(&binding.run_id).await.unwrap();
-            let result = tokio::time::timeout(std::time::Duration::from_secs(5), completion)
-                .await
-                .expect("canceled world completion")
-                .expect("completion receipt");
-            assert!(
-                matches!(result.outcome, CandidateOutcome::Canceled { .. }),
-                "cancel must stop the managed world wait, got {:?}",
-                result.outcome
-            );
-            assert!(world.executed.lock().expect("executed").is_empty());
         })
         .await;
 }

@@ -15,7 +15,6 @@ use crate::config::AgentConfig;
 use crate::context::ContextReport;
 use crate::conversation::Conversation;
 use crate::error::AgentError;
-use crate::filter::{FilterDecision, SensoryFilter};
 use crate::hooks::{
     AbortStaged, ApprovalHook, ApprovalRequest, AuditSink, CaptureWorkspaceVersion,
     PostEditSnapshot, ResolveUnderRoot, SpawnHook, SpawnRequest,
@@ -53,7 +52,6 @@ pub struct Agent {
     turn_ops: Option<TurnOpsHook>,
     context_compiler: Option<Arc<dyn ContextCompiler>>,
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
-    world_adapter: Option<Arc<dyn tetonic_domain::WorldAdapter>>,
 }
 
 mod waiting;
@@ -64,12 +62,6 @@ mod waiting;
 fn agent_is_send_and_sync_without_unsafe_overrides() {
     fn assert_thread_safe<T: Send + Sync>() {}
     assert_thread_safe::<Agent>();
-}
-
-async fn wait_until_canceled(signal: tetonic_domain::work_scope::CancellationSignal) {
-    while !signal.is_canceled() {
-        tokio::time::sleep(std::time::Duration::from_millis(25)).await;
-    }
 }
 
 impl Agent {
@@ -334,7 +326,6 @@ impl Agent {
             context_compiler: None,
             work_scope: Default::default(),
             brain: None,
-            world_adapter: None,
             execution_gate: None,
             durable_waits: false,
         }
@@ -349,212 +340,6 @@ impl Agent {
     /// Access the agent's attached brain, if any.
     pub fn brain(&self) -> Option<&Arc<dyn tetonic_domain::Brain>> {
         self.brain.as_ref()
-    }
-
-    /// When set, a managed attempt runs the world executor instead of a coding turn.
-    pub fn with_world_adapter(mut self, adapter: Arc<dyn tetonic_domain::WorldAdapter>) -> Self {
-        self.world_adapter = Some(adapter);
-        self
-    }
-
-    pub fn world_adapter(&self) -> Option<Arc<dyn tetonic_domain::WorldAdapter>> {
-        self.world_adapter.clone()
-    }
-
-    /// Run an ongoing continuous actor loop in a live environment.
-    ///
-    /// The agent receives perceptions from `perception_rx`, evaluates them
-    /// against its pluggable brain, and sends any resulting actions to `action_tx`.
-    ///
-    /// # Latest-Value Semantics
-    /// If the brain's cognitive cycle takes longer than the incoming tick interval,
-    /// stale intermediate ticks queued up in the channel are drained so the agent
-    /// always deliberates and acts on the freshest available sensory data.
-    pub async fn run_continuous(
-        &self,
-        mut perception_rx: tokio::sync::mpsc::Receiver<tetonic_domain::Perception>,
-        action_tx: tokio::sync::mpsc::Sender<tetonic_domain::WorldAction>,
-    ) -> Result<(), AgentError> {
-        let brain = self.brain.as_ref().ok_or_else(|| {
-            AgentError::Capability("agent has no configured brain for continuous execution".into())
-        })?;
-
-        let mut sensory_filter = SensoryFilter::new();
-
-        while let Some(perception) = perception_rx.recv().await {
-            if self.work_scope.is_canceled() {
-                break;
-            }
-
-            // Drain queued backlog to achieve latest-value semantics
-            let mut latest = perception;
-            while let Ok(fresher) = perception_rx.try_recv() {
-                latest = fresher;
-            }
-
-            if sensory_filter.filter(&latest) == FilterDecision::Drop {
-                continue;
-            }
-
-            match brain.perceive(latest).await {
-                Ok(Some(action)) => {
-                    if action_tx.send(action).await.is_err() {
-                        // World action consumer has disconnected
-                        break;
-                    }
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    tracing::warn!(agent_id = %self.config.agent_id, error = %e, "continuous brain perception failed");
-                }
-            }
-        }
-
-        Ok(())
-    }
-
-    /// Dock this agent directly into a live [`WorldAdapter`].
-    ///
-    /// The agent opens the world's perception stream, evaluates incoming ticks against
-    /// its pluggable brain with latest-value backlog drain, authoritatively validates
-    /// action proposals against the world's advertised [`WorldManifest`], checks E-Stop
-    /// interlocks, and dispatches actions to the adapter.
-    ///
-    /// # Safety & Actuator Interlock (SAE-202)
-    /// - If the world adapter is in an E-Stop state, any pending action is dropped and
-    ///   `abort_staged_mutations()` is invoked to guarantee transactional rollback.
-    /// - Working memory and agent identity remain intact for diagnostic inspection.
-    pub async fn run_in_world(
-        &self,
-        adapter: Arc<dyn tetonic_domain::WorldAdapter>,
-    ) -> Result<CandidateOutcome, AgentError> {
-        let brain = self.brain.as_ref().ok_or_else(|| {
-            AgentError::Capability("agent has no configured brain for continuous execution".into())
-        })?;
-
-        let manifest = adapter.manifest();
-        let (sender, mut perception_rx) = adapter.open();
-        drop(sender);
-
-        let mut sensory_filter = SensoryFilter::new();
-        let cancel = self.work_scope.cancellation_signal();
-        let mut canceled = false;
-
-        loop {
-            let perception = tokio::select! {
-                biased;
-                _ = wait_until_canceled(cancel.clone()) => {
-                    canceled = true;
-                    break;
-                }
-                incoming = perception_rx.recv() => incoming,
-            };
-            let Some(perception) = perception else {
-                break;
-            };
-            if cancel.is_canceled() {
-                canceled = true;
-                break;
-            }
-
-            // Drain queued backlog to achieve latest-value semantics
-            let mut latest = perception;
-            while let Ok(fresher) = perception_rx.try_recv() {
-                latest = fresher;
-            }
-
-            if sensory_filter.filter(&latest) == FilterDecision::Drop {
-                continue;
-            }
-
-            match brain.perceive(latest).await {
-                Ok(Some(action)) => {
-                    // 1. Authoritative Affordance Validation (SAE-201)
-                    if let Err(e) = manifest.validate_action(&action) {
-                        tracing::warn!(
-                            agent_id = %self.config.agent_id,
-                            action = %action.kind,
-                            error = %e,
-                            "action rejected by world manifest"
-                        );
-                        continue;
-                    }
-
-                    // 2. Authoritative E-Stop Interlock Check (SAE-202)
-                    if adapter.is_estopped() {
-                        tracing::warn!(
-                            agent_id = %self.config.agent_id,
-                            action = %action.kind,
-                            "world is estopped: aborting staged mutations and dropping action"
-                        );
-                        self.abort_staged_mutations().await;
-                        continue;
-                    }
-
-                    if cancel.is_canceled() {
-                        canceled = true;
-                        break;
-                    }
-                    if let Some(gate) = &self.execution_gate {
-                        if gate.authorize().await.is_err() {
-                            tracing::warn!(
-                                agent_id = %self.config.agent_id,
-                                action = %action.kind,
-                                "world action denied by execution authority"
-                            );
-                            self.abort_staged_mutations().await;
-                            continue;
-                        }
-                    }
-                    // 3. Dispatch to World Actuators
-                    match adapter.execute(action).await {
-                        Ok(res) => {
-                            tracing::debug!(
-                                agent_id = %self.config.agent_id,
-                                success = res.success,
-                                "world action executed successfully"
-                            );
-                        }
-                        Err(tetonic_domain::WorldError::ActionRejected { reason, .. })
-                            if reason.contains("E-Stop active") =>
-                        {
-                            tracing::warn!(
-                                agent_id = %self.config.agent_id,
-                                reason = %reason,
-                                "action rejected by adapter E-Stop interlock: aborting staged mutations"
-                            );
-                            self.abort_staged_mutations().await;
-                        }
-                        Err(e) => {
-                            tracing::warn!(
-                                agent_id = %self.config.agent_id,
-                                error = %e,
-                                "world action execution failed"
-                            );
-                        }
-                    }
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    tracing::warn!(
-                        agent_id = %self.config.agent_id,
-                        error = %e,
-                        "continuous brain perception failed"
-                    );
-                }
-            }
-        }
-
-        if canceled {
-            Ok(CandidateOutcome::Canceled {
-                reason: "world attempt canceled".into(),
-            })
-        } else {
-            Ok(CandidateOutcome::Completed {
-                summary: "world perception stream ended".into(),
-                kind: CompletionKind::Finish,
-            })
-        }
     }
 
     /// Persist operational turn state for crash recovery (AC2-6).
