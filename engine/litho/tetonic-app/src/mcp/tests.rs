@@ -126,3 +126,51 @@ async fn stopping_an_inflight_mcp_read_requests_cancellation_without_retrying() 
 }
 
 mod managed;
+
+#[tokio::test]
+async fn checkpoint_readiness_requires_the_selected_manifest_and_a_rebuildable_inner_host() {
+    use tetonic_domain::ToolHost;
+    let fixture = Fixture::new().await;
+    let registry = McpRegistry::from_json(&fixture.config).unwrap();
+    let view = registry.refresh("calendar").await.unwrap();
+    let search = view
+        .tools
+        .iter()
+        .find(|tool| tool.name == "search")
+        .unwrap()
+        .id
+        .clone();
+    let host = McpToolHost {
+        inner: Box::new(tetonic_tools::Tools::without_repository().unwrap()),
+        registry: registry.clone(),
+        selected: [search].into_iter().collect(),
+        consumer: Arc::new(tetonic_runtime::InMemoryCapabilityStore::default()),
+        runtime: tokio::runtime::Handle::current(),
+    };
+    assert!(host.checkpoint_ready());
+    let mut retained = host.clone();
+    retained.inner = Box::new(
+        tetonic_tools::Tools::without_repository()
+            .unwrap()
+            .with_orchestration(true),
+    );
+    assert!(!retained.checkpoint_ready());
+    fixture.mode.store(1, Ordering::SeqCst);
+    registry.refresh("calendar").await.unwrap();
+    assert!(
+        !host.checkpoint_ready(),
+        "changed selected manifests cannot be reconstructed"
+    );
+    fixture.mode.store(0, Ordering::SeqCst);
+    registry.refresh("calendar").await.unwrap();
+    assert!(host.checkpoint_ready());
+    assert!(
+        !fixture
+            .calls
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|call| call["method"] == "tools/call"),
+        "readiness itself must not invoke an MCP tool"
+    );
+}

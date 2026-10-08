@@ -131,6 +131,15 @@ pub(crate) struct RegisteredToolHost {
 }
 
 impl ToolHost for RegisteredToolHost {
+    fn checkpoint_ready(&self) -> bool {
+        // Dispatch tracks in-memory assignments, and the director has its own
+        // turn state. They need controller reconstruction before opting in.
+        self.dispatch
+            .as_ref()
+            .is_none_or(|d| d.assignment_keys.is_empty() && d.director.is_none())
+            && self.tools.checkpoint_ready()
+    }
+
     fn clone_box(&self) -> Box<dyn ToolHost> {
         Box::new(self.clone())
     }

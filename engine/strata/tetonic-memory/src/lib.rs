@@ -85,6 +85,7 @@ mod team_work;
 mod work_briefs;
 mod work_budgets;
 mod work_usage;
+mod work_usage_resume;
 pub use work_budgets::{WorkBudget, WorkBudgetReservation};
 pub use work_usage::{work_activation_request_id, TeamBudgetSetting, WorkUsage};
 mod huddle_plans;

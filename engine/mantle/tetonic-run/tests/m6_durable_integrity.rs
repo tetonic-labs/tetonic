@@ -14,11 +14,10 @@ use tetonic_run::{detect_recovery_required, DurableRunSupervisor, RunSupervisor}
 
 fn temp_db() -> std::path::PathBuf {
     std::env::temp_dir().join(format!(
-        "lokai_m6_{}.db",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap()
-            .as_nanos()
+        "tetonic_m6_{}.db",
+        // Windows clock resolution can give concurrently starting tests the
+        // same timestamp and therefore the same database/seed event.
+        uuid::Uuid::new_v4()
     ))
 }
 

@@ -4,7 +4,11 @@ use super::activation::resource_error;
 use super::*;
 use crate::errors::AppError;
 use std::sync::atomic::{AtomicBool, Ordering};
+mod assembly;
 mod environment;
+mod preparation;
+#[cfg(test)]
+mod reconstruction_tests;
 
 /// Operator-selected settings, not fields accepted from an employee request.
 /// The workspace and tool ceiling must be authorized by the host. Stored job
@@ -127,613 +131,60 @@ impl crate::Application {
         credential: &str,
         verifier: Arc<dyn CredentialVerifier>,
         request: RegisteredAgentJob,
-        mut settings: RegisteredExecutionSettings,
+        settings: RegisteredExecutionSettings,
         work: Option<(String, String)>,
         parent: Option<tetonic_run::managed::DelegationParent>,
     ) -> Result<RegisteredAgentSubmission, AppError> {
-        if let Some(mcp) = &settings.mcp {
-            settings
-                .allowed_tools
-                .extend(mcp.tool_names().into_iter().filter(|tool| {
-                    settings.hosted.as_ref().is_none_or(|h| {
-                        h.tool_disclosure
-                            .as_ref()
-                            .is_some_and(|d| d.tools.contains(tool))
-                    })
-                }));
-        }
-        let wants_dispatch = settings
-            .allowed_tools
-            .contains(super::plan_dispatch::DISPATCH);
-        let bound_dispatch = settings
-            .plan_dispatch
-            .as_ref()
-            .is_some_and(|d| !d.assignment_keys.is_empty());
-        let bound_human = settings
-            .plan_dispatch
-            .as_ref()
-            .is_some_and(|d| d.human.is_some());
-        let director = settings
-            .plan_dispatch
-            .as_ref()
-            .and_then(|d| d.director.as_ref());
-        let bound_director = director.is_some();
-        if settings.limits.work_director != bound_director
-            || settings
-                .allowed_tools
-                .contains(super::work_director::CONTROL)
-                != bound_director
-            || (bound_director
-                && (parent.is_some()
-                    || bound_dispatch
-                    || bound_human
-                    || settings.response_schema.is_some()
-                    || settings.workspace_root.is_some()
-                    || settings.mcp.is_some()
-                    || settings
-                        .allowed_tools
-                        .iter()
-                        .any(|t| t != super::work_director::CONTROL && t != "finish")))
-            || director.is_some_and(|d| work.as_ref().is_none_or(|(_, w)| w != &d.turn))
-        {
-            return Err(AppError::PolicyDenied(
-                "Conversation planning requires its trusted, output-scoped binding.".into(),
-            ));
-        }
-        if wants_dispatch != bound_dispatch
-            || settings
-                .allowed_tools
-                .contains(super::plan_dispatch::ASK_HUMAN)
-                != bound_human
-            || settings.limits.human_handoff != bound_human
-            || (parent.is_some() && bound_dispatch)
-            || settings
-                .plan_dispatch
-                .as_ref()
-                .is_some_and(|d| work.as_ref().is_none_or(|(_, w)| w != &d.binding))
-        {
-            return Err(AppError::PolicyDenied(
-                "Plan dispatch requires its trusted root binding.".into(),
-            ));
-        }
-        if settings.model.is_empty()
-            || settings.max_elapsed_seconds == 0
-            || settings.max_elapsed_seconds > 86_400
-            || settings
-                .model
-                .chars()
-                .any(|c| c.is_whitespace() || c.is_control())
-            || settings.num_ctx <= 1024
-            || settings.num_ctx > u32::MAX as usize
-        {
-            return Err(AppError::InvalidRequest(
-                "invalid registered execution settings".into(),
-            ));
-        }
-        let deadline = u64::try_from(chrono::Utc::now().timestamp())
-            .ok()
-            .and_then(|now| now.checked_add(settings.max_elapsed_seconds))
-            .ok_or_else(|| AppError::InvalidRequest("invalid execution deadline".into()))?;
-        let request_id = request.request_id.clone();
-        let preparation_limits = (
-            settings.limits.max_steps,
-            settings.limits.max_input_bytes,
-            settings.limits.human_handoff,
-            settings.limits.work_director,
-        );
-        let environment_settings = settings.clone();
-        let mut approved_environment = false;
-        let mut prepared = self
-            .run_manager
-            .prepare_registered_job_with_parent(
-                credential,
-                verifier,
-                request,
-                settings.limits,
-                parent.clone(),
-            )
-            .await?;
-        prepared.deadline = Some(deadline);
-        if let Some(parent) = &parent {
-            let (team, work) = work
-                .clone()
-                .ok_or_else(|| resource_error(ResourceError::Denied))?;
-            let (binding, scope, job, request, grant) = (
-                parent.binding().clone(),
-                prepared.authorization.scope.clone(),
-                prepared.command.job_spec.clone(),
-                request_id.clone(),
-                prepared
-                    .authorization
-                    .grant_id
-                    .clone()
-                    .ok_or_else(|| resource_error(ResourceError::Denied))?,
-            );
-            let lineage = self
-                .run_manager
-                .managed()
-                .store()
-                .ok_or_else(|| resource_error(ResourceError::StorageRequired))?
-                .read(move |db| {
-                    db.require_delegated_execution_binding(
-                        tetonic_memory::DelegatedExecutionBinding {
-                            id: &grant,
-                            scope: &scope,
-                            job: &job,
-                            parent_run: &binding.run_id.0,
-                            parent_attempt: &binding.attempt_id.0,
-                            request: &request,
-                            now: chrono::Utc::now().timestamp(),
-                        },
-                    )
-                })
-                .await
-                .map_err(|_| resource_error(ResourceError::Storage))?
-                .map_err(|_| resource_error(ResourceError::Denied))?;
-            if lineage.team_id != team || lineage.child_work_id != work {
-                return Err(resource_error(ResourceError::Denied));
-            }
-            if let Some(binding) = lineage.approved_environment {
-                if binding
-                    != environment_settings
-                        .environment_binding(&prepared.command.job_spec.capability_bindings)?
-                {
-                    return Err(AppError::PolicyDenied(
-                        "The delegated agent environment differs from its approved configuration."
-                            .into(),
-                    ));
-                }
-                approved_environment = true;
-            }
-        }
-        // Initial governed children consume explicit shared-context input. File
-        // roots and hosted egress need a durable inherited environment contract
-        // before they can be delegated; a tool-name grant alone is insufficient.
-        if parent.is_some()
-            && !approved_environment
-            && (work.is_none()
-                || settings.hosted.is_some()
-                || settings.workspace_root.is_some()
-                || settings.allowed_tools.iter().any(|tool| {
-                    tool != "finish" && !(bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                })
-                || prepared
-                    .command
-                    .job_spec
-                    .capability_bindings
-                    .iter()
-                    .any(|tool| {
-                        tool != "finish"
-                            && !(bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                    })
-                || !prepared.command.job_spec.artifact_bindings.is_empty())
-        {
-            return Err(AppError::PolicyDenied(
-                "Delegated execution currently supports explicit input and local inference only."
-                    .into(),
-            ));
-        }
-        if let Some(schema) = &settings.response_schema {
-            if !schema.is_object()
-                || schema.to_string().len() > 64_000
-                || !prepared.command.invocation.explain_turn
-                || prepared
-                    .command
-                    .job_spec
-                    .capability_bindings
-                    .iter()
-                    .any(|tool| tool != "finish")
-            {
-                return Err(AppError::InvalidRequest(
-                    "Structured answers require a bounded schema and an output-only invocation."
-                        .into(),
-                ));
-            }
-        }
-        if prepared
-            .command
-            .job_spec
-            .capability_bindings
-            .iter()
-            .any(|tool| tool != "finish" && !settings.allowed_tools.contains(tool))
-        {
-            return Err(AppError::PolicyDenied(
-                "requested tools exceed host grant".into(),
-            ));
-        }
-        if let Some(tool) = prepared
-            .command
-            .job_spec
-            .capability_bindings
-            .iter()
-            .find(|tool| {
-                !supported_registered_tool(tool)
-                    && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
-            })
-        {
-            return Err(AppError::PolicyDenied(format!(
-                "{tool} is not a supported registered isolation profile"
-            )));
-        }
-        if prepared
-            .command
-            .job_spec
-            .capability_bindings
-            .iter()
-            .any(|tool| tool == "run_shell")
-            && !approved_environment
-            && !work.as_ref().is_some_and(|(team, _)| {
-                tetonic_memory::team_participation_context_id(
-                    &prepared.authorization.scope.organization_id,
-                    team,
-                    &prepared.authorization.scope.principal_id,
-                )
-                .ok()
-                .as_deref()
-                    == Some(prepared.authorization.scope.information_context_id.as_str())
-            })
-        {
-            return Err(AppError::PolicyDenied(
-                "run_shell requires an owner-scoped work approval profile.".into(),
-            ));
-        }
-        let repository_requested = settings
-            .allowed_tools
-            .iter()
-            .chain(prepared.command.job_spec.capability_bindings.iter())
-            .any(|tool| {
-                tool != "finish"
-                    && !settings.mcp.as_ref().is_some_and(|mcp| mcp.contains(tool))
-                    && tool != "recall"
-                    && tool != super::plan_dispatch::DISPATCH
-                    && tool != super::plan_dispatch::ASK_HUMAN
-                    && tool != super::work_director::CONTROL
-            });
-        if repository_requested && settings.workspace_root.is_none() {
-            return Err(AppError::WorkspaceUnavailable);
-        }
-        let workspace = match &settings.workspace_root {
-            Some(path) => Some(
-                tetonic_tools::Workspace::new(path).map_err(|_| AppError::WorkspaceUnavailable)?,
-            ),
-            None => None,
-        };
-        let root = workspace
-            .as_ref()
-            .map(|workspace| workspace.root().to_path_buf());
-        let root_key = root
-            .as_ref()
-            .map(|path| {
-                path.to_str()
-                    .map(str::to_string)
-                    .ok_or(AppError::WorkspaceUnavailable)
-            })
-            .transpose()?;
-        let mut ceiling: Vec<_> = settings.allowed_tools.iter().collect();
-        ceiling.sort();
-        let context_id = prepared.authorization.scope.information_context_id.clone();
-        let kind_store = self
-            .run_manager
-            .managed()
-            .store()
-            .cloned()
-            .ok_or_else(|| resource_error(ResourceError::StorageRequired))?;
-        let context_kind = kind_store
-            .read(move |db| db.information_context_kind(&context_id))
-            .await
-            .map_err(|_| resource_error(ResourceError::Storage))?
-            .map_err(|_| resource_error(ResourceError::Storage))?;
-        // Governed private and team prompts stay on this machine. The operator's
-        // requested class remains part of the fingerprint so two host classes
-        // do not alias to the same activation.
-        let data_class = if let Some(hosted) = &settings.hosted {
-            // Data disclosure cannot broaden execution authority. The exact selected
-            // tools and folder must fit both this consent and the prepared grants.
-            // Recall, delegated team context and artifacts remain separately scoped.
-            let capabilities = &prepared.command.job_spec.capability_bindings;
-            // Internal controls expose only their host-bound work scope. Dispatch
-            // selects pre-authorized assignments; it cannot grant arbitrary tools.
-            // Hosted context consent never replaces a child's execution grant.
-            let internal_control = |tool: &str| {
-                tool == "finish"
-                    || (bound_dispatch && tool == super::plan_dispatch::DISPATCH)
-                    || (bound_human && tool == super::plan_dispatch::ASK_HUMAN)
-                    || (bound_director && tool == super::work_director::CONTROL)
-            };
-            let valid = match &hosted.tool_disclosure {
-                Some(disclosure) => {
-                    disclosure.version == 1
-                        && root_key == disclosure.workspace
-                        && settings
-                            .allowed_tools
-                            .iter()
-                            .all(|tool| internal_control(tool) || disclosure.tools.contains(tool))
-                        && capabilities.iter().all(|tool| {
-                            tool == "finish"
-                                || internal_control(tool)
-                                || disclosure.tools.contains(tool)
-                        })
-                }
-                None => {
-                    root_key.is_none()
-                        && settings
-                            .allowed_tools
-                            .iter()
-                            .all(|tool| internal_control(tool))
-                        && capabilities
-                            .iter()
-                            .all(|tool| tool == "finish" || internal_control(tool))
-                }
-            };
-            if !valid || !prepared.command.job_spec.artifact_bindings.is_empty() {
-                return Err(AppError::PolicyDenied(
-                    "Hosted execution exceeds the approved prompt and workspace disclosure scope."
-                        .into(),
-                ));
-            }
-            settings.data_class
-        } else {
-            floor_governed_context(context_kind.as_deref(), settings.data_class)
-        };
-        // The fingerprint covers effective host settings as well as the exact
-        // granted job. Absolute time and a new audit UUID are not request inputs.
-        let mut fingerprint = serde_json::json!({
-            "version": 1, "scope": prepared.authorization.scope,
-            "grant_id": prepared.authorization.grant_id, "job": prepared.command.job_spec,
-            "workspace": root_key, "model": settings.model, "num_ctx": settings.num_ctx,
-            "requested_data_class": settings.data_class, "data_class": data_class, "tools": ceiling,
-            "preparation_limits": preparation_limits, "max_elapsed_seconds": settings.max_elapsed_seconds,
-            "reported_token_ceiling": settings.reported_token_ceiling,
-        });
-        if let Some(dispatch) = &settings.plan_dispatch {
-            fingerprint["plan_dispatch"] = serde_json::json!(dispatch.binding);
-            if let Some(director) = &dispatch.director {
-                fingerprint["work_director"] = serde_json::json!([
-                    director.source,
-                    director.turn,
-                    director.revision,
-                    director.brief_revision
-                ]);
-            }
-        }
-        if let Some(binding) = &work {
-            fingerprint["work_budget_binding"] = serde_json::json!(binding);
-        }
-        if let Some(parent) = &parent {
-            let binding = parent.binding();
-            fingerprint["delegation_parent"] =
-                serde_json::json!([binding.run_id, binding.task_id, binding.attempt_id]);
-        }
-        if let Some(hosted) = &settings.hosted {
-            fingerprint["hosted_binding"] = serde_json::json!(hosted.binding);
-        }
-        if let Some(schema) = &settings.response_schema {
-            fingerprint["response_schema"] = schema.clone();
-        }
-        let request_bytes = serde_json::to_vec(&fingerprint)
-            .map_err(|_| AppError::InvalidRequest("invalid activation settings".into()))?;
-        use sha2::Digest;
-        let activation = tetonic_domain::ActivationBinding {
-            request_id,
-            request_digest: format!("sha256:{:x}", sha2::Sha256::digest(request_bytes)),
-            audit_session_id: format!("execution-audit-{}", uuid::Uuid::new_v4()),
-        };
-        let receipt = if let Some(parent) = &parent {
-            self.run_manager
-                .managed()
-                .lookup_child_activation(
-                    parent,
-                    &prepared.authorization,
-                    &activation,
-                    &prepared.command.identity,
-                    &prepared.command.job_spec,
-                    None,
-                )
-                .await?
-        } else {
-            self.run_manager
-                .managed()
-                .lookup_activation(
-                    &prepared.authorization,
-                    &activation,
-                    &prepared.command.identity,
-                    &prepared.command.job_spec,
-                    None,
-                )
-                .await?
-        };
-        if let Some(receipt) = receipt {
-            return Ok(receipt.into());
-        }
-        let provider = self
-            .turn
-            .registered_provider()
-            .filter(|provider| provider.has_secret_scanner())
-            .ok_or(AppError::InferenceUnavailable)?;
-        let provider = match settings.hosted {
-            Some(hosted) => Arc::new(provider.for_hosted(hosted.provider)),
-            None => provider,
-        };
-        let runtime = &self.turn.runtime;
-        let history = activation.audit_session_id.clone();
-        prepared.activation = Some(activation);
-        let mut allowed: std::collections::HashSet<_> = prepared
-            .command
-            .job_spec
-            .capability_bindings
-            .iter()
-            .cloned()
-            .collect();
-        allowed.insert("finish".into());
-        let mut tools = match workspace {
-            Some(workspace) => tetonic_tools::Tools::new(workspace, allowed.contains("run_shell")),
-            None => tetonic_tools::Tools::without_repository()
-                .map_err(|_| AppError::WorkspaceUnavailable)?,
-        }
-        .with_enforcement_level(tetonic_tools::EnforcementLevel::Sandboxed)
-        .with_capability_consumer(runtime.capability_store().clone())
-        .with_allowed_tools(allowed);
-        if let Some(store) = &self.turn.store {
-            if let Ok(path) = store.read_sync(|db| db.path().to_path_buf()) {
-                tools = tools.protect_store_file(path);
-            }
-        }
-        if prepared
-            .command
-            .job_spec
-            .capability_bindings
-            .iter()
-            .any(|tool| tool == "recall")
-        {
-            tools = prepared
-                .contexts
-                .bind_recall(
-                    credential,
-                    prepared.authorization.scope.information_context_id.clone(),
-                    tools,
-                )
-                .await
-                .map_err(resource_error)?;
-        }
-        let store = self
-            .run_manager
-            .managed()
-            .store()
-            .cloned()
-            .ok_or_else(|| resource_error(ResourceError::StorageRequired))?;
-        let scope = prepared.authorization.scope.clone();
-        let audit_session = history.clone();
-        store
-            .write(move |db| {
-                db.preflight_registered_capacity(
-                    &scope.organization_id,
-                    &scope.principal_id,
-                    &scope.information_context_id,
-                )?;
-                db.create_execution_audit_history(
-                    &scope.principal_id,
-                    &scope.information_context_id,
-                    &audit_session,
-                )
-            })
-            .await
-            .map_err(|_| resource_error(ResourceError::Storage))?
-            .map_err(capacity_app_error)?;
-        let failed = Arc::new(AtomicBool::new(false));
-        let audit = crate::store_audit::scoped_execution_audit(
-            store,
-            prepared.authorization.scope.information_context_id.clone(),
-            history.clone(),
-            prepared.command.identity.id.0.clone(),
-            failed.clone(),
-        );
-        prepared.authorization.authority = Arc::new(AuditedAuthority {
-            inner: prepared.authorization.authority.clone(),
-            failed,
-        });
-        let process_broker = Arc::new(tetonic_broker::BrokerGatedProcessBroker::new(
-            provider.broker().clone(),
-            Arc::new(tools.executor().clone()),
-        ));
-        let approval = super::shell_approval::for_work(
-            kind_store.clone(),
-            prepared.authorization.scope.clone(),
-            work.clone(),
-            root.clone(),
-            deadline,
-            approved_environment,
-        );
-        let provider: Arc<dyn tetonic_inference::InferenceProvider> = match work {
-            Some((team, work)) => Arc::new(super::work_usage::WorkUsageProvider {
-                inner: provider,
-                store: kind_store.clone(),
-                actor: prepared.authorization.scope.principal_id.clone(),
-                org: prepared.authorization.scope.organization_id.clone(),
-                team,
+        // Composition carries sizeable provider/agent state. Keep this future
+        // off the caller's async frame (notably Windows' small thread stacks).
+        Box::pin(self.execute_registered_job(
+            credential,
+            verifier,
+            request,
+            settings,
+            preparation::RegisteredJobContext {
                 work,
-                own_limit: settings.reported_token_ceiling,
-            }),
-            None => provider,
+                parent,
+                restore: None,
+            },
+        ))
+        .await
+    }
+
+    async fn execute_registered_job(
+        &self,
+        credential: &str,
+        verifier: Arc<dyn CredentialVerifier>,
+        request: RegisteredAgentJob,
+        settings: RegisteredExecutionSettings,
+        context: preparation::RegisteredJobContext,
+    ) -> Result<RegisteredAgentSubmission, AppError> {
+        let plan = match self
+            .prepare_registered_harness(credential, verifier, request, settings, context)
+            .await?
+        {
+            preparation::HarnessPreparation::Existing(receipt) => return Ok(receipt.into()),
+            preparation::HarnessPreparation::Ready(plan) => *plan,
         };
-        prepared.finalization = Some(tetonic_run::FinalizationPolicy {
-            effect_driver: Some(Arc::new(crate::turn_execution::ToolsFinalizationDriver(
-                Arc::new(tools.clone()),
-            ))),
-            verify_cmd: None,
-        });
-        let abort_tools = tools.clone();
-        let config = tetonic_core::AgentConfig {
-            model: settings.model,
-            num_ctx: settings.num_ctx,
-            max_steps: prepared.command.invocation.max_steps,
-            workspace_root: root.clone(),
-            process_working_directory: root,
-            agent_id: prepared.command.identity.id.0.clone(),
-            session_id: Some(history.clone()),
-            information_context_id: Some(
-                prepared.authorization.scope.information_context_id.clone(),
-            ),
-            data_class,
-            reported_token_ceiling: settings.reported_token_ceiling,
-            response_schema: settings.response_schema,
-            ..Default::default()
+        let assembly::RegisteredHarness {
+            prepared,
+            agent,
+            history,
+            store: kind_store,
+            restore,
+        } = self.assemble_registered_harness(credential, plan).await?;
+        let submission = match restore {
+            Some(receipt) => {
+                self.run_manager
+                    .execute_prepared_registered_job(prepared, agent, Some(receipt))
+                    .await?
+            }
+            None => {
+                self.run_manager
+                    .submit_prepared_registered_job(prepared, agent)
+                    .await?
+            }
         };
-        // No global briefing, project digest, legacy conversation or coding
-        // compiler is attached. Explicit scoped recall is available when granted.
-        let host = super::plan_dispatch::RegisteredToolHost {
-            tools,
-            dispatch: settings.plan_dispatch.clone(),
-        };
-        let agent = if let Some(registry) = settings.mcp {
-            tetonic_core::Agent::new(
-                provider,
-                crate::mcp::McpToolHost {
-                    inner: Box::new(host),
-                    registry,
-                    selected: prepared
-                        .command
-                        .job_spec
-                        .capability_bindings
-                        .iter()
-                        .cloned()
-                        .collect(),
-                    consumer: runtime.capability_store().clone(),
-                    runtime: tokio::runtime::Handle::current(),
-                },
-                config,
-            )
-        } else {
-            tetonic_core::Agent::new(provider, host, config)
-        };
-        let agent = agent.with_abort_staged(Arc::new(move || {
-            let _ = abort_tools.abort_staged_if_any();
-        }));
-        let (post_edit_snapshot, resolve_under_root, capture_workspace_version) =
-            crate::turn_execution::composition_capability_hooks();
-        let agent = runtime
-            .assemble_agent(
-                tetonic_runtime::AssemblyMode::Session,
-                tetonic_runtime::AgentAssemblyParts {
-                    agent,
-                    audit,
-                    approval: tetonic_runtime::ProductionApproval::host(approval.clone()),
-                    spawn: settings
-                        .plan_dispatch
-                        .as_ref()
-                        .map(|dispatch| dispatch.hook()),
-                    process_broker: Some(process_broker),
-                    context_compiler: None,
-                    post_edit_snapshot,
-                    resolve_under_root,
-                    capture_workspace_version,
-                },
-            )
-            .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?
-            .with_action_broker(runtime.action_broker().with_approval(approval));
-        let submission = self
-            .run_manager
-            .submit_prepared_registered_job(prepared, agent)
-            .await?;
         match submission {
             tetonic_run::managed::ManagedSubmission::Started {
                 binding,

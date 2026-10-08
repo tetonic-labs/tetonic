@@ -52,7 +52,7 @@ impl Store {
                 .work_id
                 .as_deref()
                 .ok_or(StoreError::ControlAccessDenied)?;
-            let deadline = self.human_live_deadline(
+            let deadline = self.live_work_execution_deadline(
                 &row.org_id,
                 &row.team_id,
                 work,

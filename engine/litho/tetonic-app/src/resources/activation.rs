@@ -164,6 +164,16 @@ impl crate::services::DefaultRunService {
         prepared: PreparedRegisteredJob,
         agent: tetonic_core::Agent,
     ) -> Result<tetonic_run::managed::ManagedSubmission, AppError> {
+        self.execute_prepared_registered_job(prepared, agent, None)
+            .await
+    }
+
+    pub(super) async fn execute_prepared_registered_job(
+        &self,
+        prepared: PreparedRegisteredJob,
+        agent: tetonic_core::Agent,
+        restore: Option<tetonic_run::managed::ActivationReceipt>,
+    ) -> Result<tetonic_run::managed::ManagedSubmission, AppError> {
         let PreparedRegisteredJob {
             command,
             policy,
@@ -187,24 +197,31 @@ impl crate::services::DefaultRunService {
         })?;
         // Cloning retains the existing registry, supervisor, hooks and storage;
         // the definition validator is pinned only for this admission.
-        self.managed()
+        let manager = self
+            .managed()
             .as_ref()
             .clone()
-            .with_execution_policy(policy)
-            .submit_identity_job_with_context(
-                command,
-                agent,
-                AdmissionContext {
-                    activation,
-                    delegation_parent,
-                    deadline,
-                    authorization: Some(authorization),
-                    ..Default::default()
-                },
-                finalization,
-            )
-            .await
-            .map_err(Into::into)
+            .with_execution_policy(policy);
+        let context = AdmissionContext {
+            activation,
+            delegation_parent,
+            deadline,
+            authorization: Some(authorization),
+            ..Default::default()
+        };
+        match restore {
+            Some(receipt) => {
+                manager
+                    .restore_suspended_root(receipt, command, agent, context, finalization)
+                    .await
+            }
+            None => {
+                manager
+                    .submit_identity_job_with_context(command, agent, context, finalization)
+                    .await
+            }
+        }
+        .map_err(Into::into)
     }
 }
 

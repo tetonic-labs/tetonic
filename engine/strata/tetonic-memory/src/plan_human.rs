@@ -76,7 +76,9 @@ impl Store {
         Ok(())
     }
 
-    pub(crate) fn human_live_deadline(
+    /// Current persisted execution deadline for a live, funded work attempt.
+    /// Approval hosts must use this clock rather than retaining a launch-time deadline.
+    pub fn live_work_execution_deadline(
         &self,
         org: &str,
         team: &str,
@@ -164,7 +166,7 @@ impl Store {
         if !self.control_access(actor, ControlPermission::ManageTeam, org, team)? {
             return Err(StoreError::ControlAccessDenied);
         }
-        let deadline = self.human_live_deadline(org, team, work, attempt, now)?;
+        let deadline = self.live_work_execution_deadline(org, team, work, attempt, now)?;
         let plan = self
             .huddle_execution_for_work(actor, org, team, work)?
             .ok_or(StoreError::ControlAccessDenied)?;
@@ -234,7 +236,7 @@ impl Store {
             tx.commit()?;
             return Ok(row);
         }
-        self.human_live_deadline(org, team, work, &row.attempt_id, now)?;
+        self.live_work_execution_deadline(org, team, work, &row.attempt_id, now)?;
         self.conn.execute("UPDATE work_human_questions SET answer=?4,response_id=?5,answered_by=?6 WHERE org_id=?1 AND team_id=?2 AND question_id=?3 AND answer IS NULL",params![org,team,id,answer,request,actor])?;
         row.answer = Some(answer.into());
         row.response_id = Some(request.into());
@@ -306,7 +308,7 @@ impl Store {
         let root = self
             .get_team_work_item(org, team, &plan.root_work_id)?
             .ok_or(StoreError::ControlAccessDenied)?;
-        self.human_live_deadline(
+        self.live_work_execution_deadline(
             org,
             team,
             &plan.root_work_id,

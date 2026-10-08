@@ -11,6 +11,18 @@ pub(crate) struct McpToolHost {
     pub runtime: tokio::runtime::Handle,
 }
 impl ToolHost for McpToolHost {
+    fn checkpoint_ready(&self) -> bool {
+        // This adapter opens and closes a session for each read invocation.
+        // WorkScope proves quiescence; no remote session is carried across calls.
+        // Endpoint and full manifest are pinned in each selected tool ID.
+        self.inner.checkpoint_ready()
+            && self
+                .selected
+                .iter()
+                .filter(|name| name.starts_with("mcp_"))
+                .all(|name| self.registry.contains(name))
+    }
+
     fn clone_box(&self) -> Box<dyn ToolHost> {
         Box::new(self.clone())
     }

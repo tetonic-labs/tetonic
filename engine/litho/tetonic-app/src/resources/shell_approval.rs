@@ -9,7 +9,6 @@ pub(super) fn for_work(
     scope: ExecutionScope,
     work: Option<(String, String)>,
     root: Option<PathBuf>,
-    deadline: u64,
     approved_shared_environment: bool,
 ) -> ApprovalHook {
     Arc::new(move |request| {
@@ -31,7 +30,7 @@ pub(super) fn for_work(
             {
                 return false;
             }
-            approve(store, scope, team, work, root, deadline, request)
+            approve(store, scope, team, work, root, request)
                 .await
                 .unwrap_or(false)
         })
@@ -44,7 +43,6 @@ async fn approve(
     team: String,
     work: String,
     root: PathBuf,
-    deadline: u64,
     mut request: ApprovalRequest,
 ) -> Option<bool> {
     if request.tool != "run_shell" {
@@ -84,7 +82,15 @@ async fn approve(
                     approval_id: &id,
                     proposal_digest: &digest,
                     request_id: &id,
-                    expires_at: deadline as i64,
+                    // The attempt's current clock is authoritative, including
+                    // a resumed lease. Never mint a fresh allowance here.
+                    expires_at: db.live_work_execution_deadline(
+                        &org,
+                        &team,
+                        &work,
+                        &proposal.attempt_id,
+                        chrono::Utc::now().timestamp() as u64,
+                    )? as i64,
                     work_id: Some(&work),
                     proposal: Some(&proposal),
                 })

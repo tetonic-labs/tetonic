@@ -51,10 +51,15 @@ adds checkpoint-backed suspension and exclusive restoration for a scoped root
 through the existing managed lifecycle. Production team waiting is **not enabled**.
 The follow-on adds work-scoped delegated grants, lease-fenced child admission,
 and lease checks at model/tool boundaries. New plan assignments select that
-contract; existing grants retain their original lifetime. Production harness
-reconstruction, the work controller and supported subtree restoration remain;
+contract; existing grants retain their original lifetime. A second follow-on
+now shares registered harness preparation/assembly with explicit reconstruction,
+preserves scoped audit history, checks tool-host checkpoint readiness, and
+transfers the original usage reservation inside a journaled resume. Its restart
+proof uses a controlled answer hook, not the production human-question path.
+Durable question/answer integration, authorization horizons, the work controller
+and supported subtree restoration remain;
 OCT-203 and its product acceptance stay open. See the same evidence document's
-delegation follow-on section for the precise boundary.
+follow-on sections for the precise boundary.
 
 October 5 partial prerequisite: [human handoff evidence](../october-1-coherent-workspace/human-handoff-evidence-2026-10-05.md)
 proves a live child can await an answer without model polling while another

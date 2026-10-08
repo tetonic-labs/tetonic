@@ -2,6 +2,9 @@ use super::*;
 use crate::{ContextOwner, TeamRow};
 use tetonic_domain::{ActivationBinding, ExecutionScope, RunSnapshot, TaskInputBinding};
 
+#[path = "work_usage_resume_tests.rs"]
+mod resume;
+
 fn seed(db: &Store) {
     db.bootstrap_control("owner", "org", "Org").unwrap();
     db.create_team(&TeamRow {

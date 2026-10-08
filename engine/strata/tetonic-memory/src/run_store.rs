@@ -235,6 +235,7 @@ impl Store {
             )?;
         }
         self.sync_child_capacity(snapshot, true)?;
+        self.resume_work_usage_in_tx(snapshot, event)?;
         let existing_floor: i64 = tx
             .query_row(
                 "SELECT replay_floor FROM run_projections WHERE run_id = ?1",

@@ -30,7 +30,7 @@ impl Store {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         self.require_team_participant(actor, org, team)?;
         if let Some(p) = proposal {
-            let deadline = self.human_live_deadline(
+            let deadline = self.live_work_execution_deadline(
                 org,
                 team,
                 work_id.ok_or(StoreError::ControlAccessDenied)?,
