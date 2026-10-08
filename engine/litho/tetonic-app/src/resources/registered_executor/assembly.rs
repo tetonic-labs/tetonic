@@ -28,6 +28,24 @@ impl crate::Application {
             restore,
         } = plan;
         let restoring = restore.is_some();
+        if let Some(human) = settings
+            .plan_dispatch
+            .as_ref()
+            .and_then(|d| d.human.as_ref())
+            .filter(|h| h.durable_wait_seconds.is_some())
+        {
+            let stop_binding = human.prepared_stop_binding.clone().ok_or_else(|| {
+                AppError::PolicyDenied("Missing human wait authority binding.".into())
+            })?;
+            prepared.authorization.authority = Arc::new(super::wait_authority::WaitAuthority {
+                inner: prepared.authorization.authority.clone(),
+                store: kind_store.clone(),
+                org: human.org.clone(),
+                team: human.team.clone(),
+                work: human.work.clone(),
+                stop_binding,
+            });
+        }
         let provider = self
             .turn
             .registered_provider()
@@ -212,7 +230,7 @@ impl crate::Application {
                     spawn: settings
                         .plan_dispatch
                         .as_ref()
-                        .map(|dispatch| dispatch.hook()),
+                        .map(|dispatch| dispatch.hook(self.run_manager.managed().clone())),
                     process_broker: Some(process_broker),
                     context_compiler: None,
                     post_edit_snapshot,
@@ -222,9 +240,15 @@ impl crate::Application {
             )
             .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?
             .with_action_broker(runtime.action_broker().with_approval(approval));
-        // Restoring is explicit; ordinary launch/retry never opts into suspension.
+        // Only an explicitly configured root host or matching reconstruction opts in.
         // The managed owner verifies the sealed checkpoint against this exact harness.
-        let agent = if restoring {
+        let agent = if restoring
+            || settings
+                .plan_dispatch
+                .as_ref()
+                .and_then(|d| d.human.as_ref())
+                .is_some_and(|h| h.durable_wait_seconds.is_some())
+        {
             agent.with_durable_waits()
         } else {
             agent

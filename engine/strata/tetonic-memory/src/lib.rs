@@ -90,7 +90,9 @@ pub use work_budgets::{WorkBudget, WorkBudgetReservation};
 pub use work_usage::{work_activation_request_id, TeamBudgetSetting, WorkUsage};
 mod huddle_plans;
 mod plan_human;
-pub use plan_human::{HumanQuestionContent, PlanDirection, WorkHumanQuestion};
+pub use plan_human::{
+    HumanQuestionContent, PlanDirection, SavedHumanWait, SuspendedHumanQuestion, WorkHumanQuestion,
+};
 mod huddle_execution;
 mod plan_continuation;
 pub use huddle_execution::{HuddleExecution, PlanAgentPin};

@@ -142,6 +142,8 @@ impl Fixture {
                     org: "org".into(),
                     team: "team".into(),
                     work: "work".into(),
+                    durable_wait_seconds: Some(600),
+                    prepared_stop_binding: None,
                 }),
                 binding: "work".into(),
                 sender,

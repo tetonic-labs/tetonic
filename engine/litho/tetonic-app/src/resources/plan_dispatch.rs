@@ -16,10 +16,32 @@ pub(crate) struct HumanHandoff {
     pub org: String,
     pub team: String,
     pub work: String,
+    /// Explicit host opt-in; team controllers still use live handoffs.
+    pub durable_wait_seconds: Option<u64>,
+    pub prepared_stop_binding: Option<String>,
 }
 impl HumanHandoff {
-    async fn ask(&self, request: tetonic_core::SpawnRequest) -> ToolOutcome {
+    async fn ask(
+        &self,
+        manager: &tetonic_run::managed::ManagedRunService,
+        request: tetonic_core::SpawnRequest,
+    ) -> ToolOutcome {
         use sha2::Digest;
+        let suspended = if let Some(max_wait_seconds) = self.durable_wait_seconds {
+            match manager.verify_human_handoff(&request).await {
+                Ok(checkpoint) => Some(tetonic_memory::SuspendedHumanQuestion {
+                    stop_binding: self.prepared_stop_binding.clone().unwrap_or_default(),
+                    checkpoint,
+                    call_id: request.call_id.clone(),
+                    max_wait_seconds,
+                }),
+                Err(_) => {
+                    return ToolOutcome::fail("Saved handoff could not be verified", "denied")
+                }
+            }
+        } else {
+            None
+        };
         let Some(attempt) = request.attempt_id else {
             return ToolOutcome::fail("Managed attempt required", "denied");
         };
@@ -40,7 +62,7 @@ impl HumanHandoff {
         let saved = self
             .store
             .write(move |db| {
-                db.ask_work_human(tetonic_memory::AskWorkHuman {
+                let command = tetonic_memory::AskWorkHuman {
                     actor: &h.actor,
                     org: &h.org,
                     team: &h.team,
@@ -49,11 +71,15 @@ impl HumanHandoff {
                     id: &question_id,
                     content,
                     now: chrono::Utc::now().timestamp() as u64,
-                })
+                };
+                match suspended {
+                    Some(proof) => db.ask_suspended_work_human(command, proof),
+                    None => db.ask_work_human(command),
+                }
             })
             .await;
-        let Ok(Ok(saved)) = saved else {
-            return ToolOutcome::fail("A human request could not be recorded. The attempt must be active; at most two questions are allowed for this assignment.","denied");
+        let Ok(Ok(_saved)) = saved else {
+            return ToolOutcome::fail("A human request could not be recorded. The work must still be eligible; at most two questions are allowed for this assignment.","denied");
         };
         loop {
             let h = self.clone();
@@ -61,22 +87,22 @@ impl HumanHandoff {
             let row = self
                 .store
                 .read(move |db| {
-                    db.work_human_questions(&h.actor, &h.org, &h.team, &h.work)
-                        .map(|rows| rows.into_iter().find(|r| r.id == id))
+                    db.pending_work_human_question(
+                        &h.actor,
+                        &h.org,
+                        &h.team,
+                        &h.work,
+                        &id,
+                        chrono::Utc::now().timestamp() as u64,
+                    )
                 })
                 .await;
-            if let Ok(Ok(Some(row))) = row {
+            if let Ok(Ok(row)) = row {
                 if let Some(answer) = row.answer {
                     return ToolOutcome::ok("The owner answered",serde_json::json!({"question_id":row.id,"answer":answer,"authority":"Task guidance only. Existing permissions and limits still apply."}).to_string());
                 }
             } else {
                 return ToolOutcome::fail("Human request could not be read", "unavailable");
-            }
-            if chrono::Utc::now().timestamp() as u64 >= saved.deadline {
-                return ToolOutcome::fail(
-                    "The time limit expired while waiting for the owner",
-                    "expired",
-                );
             }
             // No inference, model mutex, database transaction or blocking thread is held.
             tokio::time::sleep(std::time::Duration::from_millis(200)).await;
@@ -101,10 +127,14 @@ pub struct PlanDispatch {
 }
 
 impl PlanDispatch {
-    pub(crate) fn hook(&self) -> tetonic_core::SpawnHook {
+    pub(crate) fn hook(
+        &self,
+        manager: Arc<tetonic_run::managed::ManagedRunService>,
+    ) -> tetonic_core::SpawnHook {
         let dispatch = self.clone();
         Box::new(move |request, _| {
             let dispatch = dispatch.clone();
+            let manager = manager.clone();
             Box::pin(async move {
                 if request.tool_name == super::work_director::CONTROL {
                     return match &dispatch.director {
@@ -114,7 +144,7 @@ impl PlanDispatch {
                 }
                 if request.tool_name == ASK_HUMAN {
                     return match dispatch.human.clone() {
-                        Some(h) => h.ask(request).await,
+                        Some(h) => h.ask(&manager, request).await,
                         None => ToolOutcome::fail("Human handoff unavailable", "denied"),
                     };
                 }
@@ -193,7 +223,7 @@ impl ToolHost for RegisteredToolHost {
         });
         }
         if self.dispatch.as_ref().is_some_and(|d| d.human.is_some()) {
-            ads.push(ToolAdvertisement {name:ASK_HUMAN.into(),description:"Ask a blocking question; waits within this attempt's deadline. Answers do not change permissions or budget.".into(),parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["question","why"],"properties":{"question":{"type":"string","maxLength":800},"why":{"type":"string","maxLength":1200},"options":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":300}}}})});
+            ads.push(ToolAdvertisement {name:ASK_HUMAN.into(),description:"Ask a blocking question within the host's response limit. Answers do not change permissions or budget.".into(),parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["question","why"],"properties":{"question":{"type":"string","maxLength":800},"why":{"type":"string","maxLength":1200},"options":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":300}}}})});
         }
         ads
     }

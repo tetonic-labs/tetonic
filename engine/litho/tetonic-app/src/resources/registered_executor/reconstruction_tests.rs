@@ -1,28 +1,16 @@
-//! Composition contract tests. The answer hook is controlled by the fixture;
-//! production question persistence/controller cutover is intentionally separate.
+//! Production human handoff through shared registered harness reconstruction.
 use super::*;
-use std::{sync::atomic::AtomicBool, time::Duration};
+use std::time::Duration;
 use tetonic_domain::{AttemptState, CandidateOutcome};
 use tetonic_run::managed::{ActivationReceipt, ManagedSubmission};
 
 #[path = "reconstruction_fixture_tests.rs"]
 mod fixture;
+#[path = "human_wait_tests.rs"]
+mod human_wait_tests;
 #[path = "reconstruction_server_tests.rs"]
 mod server;
 use fixture::Fixture;
-
-fn answer_hook(answer: Arc<AtomicBool>) -> tetonic_core::SpawnHook {
-    Box::new(move |request, _| {
-        let answer = answer.clone();
-        Box::pin(async move {
-            assert_eq!(request.tool_name, "ask_human");
-            while !answer.load(Ordering::SeqCst) {
-                tokio::time::sleep(Duration::from_millis(10)).await;
-            }
-            tetonic_domain::ToolOutcome::ok("answered", "Beginners")
-        })
-    })
-}
 
 async fn park(
     f: &Fixture,
@@ -34,9 +22,6 @@ async fn park(
         history,
         ..
     } = f.harness(app, None).await;
-    let agent = agent
-        .with_spawn(answer_hook(Arc::new(AtomicBool::new(false))))
-        .with_durable_waits();
     let ManagedSubmission::Started { binding, .. } = app
         .run_manager
         .submit_prepared_registered_job(prepared, agent)
@@ -65,7 +50,15 @@ async fn park(
                 .inspect_run(&binding.run_id)
                 .await
                 .unwrap();
-            if run.attempts[&binding.attempt_id].state == AttemptState::Suspended {
+            if run.attempts[&binding.attempt_id].state == AttemptState::Suspended
+                && !f
+                    .store()
+                    .read(|db| db.work_human_questions("admin", "org", "team", "work"))
+                    .await
+                    .unwrap()
+                    .unwrap()
+                    .is_empty()
+            {
                 break;
             }
             assert_eq!(run.state, tetonic_domain::RunState::Active, "{run:?}");
@@ -92,6 +85,32 @@ async fn registered_harness_rebuild_retains_audit_tools_usage_and_exact_continua
     let (receipt, attempt) = tokio::task::LocalSet::new().run_until(park(&f, &app)).await;
     drop(app); // Lose the executor, rebuild from the same on-disk control/artifact stores.
     assert_eq!(requests.lock().unwrap().len(), 2);
+    let question = f
+        .store()
+        .read(|db| db.work_human_questions("admin", "org", "team", "work"))
+        .await
+        .unwrap()
+        .unwrap()
+        .remove(0);
+    assert!(question.saved_wait.is_some());
+    assert!(question.deadline > chrono::Utc::now().timestamp() as u64 + 500);
+    let id = question.id.clone();
+    f.store()
+        .write(move |db| {
+            db.answer_work_human(tetonic_memory::AnswerWorkHuman {
+                actor: "admin",
+                org: "org",
+                team: "team",
+                work: "work",
+                id: &id,
+                request: "answer-1",
+                answer: "Beginners",
+                now: chrono::Utc::now().timestamp() as u64,
+            })
+        })
+        .await
+        .unwrap()
+        .unwrap();
     let reopened = f.app(&url).await;
     let before = f
         .store()
@@ -122,13 +141,7 @@ async fn registered_harness_rebuild_retains_audit_tools_usage_and_exact_continua
         .run_until(async {
             let restored = reopened
                 .run_manager
-                .execute_prepared_registered_job(
-                    rebuilt.prepared,
-                    rebuilt
-                        .agent
-                        .with_spawn(answer_hook(Arc::new(AtomicBool::new(true)))),
-                    rebuilt.restore,
-                )
+                .execute_prepared_registered_job(rebuilt.prepared, rebuilt.agent, rebuilt.restore)
                 .await
                 .unwrap();
             let ManagedSubmission::Started {
@@ -230,12 +243,23 @@ async fn reconstruction_rejects_changed_approval_and_missing_audit_without_new_e
         "request",
         "input",
         "revision",
+        "wait_policy",
     ] {
         let mut settings = f.settings();
         let mut request = f.request();
         let mut expected = receipt.clone();
         match change {
             "model" => settings.model = "different-model".into(),
+            "wait_policy" => {
+                settings
+                    .plan_dispatch
+                    .as_mut()
+                    .unwrap()
+                    .human
+                    .as_mut()
+                    .unwrap()
+                    .durable_wait_seconds = Some(601)
+            }
             "tools" => {
                 settings.allowed_tools.insert("write_file".into());
             }

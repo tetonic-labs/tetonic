@@ -73,6 +73,8 @@ Reuse: existing team-work state, activation ownership, execution grants and mana
 
 Acceptance: run the proposed three-work-item scenario with one approval wait, one active item and one queued item. Unrelated eligible work proceeds; reprioritization takes effect without creating another copy. Paused work does not resume merely because the page reloads. Two tasks targeting the same declared resource wait or expose a conflict before conflicting effects occur. The supported overlap guarantee is documented without promising semantic detection of all related work.
 
+October 7 human-question prerequisite: explicitly configured independent registered roots now use the production persisted question/answer hook with checkpoint verification, a response deadline separate from active execution, original grant expiry, stop generations and offline answer storage. Shared reconstruction retains the original conversation/audit/budget. Default team waits remain live-only; the controller/subtree cutover and the three-item acceptance above are still required. See the [runtime integration record](runtime-boundaries-and-durable-waits-2026-10-07.md#persisted-human-question-follow-on).
+
 ## OCT-204 Run one durable bounded recurrence
 
 Work: expose a minimal interval-based ongoing responsibility with an understandable cadence, next activation, limits and pause control. Trigger activation from the engine, not a browser timer or continuous model polling. Reuse durable activation cursors and prevent overlapping occurrences by default. Coalesce missed intervals into at most one catch-up occurrence, with a documented maximum backlog. Persist occurrence identity and commit cursor/work creation consistently so crashes cannot silently lose or multiply accepted occurrences.

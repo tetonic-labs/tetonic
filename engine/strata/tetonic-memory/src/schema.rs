@@ -243,6 +243,14 @@ impl Store {
                 [now()],
             )?;
         }
+        if applied < 66 {
+            // Saved human answers bind checkpoints and stop generations. Older
+            // writers must not accept them under live-only question semantics.
+            self.conn.execute(
+                "INSERT INTO schema_versions(version,applied_at) VALUES(66,?1)",
+                [now()],
+            )?;
+        }
         Ok(())
     }
 

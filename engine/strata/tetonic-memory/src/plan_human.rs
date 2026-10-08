@@ -4,6 +4,9 @@ use crate::{ControlPermission, Result, Store, StoreError};
 use rusqlite::{params, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
 
+mod waiting;
+pub use waiting::{SavedHumanWait, SuspendedHumanQuestion};
+
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct HumanQuestionContent {
@@ -40,6 +43,8 @@ pub struct WorkHumanQuestion {
     pub response_id: Option<String>,
     pub created_at: String,
     pub answered_by: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub saved_wait: Option<SavedHumanWait>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -148,6 +153,24 @@ impl Store {
     }
 
     pub fn ask_work_human(&self, command: crate::AskWorkHuman<'_>) -> Result<WorkHumanQuestion> {
+        self.ask_work_human_inner(command, None)
+    }
+
+    /// Trusted managed host only: the checkpoint must first be verified against
+    /// the pending call by the runtime. This does not authorize a resume.
+    pub fn ask_suspended_work_human(
+        &self,
+        command: crate::AskWorkHuman<'_>,
+        suspended: SuspendedHumanQuestion,
+    ) -> Result<WorkHumanQuestion> {
+        self.ask_work_human_inner(command, Some(suspended))
+    }
+
+    fn ask_work_human_inner(
+        &self,
+        command: crate::AskWorkHuman<'_>,
+        suspended: Option<SuspendedHumanQuestion>,
+    ) -> Result<WorkHumanQuestion> {
         let crate::AskWorkHuman {
             actor,
             org,
@@ -166,13 +189,34 @@ impl Store {
         if !self.control_access(actor, ControlPermission::ManageTeam, org, team)? {
             return Err(StoreError::ControlAccessDenied);
         }
-        let deadline = self.live_work_execution_deadline(org, team, work, attempt, now)?;
-        let plan = self
-            .huddle_execution_for_work(actor, org, team, work)?
-            .ok_or(StoreError::ControlAccessDenied)?;
+        let (saved_wait, deadline) = match suspended {
+            Some(proof) => {
+                if id != waiting::question_id(attempt, &proof.call_id) {
+                    return Err(StoreError::ControlAccessDenied);
+                }
+                let (binding, deadline) =
+                    self.suspended_human_binding(org, team, work, attempt, &proof, now)?;
+                (Some(binding), deadline)
+            }
+            None => (
+                None,
+                self.live_work_execution_deadline(org, team, work, attempt, now)?,
+            ),
+        };
+        let plan = self.huddle_execution_for_work(actor, org, team, work)?;
+        let source = match plan {
+            Some(plan) => plan.source_work_id,
+            None if saved_wait.is_some() => work.to_owned(),
+            None => return Err(StoreError::ControlAccessDenied),
+        };
         let previous = self.work_human_questions(actor, org, team, work)?;
         if let Some(old) = previous.iter().find(|r| r.id == id) {
-            if old.attempt_id != attempt || old.content != content {
+            if old.attempt_id != attempt
+                || old.content != content
+                || old.saved_wait != saved_wait
+                || (saved_wait.is_some()
+                    && (old.deadline != deadline || (old.answer.is_none() && now >= deadline)))
+            {
                 return Err(StoreError::ControlResourceConflict);
             }
             let old = old.clone();
@@ -180,13 +224,13 @@ impl Store {
             return Ok(old);
         }
         // A bounded conversation, not an unlimited model/human interruption loop.
-        if previous.iter().any(|r| r.answer.is_none()) || previous.len() >= 2 {
+        if now >= deadline || previous.iter().any(|r| r.answer.is_none()) || previous.len() >= 2 {
             return Err(StoreError::ControlResourceConflict);
         }
         let row = WorkHumanQuestion {
             id: id.into(),
             work_id: work.into(),
-            source_work_id: plan.source_work_id.clone(),
+            source_work_id: source.clone(),
             attempt_id: attempt.into(),
             content,
             deadline,
@@ -194,8 +238,9 @@ impl Store {
             response_id: None,
             created_at: crate::util::now(),
             answered_by: None,
+            saved_wait,
         };
-        self.conn.execute("INSERT INTO work_human_questions(org_id,team_id,question_id,work_id,source_work_id,attempt_id,payload) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![org,team,id,work,plan.source_work_id,attempt,serde_json::to_string(&row).unwrap()])?;
+        self.conn.execute("INSERT INTO work_human_questions(org_id,team_id,question_id,work_id,source_work_id,attempt_id,payload) VALUES(?1,?2,?3,?4,?5,?6,?7)",params![org,team,id,work,source,attempt,serde_json::to_string(&row).unwrap()])?;
         tx.commit()?;
         Ok(row)
     }
@@ -236,7 +281,7 @@ impl Store {
             tx.commit()?;
             return Ok(row);
         }
-        self.live_work_execution_deadline(org, team, work, &row.attempt_id, now)?;
+        self.validate_human_wait(org, team, &row, now)?;
         self.conn.execute("UPDATE work_human_questions SET answer=?4,response_id=?5,answered_by=?6 WHERE org_id=?1 AND team_id=?2 AND question_id=?3 AND answer IS NULL",params![org,team,id,answer,request,actor])?;
         row.answer = Some(answer.into());
         row.response_id = Some(request.into());

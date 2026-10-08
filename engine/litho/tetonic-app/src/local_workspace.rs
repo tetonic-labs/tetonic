@@ -591,6 +591,7 @@ impl LocalWorkspace {
             (RunState::Failed, _) => "failed",
             (RunState::RecoveryRequired, _) => "recovery_required",
             (_, Some(TaskState::Running)) => "running",
+            (_, Some(TaskState::Parked)) => "recovery_required",
             _ => "starting",
         }
         .into();
@@ -611,23 +612,28 @@ impl LocalWorkspace {
                     _ => task.state,
                 };
             }
-            let work_id = task.id.clone();
-            task.human_questions = self
-                .keys
-                .store
-                .read(move |db| db.work_human_questions(OWNER, ORG, TEAM, &work_id))
-                .await
-                .map_err(|_| AppError::InferenceUnavailable)?
-                .map_err(|e| resource(e.into()))?;
-            if task.state == "running"
-                && task.human_questions.iter().any(|q| {
+        }
+        let work_id = task.id.clone();
+        let (questions, waiting) = self
+            .keys
+            .store
+            .read(move |db| {
+                let questions = db.work_human_questions(OWNER, ORG, TEAM, &work_id)?;
+                let now = chrono::Utc::now().timestamp() as u64;
+                let waiting = questions.iter().any(|q| {
                     q.answer.is_none()
-                        && bound_attempt.as_deref() == Some(q.attempt_id.as_str())
-                        && q.deadline > chrono::Utc::now().timestamp() as u64
-                })
-            {
-                task.state = "waiting_human".into();
-            }
+                        && db
+                            .pending_work_human_question(OWNER, ORG, TEAM, &work_id, &q.id, now)
+                            .is_ok()
+                });
+                Ok::<_, tetonic_memory::StoreError>((questions, waiting))
+            })
+            .await
+            .map_err(|_| AppError::InferenceUnavailable)?
+            .map_err(|e| resource(e.into()))?;
+        task.human_questions = questions;
+        if waiting && matches!(task.state.as_str(), "running" | "recovery_required") {
+            task.state = "waiting_human".into();
         }
         if task.state == "failed" {
             task.error = Some(

@@ -11,7 +11,6 @@ impl crate::Store {
         parent: &tetonic_domain::AgentJobSpec,
         child: &tetonic_domain::AgentJobSpec,
     ) -> Result<String> {
-        use sha2::Digest;
         let org = &lineage.org_id;
         let mut scopes = std::collections::BTreeSet::from([
             ("org", org.clone()),
@@ -34,6 +33,15 @@ impl crate::Store {
             )?;
             scopes.insert(("agent", key));
         }
+        self.control_stop_generation_binding(org, scopes)
+    }
+
+    pub(crate) fn control_stop_generation_binding(
+        &self,
+        org: &str,
+        scopes: std::collections::BTreeSet<(&str, String)>,
+    ) -> Result<String> {
+        use sha2::Digest;
         let mut generations = Vec::new();
         for (kind, id) in scopes {
             if self.active_control_stop(org, kind, &id)?.is_some() {

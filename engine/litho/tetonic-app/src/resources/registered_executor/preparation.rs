@@ -67,6 +67,21 @@ impl crate::Application {
             .as_ref()
             .and_then(|d| d.director.as_ref());
         let bound_director = director.is_some();
+        let durable_wait = settings
+            .plan_dispatch
+            .as_ref()
+            .and_then(|d| d.human.as_ref())
+            .and_then(|h| h.durable_wait_seconds);
+        if durable_wait.is_some_and(|seconds| {
+            !(1..=604_800).contains(&seconds)
+                || parent.is_some()
+                || bound_dispatch
+                || bound_director
+        }) {
+            return Err(AppError::PolicyDenied(
+                "Durable human waits require an independent registered root.".into(),
+            ));
+        }
         if settings.limits.work_director != bound_director
             || settings
                 .allowed_tools
@@ -395,6 +410,37 @@ impl crate::Application {
             "preparation_limits": preparation_limits, "max_elapsed_seconds": settings.max_elapsed_seconds,
             "reported_token_ceiling": settings.reported_token_ceiling,
         });
+        if let Some(seconds) = durable_wait {
+            let human = settings
+                .plan_dispatch
+                .as_mut()
+                .and_then(|d| d.human.as_mut())
+                .ok_or_else(|| AppError::PolicyDenied("Missing human host".into()))?;
+            if human.actor != prepared.authorization.scope.principal_id
+                || human.org != prepared.authorization.scope.organization_id
+                || work.as_ref() != Some(&(human.team.clone(), human.work.clone()))
+            {
+                return Err(AppError::PolicyDenied(
+                    "Human host must match the approved work scope.".into(),
+                ));
+            }
+            let (org, team, work, identity) = (
+                human.org.clone(),
+                human.team.clone(),
+                human.work.clone(),
+                prepared.command.job_spec.identity_id.0.clone(),
+            );
+            let stop_binding = kind_store
+                .read(move |db| db.work_human_stop_binding(&org, &team, &work, &identity))
+                .await
+                .map_err(|_| AppError::InferenceUnavailable)?
+                .map_err(|_| {
+                    AppError::PolicyDenied("Human wait is stopped or unavailable.".into())
+                })?;
+            human.prepared_stop_binding = Some(stop_binding.clone());
+            fingerprint["human_wait_seconds"] = serde_json::json!(seconds);
+            fingerprint["human_wait_stops"] = serde_json::json!(stop_binding);
+        }
         if let Some(dispatch) = &settings.plan_dispatch {
             fingerprint["plan_dispatch"] = serde_json::json!(dispatch.binding);
             if let Some(director) = &dispatch.director {

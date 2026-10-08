@@ -9,6 +9,7 @@ mod environment;
 mod preparation;
 #[cfg(test)]
 mod reconstruction_tests;
+mod wait_authority;
 
 /// Operator-selected settings, not fields accepted from an employee request.
 /// The workspace and tool ceiling must be authorized by the host. Stored job

@@ -126,6 +126,42 @@ impl ManagedRunService {
         result
     }
 
+    /// Verify a host handoff against the sealed pending call, not caller-supplied
+    /// question text. Storage rechecks the same suspension before saving a receipt.
+    pub async fn verify_human_handoff(
+        &self,
+        request: &tetonic_core::SpawnRequest,
+    ) -> Result<ArtifactRef, ManagedRunError> {
+        let attempt = AttemptId::new(request.attempt_id.as_ref().ok_or_else(unavailable)?);
+        let active = self
+            .active
+            .lock_recover()
+            .get(&attempt)
+            .cloned()
+            .ok_or_else(unavailable)?;
+        let saved = active.suspension().ok_or_else(unavailable)?;
+        if active.parent_attempt.is_some()
+            || active.work_scope.is_canceled()
+            || self.is_canceled(&attempt)
+        {
+            return Err(unavailable());
+        }
+        let auth = active.authorization.as_ref().ok_or_else(unavailable)?;
+        auth.authority
+            .authorize(&auth.scope, &active.identity, &active.binding.job_spec)
+            .await
+            .map_err(|_| unavailable())?;
+        let checkpoint = self
+            .read_wait_checkpoint(&active.binding, &saved.checkpoint)
+            .await?;
+        if checkpoint.invocation.discipline.handoff_tool.as_deref() != Some(&request.tool_name)
+            || serde_json::to_value(&checkpoint.pending).ok() != serde_json::to_value(request).ok()
+        {
+            return Err(unavailable());
+        }
+        Ok(saved.checkpoint)
+    }
+
     pub(crate) async fn read_wait_checkpoint(
         &self,
         binding: &ManagedBinding,

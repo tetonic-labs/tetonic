@@ -58,6 +58,11 @@ impl Agent {
             .await
             .map_err(|_| fail())?;
         let outcome = hook(pending.clone(), convo).await;
+        // A denied or unavailable saved question is not permission to reacquire
+        // execution and ask the model again. Keep the checkpoint for reconciliation.
+        if !outcome.ok {
+            return Err(fail());
+        }
         // Capacity and current authority are reacquired before leaving the saved boundary.
         gate.resume().await.map_err(|_| fail())?;
         let result = outcome.to_model_string();

@@ -25,6 +25,8 @@ impl LocalWorkspace {
             org: ORG.into(),
             team: TEAM.into(),
             work: work.into(),
+            durable_wait_seconds: None,
+            prepared_stop_binding: None,
         }
     }
     pub(super) async fn plan_directions(
@@ -54,17 +56,18 @@ impl LocalWorkspace {
             .ok_or_else(|| {
                 AppError::InvalidRequest("This request for your input is unavailable.".into())
             })?;
-        // Receipt reads can succeed after completion. A new answer may only wake
-        // a live attempt on this host; a persisted ID cannot revive execution.
+        // Receipt reads can succeed after completion. A new answer requires
+        // a live attempt or a verified saved wait. Saving guidance never revives execution.
         if question.answer.is_none()
             && (task.state != "waiting_human"
-                || self
-                    .host
-                    .app
-                    .run_manager
-                    .managed()
-                    .binding(&tetonic_domain::AttemptId::new(question.attempt_id.clone()))
-                    .is_none())
+                || (question.saved_wait.is_none()
+                    && self
+                        .host
+                        .app
+                        .run_manager
+                        .managed()
+                        .binding(&tetonic_domain::AttemptId::new(question.attempt_id.clone()))
+                        .is_none()))
         {
             return Err(AppError::InvalidRequest("This wait ended. Your text has not been sent; inspect the plan before starting more work.".into()));
         }

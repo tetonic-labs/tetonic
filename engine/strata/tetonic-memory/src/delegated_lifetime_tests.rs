@@ -221,7 +221,7 @@ fn schema_64_upgrade_preserves_legacy_permission_and_retry_payload() {
             .derive_execution_grant("alice", "org", "team", &f.request, 101)
             .unwrap();
         db.conn
-            .execute("DELETE FROM schema_versions WHERE version=65", [])
+            .execute("DELETE FROM schema_versions WHERE version>=65", [])
             .unwrap();
         (f, child)
     };
