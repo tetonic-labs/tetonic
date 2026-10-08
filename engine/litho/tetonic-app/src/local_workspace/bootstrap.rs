@@ -2,9 +2,16 @@
 use std::path::PathBuf;
 
 use super::*;
+use crate::errors::AppError;
 use crate::host::HostConfiguration;
 use crate::job_launch::{prepare_launch_with_control, RegisteredLaunchHost};
+use crate::resources::LocalControl;
 use crate::resources::{HarnessPreparationLimits, RegisteredExecutionSettings};
+use crate::workspace::{
+    providers, resource, WorkspaceServices, AGENT, GUIDE, GUIDE_INSTRUCTIONS, INPUT_LIMIT,
+    LOCAL_TOKEN_CEILING,
+};
+use tetonic_domain::DataClass;
 
 impl LocalWorkspace {
     /// Startup is a local owner operation, never an unauthenticated API endpoint.
@@ -142,13 +149,13 @@ impl LocalWorkspace {
             Err(e) => return Err(resource(e)),
         }
         let default_personas = [
-            (shaping::GUIDE, shaping::GUIDE_INSTRUCTIONS),
+            (GUIDE, GUIDE_INSTRUCTIONS),
             ("The Digest Assistant", "You are The Digest Assistant, an executive synthesis assistant. Provide high-level status standups, highlight completed milestones, and answer progress queries."),
             ("Researcher", "You are the Team Researcher. Investigate questions, synthesize facts, and structure comprehensive briefings using workspace inspection tools."),
             ("Analyst", "You are the Team Analyst. Evaluate plans, identify quantitative tradeoffs, critique proposals, and review execution quality."),
         ];
         for (name, instructions) in default_personas {
-            let persona_tools = if name == shaping::GUIDE {
+            let persona_tools = if name == GUIDE {
                 vec![]
             } else {
                 requested_tools.clone()
@@ -184,21 +191,21 @@ impl LocalWorkspace {
         // The Guide is engine-managed. Update its selected revision deliberately;
         // merely publishing leaves existing installations on old instructions.
         if let Some(guide) = resources
-            .get_agent(secret, ORG.into(), shaping::GUIDE.into())
+            .get_agent(secret, ORG.into(), GUIDE.into())
             .await
             .map_err(resource)?
         {
             let envelope: serde_json::Value = serde_json::from_str(&guide.definition_json)
                 .map_err(|_| AppError::InferenceUnavailable)?;
             let mut configuration = envelope["configuration"].clone();
-            if configuration["instructions"].as_str() != Some(shaping::GUIDE_INSTRUCTIONS) {
-                configuration["instructions"] = shaping::GUIDE_INSTRUCTIONS.into();
+            if configuration["instructions"].as_str() != Some(GUIDE_INSTRUCTIONS) {
+                configuration["instructions"] = GUIDE_INSTRUCTIONS.into();
                 resources
                     .edit_agent(
                         secret,
                         crate::resources::EditAgent {
                             org: ORG.into(),
-                            key: shaping::GUIDE.into(),
+                            key: GUIDE.into(),
                             request: format!(
                                 "guide-conversation-{}",
                                 guide.identity.bound_definition_digest
@@ -212,12 +219,11 @@ impl LocalWorkspace {
                     .map_err(resource)?;
             }
         }
-        let context = local
-            .contexts()
-            .team_participation_context(secret, ORG.into(), TEAM.into())
+        let scope = local
+            .application_scope(secret, ORG.into(), TEAM.into())
             .await
             .map_err(resource)?;
-        let mut host = prepare_launch_with_control(
+        let host = prepare_launch_with_control(
             secret,
             RegisteredLaunchHost {
                 configuration,
@@ -257,30 +263,8 @@ impl LocalWorkspace {
                 .ok_or(AppError::InferenceUnavailable)?,
             vault: std::sync::Arc::new(tetonic_secrets::key_storage::PlatformKeyStorage),
         });
-        host.settings.skills = Some(std::sync::Arc::new(crate::skills::SkillLibrary {
-            store: keys.store.clone(),
-            actor: OWNER.into(),
-            org: ORG.into(),
-            team: TEAM.into(),
-        }));
-        host.settings.mcp = Some(
-            crate::mcp::McpRegistry::load(crate::mcp::McpScope {
-                store: keys.store.clone(),
-                vault: keys.vault.clone(),
-                actor: OWNER.into(),
-                org: ORG.into(),
-                team: TEAM.into(),
-            })
-            .map_err(AppError::InvalidRequest)?,
-        );
         Ok(Self {
-            local,
-            host,
-            context,
-            admission: std::sync::Arc::new(tokio::sync::Mutex::new(())),
-            keys,
-            #[cfg(test)]
-            hosted_transport: None,
+            services: WorkspaceServices::bind(local, host, scope, keys).await?,
         })
     }
 }

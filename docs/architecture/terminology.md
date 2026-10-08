@@ -1,7 +1,7 @@
 # Domain terminology
 
 Use these meanings when discussing changes to Tetonic. They describe the current
-types and boundaries, checked at `19a9af98` on October 8, 2026; they do not rename
+types and boundaries, updated through the scope extraction on October 8, 2026; they do not rename
 existing APIs. See [system ownership](ownership.md) for the services that may
 change each record.
 
@@ -17,7 +17,8 @@ change each record.
 | Agent revision | An exact definition digest and immutable configuration version. | Editing the latest definition does not rewrite the version already bound to accepted work. |
 | Harness | The instructions, loop/tool interfaces and execution integration used to operate an agent. | Using a vendor's model API is not the same as running that vendor's native harness. |
 | Capability | A named action/tool requested by configuration and resolved against current grants, installation/bindings and host limits. | Selection in the editor is not sufficient execution authority. A skill provides instructions, not additional privileges. |
-| Product workspace | The user-facing collection of work, agents, rosters, connections and settings. Today `LocalWorkspace` also composes fixed local owner/org/team scope. | A filesystem path is not this security/product boundary. |
+| Product workspace | The user-facing collection of work, agents, rosters, connections and settings. The local bootstrap selects the default scope; `WorkService` and `WorkspaceServices` implement its operations. | A filesystem path is not this security/product boundary. |
+| Application scope | Verified principal, organization, security team and participation-context identifiers bound by `LocalControl::application_scope`. | It is not a cached grant. Operations must still check current authorization. |
 | Filesystem workspace | An explicitly supplied/canonicalized root for file and process tools on an execution host. | A folder grants neither organization access nor authority to read every information context. The control database also has separate protection requirements. |
 | Information context | A durable information boundary to which history, publication, recall and artifact access are bound. | It is not the entire model context window, a filesystem directory, or an implicit union of all team members' memories. |
 
@@ -51,7 +52,7 @@ Sources: [work types](../../engine/strata/tetonic-memory/src/team_work.rs),
 [accepted plan pins](../../engine/strata/tetonic-memory/src/huddle_execution.rs),
 [runtime lifecycle types](../../engine/core/tetonic-domain/src/run.rs),
 [identity/job contracts](../../engine/core/tetonic-domain/src/identity.rs),
-[local API projection](../../engine/litho/tetonic-app/src/local_workspace.rs).
+[local API projection](../../engine/litho/tetonic-app/src/work/types.rs).
 
 ```mermaid
 flowchart LR

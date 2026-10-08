@@ -2,6 +2,12 @@
 
 This connection is a single-owner local profile, not the shared-organization transport. `/`, `/?engine=local`, and the retained `/dev/team-work/` alias mount the same production team workspace. Older product views and interactive sample controllers have been removed.
 
+The application now delegates to [scoped workspace and work services](../../architecture/work-services.md)
+behind the same endpoints. Schema 70 scopes work notes and presentation metadata
+to their organization/team. The existing upgrade machinery preserves a backup;
+ambiguous legacy work IDs are retained for explicit recovery rather than assigned
+to a team automatically. This does not add a multi-user HTTP surface.
+
 ## Start
 
 The optional `--host-config <file.json>` configures storage, sanitized logging and

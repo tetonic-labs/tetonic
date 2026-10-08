@@ -22,6 +22,8 @@ mod team_work_controller;
 pub mod test_harness;
 pub mod turn_attestation;
 pub mod turn_execution;
+pub mod work;
+pub(crate) mod workspace;
 
 #[cfg(test)]
 mod inspect_api_tests;

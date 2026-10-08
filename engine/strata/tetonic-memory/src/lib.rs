@@ -69,7 +69,9 @@ pub use workspace_skills::WorkspaceSkill;
 mod workspace_mcp;
 pub use workspace_mcp::WorkspaceMcpConnection;
 mod local_work_notes;
+mod work_metadata;
 pub use local_work_notes::LocalWorkData;
+pub use work_metadata::WorkMetadataPatch;
 mod child_capacity;
 #[cfg(test)]
 mod migration_tests;

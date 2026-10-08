@@ -2,7 +2,7 @@
 
 This map assigns behavior to existing implementation owners. It is the review
 contract for incremental architecture work, based on the integrated baseline and
-updated for the October 8, 2026 host refactor. No new execution authority is
+updated for the October 8, 2026 host and scoped work-service refactors. No new execution authority is
 implied by an owner below. Entry points
 include public Rust/local API interfaces and identified internal composition
 functions; they are not necessarily remote APIs.
@@ -63,7 +63,7 @@ authorization limits when preparing execution.
 
 - **Entry points:** [`ResourceService::register_agent`, `edit_agent`, `publish_agent_revision`](../../engine/litho/tetonic-app/src/resources/agents.rs);
   [`PreparedAgentRevision` and general harness preparation](../../engine/litho/tetonic-app/src/resources/general_harness.rs).
-  The [agent product adapter](../../engine/litho/tetonic-app/src/local_workspace/agents.rs)
+  The [agent product adapter](../../engine/litho/tetonic-app/src/workspace/agents.rs)
   supplies editor/catalog behavior.
 - **Durable owner:** [`organization_agents`](../../engine/strata/tetonic-memory/src/organization_agents.rs),
   [`organization_agent_revisions`](../../engine/strata/tetonic-memory/src/organization_agent_revisions.rs),
@@ -74,7 +74,7 @@ authorization limits when preparing execution.
   not grants. Editing an agent must not silently rewrite a revision pinned by
   accepted work or a running attempt.
 - **Boundary evidence:** [agent revision tests](../../engine/strata/tetonic-memory/src/organization_agent_edit_tests.rs),
-  [product editing tests](../../engine/litho/tetonic-app/src/local_workspace/agents/editing_tests.rs),
+  [product editing tests](../../engine/litho/tetonic-app/src/workspace/agents/editing_tests.rs),
   [agent editor UI tests](../../web/tests/agent-editing.test.tsx).
 
 ## Organizations, membership and authority
@@ -97,10 +97,12 @@ resource actions, and bind separately authorized execution and context access.
 - **Boundary evidence:** [resource authorization tests](../../engine/litho/tetonic-app/src/resources/tests.rs),
   [delegated grant tests](../../engine/litho/tetonic-app/src/resources/delegated_grants_tests.rs).
 
-**Current seam:** the local product uses fixed owner/org/team identifiers in
-[`local_workspace.rs`](../../engine/litho/tetonic-app/src/local_workspace.rs).
-Explicit application scope must precede a general multi-user host. Do not
-duplicate the same local-owner assumptions in new features.
+**Scope binding:** [`ApplicationScope`](../../engine/litho/tetonic-app/src/resources/application_scope.rs)
+binds a verified principal, organization, security team and participation context.
+The work/workspace services receive it explicitly and recheck access through
+existing resource authorization. The local bootstrap still selects fixed defaults
+in [`local_workspace.rs`](../../engine/litho/tetonic-app/src/local_workspace.rs);
+new use cases must not copy those identifiers. See [scope behavior and limits](work-services.md).
 
 ## Work shaping and team coordination
 
@@ -108,12 +110,14 @@ duplicate the same local-owner assumptions in new features.
 dispatch eligible assignments, collect contributions, and handle work questions
 and continuation. Models may propose changes; authorized services accept them.
 
-- **Entry points:** [shaping](../../engine/litho/tetonic-app/src/local_workspace/shaping.rs),
-  [plan execution](../../engine/litho/tetonic-app/src/local_workspace/plan_execution.rs),
+- **Entry points:** [`WorkService`](../../engine/litho/tetonic-app/src/work/mod.rs),
+  [shaping](../../engine/litho/tetonic-app/src/work/shaping.rs),
+  [plan execution](../../engine/litho/tetonic-app/src/work/plan_execution.rs),
   [`team_work_controller`](../../engine/litho/tetonic-app/src/team_work_controller.rs),
   and [`PlanDispatch`](../../engine/litho/tetonic-app/src/resources/plan_dispatch.rs).
   [Work resource services](../../engine/litho/tetonic-app/src/resources/team_work.rs)
-  own authorized mutations; the local adapter binds host settings and output.
+  own authorized mutations. `WorkService` binds scoped workspace services to
+  the existing controller, registered admission and read projections.
 - **Durable owner:** [`TeamGoal`, `TeamWorkItem`, `HuddleProposal` and delegation](../../engine/strata/tetonic-memory/src/team_work.rs),
   [briefs](../../engine/strata/tetonic-memory/src/work_briefs.rs),
   [`WorkTeam` versions/bindings](../../engine/strata/tetonic-memory/src/work_teams.rs),
@@ -124,15 +128,17 @@ and continuation. Models may propose changes; authorized services accept them.
   to dependencies and capacity. It must not mint its own attempt leases, bypass
   budgets or make a conversation message authoritative proof of completion.
   A plan-start receipt preserves accepted inputs; it is not a second run journal.
-- **Boundary evidence:** [parallel groups](../../engine/litho/tetonic-app/src/local_workspace/plan_group_tests.rs),
-  [plan execution](../../engine/litho/tetonic-app/src/local_workspace/plan_execution_tests.rs),
-  [human intervention](../../engine/litho/tetonic-app/src/local_workspace/plan_human_tests.rs),
-  [provider coordination](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/coordination.rs).
+- **Boundary evidence:** [parallel groups](../../engine/litho/tetonic-app/src/work/plan_group_tests.rs),
+  [plan execution](../../engine/litho/tetonic-app/src/work/plan_execution_tests.rs),
+  [human intervention](../../engine/litho/tetonic-app/src/work/plan_human_tests.rs),
+  [provider coordination](../../engine/litho/tetonic-app/src/workspace/providers/tests/coordination.rs).
 
-**Current seam:** coordination spans application modules and `local_workspace`;
-it is not yet a cleanly extracted generic work service. The retained
-`tetonic-orchestrator` coding/router library is not the owner of this product
-path simply because of its package name.
+**Extraction boundary:** work behavior lives in `work/`; agent/provider/capability
+setup lives in `workspace/`. `local_workspace` retains bootstrap and compatibility
+reexports, without work-lifecycle implementation. The existing controller and
+resource dispatch remain the owners of coordination and admission. The retained
+`tetonic-orchestrator` coding/router library is not the owner of this product path.
+These are in-process modules, not separately deployed services.
 
 ## Managed execution and recovery
 
@@ -155,7 +161,7 @@ interrupted execution and restore explicitly supported checkpoints.
 - **Boundary evidence:** [managed service tests](../../engine/mantle/tetonic-run/tests/managed_service_tests.rs),
   [execution claims](../../engine/mantle/tetonic-run/tests/execution_claim.rs),
   [durable human waits](../../engine/litho/tetonic-app/src/resources/registered_executor/human_wait_tests.rs),
-  [hard process-loss regression](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/process_recovery_tests.rs).
+  [hard process-loss regression](../../engine/litho/tetonic-app/src/workspace/providers/tests/process_recovery_tests.rs).
 
 Cancellation controls managed execution and its attached descendants/resources;
 it cannot reverse a completed external effect. General crash replay remains
@@ -169,7 +175,7 @@ and connect them to work continuation and managed execution lifetime.
 
 - **Entry points:** [authorized human controls](../../engine/litho/tetonic-app/src/resources/human_controls.rs),
   [shell approval binding](../../engine/litho/tetonic-app/src/resources/shell_approval.rs),
-  and [plan questions/amendments](../../engine/litho/tetonic-app/src/local_workspace/plan_human.rs).
+  and [plan questions/amendments](../../engine/litho/tetonic-app/src/work/plan_human.rs).
 - **Durable owner:** [`ControlStop`, `EffectApproval` and associated records](../../engine/strata/tetonic-memory/src/human_controls.rs),
   accepted plan/question state and managed suspension/checkpoint records.
   Product adapters deliver decisions to the existing work/runtime owners.
@@ -179,8 +185,8 @@ and connect them to work continuation and managed execution lifetime.
   Persisting a stop and quiescing live execution are related but distinct steps;
   the UI must not claim all effects have stopped just because it saved a record.
 - **Boundary evidence:** [human control tests](../../engine/strata/tetonic-memory/src/human_controls_tests.rs),
-  [parallel approvals](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/parallel_approval_tests.rs),
-  [plan questions](../../engine/litho/tetonic-app/src/local_workspace/plan_human_tests.rs),
+  [parallel approvals](../../engine/litho/tetonic-app/src/workspace/providers/tests/parallel_approval_tests.rs),
+  [plan questions](../../engine/litho/tetonic-app/src/work/plan_human_tests.rs),
   [handoff UI](../../web/tests/human-handoff.test.tsx).
 
 ## Harness assembly and action enforcement
@@ -206,8 +212,8 @@ an agent loop, then enforce model/tool action boundaries throughout execution.
   cancellation, audit or usage accounting.
 - **Boundary evidence:** [runtime assembly tests](../../engine/core/tetonic-runtime/src/assembly_tests.rs),
   [registered execution tests](../../engine/litho/tetonic-app/src/resources/registered_executor_tests.rs),
-  [provider parity](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/parity.rs),
-  [independent shell approvals](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/parallel_approval_tests.rs).
+  [provider parity](../../engine/litho/tetonic-app/src/workspace/providers/tests/parity.rs),
+  [independent shell approvals](../../engine/litho/tetonic-app/src/workspace/providers/tests/parallel_approval_tests.rs).
 
 The enforcement responsibilities remain separate even when the host composes
 them together:
@@ -229,8 +235,8 @@ enforcement.
 - **Entry points:** [`McpRegistry`](../../engine/litho/tetonic-app/src/mcp.rs),
   [`SkillLibrary`](../../engine/litho/tetonic-app/src/skills.rs), their `ToolHost`
   wrappers, and [`tetonic-tools`](../../engine/litho/tetonic-tools/src/lib.rs).
-  The [MCP](../../engine/litho/tetonic-app/src/local_workspace/mcp.rs) and
-  [skill](../../engine/litho/tetonic-app/src/local_workspace/skills.rs) product
+  The [MCP](../../engine/litho/tetonic-app/src/workspace/mcp.rs) and
+  [skill](../../engine/litho/tetonic-app/src/workspace/skills.rs) product
   adapters expose workspace management; agent revisions select capabilities.
 - **Durable owner:** [`workspace_mcp`](../../engine/strata/tetonic-memory/src/workspace_mcp.rs)
   and [`workspace_skills`](../../engine/strata/tetonic-memory/src/workspace_skills.rs),
@@ -242,8 +248,8 @@ enforcement.
   sandbox path; MCP uses its governed transport. Do not claim every external
   effect can be staged, rolled back or fully isolated on every platform.
 - **Boundary evidence:** [managed MCP tests](../../engine/litho/tetonic-app/src/mcp/tests/managed.rs),
-  [skill execution](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/skills.rs),
-  [hosted shell execution](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/shell.rs),
+  [skill execution](../../engine/litho/tetonic-app/src/workspace/providers/tests/skills.rs),
+  [hosted shell execution](../../engine/litho/tetonic-app/src/workspace/providers/tests/shell.rs),
   [agent capabilities UI](../../web/tests/agent-capabilities.test.tsx).
 
 ## Inference, compute placement and transport
@@ -255,7 +261,7 @@ with configured inference workers.
 - **Entry points:** application [`build_compute_plane`](../../engine/litho/tetonic-app/src/compute_plane.rs),
   [`BrokerInferenceProvider`](../../engine/mantle/tetonic-broker/src/adapters/inference.rs),
   [provider adapters](../../engine/atmos/tetonic-inference/src/lib.rs),
-  and [provider selection/discovery](../../engine/litho/tetonic-app/src/local_workspace/providers.rs).
+  and [provider selection/discovery](../../engine/litho/tetonic-app/src/workspace/providers.rs).
 - **Records and dependencies:** broker reservations and scheduler decisions use
   `tetonic-memory` when composed with durable storage. Provider transport uses
   `tetonic-egress`; remote inference also uses fabric protocol/client, enrollment
@@ -267,7 +273,7 @@ with configured inference workers.
   accepts inference jobs, not general agent execution. Workstation placement
   records are not by themselves a remote executor or distributed lease service.
 - **Boundary evidence:** `compute_plane.rs` tests, broker/egress/provider crate
-  tests, [provider tool journeys](../../engine/litho/tetonic-app/src/local_workspace/providers/tests/tools.rs),
+  tests, [provider tool journeys](../../engine/litho/tetonic-app/src/workspace/providers/tests/tools.rs),
   [workstation placement records](../../engine/strata/tetonic-memory/src/workstation_placement_tests.rs).
 
 ## Budgets, capacity and usage
@@ -327,7 +333,8 @@ activity without becoming authoritative state.
 
 - **Entry points:** [`Store` / `SharedStore`](../../engine/strata/tetonic-memory/src/lib.rs),
   [`run_store`](../../engine/strata/tetonic-memory/src/run_store.rs),
-  [`LocalWorkspace::snapshot` and task projection](../../engine/litho/tetonic-app/src/local_workspace.rs),
+  [scoped work metadata](../../engine/strata/tetonic-memory/src/work_metadata.rs),
+  [`WorkService::snapshot` and task projection](../../engine/litho/tetonic-app/src/work/inspection.rs),
   [`run_inspection`](../../engine/litho/tetonic-app/src/resources/run_inspection.rs),
   and [`LocalEngineProvider`](../../web/src/context/LocalEngineContext.tsx).
 - **Dependencies and rule:** domain commands and authorized resource operations

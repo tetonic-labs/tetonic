@@ -8,6 +8,7 @@ inference workers. Distributed inference is not the same as distributed agent
 execution.
 
 This is the current architecture entry point, updated with the October 8, 2026
+[scoped work-service extraction](work-services.md) and
 [host composition refactor](host-configuration.md). The [ownership map](ownership.md) identifies where
 changes belong, the [terminology](terminology.md) distinguishes the records, and
 the [package inventory](ownership.md#package-inventory) covers all 28 workspace
@@ -19,10 +20,14 @@ architecture.
 ```mermaid
 flowchart TD
     UI["Map, work inspector, agent and team editors"] --> HTTP["tetonic ui: local authenticated HTTP adapter"]
-    HTTP --> Workspace["LocalWorkspace: product use cases and projections"]
+    HTTP --> Work["WorkService: work use cases and projections"]
+    Bootstrap["LocalWorkspace bootstrap and compatibility API"] --> Scope["Authenticated ApplicationScope"]
+    Scope --> Workspace["WorkspaceServices: scoped agents and capabilities"]
+    Work --> Workspace
     Control["tetonic control"] --> Resources["ResourceService: identities, grants, work and context access"]
     Workspace --> Resources
-    Workspace --> Coordination["Work shaping and team coordination"]
+    Work --> Resources
+    Work --> Coordination["Existing team-work controller and registered dispatch"]
     Coordination --> Launch["Registered job preparation and harness composition"]
     Job["tetonic job"] --> Launch
     Launch --> Managed["ManagedRunService + DurableRunSupervisor"]
@@ -60,6 +65,9 @@ the product-work path shown above. The web entry point is
   authority or prove completion.
 - Security teams govern participation. Reusable work teams select agents.
   Joining a roster does not grant tools or expose private context.
+- Application scope binds a verified principal, organization, security team and
+  participation context. It is an identifier bundle, not a cached permission;
+  resource operations still check current authority.
 - Team coordination chooses eligible assignments and collects contributions.
   Managed execution owns admission, leases, cancellation and finalization.
   The inference broker places model requests; it does not plan the project.
@@ -92,6 +100,7 @@ effects are not automatically safe to replay. See the
 - [Ownership, dependency boundaries and change routing](ownership.md)
 - [Domain terminology and identifier relationships](terminology.md)
 - [Application host and operator configuration](host-configuration.md)
+- [Scoped workspace services and work lifecycle](work-services.md)
 - [Contribution workflow](../../CONTRIBUTING.md)
 - [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
 - [Retirement record](../epics/v5-reconciliation/retirement.md)

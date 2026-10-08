@@ -110,6 +110,8 @@ does not install global diagnostics; command adapters install them once and keep
 the flush guard alive. Host configuration never replaces membership, grants,
 agent revisions or managed admission.
 
-The next boundary is explicit application scope and work-service extraction,
-following the [ownership map](ownership.md). The UI and work orchestration have
-not been redesigned by this refactor.
+The local bootstrap now binds an authenticated `ApplicationScope` and constructs
+`WorkspaceServices`, which supplies agent/provider/capability operations to
+`WorkService`. See [scoped workspace services and work lifecycle](work-services.md).
+They retain this host and its resource/managed execution services; the UI and
+work-orchestration policy have not been redesigned.

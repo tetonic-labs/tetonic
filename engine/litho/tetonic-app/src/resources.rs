@@ -13,7 +13,9 @@ pub use requests::{
     CreateTeamWorkItem, CreateWorkDelegation, EnrollWorkstation, ProposeEffectApproval,
     PublishContextMessage, RecordTeamEffort, ResolveEffectApproval, SaveWorkBrief,
 };
+mod application_scope;
 mod local_control;
+pub use application_scope::ApplicationScope;
 mod local_credentials;
 pub use local_control::LocalControl;
 mod administration;

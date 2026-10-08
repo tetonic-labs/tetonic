@@ -1,11 +1,12 @@
-//! Local work notes and team metadata for workroom project tracking.
+//! Legacy unscoped work metadata, retained for schema migration and old readers.
+//! Product operations use `work_metadata` with explicit organization/team scope.
 use crate::{Result, Store};
 use rusqlite::{params, OptionalExtension};
 
 // Serialized notes, status, lead, and serialized agent IDs from local_work_notes.
 type LocalWorkDataRow = (String, Option<String>, Option<String>, Option<String>);
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, serde::Serialize, serde::Deserialize)]
 pub struct LocalWorkData {
     pub notes: Vec<String>,
     pub status: Option<String>,
