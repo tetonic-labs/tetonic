@@ -42,6 +42,7 @@ function ResourceIcon({ resource }: { resource: Pick<ToolkitResource, 'kind' | '
 function resourceStatus(resource: ToolkitResource, ready: boolean) {
   if (!ready) return 'Unchecked';
   if (resource.revoked) return 'Revoked';
+  if (resource.connection?.status === 'disconnected') return 'Disconnected';
   if (resource.connection?.status === 'unchecked') return 'Not checked';
   if (resource.connection?.status === 'unavailable') return 'Needs attention';
   const count = resource.tools.filter((t) => t.available).length;
@@ -148,7 +149,7 @@ export function ToolsView({
               File and Terminal tools come from your engine. Select the tools an agent can use when
               you create them in Agents.
             </p>
-            <h4>Add an MCP connection</h4>
+            <h4>Startup configuration</h4>
             <p>
               Your engine operator can connect a local HTTP MCP server using{' '}
               <code>--mcp-config</code>. It will appear in your toolkit after the engine restarts.
@@ -176,8 +177,8 @@ export function ToolsView({
                 )}
               </pre>
               <p>
-                Remote servers, authentication and MCP write tools are not supported by this
-                connection yet. The operator must vet the server and its tools.
+                This startup profile supports local read tools. Use Connect a service above for
+                public HTTPS and service tokens. MCP write tools are not supported yet.
               </p>
             </details>
             <p className="tl-hint">
@@ -296,7 +297,7 @@ export function ToolsView({
                 <div className="tl-detail-body">
                   {resource.detail}
                   <span className="tl-status">{resourceStatus(resource, ready)}</span>
-                  {!!resource.connection && (
+                  {!!resource.connection && !resource.connection.editable && (
                     <>
                       <p className="tl-hint">{resource.connection.message}</p>
                       <button
@@ -311,7 +312,7 @@ export function ToolsView({
                       {error?.id === resource.connection.id && <p role="alert">{error.message}</p>}
                     </>
                   )}
-                  {!!resource.tools.length && (
+                  {!!resource.tools.length && !resource.connection?.editable && (
                     <section className="tl-capabilities" aria-label="Included tools">
                       <h4>Included tools</h4>
                       <ul>

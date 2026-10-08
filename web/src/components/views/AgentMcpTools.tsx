@@ -29,7 +29,7 @@ export function McpConnections({
           <button
             type="button"
             className="px-text-button"
-            disabled={disabled || !!busy}
+            disabled={disabled || !!busy || connection.enabled === false}
             onClick={async () => {
               setBusy(connection.id);
               setError('');
@@ -53,8 +53,8 @@ export function McpConnections({
             <p>{connection.endpoint}</p>
             {connection.status !== 'unavailable' && <p>{connection.message}</p>}
             <p>
-              Configured by the engine operator. Only explicitly allowed read tools are offered.
-              Connecting does not give an agent access.
+              Only reviewed read tools can be selected. Connecting a service does not give an agent
+              access.
             </p>
           </details>
         </article>
@@ -81,7 +81,9 @@ export function AgentMcpTools({
 }) {
   const known = useRef(new Map<string, McpTool & { connection: string }>());
   const current = connections.flatMap((connection) =>
-    connection.tools.map((tool) => ({ ...tool, connection: connection.name })),
+    connection.tools
+      .filter((tool) => tool.approved !== false)
+      .map((tool) => ({ ...tool, connection: connection.name })),
   );
   current.forEach((tool) => known.current.set(tool.id, tool));
   const ids = [

@@ -140,6 +140,7 @@ export function LocalAgentSetup({
         catalog,
         library: (
           <WorkspaceCapabilityLibrary
+            mcpSupported={!!catalog?.mcp_management}
             client={client}
             supported={Array.isArray(catalog.skills)}
             onChanged={async () => {

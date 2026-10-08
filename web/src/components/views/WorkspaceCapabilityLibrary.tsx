@@ -2,18 +2,21 @@ import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, BookOpen, Plug, Upload, Terminal } from 'lucide-react';
 import type { LocalEngine } from '../../lib/localEngine';
 import '../../tools.css';
+import { McpConnectionEditor } from './McpConnectionEditor';
 
 /** Embedded in both the toolkit and the agent editor; never replaces the agent draft. */
 export function WorkspaceCapabilityLibrary({
   client,
   supported,
+  mcpSupported = false,
   onChanged,
 }: {
   client: LocalEngine;
   supported: boolean;
+  mcpSupported?: boolean;
   onChanged: () => Promise<void>;
 }) {
-  const [mode, setMode] = useState<'browse' | 'create' | 'import'>('browse');
+  const [mode, setMode] = useState<'browse' | 'create' | 'import' | 'connect'>('browse');
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [instructions, setInstructions] = useState('');
@@ -28,12 +31,14 @@ export function WorkspaceCapabilityLibrary({
   const editor = useRef<HTMLFieldSetElement>(null);
   const createButton = useRef<HTMLButtonElement>(null);
   const importButton = useRef<HTMLButtonElement>(null);
+  const connectButton = useRef<HTMLButtonElement>(null);
   const [paste, setPaste] = useState(false);
   useEffect(() => {
     if (mode !== 'browse') editor.current?.querySelector('input')?.focus();
   }, [mode]);
   function back() {
-    const trigger = mode === 'create' ? createButton : importButton;
+    const trigger =
+      mode === 'create' ? createButton : mode === 'connect' ? connectButton : importButton;
     setMode('browse');
     setError('');
     requestAnimationFrame(() => trigger.current?.focus());
@@ -126,14 +131,22 @@ export function WorkspaceCapabilityLibrary({
                 <small>Review and add a SKILL.md file.</small>
               </span>
             </button>
-            <a href="https://registry.modelcontextprotocol.io/" target="_blank" rel="noreferrer">
+            <button
+              ref={connectButton}
+              type="button"
+              disabled={!mcpSupported || busy}
+              onClick={() => {
+                setMode('connect');
+                setError('');
+                setMessage('');
+              }}
+            >
               <Plug size={19} />
               <span>
-                <strong>Explore MCP servers</strong>
-                <small>Open the official registry. Setup is handled by your engine operator.</small>
+                <strong>Connect a service</strong>
+                <small>Add an MCP endpoint and review its tools.</small>
               </span>
-              <ArrowUpRight size={16} className="capability-choice-arrow" />
-            </a>
+            </button>
           </div>
           <div className="ability-basics">
             <Terminal size={18} />
@@ -155,7 +168,8 @@ export function WorkspaceCapabilityLibrary({
           <ArrowLeft size={15} /> All abilities
         </button>
       )}
-      {mode !== 'browse' && (
+      {mode === 'connect' && <McpConnectionEditor client={client} onChanged={onChanged} />}
+      {mode !== 'browse' && mode !== 'connect' && (
         <fieldset ref={editor} disabled={busy} className="capability-editor">
           <legend>{mode === 'create' ? 'Create a skill' : 'Review your skill'}</legend>
           <p>
@@ -300,15 +314,19 @@ export function WorkspaceCapabilityLibrary({
         <details className="capability-help">
           <summary>What can I add?</summary>
           <p>
-            The MCP registry lists servers; browsing does not install or authorize them. This engine
-            currently supports operator-configured local read tools. Remote sign-in and service
-            changes are not connected yet.
+            Connect a public HTTPS or local HTTP MCP endpoint, review its read tools, then select
+            them for agents. Service tokens are supported; browser OAuth and service changes are not
+            yet available.
           </p>
           <p>
             Core file and terminal tools are supplied by your engine. Choose them in the agent
             editor.
           </p>
           <p>
+            <a href="https://registry.modelcontextprotocol.io/" target="_blank" rel="noreferrer">
+              Browse the official MCP registry
+            </a>{' '}
+            �{' '}
             <a href="https://github.com/anthropics/skills" target="_blank" rel="noreferrer">
               Browse Anthropic’s skill examples <ArrowUpRight size={13} />
             </a>{' '}

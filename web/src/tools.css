@@ -84,7 +84,8 @@
   color: var(--text-secondary);
 }
 .capability-editor input,
-.capability-editor textarea {
+.capability-editor textarea,
+.capability-editor select {
   width: 100%;
   background: var(--bg-surface);
   border: 1px solid var(--control-border);
@@ -95,7 +96,8 @@
   resize: vertical;
 }
 .capability-editor input:focus,
-.capability-editor textarea:focus {
+.capability-editor textarea:focus,
+.capability-editor select:focus {
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
@@ -195,7 +197,8 @@
 .capability-help {
   border-top: 1px solid var(--brand-rule);
 }
-.capability-library .canvas-primary {
+.capability-library .canvas-primary,
+.mcp-connection-editor .canvas-primary {
   background: var(--surface-ink);
   color: var(--on-ink);
   padding: 10px 14px;
@@ -730,4 +733,94 @@
   .tl-setup h3 {
     font-size: 24px;
   }
+}
+.mcp-connection-editor {
+  display: grid;
+  gap: 18px;
+}
+.mcp-connection-editor fieldset {
+  min-width: 0;
+}
+.mcp-connection-name {
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+.mcp-connection-state {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.mcp-connection-state p {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mcp-connection-state[data-state='discovered'] > svg {
+  color: var(--success, #438465);
+}
+.mcp-connection-state[data-state='unavailable'] > svg {
+  color: var(--warning, #ac7741);
+}
+.mcp-read-review {
+  display: grid;
+  gap: 12px;
+  border: 0;
+  padding: 0;
+}
+.mcp-read-review legend {
+  font-weight: 600;
+  margin-bottom: 8px;
+}
+.mcp-read-review > p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.mcp-read-review .agent-tool-choice {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 5px;
+  background: var(--bg-surface);
+  cursor: pointer;
+}
+.mcp-read-review .agent-tool-choice[data-selected='true'] {
+  background: var(--bg-ground);
+  border-color: var(--signal-working);
+}
+.mcp-read-review .agent-tool-choice input {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin: 3px 0 0;
+  accent-color: var(--signal-working);
+}
+.mcp-disconnect {
+  padding-top: 16px;
+  border-top: 1px solid var(--brand-rule);
+}
+.mcp-disconnect > button {
+  margin-right: 12px;
+}
+.mcp-connection-editor input[readonly] {
+  opacity: 0.7;
+}
+
+.mcp-connection-editor .capability-actions {
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 0;
+}
+.mcp-connection-editor .capability-actions button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.mcp-connection-editor .capability-scope-note {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-secondary);
 }

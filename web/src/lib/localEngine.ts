@@ -232,6 +232,7 @@ export interface WorkspaceSkill {
   created_at: string;
 }
 export interface AgentCatalog {
+  mcp_management?: boolean;
   skills?: WorkspaceSkill[];
   mcp_connections?: McpConnection[];
   workspace_root?: string | null;
@@ -246,6 +247,7 @@ export interface AgentCatalog {
   max_tokens: number;
 }
 export interface McpTool {
+  approved?: boolean;
   id: string;
   name: string;
   description: string;
@@ -255,7 +257,11 @@ export interface McpConnection {
   id: string;
   name: string;
   endpoint: string;
-  status: 'unchecked' | 'discovered' | 'unavailable';
+  status: 'unchecked' | 'discovered' | 'unavailable' | 'disconnected';
+  editable?: boolean;
+  revision?: number;
+  auth?: 'none' | 'bearer';
+  enabled?: boolean;
   message: string;
   tools: McpTool[];
 }
@@ -440,6 +446,18 @@ export class LocalEngine {
   }
   discoverMcp(id: string) {
     return this.request<McpConnection>(`/mcp-discover/${encodeURIComponent(id)}`, {});
+  }
+  saveMcpConnection(input: {
+    id: string;
+    expected_revision: number;
+    name: string;
+    endpoint: string;
+    auth: 'none' | 'bearer';
+    token?: string;
+    enabled: boolean;
+    approved_tools?: string[];
+  }) {
+    return this.request<McpConnection>('/mcp-connections', input);
   }
   providerModels(provider: string, signal?: AbortSignal) {
     return this.request<ProviderModelCatalog>(

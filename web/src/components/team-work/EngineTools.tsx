@@ -1,3 +1,4 @@
+import { McpConnectionEditor } from '../views/McpConnectionEditor';
 import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
 import { SkillDetails } from '../views/SkillDetails';
 import { useLocalEngine } from '../../context/LocalEngineContext';
@@ -6,6 +7,7 @@ import { ToolsView, type ToolkitResource } from '../views/ToolsView';
 
 const internalTools = new Set(['finish', 'dispatch_assignment', 'ask_human']);
 const fileTools = new Set(['read_file', 'write_file', 'edit_file', 'list_dir', 'grep', 'glob']);
+const mcpConnectionId = (tool: string) => tool.slice(4, tool.lastIndexOf('_'));
 
 export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
   const engine = useLocalEngine();
@@ -54,16 +56,29 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       agents: users([id]),
     });
   for (const connection of connections) {
-    const ids = connection.tools.map((t) => t.id);
+    const ids = [
+      ...new Set([
+        ...connection.tools.map((t) => t.id),
+        ...tools.filter((id) => id.startsWith('mcp_') && mcpConnectionId(id) === connection.id),
+      ]),
+    ];
     resources.push({
       id: `connection:${connection.id}`,
       name: connection.name,
       kind: 'mcp',
-      description: 'Tools from a service configured on your engine.',
+      description: 'Tools from a connected service.',
+      detail: connection.editable ? (
+        <McpConnectionEditor
+          key={connection.id}
+          connection={connection}
+          client={engine.client}
+          onChanged={engine.refresh}
+        />
+      ) : undefined,
       connection,
       tools: describe(ids).map((t) => ({
         ...t,
-        name: connection.tools.find((x) => x.id === t.id)!.name,
+        name: connection.tools.find((x) => x.id === t.id)?.name || 'Previously selected tool',
       })),
       agents: users(ids),
     });
@@ -98,7 +113,12 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       tools: describe([id]),
       agents: users([id]),
     });
-  const missing = tools.filter((id) => id.startsWith('mcp_') && !connectedIds.has(id));
+  const missing = tools.filter(
+    (id) =>
+      id.startsWith('mcp_') &&
+      !connectedIds.has(id) &&
+      !connections.some((connection) => mcpConnectionId(id) === connection.id),
+  );
   if (missing.length)
     resources.push({
       id: 'unavailable-mcp',
@@ -114,6 +134,7 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       resources={resources}
       library={
         <WorkspaceCapabilityLibrary
+          mcpSupported={!!catalog?.mcp_management && isConnected}
           client={engine.client}
           supported={ready && Array.isArray(catalog?.skills)}
           onChanged={engine.refresh}
