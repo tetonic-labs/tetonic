@@ -6,7 +6,7 @@ export type ProjectTask = {
   id: string;
   title: string;
   owner: string;
-  status: 'done' | 'working' | 'waiting' | 'needs_you' | 'stopped';
+  status: 'done' | 'working' | 'waiting' | 'needs_you' | 'blocked' | 'stopped' | 'unknown';
   detail: string;
   evidence?: string;
 };

@@ -1,4 +1,4 @@
-import { ChevronDown, SlidersHorizontal } from 'lucide-react';
+import { SlidersHorizontal } from 'lucide-react';
 import type { AgentConfiguration, PermissionRule } from '../../lib/agentConfiguration';
 
 export function AgentAdvancedSettings({
@@ -28,7 +28,6 @@ export function AgentAdvancedSettings({
               : 'Permissions, scope & run limits'}
           </small>
         </span>
-        <ChevronDown size={17} className="agent-disclosure" aria-hidden="true" />
       </summary>
       <div className="agent-advanced-body">
         <div className="agent-host-note">

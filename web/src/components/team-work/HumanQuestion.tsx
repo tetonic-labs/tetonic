@@ -12,10 +12,12 @@ export function HumanQuestion({
   task,
   question,
   refresh,
+  showHeading = true,
 }: {
   task: EngineTask;
   question: WorkHumanQuestion;
   refresh: () => Promise<void>;
+  showHeading?: boolean;
 }) {
   const engine = useLocalEngine();
   const key = `tetonic_human_answer:${connectionDraftScope()}:${question.id}`;
@@ -102,12 +104,13 @@ export function HumanQuestion({
     );
   return (
     <section className="tw-human-question" aria-label={`${task.agent_name} needs your input`}>
-      <span className="tw-small">{task.agent_name} needs your input</span>
-      <h3>{question.content.question}</h3>
-      <details className="tw-question-reason">
-        <summary>Why it matters</summary>
-        <p>{question.content.why}</p>
-      </details>
+      {showHeading && (
+        <>
+          <span className="tw-small">{task.agent_name} needs your input</span>
+          <h3>{question.content.question}</h3>
+        </>
+      )}
+      <p className="tw-question-context">{question.content.why}</p>
       {waiting || pending ? (
         <>
           {!!question.content.options.length && (
@@ -116,6 +119,7 @@ export function HumanQuestion({
                 <button
                   key={option}
                   type="button"
+                  aria-pressed={answer === option}
                   disabled={busy || !!pending}
                   onClick={() => change(option)}
                 >

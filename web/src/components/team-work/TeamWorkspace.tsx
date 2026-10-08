@@ -3,7 +3,7 @@ import { ArrowLeft, ChevronRight, Layers, Settings2, X } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../lib/localEngine';
 import { teamWorkspace } from '../../lib/teamWorkspace';
-import { needsHelp } from '../../lib/workspaceRecords';
+import { attentionItems } from '../../lib/attentionItems';
 import {
   projectWorkContext,
   type WorkContextQuery,
@@ -23,6 +23,7 @@ import { WorkContextPanel } from './WorkContextPanel';
 import './team-work.css';
 import './engine-workspace.css';
 import './work-journey.css';
+import './operator-experience.css';
 
 type Panel = {
   kind:
@@ -99,8 +100,10 @@ function ConnectedTeamWorkspace() {
       !r.latest.plan.assignment_key,
   );
   const focusRecord = focusRoot || records.find((r) => r.id === focusSource);
-  const attention =
-    attentionRecords.filter(needsHelp).length + (engine.approvals?.pending_approvals.length || 0);
+  const attention = attentionItems(
+    attentionRecords,
+    engine.approvals?.pending_approvals || [],
+  ).total;
   const visibleRecords = project
     ? records.filter((record) => project.streams.some((stream) => stream.id === record.id))
     : records;
@@ -376,7 +379,11 @@ function ConnectedTeamWorkspace() {
         )}
         {!panel && (
           <div className="px-composer">
-            <WorkShelf records={visibleRecords} onWork={showWork} />
+            <WorkShelf
+              records={visibleRecords}
+              onWork={showWork}
+              onAll={() => open({ kind: 'work' })}
+            />
             <WorkComposer
               key={recipient || 'default'}
               recipient={recipient}
@@ -393,9 +400,17 @@ function ConnectedTeamWorkspace() {
             className="px-inspector"
             aria-label="Project details"
             data-shaping={journey}
-            data-wide={['detail', 'agents', 'blackboard', 'context', 'usage', 'tools'].includes(
-              panel.kind,
-            )}
+            data-wide={[
+              'detail',
+              'agents',
+              'teams',
+              'work',
+              'attention',
+              'blackboard',
+              'context',
+              'usage',
+              'tools',
+            ].includes(panel.kind)}
             data-tools={panel.kind === 'tools'}
           >
             <header>
@@ -463,6 +478,8 @@ function ConnectedTeamWorkspace() {
                   }}
                   dark={dark}
                   setDark={setDark}
+                  onOpenAgents={() => open({ kind: 'agents' })}
+                  onOpenWork={() => open({ kind: 'work' })}
                 />
               )}
               {panel.kind === 'tools' && (

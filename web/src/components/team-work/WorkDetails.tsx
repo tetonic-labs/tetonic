@@ -6,6 +6,8 @@ import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { WorkComposer } from './WorkComposer';
 import { WorkUsageSummary } from './UsagePanel';
 import { HumanQuestion } from './HumanQuestion';
+import { WorkStatus } from './WorkStatus';
+import { workSignal } from '../../lib/workSignals';
 
 export function WorkDetails({
   work,
@@ -48,10 +50,10 @@ export function WorkDetails({
   return (
     <section className="tw-work-details" aria-label="Work details">
       <div className="tw-work-status">
-        <span>
-          {!engine.isConnected && 'Last seen: '}
-          {stateLabel(work)}
-        </span>
+        <WorkStatus
+          signal={workSignal(work, engine.approvals?.pending_approvals)}
+          label={`${!engine.isConnected ? 'Last seen: ' : ''}${stateLabel(work)}`}
+        />
         {latest && taskIsActive(latest) && (
           <button
             disabled={!engine.isConnected || busy || latest.state === 'canceling'}

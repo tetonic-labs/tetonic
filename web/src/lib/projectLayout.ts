@@ -141,18 +141,27 @@ export function layoutProject(project: ProjectView) {
 export function layoutPortfolio(projects: ProjectView[]) {
   const groups = [...new Set(projects.map((p) => p.area?.id || 'other'))].map((id) => {
     const items = projects.filter((p) => (p.area?.id || 'other') === id);
-    return { id, area: items[0].area, items, height: 110 + items.length * 240 };
+    const columns = items.length > 4 ? Math.min(4, Math.ceil(Math.sqrt(items.length))) : 1;
+    return {
+      id,
+      area: items[0].area,
+      items,
+      columns,
+      width: 25 + columns * 495,
+      height: 110 + Math.ceil(items.length / columns) * 240,
+    };
   });
   const rows: number[] = [];
   const positioned = groups.map((group, index) => {
     const row = Math.floor(index / 2);
     if (index % 2 === 0) rows[row] = Math.max(group.height, groups[index + 1]?.height || 0) + 55;
     const y = 25 + rows.slice(0, row).reduce((sum, h) => sum + h, 0);
-    return { ...group, x: 35 + (index % 2) * 575, y, width: 520 };
+    const x = index % 2 === 0 ? 35 : 35 + groups[index - 1].width + 55;
+    return { ...group, x, y };
   });
   return {
     groups: positioned,
-    width: groups.length > 1 ? 1170 : 590,
+    width: Math.max(590, ...positioned.map((g) => g.x + g.width + 35)),
     height: Math.max(500, ...positioned.map((g) => g.y + g.height)) + 30,
   };
 }

@@ -1,6 +1,8 @@
 import { useId, useState, type ReactNode } from 'react';
 import { AgentSkills } from './AgentSkills';
-import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database } from 'lucide-react';
+import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database, UserRound } from 'lucide-react';
+import { Portrait } from '../ui/Portrait';
+import { engineAgentToUI } from '../../lib/engineAdapters';
 import type { Team } from '../../types';
 import type { WorkspaceResource } from '../../lib/toolLibrary';
 import {
@@ -234,23 +236,30 @@ export function AgentCreateForm({
         </button>
       )}
       <header className="agent-create-heading">
-        <h2>
+        <div className="agent-editor-identity">
           {agent ? (
-            <>
-              Edit <i>{agent.name}.</i>
-            </>
+            <Portrait agent={engineAgentToUI(agent)} size={52} square={false} />
           ) : (
-            <>
-              A new <i>teammate.</i>
-            </>
+            <UserRound size={32} aria-hidden="true" />
           )}
-        </h2>
+          <h2>
+            {agent ? (
+              <>
+                Edit <i>{agent.name}.</i>
+              </>
+            ) : (
+              <>
+                A new <i>teammate.</i>
+              </>
+            )}
+          </h2>
+        </div>
         <p>
           {guide
             ? 'Choose who helps you think and plan. Changes apply to new replies and teams you start.'
             : agent
               ? 'Changes apply to new work. Work already started keeps its current settings.'
-              : 'Give them a purpose. Choose how they work.'}
+              : 'Give them a lasting role. Assign specific work whenever you’re ready.'}
         </p>
       </header>
       <div className="agent-create-basics" data-guide={guide}>

@@ -82,6 +82,24 @@ describe('project layout', () => {
     expect(groups[1].items.map((p) => p.id)).toEqual(['operations']);
     expect(overlaps(groups[0], groups[1])).toBe(false);
   });
+  it('spreads busy areas across columns and keeps differently sized areas apart', () => {
+    const base = exampleProjects(0, false)[0];
+    const projects = Array.from({ length: 48 }, (_, i) => ({
+      ...base,
+      id: `p-${i}`,
+      area: { ...base.area!, id: `area-${Math.floor(i / 12)}` },
+    }));
+    const layout = layoutPortfolio(projects);
+    expect(layout.groups).toHaveLength(4);
+    for (const group of layout.groups) {
+      expect(group.columns).toBe(4);
+      expect(group.height).toBeLessThan(1000);
+      expect(group.x + group.width).toBeLessThan(layout.width);
+      expect(group.y + group.height).toBeLessThan(layout.height);
+      for (const other of layout.groups.filter((g) => g.id !== group.id))
+        expect(overlaps(group, other)).toBe(false);
+    }
+  });
 });
 const snapshot = (step = 0, choice = false) =>
   projectWorkContext(exampleProjects(step, choice), exampleBlackboard(step, choice), {

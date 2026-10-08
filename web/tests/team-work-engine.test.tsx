@@ -171,7 +171,11 @@ describe('one connected team workspace', () => {
     });
     f.view();
     fireEvent.click(screen.getByRole('button', { name: 'Agents', exact: true }));
-    fireEvent.click(await screen.findByRole('button', { name: /^Mira (Idle|Setup unchecked)$/ }));
+    fireEvent.click(
+      await screen.findByRole('button', {
+        name: /^Mira Understand problems installed-model (Ready|Setup unchecked)$/,
+      }),
+    );
     const edit = screen.getByRole('button', { name: 'Edit agent' });
     await waitFor(() => expect(edit).toHaveProperty('disabled', false));
     fireEvent.click(edit);
@@ -588,6 +592,7 @@ describe('one connected team workspace', () => {
       .mockResolvedValue({ ...approval, status: 'rejected' });
     f.view();
     fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
+    fireEvent.click(document.querySelector('.attention-item > summary')!);
     expect(screen.getByRole('button', { name: 'Approve unavailable' })).toHaveProperty(
       'disabled',
       true,
@@ -622,6 +627,7 @@ describe('one connected team workspace', () => {
       .mockResolvedValue({ ...approval, status: 'approved' });
     f.view();
     fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
+    fireEvent.click(document.querySelector('.attention-item > summary')!);
     expect(screen.getByText('git status --short')).toBeTruthy();
     expect(screen.getByText('C:/work/project')).toBeTruthy();
     expect(screen.getByText('Filesystem isolation is unavailable on this host.')).toBeTruthy();
@@ -809,7 +815,7 @@ it('keeps launched work together without discarding its discussion or inventing 
 it('opens the team result in one click and reads contributions without navigating away', async () => {
   const f = journeyFixture();
   f.view();
-  fireEvent.click(await screen.findByRole('button', { name: 'Result ready Workshop options' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Done Workshop options' }));
   await screen.findByRole('heading', { name: 'Your team’s result' });
   expect(screen.queryByRole('combobox', { name: 'Your discussions' })).toBeNull();
   expect(screen.queryByRole('button', { name: /Needs you/ })).toBeNull();
@@ -841,7 +847,8 @@ it('lets the operator answer a waiting team directly from Needs you', async () =
     }));
   f.view();
   fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
-  expect(screen.getByRole('heading', { name: 'Who is this for?' })).toBeTruthy();
+  fireEvent.click(document.querySelector('.attention-item > summary')!);
+  expect(screen.getByText('Who is this for?')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Beginners' }));
   fireEvent.click(screen.getByRole('button', { name: 'Send answer' }));
   await screen.findByText('Your answer to Mira');
@@ -878,9 +885,52 @@ it('keeps a team result accessible when its original discussion is absent from t
 it('starts a new shaping discussion even when earlier team work already exists', async () => {
   const f = journeyFixture();
   f.view();
-  await screen.findByRole('button', { name: 'Result ready Workshop options' });
+  await screen.findByRole('button', { name: 'Done Workshop options' });
   fireEvent.click(screen.getByRole('button', { name: 'Shape work together →' }));
   expect(screen.getByRole('textbox', { name: 'What are you working through?' })).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Your team’s result' })).toBeNull();
   expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('keeps a large work list bounded, searchable, and filterable without hiding the total', async () => {
+  const f = fixture(
+    Array.from({ length: 48 }, (_, i) => ({
+      ...saved,
+      id: `effort-${i}`,
+      input: `Effort ${i}`,
+      state: i % 2 ? 'running' : 'completed',
+    })),
+  );
+  f.view();
+  fireEvent.click(await screen.findByRole('button', { name: 'Work', exact: true }));
+  const overview = within(screen.getByRole('region', { name: 'Work overview' }));
+  await overview.findByText('48 efforts. Keep your attention where it matters.');
+  expect(document.querySelectorAll('.work-overview-row')).toHaveLength(30);
+  fireEvent.click(overview.getByRole('button', { name: 'Show more · 18 remaining' }));
+  expect(document.querySelectorAll('.work-overview-row')).toHaveLength(48);
+  fireEvent.click(overview.getByRole('button', { name: 'In progress 24' }));
+  expect(document.querySelectorAll('.work-overview-row')).toHaveLength(24);
+  fireEvent.change(overview.getByRole('textbox', { name: 'Find work' }), {
+    target: { value: 'Effort 47' },
+  });
+  expect(document.querySelectorAll('.work-overview-row')).toHaveLength(1);
+  expect(overview.getByRole('button', { name: /Effort 47 In progress/ })).toBeTruthy();
+  expect(overview.queryByRole('button', { name: /Effort 46/ })).toBeNull();
+});
+
+it('shows a real team roster with a direct path to agent management and truthful edit limits', async () => {
+  const f = fixture();
+  f.view();
+  await screen.findByRole('button', { name: 'Our team', exact: true });
+  fireEvent.click(screen.getByRole('button', { name: 'Teams', exact: true }));
+  fireEvent.click(
+    await screen.findByRole('button', { name: /Our team 1 agent in this workspace Current/ }),
+  );
+  expect(screen.getByText(/Team names and membership are read-only/)).toBeTruthy();
+  expect(
+    within(screen.getByRole('complementary', { name: 'Project details' })).getByText('Mira'),
+  ).toBeTruthy();
+  fireEvent.click(screen.getByRole('button', { name: 'Manage agents' }));
+  await screen.findByRole('region', { name: 'Agent roster' });
+  expect(screen.getByRole('button', { name: 'Create agent' })).toBeTruthy();
 });

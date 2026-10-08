@@ -4,6 +4,7 @@ import { engineAgentToUI } from './engineAdapters';
 import { workRecords, stateLabel, needsHelp, type WorkRecord } from './workspaceRecords';
 import type { ProjectView, ProjectTask } from './projectView';
 import type { SharedWorkEntry } from './workContext';
+import { workSignal } from './workSignals';
 
 // Projection of authorized local-owner records. Replies are conversation
 // lineage, not dependencies. Proposed rosters and tool grants are not activity.
@@ -104,18 +105,7 @@ export function teamWorkspace(
               record.turns.some((turn) => turn.id === approval.work_id) ||
               record.id === approval.work_id,
           );
-          const status: ProjectTask['status'] =
-            pending || needsHelp(record)
-              ? 'needs_you'
-              : planningActive
-                ? 'working'
-                : record.latest?.state === 'completed'
-                  ? 'done'
-                  : record.latest?.state === 'canceled'
-                    ? 'stopped'
-                    : record.latest && taskIsActive(record.latest)
-                      ? 'working'
-                      : 'waiting';
+          const status: ProjectTask['status'] = workSignal(record, approvals, planning);
           return {
             id: record.id,
             name: record.title,

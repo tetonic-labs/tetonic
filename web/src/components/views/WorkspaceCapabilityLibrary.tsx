@@ -1,5 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
-import { ArrowLeft, ArrowRight, ArrowUpRight, BookOpen, Plug, Upload } from 'lucide-react';
+import { ArrowLeft, ArrowUpRight, BookOpen, Plug, Upload, Terminal } from 'lucide-react';
 import type { LocalEngine } from '../../lib/localEngine';
 import '../../tools.css';
 
@@ -109,7 +109,6 @@ export function WorkspaceCapabilityLibrary({
                 <strong>Write a skill</strong>
                 <small>Give agents a reusable way to work.</small>
               </span>
-              <ArrowRight size={16} className="capability-choice-arrow" />
             </button>
             <button
               ref={importButton}
@@ -126,7 +125,6 @@ export function WorkspaceCapabilityLibrary({
                 <strong>Import a skill</strong>
                 <small>Review and add a SKILL.md file.</small>
               </span>
-              <ArrowRight size={16} className="capability-choice-arrow" />
             </button>
             <a href="https://registry.modelcontextprotocol.io/" target="_blank" rel="noreferrer">
               <Plug size={19} />
@@ -136,6 +134,14 @@ export function WorkspaceCapabilityLibrary({
               </span>
               <ArrowUpRight size={16} className="capability-choice-arrow" />
             </a>
+          </div>
+          <div className="ability-basics">
+            <Terminal size={18} />
+            <p>
+              <strong>Need file or terminal tools?</strong>
+              <br />
+              They’re built in. Select them in the agent editor.
+            </p>
           </div>
           {!supported && (
             <p className="capability-status" role="status">

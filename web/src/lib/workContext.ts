@@ -133,7 +133,9 @@ export function queryWorkContext(snapshot: WorkContextSnapshot, query: WorkConte
     (source) =>
       (!query.projectId || source.projectId === query.projectId) &&
       (!query.areaId || source.areaId === query.areaId) &&
-      (!query.filter || source.status === query.filter),
+      (!query.filter ||
+        source.status === query.filter ||
+        (query.filter === 'needs_you' && source.status === 'blocked')),
   );
   const ranked = scoped
     .map((source, index) => ({

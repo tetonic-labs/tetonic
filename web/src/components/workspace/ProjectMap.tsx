@@ -14,6 +14,8 @@ import { Portrait } from '../ui/Portrait';
 import { useMapCamera } from '../graph/useMapCamera';
 import { layoutProject, layoutPortfolio, edgePath } from '../../lib/projectLayout';
 import { projectCounts, type ProjectView } from '../../lib/projectView';
+import { combinedSignal } from '../../lib/workSignals';
+import { WorkStatus } from '../team-work/WorkStatus';
 export { projectCounts, projectTasks } from '../../lib/projectView';
 export type {
   ProjectView,
@@ -177,6 +179,7 @@ export function ProjectMap({
                 return (
                   <div
                     className="pm-stream"
+                    data-signal={combinedSignal(stream.tasks.map((t) => t.status))}
                     data-selected={selectedStream === stream.id}
                     key={stream.id}
                     style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
@@ -214,10 +217,13 @@ export function ProjectMap({
                       );
                     })}
                     <div className="pm-stream-foot">
-                      <span>
-                        {stream.stateLabel ||
-                          `${done} ready · ${stream.tasks.length - done} remaining`}
-                      </span>
+                      <WorkStatus
+                        signal={combinedSignal(stream.tasks.map((t) => t.status))}
+                        label={
+                          stream.stateLabel ||
+                          `${done} ready · ${stream.tasks.length - done} remaining`
+                        }
+                      />
                       <span>
                         {stream.tasks.some((t) => t.status === 'needs_you') ? (
                           <>
@@ -343,8 +349,14 @@ export function ProjectMap({
                   return (
                     <button
                       className="pm-project"
+                      data-signal={combinedSignal(
+                        item.streams.flatMap((s) => s.tasks.map((t) => t.status)),
+                      )}
                       key={item.id}
-                      style={{ left: 25, top: 95 + index * 240 }}
+                      style={{
+                        left: 25 + (index % group.columns) * 495,
+                        top: 95 + Math.floor(index / group.columns) * 240,
+                      }}
                       onClick={() => onProject(item.id)}
                     >
                       <span className="pm-project-team">
@@ -360,13 +372,14 @@ export function ProjectMap({
                         <span>{item.people.length} agents</span>
                       </span>
                       <span className="pm-project-state">
-                        {item.streams.length} workstreams · {count.done}/{count.total} ready
-                        {item.decision && (
-                          <span>
-                            <Flag size={12} />
-                            Needs you
-                          </span>
-                        )}
+                        <span>
+                          {count.done}/{count.total} contributions done
+                        </span>
+                        <WorkStatus
+                          signal={combinedSignal(
+                            item.streams.flatMap((s) => s.tasks.map((t) => t.status)),
+                          )}
+                        />
                       </span>
                     </button>
                   );
