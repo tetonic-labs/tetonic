@@ -82,6 +82,10 @@ it('groups an executed plan and draws only its recorded assignment dependencies'
   expect(result.projects).toHaveLength(1);
   expect(result.projects[0].id).toBe('plan:root');
   expect(result.projects[0].title).toBe('Compare workshops');
+  expect(result.projects[0].kind).toBe('plan');
+  expect(result.projects[0].area?.name).toBe('Team');
+  expect(result.projects[0].streams.find((s) => s.id === 'root')?.role).toBe('coordination');
+  expect(result.projects[0].streams.find((s) => s.id === 'compare')?.role).toBe('contribution');
   expect(result.projects[0].streams.find((s) => s.id === 'review')?.dependencies).toEqual([
     { id: 'compare', reason: 'Uses the recorded contribution' },
   ]);

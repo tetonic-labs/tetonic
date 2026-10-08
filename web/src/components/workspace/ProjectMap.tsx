@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowUpRight,
@@ -9,13 +9,17 @@ import {
   Minus,
   Plus,
   TestTube2,
+  Pause,
+  Play,
 } from 'lucide-react';
 import { Portrait } from '../ui/Portrait';
 import { useMapCamera } from '../graph/useMapCamera';
 import { layoutProject, layoutPortfolio, edgePath } from '../../lib/projectLayout';
-import { projectCounts, type ProjectView } from '../../lib/projectView';
+import { type ProjectView } from '../../lib/projectView';
 import { combinedSignal } from '../../lib/workSignals';
 import { WorkStatus } from '../team-work/WorkStatus';
+import { MapActivity } from './MapActivity';
+import { ProjectMapPortfolio } from './ProjectMapPortfolio';
 export { projectCounts, projectTasks } from '../../lib/projectView';
 export type {
   ProjectView,
@@ -49,17 +53,25 @@ export function ProjectMap({
   scope?: string;
 }) {
   const reduced = !!useReducedMotion();
+  const [paused, setPaused] = useState(false);
+  const [visible, setVisible] = useState(() => !document.hidden);
+  useEffect(() => {
+    const update = () => setVisible(!document.hidden);
+    document.addEventListener('visibilitychange', update);
+    return () => document.removeEventListener('visibilitychange', update);
+  }, []);
+  const animate = playing && !paused && !reduced && visible;
   const inspected = useRef<string | undefined>(undefined);
   const narrowScope = useRef<string | undefined>(undefined);
-  const graph = project ? layoutProject(project) : undefined;
-  const portfolio = layoutPortfolio(projects);
+  const graph = useMemo(() => (project ? layoutProject(project) : undefined), [project]);
+  const portfolio = useMemo(() => layoutPortfolio(projects), [projects]);
   const world = graph || portfolio;
   const camera = useMapCamera(
     `${scope}:${project?.id || 'all'}`,
     reduced,
     { width: world.width, height: world.height },
     { x: 0, y: -15, width: world.width, height: world.height + 30 },
-    { top: 15, bottom: 15 },
+    { top: 35, bottom: 15 },
   );
   useEffect(() => {
     const scope = project?.id || 'all';
@@ -71,7 +83,12 @@ export function ProjectMap({
     )
       return;
     narrowScope.current = scope;
-    const box = graph ? Object.values(graph.streams)[0] : portfolio.groups[0];
+    const area = portfolio.groups[0];
+    const box = graph
+      ? Object.values(graph.streams)[0]
+      : area
+        ? { x: area.x + 25, y: area.y + 95, width: 470, height: 215 }
+        : undefined;
     if (box)
       camera.focus(
         { x: box.x + box.width / 2, y: box.y + box.height / 2 },
@@ -106,7 +123,15 @@ export function ProjectMap({
   return (
     <div
       className="pm-map"
-      data-compact={camera.scale < 0.65}
+      data-compact={camera.scale < 0.7}
+      data-motion={animate}
+      style={
+        {
+          '--pm-name-size': `${Math.min(42, Math.max(24, 16 / camera.scale))}px`,
+          '--pm-meta-size': `${Math.min(26, Math.max(12, 11 / camera.scale))}px`,
+          '--pm-overview-meta-size': `${Math.min(32, Math.max(12, 11 / camera.scale))}px`,
+        } as CSSProperties
+      }
       ref={camera.viewport}
       role="region"
       aria-label={project ? `${project.title} project map` : 'All projects map'}
@@ -136,6 +161,16 @@ export function ProjectMap({
               {graph.warnings.length > 0 && (
                 <p className="pm-layout-warning">{graph.warnings.join(' ')}</p>
               )}
+              {graph.bands.map((band) => (
+                <div
+                  className="pm-work-band"
+                  key={band.id}
+                  style={{ left: band.x, top: band.y, width: band.width, height: band.height }}
+                >
+                  <strong>{band.title}</strong>
+                  <span>{band.description}</span>
+                </div>
+              ))}
               <svg
                 className="pm-lines"
                 width={world.width}
@@ -180,6 +215,8 @@ export function ProjectMap({
                   <div
                     className="pm-stream"
                     data-signal={combinedSignal(stream.tasks.map((t) => t.status))}
+                    data-active={stream.tasks.some((t) => t.status === 'working')}
+                    data-role={stream.role}
                     data-selected={selectedStream === stream.id}
                     key={stream.id}
                     style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
@@ -187,7 +224,8 @@ export function ProjectMap({
                     <button
                       className="pm-stream-heading"
                       onClick={() => onStream(stream.id)}
-                      aria-label={`Open ${stream.name}`}
+                      aria-label={`Open ${stream.role === 'coordination' ? 'team coordination for ' : ''}${stream.name}`}
+                      title={stream.name}
                     >
                       <span>
                         <small>
@@ -196,11 +234,17 @@ export function ProjectMap({
                                 ?.agent.name || 'Unassigned'
                             : `${stream.tasks.length} assignments · ${stream.agents.length} agents`}
                         </small>
-                        <strong>{stream.name}</strong>
+                        <strong>
+                          {stream.role === 'coordination' ? 'Team coordination' : stream.name}
+                        </strong>
                       </span>
                       <ArrowUpRight size={20} />
                     </button>
-                    <p>{stream.summary}</p>
+                    <p>
+                      {stream.role === 'coordination'
+                        ? 'Keeps assignments moving and brings the results together.'
+                        : stream.summary}
+                    </p>
                     {away.map((p) => {
                       const pos = graph.people.find((a) => a.person.agent.id === p.agent.id)!.home;
                       return (
@@ -220,16 +264,22 @@ export function ProjectMap({
                       <WorkStatus
                         signal={combinedSignal(stream.tasks.map((t) => t.status))}
                         label={
-                          stream.stateLabel ||
-                          `${done} ready · ${stream.tasks.length - done} remaining`
+                          camera.scale < 0.7
+                            ? undefined
+                            : stream.stateLabel ||
+                              `${done} ready · ${stream.tasks.length - done} remaining`
                         }
                       />
-                      <span>
+                      <span className="pm-stream-secondary">
                         {stream.tasks.some((t) => t.status === 'needs_you') ? (
                           <>
                             <Flag size={12} />
                             Needs you
                           </>
+                        ) : stream.tasks.some((t) => t.status === 'working') ? (
+                          <MapActivity
+                            count={stream.tasks.filter((t) => t.status === 'working').length}
+                          />
                         ) : (
                           'Inspect work →'
                         )}
@@ -269,7 +319,9 @@ export function ProjectMap({
                         <path
                           key={person.agent.id}
                           className="pm-working-link"
-                          data-playing={playing && !reduced}
+                          data-playing={
+                            animate && ['thinking', 'executing'].includes(person.agent.status)
+                          }
                           d={`M145 53 L${point.x - box.x} ${point.y - box.y - 32}`}
                         />
                       ))}
@@ -319,73 +371,16 @@ export function ProjectMap({
               ))}
             </>
           ) : (
-            portfolio.groups.map((group) => (
-              <section
-                key={group.id}
-                className="pm-area"
-                data-tone={group.area?.tone || 'ink'}
-                aria-label={group.area?.name || 'Other work'}
-                style={{ left: group.x, top: group.y, width: group.width, height: group.height }}
-              >
-                <button
-                  className="pm-area-heading"
-                  onClick={() =>
-                    camera.focus(
-                      { x: group.x + group.width / 2, y: group.y + group.height / 2 },
-                      { width: group.width + 70, height: group.height + 70 },
-                    )
-                  }
-                >
-                  <span>
-                    <small>
-                      Area of work · {new Set(group.items.map((p) => p.team)).size} teams
-                    </small>
-                    <strong>{group.area?.name || 'Other work'}</strong>
-                  </span>
-                  <Maximize2 size={18} />
-                </button>
-                {group.items.map((item, index) => {
-                  const count = projectCounts(item);
-                  return (
-                    <button
-                      className="pm-project"
-                      data-signal={combinedSignal(
-                        item.streams.flatMap((s) => s.tasks.map((t) => t.status)),
-                      )}
-                      key={item.id}
-                      style={{
-                        left: 25 + (index % group.columns) * 495,
-                        top: 95 + Math.floor(index / group.columns) * 240,
-                      }}
-                      onClick={() => onProject(item.id)}
-                    >
-                      <span className="pm-project-team">
-                        {item.team}
-                        <ArrowUpRight size={19} />
-                      </span>
-                      <strong>{item.title}</strong>
-                      <p>{item.aim}</p>
-                      <span className="pm-project-people">
-                        {item.people.slice(0, 5).map((p) => (
-                          <Portrait key={p.agent.id} agent={p.agent} size={30} square={false} />
-                        ))}
-                        <span>{item.people.length} agents</span>
-                      </span>
-                      <span className="pm-project-state">
-                        <span>
-                          {count.done}/{count.total} contributions done
-                        </span>
-                        <WorkStatus
-                          signal={combinedSignal(
-                            item.streams.flatMap((s) => s.tasks.map((t) => t.status)),
-                          )}
-                        />
-                      </span>
-                    </button>
-                  );
-                })}
-              </section>
-            ))
+            <ProjectMapPortfolio
+              groups={portfolio.groups}
+              onProject={onProject}
+              onArea={(group) =>
+                camera.focus(
+                  { x: group.x + group.width / 2, y: group.y + group.height / 2 },
+                  { width: group.width + 70, height: group.height + 70 },
+                )
+              }
+            />
           )}
         </div>
       </div>
@@ -399,6 +394,29 @@ export function ProjectMap({
         <button aria-label="Zoom in" onClick={() => camera.zoomBy(1.2)}>
           <Plus size={17} />
         </button>
+        <button
+          className="pm-motion-toggle"
+          aria-label={paused ? 'Resume activity motion' : 'Pause activity motion'}
+          aria-pressed={paused}
+          disabled={reduced}
+          title={
+            reduced
+              ? 'Reduced motion is enabled in your system settings'
+              : paused
+                ? 'Resume activity motion'
+                : 'Pause activity motion'
+          }
+          onClick={() => setPaused(!paused)}
+        >
+          {paused || reduced ? <Play size={15} /> : <Pause size={15} />}
+        </button>
+      </div>
+      <div className="pm-reading-key">
+        {project?.kind === 'plan'
+          ? 'Contributions · dependency links · coordination'
+          : project
+            ? 'Requests and explorations · open any card to see the work'
+            : 'Efforts grouped by team · open a card to see the work inside'}
       </div>
     </div>
   );

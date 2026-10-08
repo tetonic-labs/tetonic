@@ -24,6 +24,7 @@ import './team-work.css';
 import './engine-workspace.css';
 import './work-journey.css';
 import './operator-experience.css';
+import './map-clarity.css';
 
 type Panel = {
   kind:
@@ -107,6 +108,11 @@ function ConnectedTeamWorkspace() {
   const visibleRecords = project
     ? records.filter((record) => project.streams.some((stream) => stream.id === record.id))
     : records;
+  const contributionCount = project?.streams.filter((s) => s.role !== 'coordination').length || 0;
+  const workScope =
+    project?.kind === 'plan'
+      ? `${contributionCount} ${contributionCount === 1 ? 'contribution' : 'contributions'} · team coordination`
+      : `${workJourneys(visibleRecords).length} ${workJourneys(visibleRecords).length === 1 ? 'piece of work' : 'pieces of work'}`;
   const working =
     visibleRecords.filter(
       (r) => r.latest && ['starting', 'running', 'canceling'].includes(r.latest.state),
@@ -330,14 +336,14 @@ function ConnectedTeamWorkspace() {
             {project && (
               <>
                 <ChevronRight size={12} />
-                <span>{project.team}</span>
+                <span>{project.kind === 'plan' ? 'Team effort' : project.team}</span>
               </>
             )}
           </div>
           <h1>{project?.title || 'Your team, at work.'}</h1>
           <p>
             {visibleRecords.length
-              ? `${workJourneys(visibleRecords).length} ${workJourneys(visibleRecords).length === 1 ? 'piece of work' : 'pieces of work'} · ${project ? project.people.length : engine.uiAgents.length} agents${working ? ` · ${working} working` : ''}`
+              ? `${workScope} · ${project ? project.people.length : engine.uiAgents.length} agents${working ? ` · ${working} working` : ''}`
               : isConnected
                 ? 'Give an agent direction, or shape an idea together.'
                 : 'Connect your engine to see your team’s work.'}

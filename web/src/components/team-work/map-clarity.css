@@ -1,0 +1,205 @@
+/* Keep names and state legible as the camera pulls back. */
+.tw-live .pm-map .pm-stream-heading strong,
+.tw-live .pm-map .pm-area .pm-project > strong {
+  font-size: var(--pm-name-size);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.18;
+}
+.tw-live .pm-map .pm-area-heading strong {
+  font-size: var(--pm-name-size);
+}
+.tw-live .pm-map .pm-area-heading {
+  padding-top: 14px;
+}
+.tw-live .pm-map .pm-area-heading small {
+  font-size: var(--pm-meta-size);
+  margin-bottom: 3px;
+}
+.tw-live .pm-map .pm-project-team,
+.tw-live .pm-map .pm-project-state,
+.tw-live .pm-map .pm-stream-foot,
+.tw-live .pm-map .work-status,
+.tw-live .pm-map .pm-person > strong {
+  font-size: var(--pm-meta-size);
+}
+.tw-live .pm-map .pm-project-team {
+  gap: 12px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+.pm-project-team > span:first-child {
+  margin-right: auto;
+}
+.pm-project-team > svg {
+  flex-shrink: 0;
+}
+.tw-live .pm-map .pm-project-state {
+  position: absolute;
+  bottom: 25px;
+  left: 23px;
+  right: 23px;
+  gap: 10px;
+}
+.tw-live .pm-map .pm-project-state > span:first-child {
+  color: var(--text-secondary);
+}
+.tw-live .pm-map .pm-project-people {
+  margin: 9px 0 0;
+}
+.tw-live .pm-map[data-compact='true'] .pm-project-people {
+  display: none;
+}
+.pm-work-mix {
+  position: absolute;
+  bottom: 12px;
+  left: 23px;
+  right: 23px;
+  height: 3px;
+  display: flex;
+  gap: 3px;
+}
+.pm-work-mix > span {
+  background: var(--work-signal);
+  border-radius: 2px;
+  flex-basis: 0;
+}
+.pm-work-band {
+  position: absolute;
+  pointer-events: none;
+  border-top: 1px solid var(--brand-rule);
+  padding-top: 10px;
+  color: var(--text-secondary);
+}
+.pm-work-band > strong {
+  font: 500 var(--pm-meta-size) / 1.4 var(--font-sans);
+  color: var(--text-primary);
+}
+.pm-work-band > span {
+  font-size: 11px;
+  display: block;
+  margin-top: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.pm-map[data-compact='true'] .pm-work-band > span {
+  display: none;
+}
+.pm-activity {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--work-blue);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.pm-activity-glyph {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 1em;
+  min-height: 13px;
+}
+.pm-activity-glyph i {
+  display: block;
+  width: 3px;
+  height: 85%;
+  background: currentColor;
+  border-radius: 2px;
+  transform: scaleY(0.45);
+}
+.pm-activity-glyph i:nth-child(2) {
+  transform: scaleY(0.8);
+}
+/* This is a running-state cue, not a simulated progress meter. */
+.pm-map[data-motion='true'] .pm-activity-glyph i {
+  animation: pm-activity 1.25s ease-in-out infinite;
+}
+.pm-map[data-motion='true'] .pm-activity-glyph i:nth-child(2) {
+  animation-delay: -0.2s;
+}
+.pm-map[data-motion='true'] .pm-activity-glyph i:nth-child(3) {
+  animation-delay: -0.4s;
+}
+@keyframes pm-activity {
+  0%,
+  100% {
+    transform: scaleY(0.4);
+  }
+  50% {
+    transform: scaleY(1);
+  }
+}
+.pm-reading-key {
+  position: absolute;
+  top: 0;
+  left: 30px;
+  max-width: calc(100% - 60px);
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1.5;
+  background: var(--bg-ground);
+  padding: 3px 8px;
+  pointer-events: none;
+}
+.pm-zoom .pm-motion-toggle {
+  border-left: 1px solid var(--brand-rule);
+  border-radius: 0 50% 50% 0;
+  margin-left: 3px;
+}
+.pm-zoom .pm-motion-toggle[aria-pressed='true'] {
+  background: var(--bg-ground);
+}
+.pm-zoom .pm-motion-toggle:disabled {
+  opacity: 0.5;
+}
+.tw-live .pm-map button:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 4px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .pm-map[data-motion] .pm-activity-glyph i {
+    animation: none;
+  }
+}
+
+.tw-live .pm-map .pm-stream-foot {
+  align-items: center;
+}
+.tw-live .pm-map .pm-stream-foot .work-status {
+  white-space: nowrap;
+}
+.tw-live .pm-map[data-compact='true'] .pm-stream-secondary:not(:has(.pm-activity)) {
+  display: none;
+}
+
+.tw-live .pm-map .pm-area .pm-project-team,
+.tw-live .pm-map .pm-area .pm-project-state,
+.tw-live .pm-map .pm-area .work-status {
+  font-size: var(--pm-overview-meta-size);
+  line-height: 1.2;
+}
+.tw-live .pm-map[data-compact='true'] .pm-project-team > span:first-child {
+  display: none;
+}
+.tw-live .pm-map[data-compact='true'] .pm-project-team {
+  position: absolute;
+  top: 12px;
+  right: 23px;
+  left: 23px;
+  justify-content: flex-end;
+}
+.tw-live .pm-map[data-compact='true'] .pm-project > strong {
+  position: absolute;
+  top: 48px;
+  left: 23px;
+  right: 23px;
+}
+
+.tw-live .pm-map .pm-area .pm-project-state {
+  white-space: nowrap;
+}

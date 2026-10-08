@@ -5,8 +5,8 @@ import { useMapCamera } from '../src/components/graph/useMapCamera';
 
 let camera: ReturnType<typeof useMapCamera>;
 let resize: (entries: { contentRect: { width: number; height: number } }[]) => void;
-function Harness({ world = { width: 2000, height: 1500 } }) {
-  camera = useMapCamera('all', true, world);
+function Harness({ world = { width: 2000, height: 1500 }, scope = 'all' }) {
+  camera = useMapCamera(scope, true, world);
   return (
     <div ref={camera.viewport}>
       <div className="universe-canvas" data-testid="map" tabIndex={0} onKeyDown={camera.onKeyDown}>
@@ -203,4 +203,21 @@ describe('continuous map camera', () => {
     expect(click.preventDefault).not.toHaveBeenCalled();
     expect(camera.offset.x).toBeCloseTo(start + 100, 6);
   });
+});
+
+it('restores the right framing when moving between differently sized project maps', () => {
+  const view = render(<Harness />);
+  act(() => camera.zoomBy(1.3));
+  const original = { scale: camera.scale, offset: { ...camera.offset } };
+  view.rerender(<Harness scope="project" world={{ width: 1200, height: 500 }} />);
+  const worldCenter = {
+    x: 600 * camera.scale + camera.offset.x,
+    y: 250 * camera.scale + camera.offset.y,
+  };
+  expect(worldCenter.x).toBeCloseTo(500, 6);
+  expect(worldCenter.y).toBeCloseTo(395, 6);
+  view.rerender(<Harness />);
+  expect(camera.scale).toBeCloseTo(original.scale, 6);
+  expect(camera.offset.x).toBeCloseTo(original.offset.x, 6);
+  expect(camera.offset.y).toBeCloseTo(original.offset.y, 6);
 });

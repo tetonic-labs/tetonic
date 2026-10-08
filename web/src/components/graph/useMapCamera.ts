@@ -205,11 +205,12 @@ export function useMapCamera(
     move(overview());
   }
   // Layout growth and viewport changes preserve the same world point and scale.
-  const previousGeometry = useRef({ base, size, world, centerY, measured });
+  const previousGeometry = useRef({ base, size, world, centerY, measured, scope });
   useEffect(() => {
     const before = previousGeometry.current;
-    previousGeometry.current = { base, size, world, centerY, measured };
+    previousGeometry.current = { base, size, world, centerY, measured, scope };
     if (
+      before.scope !== scope ||
       !before.measured ||
       !measured ||
       (before.base === base &&
@@ -237,7 +238,7 @@ export function useMapCamera(
     history.current = history.current.map(remap);
     views.current.forEach((c, id) => views.current.set(id, remap(c)));
     move(remap(shown.current), true);
-  }, [base, size, world.width, world.height]);
+  }, [base, size, world.width, world.height, scope]);
   return {
     viewport,
     ready: measured,

@@ -11,6 +11,7 @@ export type ProjectTask = {
   evidence?: string;
 };
 export type ProjectStream = {
+  role?: 'coordination' | 'contribution' | 'request' | 'exploration';
   stateLabel?: string;
   id: string;
   name: string;
@@ -29,6 +30,7 @@ export type ProjectArea = {
 export type ProjectPlace = { id: string; name: string; kind: 'code' | 'test' | 'notes' };
 export type ProjectPerson = { agent: Agent; doing: string; destination?: string; tool?: string };
 export type ProjectView = {
+  kind?: 'plan' | 'goal' | 'workspace';
   id: string;
   title: string;
   aim: string;
@@ -50,5 +52,6 @@ export const projectCounts = (project: ProjectView) => {
     done: tasks.filter((t) => t.status === 'done').length,
     working: tasks.filter((t) => t.status === 'working').length,
     waiting: tasks.filter((t) => t.status === 'waiting').length,
+    attention: tasks.filter((t) => t.status === 'needs_you' || t.status === 'blocked').length,
   };
 };

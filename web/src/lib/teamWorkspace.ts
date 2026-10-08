@@ -85,12 +85,13 @@ export function teamWorkspace(
     );
     return {
       id,
+      kind: id.startsWith('plan:') ? 'plan' : isTeam ? 'workspace' : 'goal',
       title: planRoot?.title || (isTeam ? workspace.team_name : `Goal ${id.slice(5)}`),
       team: workspace.team_name,
       aim: isTeam
         ? 'Work and explorations in your connected team.'
         : 'Work grouped by its recorded goal reference.',
-      area: { id: workspace.team_id, name: workspace.organization, aim: '', tone: 'copper' },
+      area: { id: workspace.team_id, name: workspace.team_name, aim: '', tone: 'copper' },
       people,
       places: [], // This API does not report live tool destinations. Do not invent them.
       streams: work
@@ -108,6 +109,13 @@ export function teamWorkspace(
           const status: ProjectTask['status'] = workSignal(record, approvals, planning);
           return {
             id: record.id,
+            role: record.latest?.plan
+              ? record.latest.plan.assignment_key
+                ? 'contribution'
+                : 'coordination'
+              : record.latest?.purpose === 'explore'
+                ? 'exploration'
+                : 'request',
             name: record.title,
             summary: `${record.latest?.purpose === 'explore' ? 'Exploration' : 'Assignment'} · ${label}`,
             stateLabel: pending ? 'Needs your permission' : label,
