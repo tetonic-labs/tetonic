@@ -49,8 +49,12 @@ Extended acceptance: duplicate/lost exchange replies, unavailable recipients, co
 October 7 engine prerequisite: [runtime boundaries and durable waiting](runtime-boundaries-and-durable-waits-2026-10-07.md)
 adds checkpoint-backed suspension and exclusive restoration for a scoped root
 through the existing managed lifecycle. Production team waiting is **not enabled**.
-Durable delegation, production harness reconstruction and the work controller
-remain the next integration slices; OCT-203 and its product acceptance stay open.
+The follow-on adds work-scoped delegated grants, lease-fenced child admission,
+and lease checks at model/tool boundaries. New plan assignments select that
+contract; existing grants retain their original lifetime. Production harness
+reconstruction, the work controller and supported subtree restoration remain;
+OCT-203 and its product acceptance stay open. See the same evidence document's
+delegation follow-on section for the precise boundary.
 
 October 5 partial prerequisite: [human handoff evidence](../october-1-coherent-workspace/human-handoff-evidence-2026-10-05.md)
 proves a live child can await an answer without model polling while another

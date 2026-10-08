@@ -135,6 +135,7 @@ fn add_child(db: &Store) -> RunSnapshot {
         tetonic_domain::IdentityId::new("child-agent");
     task.binding.execution_grant_id = Some("derived-grant".into());
     task.binding.delegation = Some(tetonic_domain::DelegatedTaskBinding {
+        parent_lease: None,
         parent_attempt: AttemptId::new("attempt"),
         activation: ActivationBinding {
             request_id: work_activation_request_id("child-request/child"),

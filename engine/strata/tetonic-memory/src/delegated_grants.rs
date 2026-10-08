@@ -3,11 +3,29 @@
 //! may authorize the child's own exact environment without expanding its parent.
 use crate::{ControlPermission, ExecutionGrant, Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
-use tetonic_domain::{AgentJobSpec, AttemptId, AttemptState, ExecutionScope, RunState, TaskId};
+use tetonic_domain::{AgentJobSpec, AttemptId, ExecutionScope, RunState, TaskId};
+
+/// Work permission can survive an intentional wait and lease replacement.
+/// Dispatch and effects still require a currently authorized executor.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum DelegationLifetime {
+    #[default]
+    ParentLease,
+    ParentWork,
+}
+
+impl DelegationLifetime {
+    fn is_parent_lease(&self) -> bool {
+        *self == Self::ParentLease
+    }
+}
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct DelegatedGrantRequest {
+    #[serde(default, skip_serializing_if = "DelegationLifetime::is_parent_lease")]
+    pub lifetime: DelegationLifetime,
     /// Exact trusted host environment approved by an organization administrator.
     /// Absent preserves ordinary subset-only delegation. Never model supplied.
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -23,6 +41,12 @@ pub struct DelegatedGrantRequest {
 /// Derived from current durable work and run truth, never supplied by an employee.
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
 pub struct DelegatedGrantLineage {
+    #[serde(default, skip_serializing_if = "DelegationLifetime::is_parent_lease")]
+    pub lifetime: DelegationLifetime,
+    /// Digest of applicable stop-scope generations at issuance. Clearing a stop
+    /// cannot revive a work-scoped grant from before that stop.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub stop_binding: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub approved_environment: Option<String>,
     pub org_id: String,
@@ -191,31 +215,18 @@ impl Store {
             .ok_or(StoreError::ControlAccessDenied)?;
         if run.state != RunState::Active
             || run.cancellation.run_canceled
-            || attempt.state != AttemptState::Running
-            || attempt.execution_quiesced
-            || !attempt.execution_claimed
             || attempt.task_id != lineage.parent_task_id
             || attempt.task_version != lineage.parent_task_version
             || task.binding.task_definition_version != lineage.parent_task_version
-            || attempt.lease.as_ref().map_or(true, |lease| {
-                lease.expires_at <= now as u64
-                    || lease.attempt_id != lineage.parent_attempt_id
-                    || lease.lease_id != lineage.parent_lease.lease_id
-                    || lease.lease_epoch != lineage.parent_lease.lease_epoch
-                    || lease.holder != lineage.parent_lease.holder
-            })
             || task.active_attempt.as_ref() != Some(&lineage.parent_attempt_id)
+            || task.finalization_claim.is_some()
             || task.binding.execution_scope.as_ref() != Some(&parent.scope)
             || task.binding.execution_grant_id.as_deref() != Some(parent.grant_id.as_str())
             || task.binding.job_spec.as_ref() != Some(&parent.job)
-            || task
-                .binding
-                .deadline
-                .is_some_and(|deadline| deadline <= now as u64)
         {
             return deny();
         }
-        Ok(())
+        super::delegated_lifetime::validate_parent_lifetime(lineage, task, attempt, now)
     }
 
     /// Caller owns a read/write transaction. Every ancestor remains revocable;
@@ -229,6 +240,15 @@ impl Store {
             }
             visited.push(child.grant_id.clone());
             let parent = self.live_grant(&lineage.parent_grant_id, now)?;
+            if lineage.lifetime == DelegationLifetime::ParentWork
+                && lineage.stop_binding.as_deref()
+                    != Some(
+                        self.delegation_stop_binding(&lineage, &parent.job, &child.job)?
+                            .as_str(),
+                    )
+            {
+                return deny();
+            }
             self.require_shared_grant_context(&child.scope, &lineage.org_id, &lineage.team_id)?;
             if child.scope != parent.scope
                 || child.expires_at > parent.expires_at
@@ -400,7 +420,9 @@ impl Store {
             .lease
             .as_ref()
             .ok_or(StoreError::ControlAccessDenied)?;
-        let lineage = DelegatedGrantLineage {
+        let mut lineage = DelegatedGrantLineage {
+            lifetime: request.lifetime,
+            stop_binding: None,
             approved_environment: request.approved_environment.clone(),
             org_id: org.into(),
             team_id: team.into(),
@@ -421,7 +443,13 @@ impl Store {
             stop_scope: allocation.stop_scope,
             allocated_tokens: allocation.token_limit,
         };
+        // New permission always comes from a live executor, never a parked one.
+        super::delegated_lifetime::validate_live_parent(&lineage, &run, now)?;
         self.validate_parent_attempt(&lineage, &parent, now)?;
+        if lineage.lifetime == DelegationLifetime::ParentWork {
+            lineage.stop_binding =
+                Some(self.delegation_stop_binding(&lineage, &parent.job, &request.job)?);
+        }
         let grant = ExecutionGrant {
             grant_id: request.grant_id.clone(),
             scope: parent.scope,
@@ -512,8 +540,24 @@ impl Store {
         parent_attempt: &str,
         now: i64,
     ) -> Result<bool> {
+        Ok(self
+            .delegated_execution_grant_lifetime(id, scope, job, parent_run, parent_attempt, now)?
+            .is_some())
+    }
+
+    /// Returns the immutable lifetime only after checking the complete current
+    /// grant chain. Hosts must also check the initiating credential and leases.
+    pub fn delegated_execution_grant_lifetime(
+        &self,
+        id: &str,
+        scope: &ExecutionScope,
+        job: &AgentJobSpec,
+        parent_run: &str,
+        parent_attempt: &str,
+        now: i64,
+    ) -> Result<Option<DelegationLifetime>> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
-        let check = || -> Result<()> {
+        let check = || -> Result<DelegationLifetime> {
             let lineage = self
                 .delegated_grant_lineage(id)?
                 .ok_or(StoreError::ControlAccessDenied)?;
@@ -525,11 +569,12 @@ impl Store {
             if grant.scope != *scope || grant.job != *job {
                 return deny();
             }
-            self.validate_delegated_chain(&grant, now)
+            self.validate_delegated_chain(&grant, now)?;
+            Ok(lineage.lifetime)
         };
         let allowed = match check() {
-            Ok(()) => true,
-            Err(StoreError::ControlAccessDenied) => false,
+            Ok(lifetime) => Some(lifetime),
+            Err(StoreError::ControlAccessDenied) => None,
             Err(error) => return Err(error),
         };
         tx.commit()?;

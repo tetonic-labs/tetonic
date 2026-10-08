@@ -1,7 +1,7 @@
 //! State transition validation and projection updates (M3-1 / M3-2).
 
 use tetonic_domain::{
-    AcceptArtifact, AddDependency, AddTask, AttemptLease, AttemptRecord, AttemptState, CancelRun,
+    AcceptArtifact, AddDependency, AttemptLease, AttemptRecord, AttemptState, CancelRun,
     CancelTask, ClaimFinalization, CompleteAttempt, CreateAttempt, CreateRun, ExpireLease,
     FailAttempt, FailureClass, FinishRun, LeaseAttempt, MarkTaskReady, RecordHeartbeat,
     RecordSideEffectCommit, RejectArtifact, RunCommand, RunFinishOutcome, RunSnapshot, RunState,
@@ -20,6 +20,7 @@ use crate::retry::{
 };
 use crate::side_effect::record_side_effect_commit;
 mod suspension;
+mod task_admission;
 
 pub fn apply_command(
     snapshot: &RunSnapshot,
@@ -28,7 +29,7 @@ pub fn apply_command(
     match command {
         RunCommand::CreateRun(c) => apply_create_run(snapshot, c),
         RunCommand::StartRun(c) => apply_start_run(snapshot, c),
-        RunCommand::AddTask(c) => apply_add_task(snapshot, c),
+        RunCommand::AddTask(c) => task_admission::add_task(snapshot, c),
         RunCommand::AddDependency(c) => apply_add_dependency(snapshot, c),
         RunCommand::MarkTaskReady(c) => apply_mark_task_ready(snapshot, c),
         RunCommand::CreateAttempt(c) => apply_create_attempt(snapshot, c),
@@ -131,26 +132,6 @@ fn apply_start_run(
     }
     let mut out = snapshot.clone();
     out.state = RunState::Active;
-    recompute_blocked_ready(&mut out);
-    Ok(out)
-}
-
-fn apply_add_task(
-    snapshot: &RunSnapshot,
-    cmd: &AddTask,
-) -> Result<RunSnapshot, RunSupervisorError> {
-    ensure_run_accepts_mutations(snapshot)?;
-    if snapshot.tasks.contains_key(&cmd.task_id) {
-        return Err(RunSupervisorError::Conflict(format!(
-            "task {} exists",
-            cmd.task_id
-        )));
-    }
-    let mut out = snapshot.clone();
-    out.tasks.insert(
-        cmd.task_id.clone(),
-        new_task(cmd.task_id.clone(), cmd.binding.clone()),
-    );
     recompute_blocked_ready(&mut out);
     Ok(out)
 }

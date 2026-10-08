@@ -53,7 +53,10 @@ impl tetonic_core::ExecutionGate for AttemptExecutionGate {
             self.active.work_scope.cancel();
             return Err(());
         }
-        Ok(())
+        // A valid job grant is not permission for a superseded executor to use
+        // tools. Check the durable lease at every model/tool gate, not only at
+        // initial claim or the next periodic heartbeat.
+        self.service.authorize_executor(&self.active).await
     }
     async fn suspend(
         &self,

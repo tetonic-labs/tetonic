@@ -651,6 +651,7 @@ impl LocalWorkspace {
                 ORG.into(),
                 TEAM.into(),
                 tetonic_memory::DelegatedGrantRequest {
+                    lifetime: tetonic_memory::DelegationLifetime::ParentWork,
                     approved_environment: Some(
                         settings.environment_binding(prepared.requested_tools())?,
                     ),

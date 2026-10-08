@@ -6,6 +6,7 @@ pub mod attestation;
 pub mod contracts;
 mod delegation;
 pub mod execution;
+mod fencing;
 pub mod finalization;
 pub mod lifetime;
 mod restore;

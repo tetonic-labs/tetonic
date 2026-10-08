@@ -235,6 +235,14 @@ impl Store {
                 [now()],
             )?;
         }
+        if applied < 65 {
+            // Work-scoped delegation and fenced child dispatch change authority
+            // semantics; older writers must not interpret these records.
+            self.conn.execute(
+                "INSERT INTO schema_versions(version,applied_at) VALUES(65,?1)",
+                [now()],
+            )?;
+        }
         Ok(())
     }
 

@@ -6,6 +6,8 @@ use tetonic_run::managed::{ManagedSubmission, StartIdentityJobCommand};
 
 #[path = "managed_suspension_batch.rs"]
 mod batch;
+#[path = "managed_suspension_delegation.rs"]
+mod delegation;
 #[path = "managed_suspension_faults.rs"]
 mod faults;
 
@@ -135,8 +137,17 @@ fn agent(
     answer: Arc<AtomicBool>,
     ceiling: u64,
 ) -> tetonic_core::Agent {
+    agent_with_provider(Arc::new(Provider(calls)), effects, answer, ceiling)
+}
+
+fn agent_with_provider(
+    provider: Arc<dyn tetonic_inference::InferenceProvider>,
+    effects: Arc<AtomicUsize>,
+    answer: Arc<AtomicBool>,
+    ceiling: u64,
+) -> tetonic_core::Agent {
     tetonic_core::Agent::new(
-        Arc::new(Provider(calls)),
+        provider,
         Host(effects),
         tetonic_core::AgentConfig {
             max_steps: 4,

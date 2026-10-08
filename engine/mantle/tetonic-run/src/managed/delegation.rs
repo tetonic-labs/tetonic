@@ -12,6 +12,9 @@ use tetonic_memory::RecoverMutex;
 pub struct DelegationParent {
     active: Weak<Mutex<HashMap<AttemptId, ActiveAttempt>>>,
     binding: ManagedBinding,
+    // Capture the original credential and executor incarnation. An ID lookup
+    // must not lend a replacement worker's authority to an old handle.
+    issued: Arc<ActiveAttempt>,
 }
 
 impl DelegationParent {
@@ -22,7 +25,7 @@ impl DelegationParent {
         &self.binding
     }
 
-    fn live_attempt(&self) -> Result<ActiveAttempt, ()> {
+    pub(super) fn live_attempt(&self) -> Result<ActiveAttempt, ()> {
         let registry = self.active.upgrade().ok_or(())?;
         let active = registry
             .lock_recover()
@@ -30,6 +33,9 @@ impl DelegationParent {
             .cloned()
             .ok_or(())?;
         if active.binding != self.binding
+            || active.lease_proof != self.issued.lease_proof
+            || !Arc::ptr_eq(&active.clock, &self.issued.clock)
+            || active.suspension().is_some()
             || active.work_scope.is_canceled()
             || active.deadline_elapsed()
             || active.authorization.is_none()
@@ -62,6 +68,40 @@ impl DelegationParent {
         self.live_attempt()?;
         Ok(())
     }
+
+    /// Credential portion of continuation authorization. The caller must first
+    /// validate the stored grant chain and use its immutable lifetime. This is
+    /// deliberately insufficient to dispatch a child: that requires live_attempt.
+    pub async fn authorize_continuation_scope(
+        &self,
+        scope: &ExecutionScope,
+        lifetime: tetonic_memory::DelegationLifetime,
+    ) -> Result<(), ()> {
+        if lifetime == tetonic_memory::DelegationLifetime::ParentLease {
+            return self.authorize_child_scope(scope).await;
+        }
+        let check_stop = || {
+            if self.issued.work_scope.is_canceled()
+                || self
+                    .issued
+                    .delegation_closed
+                    .load(std::sync::atomic::Ordering::SeqCst)
+            {
+                Err(())
+            } else {
+                Ok(())
+            }
+        };
+        check_stop()?;
+        let auth = self.issued.authorization.as_ref().ok_or(())?;
+        if auth.scope != *scope {
+            return Err(());
+        }
+        auth.authority
+            .authorize(scope, &self.issued.identity, &self.binding.job_spec)
+            .await?;
+        check_stop()
+    }
 }
 
 /// The runtime composes this guard itself. A custom host authority cannot skip
@@ -82,8 +122,8 @@ impl super::ExecutionAuthority for DelegatedAuthority {
         identity: &tetonic_domain::AgentIdentity,
         job: &tetonic_domain::AgentJobSpec,
     ) -> Result<(), ()> {
-        self.parent.authorize_child_scope(scope).await?;
         self.inner.authorize(scope, identity, job).await?;
+        let continuation_scope = scope.clone();
         let (grant, request, scope, job, parent) = (
             self.grant.clone(),
             self.request.clone(),
@@ -91,7 +131,8 @@ impl super::ExecutionAuthority for DelegatedAuthority {
             job.clone(),
             self.parent.binding.clone(),
         );
-        self.store
+        let lineage = self
+            .store
             .read(move |db| {
                 db.require_delegated_execution_binding(tetonic_memory::DelegatedExecutionBinding {
                     id: &grant,
@@ -106,7 +147,9 @@ impl super::ExecutionAuthority for DelegatedAuthority {
             .await
             .map_err(|_| ())?
             .map_err(|_| ())?;
-        self.parent.live_attempt()?;
+        self.parent
+            .authorize_continuation_scope(&continuation_scope, lineage.lifetime)
+            .await?;
         Ok(())
     }
     async fn revoked_during_execution(
@@ -214,6 +257,7 @@ impl ManagedRunService {
             .authorize(&authorization.scope, identity, job)
             .await
             .map_err(|_| deny())?;
+        parent.live_attempt().map_err(|_| deny())?;
         Ok(receipt)
     }
 }
@@ -228,6 +272,15 @@ impl ManagedRunService {
         })?;
         let parent = DelegationParent {
             active: Arc::downgrade(&self.active),
+            issued: Arc::new(
+                self.active
+                    .lock_recover()
+                    .get(attempt)
+                    .cloned()
+                    .ok_or_else(|| {
+                        ManagedRunError::InvalidRequest("delegation requires a live parent".into())
+                    })?,
+            ),
             binding,
         };
         parent.live_attempt().map_err(|_| {

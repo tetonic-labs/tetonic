@@ -2,6 +2,9 @@ use super::*;
 use crate::{ContextOwner, OrganizationRole, TeamRow};
 use tetonic_domain::{IdentityId, RunSnapshot, TaskInputBinding};
 
+#[path = "delegated_lifetime_tests.rs"]
+mod durable;
+
 struct Fixture {
     parent: ExecutionGrant,
     request: DelegatedGrantRequest,
@@ -158,6 +161,7 @@ fn seed(db: &Store, shared: bool) -> Fixture {
     Fixture {
         parent,
         request: DelegatedGrantRequest {
+            lifetime: DelegationLifetime::ParentLease,
             approved_environment: None,
             request_id: "derive-request".into(),
             grant_id: "child-grant".into(),
@@ -577,8 +581,18 @@ fn changing_parent_lease_or_task_version_fences_old_child_permission() {
 
 #[test]
 fn ancestor_revocation_traverses_multiple_delegations_without_resetting_payer_or_budget() {
+    for lifetime in [
+        DelegationLifetime::ParentLease,
+        DelegationLifetime::ParentWork,
+    ] {
+        ancestor_revocation_scenario(lifetime);
+    }
+}
+
+fn ancestor_revocation_scenario(lifetime: DelegationLifetime) {
     let db = Store::open(":memory:").unwrap();
-    let f = seed(&db, true);
+    let mut f = seed(&db, true);
+    f.request.lifetime = lifetime;
     let child = db
         .derive_execution_grant("alice", "org", "team", &f.request, 101)
         .unwrap();

@@ -299,6 +299,11 @@ impl super::service::ManagedRunService {
                 .ok_or_else(|| {
                     ManagedRunError::InvalidRequest("parent attempt is not active".into())
                 })?;
+            if let Some(parent) = &context.delegation_parent {
+                parent.live_attempt().map_err(|_| {
+                    ManagedRunError::InvalidRequest("delegation parent executor changed".into())
+                })?;
+            }
             let run_id = parent_active.binding.run_id;
             let current_seq = self.current_sequence(&run_id).await;
             let task_id = if let (Some(activation), Some(auth)) =
@@ -373,6 +378,7 @@ impl super::service::ManagedRunService {
                         delegation: context.activation.as_ref().map(|activation| {
                             tetonic_domain::DelegatedTaskBinding {
                                 parent_attempt: parent_attempt.clone(),
+                                parent_lease: Some(parent_active.lease_proof.clone()),
                                 activation: activation.clone(),
                             }
                         }),

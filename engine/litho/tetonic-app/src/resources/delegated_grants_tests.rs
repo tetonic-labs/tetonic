@@ -37,6 +37,18 @@ async fn child_queued_at_single_local_runtime_stops_on_parent_revocation() {
 }
 
 async fn delegation_scenario(scenario: Scenario) {
+    for lifetime in [
+        tetonic_memory::DelegationLifetime::ParentLease,
+        tetonic_memory::DelegationLifetime::ParentWork,
+    ] {
+        delegation_scenario_with_lifetime(scenario, lifetime).await;
+    }
+}
+
+async fn delegation_scenario_with_lifetime(
+    scenario: Scenario,
+    lifetime: tetonic_memory::DelegationLifetime,
+) {
     let dir = tempfile::tempdir().unwrap();
     let database = dir.path().join("control.db");
     let local = LocalControl::open(database.clone(), "test".into())
@@ -236,6 +248,7 @@ async fn delegation_scenario(scenario: Scenario) {
             .delegation_parent(&execution.attempt_id)
             .unwrap();
         let request = tetonic_memory::DelegatedGrantRequest {
+            lifetime,
             approved_environment: if scenario == Scenario::Complete {
                 Some(
                     RegisteredExecutionSettings {

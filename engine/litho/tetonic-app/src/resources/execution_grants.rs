@@ -34,20 +34,26 @@ impl ExecutionAuthority for StoredGrant {
             let binding = parent.binding();
             (binding.run_id.0.clone(), binding.attempt_id.0.clone())
         });
-        let allowed = self
+        let lifetime = self
             .store
             .read(move |db| match parent {
                 Some((run, attempt)) => {
-                    db.delegated_execution_grant_allows(&id, &scope, &job, &run, &attempt, at)
+                    db.delegated_execution_grant_lifetime(&id, &scope, &job, &run, &attempt, at)
                 }
-                None => db.execution_grant_allows(&id, &scope, &job, at),
+                None => db
+                    .execution_grant_allows(&id, &scope, &job, at)
+                    .map(|allowed| {
+                        allowed.then_some(tetonic_memory::DelegationLifetime::ParentLease)
+                    }),
             })
             .await
             .map_err(|_| ())?
             .map_err(|_| ())?;
-        if allowed {
+        if let Some(lifetime) = lifetime {
             if let Some(parent) = &self.parent {
-                parent.authorize_child_scope(original_scope).await?;
+                parent
+                    .authorize_continuation_scope(original_scope, lifetime)
+                    .await?;
             }
             Ok(())
         } else {

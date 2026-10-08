@@ -57,7 +57,10 @@ pub use context_access::{team_participation_context_id, ContextOwner};
 pub use context_publication::ContextPublication;
 mod delegated_grants;
 mod execution_limits;
-pub use delegated_grants::{DelegatedExecutionGrant, DelegatedGrantLineage, DelegatedGrantRequest};
+pub use delegated_grants::{
+    DelegatedExecutionGrant, DelegatedGrantLineage, DelegatedGrantRequest, DelegationLifetime,
+};
+mod delegated_lifetime;
 mod local_provider_keys;
 mod local_work_notes;
 pub use local_work_notes::LocalWorkData;

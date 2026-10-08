@@ -121,6 +121,9 @@ pub struct ActivationBinding {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 pub struct DelegatedTaskBinding {
     pub parent_attempt: AttemptId,
+    /// Dispatch fence. Absent only in journals written before schema 65.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub parent_lease: Option<LeaseProof>,
     pub activation: ActivationBinding,
 }
 
