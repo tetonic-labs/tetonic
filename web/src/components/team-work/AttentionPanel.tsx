@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { attentionItems } from '../../lib/attentionItems';
 import { stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
-import { Decision } from './Decision';
+import { ApprovalRequests } from './ApprovalRequests';
+import type { EngineTask, WorkHumanQuestion } from '../../lib/localEngine';
 import { HumanQuestion } from './HumanQuestion';
 import { WorkStatus } from './WorkStatus';
 import { parentEffortTitle } from '../../lib/workSignals';
@@ -18,6 +19,10 @@ export function AttentionPanel({
   const engine = useLocalEngine();
   const current = engine.isConnected && !!engine.approvals && !engine.readErrors.Decisions;
   const [filter, setFilter] = useState('all');
+  const [answers, setAnswers] = useState<
+    { task: EngineTask; question: WorkHumanQuestion; title: string }[]
+  >([]);
+  const questionOrder = useRef<string[]>([]);
   const { permissions, questions, problems, total } = attentionItems(
     records,
     engine.approvals?.pending_approvals || [],
@@ -27,6 +32,19 @@ export function AttentionPanel({
     ['input', 'Decisions & questions', permissions.length + questions.length],
     ['problems', 'Needs a look', problems.length],
   ] as const;
+  const displayed = new Map(
+    questions.map(({ work, question }) => [
+      question.id,
+      { task: work.latest!, question, title: parentEffortTitle(work, records) || work.title },
+    ]),
+  );
+  for (const answer of answers) {
+    const task =
+      records.flatMap((work) => work.turns).find((t) => t.id === answer.task.id) || answer.task;
+    displayed.set(answer.question.id, { ...answer, task });
+  }
+  for (const id of displayed.keys())
+    if (!questionOrder.current.includes(id)) questionOrder.current.push(id);
   return (
     <section className="attention-panel" aria-label="Attention inbox">
       <p className="operator-intro">
@@ -65,51 +83,30 @@ export function AttentionPanel({
           <p>Nothing is waiting for your input.</p>
         </div>
       )}
-      {filter !== 'problems' &&
-        permissions.map((approval) => {
-          const work = records.find(
-            (r) => r.id === approval.work_id || r.turns.some((t) => t.id === approval.work_id),
-          );
-          return (
-            <details className="attention-item" key={approval.approval_id} data-signal="needs_you">
-              <summary>
-                <span>
-                  <span className="attention-kind">
-                    Permission · {work?.latest?.agent_name || 'Your team'}
-                  </span>
-                  <strong>{work?.title || 'An action needs your permission'}</strong>
-                  <small>
-                    {approval.proposal
-                      ? 'Review a command before it runs'
-                      : 'Action details unavailable'}
-                  </small>
-                </span>
-              </summary>
-              <Decision approval={approval} onWork={onWork} />
-            </details>
-          );
-        })}
-      {filter !== 'problems' &&
-        questions.map(({ work, question }) => (
-          <details className="attention-item" key={question.id} data-signal="needs_you">
-            <summary>
-              <span>
-                <span className="attention-kind">Question · {work.latest!.agent_name}</span>
-                <strong>{question.content.question}</strong>
-                <small>{parentEffortTitle(work, records) || work.title}</small>
-              </span>
-            </summary>
-            <HumanQuestion
-              task={work.latest!}
-              question={question}
-              refresh={engine.refresh}
-              showHeading={false}
-            />
-            <button className="operator-secondary" onClick={() => onWork(work.id)}>
-              Open related work
-            </button>
-          </details>
-        ))}
+      <div hidden={filter === 'problems'}>
+        <ApprovalRequests tasks={records.flatMap((work) => work.turns)} onWork={onWork} />
+        {questionOrder.current
+          .filter((id) => displayed.has(id))
+          .map((id) => {
+            const { task, question, title } = displayed.get(id)!;
+            return (
+              <HumanQuestion
+                key={id}
+                task={task}
+                question={question}
+                workTitle={title}
+                refresh={engine.refresh}
+                onWork={() => onWork(task.id)}
+                onAnswered={(receipt) =>
+                  setAnswers((old) => [
+                    ...old.filter((a) => a.question.id !== id),
+                    { task, question: receipt, title },
+                  ])
+                }
+              />
+            );
+          })}
+      </div>
       {filter !== 'input' &&
         problems.map((work) => (
           <article className="attention-problem" key={work.id} data-signal="blocked">

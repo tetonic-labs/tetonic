@@ -7,7 +7,8 @@ import { WorkComposer } from './WorkComposer';
 import { WorkUsageSummary } from './UsagePanel';
 import { HumanQuestion } from './HumanQuestion';
 import { WorkStatus } from './WorkStatus';
-import { workSignal } from '../../lib/workSignals';
+import { approvalFor, workSignal } from '../../lib/workSignals';
+import { ApprovalRequests } from './ApprovalRequests';
 
 export function WorkDetails({
   work,
@@ -52,7 +53,7 @@ export function WorkDetails({
       <div className="tw-work-status">
         <WorkStatus
           signal={workSignal(work, engine.approvals?.pending_approvals)}
-          label={`${!engine.isConnected ? 'Last seen: ' : ''}${stateLabel(work)}`}
+          label={`${!engine.isConnected ? 'Last seen: ' : ''}${approvalFor(work, engine.approvals?.pending_approvals || []) ? 'Needs your permission' : stateLabel(work)}`}
         />
         {latest && taskIsActive(latest) && (
           <button
@@ -76,6 +77,11 @@ export function WorkDetails({
         <p>This run was interrupted. Review its effects before starting new work.</p>
       )}
       {error && <p role="alert">{error}</p>}
+      <ApprovalRequests
+        key={work.id}
+        workIds={[work.id, ...work.turns.map((turn) => turn.id)]}
+        tasks={work.turns}
+      />
       {latest?.human_questions?.map((question) => (
         <HumanQuestion
           key={question.id}

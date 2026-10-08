@@ -1,4 +1,9 @@
-import type { LocalApproval, EngineTask, EngineAgent } from './localEngine';
+import {
+  waitingAfterAnswer,
+  type LocalApproval,
+  type EngineTask,
+  type EngineAgent,
+} from './localEngine';
 import type { Agent, ApprovalRequest } from '../types';
 
 export function engineApprovalToUI(
@@ -38,6 +43,9 @@ export function engineAgentToUI(engineAgent: EngineAgent, activeTasks: EngineTas
   const waiting = activeTasks.some(
     (t) => t.agent_key === engineAgent.key && t.state === 'waiting_human',
   );
+  const needsInput = activeTasks.some(
+    (t) => t.agent_key === engineAgent.key && t.state === 'waiting_human' && !waitingAfterAnswer(t),
+  );
   return {
     id: engineAgent.key,
     name: engineAgent.name || engineAgent.key,
@@ -55,6 +63,12 @@ export function engineAgentToUI(engineAgent: EngineAgent, activeTasks: EngineTas
     memoryItemsCount: 1,
     isLocalToCastle: true,
     pledgedTeamId: 'local-work',
-    lastActive: isActive ? 'Just now' : waiting ? 'Needs your input' : 'Idle',
+    lastActive: isActive
+      ? 'Just now'
+      : needsInput
+        ? 'Needs your input'
+        : waiting
+          ? 'Waiting to continue'
+          : 'Idle',
   };
 }

@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import {
   connectionDraftScope,
+  waitingAfterAnswer,
   EngineRequestError,
   type PlanView,
   type StartPlanRequest,
@@ -12,6 +13,7 @@ import { HumanQuestion } from './HumanQuestion';
 import { PlanDirectionEditor } from './PlanDirectionEditor';
 import { PlanRecovery } from './PlanRecovery';
 import { PlanReadiness } from './PlanHandoff';
+import { ApprovalRequests } from './ApprovalRequests';
 
 export function PlanExecution({
   workId,
@@ -50,6 +52,7 @@ export function PlanExecution({
   const [busy, setBusy] = useState(false);
   const gate = useRef(false);
   const [error, setError] = useState('');
+  const [answeredHere, setAnsweredHere] = useState<string[]>([]);
   const [approvedModel, setApprovedModel] = useState<string | null>(null);
   const [reviewedActions, setReviewedActions] = useState<string | null>(null);
   const execution = view.execution;
@@ -145,7 +148,14 @@ export function PlanExecution({
   const pendingQuestions = questions.filter(
     ({ task, question }) => !question.answer && task.state === 'waiting_human',
   );
-  const pastQuestions = questions.filter((row) => !pendingQuestions.includes(row));
+  const waitingForResume =
+    execution?.state === 'waiting_human' &&
+    tasks.some(waitingAfterAnswer) &&
+    !tasks.some((task) => task.state === 'waiting_human' && !waitingAfterAnswer(task));
+  const visibleQuestions = questions.filter(
+    (row) => pendingQuestions.includes(row) || answeredHere.includes(row.question.id),
+  );
+  const pastQuestions = questions.filter((row) => !visibleQuestions.includes(row));
   const ids = new Set([
     execution?.receipt.root_work_id,
     ...(execution?.receipt.assignments.map((a) => a.work_id) || []),
@@ -337,7 +347,9 @@ export function PlanExecution({
               ? 'Needs your input'
               : execution.state === 'completed' && !result
                 ? 'Execution finished · no combined response recorded'
-                : stateLabels[execution.state] || 'Status unavailable'}{' '}
+                : waitingForResume
+                  ? 'Waiting to continue'
+                  : stateLabels[execution.state] || 'Status unavailable'}{' '}
             · {execution.assignments.filter((t) => t.state === 'completed').length} of{' '}
             {execution.receipt.assignments.length} contributions ready
           </p>
@@ -364,6 +376,15 @@ export function PlanExecution({
             </div>
           )}
           {execution.error && <p role="alert">{execution.error}</p>}
+          <ApprovalRequests
+            key={execution.receipt.root_work_id}
+            workIds={[
+              execution.receipt.root_work_id,
+              ...execution.receipt.assignments.map((assignment) => assignment.work_id),
+            ]}
+            tasks={tasks}
+            onWork={onWork ? (id) => onWork(id, true) : undefined}
+          />
           {continuation && (
             <p>
               This work continues an{' '}
@@ -382,8 +403,15 @@ export function PlanExecution({
               automatically moved into coordination.
             </p>
           )}
-          {pendingQuestions.map(({ task, question }) => (
-            <HumanQuestion key={question.id} task={task} question={question} refresh={refresh} />
+          {visibleQuestions.map(({ task, question }) => (
+            <HumanQuestion
+              key={question.id}
+              task={task}
+              question={question}
+              refresh={refresh}
+              workTitle={task.plan?.title}
+              onAnswered={(receipt) => setAnsweredHere((old) => [...old, receipt.id])}
+            />
           ))}
           {result && (
             <div className="tw-team-result">
@@ -434,7 +462,9 @@ export function PlanExecution({
                       ? `Waiting for ${waitingFor.map((key) => content.assignments.find((a) => a.key === key)?.title || key).join(', ')}`
                       : 'Waiting to start'
                     : 'Did not start'
-                  : stateLabels[task.state];
+                  : waitingAfterAnswer(task)
+                    ? 'Waiting to continue'
+                    : stateLabels[task.state];
               const response = task?.messages.filter((m) => m.role === 'assistant').at(-1)?.content;
               return (
                 <details key={pin.work_id} className="tw-contribution">

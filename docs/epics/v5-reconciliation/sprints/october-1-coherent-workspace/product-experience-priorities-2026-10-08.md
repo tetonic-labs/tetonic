@@ -1,10 +1,10 @@
 # Tetonic product experience priorities
 
-Date: October 8, 2026. Implementation baseline: `3294b94c`. Status: proposed task breakdown.
+Date: October 8, 2026. Implementation baseline: `3294b94c`. Status: implementation started; human decision slice delivered locally.
 
 The objective is to let one person keep more useful work aligned with their intent while spending less effort configuring, supervising and recovering context. The highest immediate returns are contextual setup, understandable decisions and a continuous place to direct work. Persistent direction and dependable execution are necessary foundations for the larger autonomy promise.
 
-This breakdown refines the existing October work; it creates no additional calendar sprint and closes no parent acceptance. Task IDs 1.1 through 7.4 refer to the seven product slices discussed with the owner. All 28 tasks are proposed. Existing partial implementations must be reused and verified, not recounted as new delivery. Work in groups 1, 2, 4 and 5 is detailed in [the coherent workspace breakdown](product-experience-tasks-2026-10-08.md); groups 3, 6 and 7 are in [the coordinated work breakdown](../october-2-coordinated-work/product-experience-tasks-2026-10-08.md).
+This breakdown refines the existing October work; it creates no additional calendar sprint and closes no parent acceptance. Task IDs 1.1 through 7.4 refer to the seven product slices discussed with the owner. The first implementation covers the existing-request UI in 5.1 and 5.2, plus the receipt and observed-state portion of 5.4; see [decision experience evidence and limits](decision-experience-2026-10-08.md). Remaining tasks are proposed. Existing partial implementations must be reused and verified, not recounted as new delivery. Work in groups 1, 2, 4 and 5 is detailed in [the coherent workspace breakdown](product-experience-tasks-2026-10-08.md); groups 3, 6 and 7 are in [the coordinated work breakdown](../october-2-coordinated-work/product-experience-tasks-2026-10-08.md).
 
 ## Ranking method
 

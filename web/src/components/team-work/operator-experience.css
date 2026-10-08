@@ -525,7 +525,6 @@
   line-height: 1.7;
 }
 
-.attention-item,
 .attention-problem {
   border: 1px solid var(--brand-rule);
   border-left: 3px solid var(--work-signal);
@@ -533,73 +532,13 @@
   padding: 0 16px;
   margin: 12px 0;
 }
-.tw-live .px-inspector .attention-item > summary {
-  padding: 17px 0;
-}
-.attention-item > summary > span {
-  min-width: 0;
-}
-.attention-kind {
-  display: block;
-  color: var(--work-amber);
-  font-size: 10px;
-  margin-bottom: 7px;
-}
-.attention-item strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  line-height: 1.6;
-}
-.attention-item small {
-  display: block;
-  margin-top: 5px;
-  color: var(--text-secondary);
-  font-size: 11px;
-  line-height: 1.6;
-}
-.attention-item .tw-decision {
-  border-top: 1px solid var(--brand-rule);
-}
-.tw-live .attention-item .tw-human-question {
-  border: 0;
-  background: none;
-  margin: 0;
-  padding: 0 0 16px;
-}
-.tw-live .attention-item .tw-question-context {
-  margin: 0 0 16px;
-}
-.tw-live .attention-item .tw-human-choices button {
-  font-size: 12px;
-  padding: 9px 12px;
-}
 .attention-problem > small {
   font-size: 11px;
   color: var(--text-secondary);
 }
-.attention-item .tw-decision h3,
 .attention-problem h3 {
   font-size: 15px !important;
   margin: 10px 0 !important;
-}
-.attention-item .tw-decision pre {
-  padding: 14px;
-  font: 12px/1.7 var(--font-mono);
-  border: 1px solid var(--brand-rule);
-  border-radius: 4px;
-  background: var(--bg-ground);
-}
-.attention-item .tw-decision [role='note'] {
-  padding: 12px;
-  background: color-mix(in srgb, var(--work-red) 7%, var(--bg-surface));
-  font-size: 12px;
-}
-.attention-item .tw-decision [role='note'] strong {
-  font-size: 12px;
-}
-.attention-item > .operator-secondary {
-  margin: 0 0 18px;
 }
 .attention-problem {
   padding: 16px;
@@ -622,6 +561,147 @@
   font-size: 13px;
   color: var(--text-secondary);
   line-height: 1.7;
+}
+
+/* Decisions stay beside their evidence; only reference metadata is disclosed. */
+.tw-live .tw-decision,
+.tw-live .tw-human-question,
+.tw-live .tw-human-answer {
+  margin: 16px 0;
+  padding: 16px;
+  border: 1px solid var(--brand-rule);
+  border-left: 3px solid var(--work-amber);
+  border-radius: 4px 4px 16px 4px;
+  background: var(--bg-surface);
+  min-width: 0;
+}
+.tw-live .tw-decision[data-resolved='true'],
+.tw-live .tw-human-answer {
+  border-left-color: var(--work-green);
+}
+.tw-request-context > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+}
+.tw-live .tw-request-context > p {
+  margin: 4px 0 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  overflow-wrap: anywhere;
+}
+.tw-live .tw-decision h3,
+.tw-live .tw-human-question h3 {
+  margin: 10px 0 8px;
+  font-size: 19px;
+  line-height: 1.4;
+  letter-spacing: -0.3px;
+}
+.tw-live .tw-request-scope,
+.tw-live .tw-request-unavailable,
+.tw-live .tw-human-answer > p {
+  font-size: 12px;
+  line-height: 1.65;
+  margin: 8px 0 14px;
+}
+.tw-live .tw-request-command {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 240px;
+  overflow: auto;
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 4px;
+  background: var(--bg-ground);
+  color: var(--text-primary);
+  font: 12px/1.65 var(--font-mono);
+}
+.tw-request-command:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.tw-request-location {
+  display: grid;
+  gap: 6px;
+  margin: 10px 0 12px;
+  font-size: 12px;
+}
+.tw-request-location > div {
+  display: grid;
+  grid-template-columns: 95px minmax(0, 1fr);
+  gap: 12px;
+}
+.tw-request-location dt {
+  color: var(--text-secondary);
+}
+.tw-request-location dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.tw-request-limits {
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  background: color-mix(in srgb, var(--work-amber) 7%, var(--bg-surface));
+  border-radius: 4px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.tw-request-limits strong {
+  font-size: 12px;
+}
+.tw-live .tw-request-limits p {
+  margin: 4px 0;
+  font-size: 12px;
+}
+.tw-request-limits ul {
+  padding-left: 18px;
+  margin: 8px 0 0;
+}
+.tw-request-limits li + li {
+  margin-top: 6px;
+}
+.tw-live .tw-decision-actions {
+  flex-wrap: wrap;
+  margin: 12px 0 0;
+}
+.tw-live .tw-request-footer {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: 1px solid var(--brand-rule);
+}
+.tw-live .tw-request-footer details {
+  margin: 8px 0 0;
+  font-size: 11px;
+}
+.tw-request-footer p {
+  overflow-wrap: anywhere;
+}
+.tw-live .tw-human-choices {
+  margin: 16px 0;
+}
+.tw-live .tw-human-choices button {
+  text-align: left;
+  font-size: 12px;
+}
+.tw-live .tw-question-work {
+  margin-top: 16px;
+}
+.tw-live .tw-human-answer details {
+  margin: 10px 0;
+  font-size: 12px;
+}
+@media (max-width: 520px) {
+  .tw-live .tw-decision,
+  .tw-live .tw-human-question,
+  .tw-live .tw-human-answer {
+    padding: 16px;
+  }
+  .tw-request-location > div {
+    grid-template-columns: 1fr;
+    gap: 3px;
+  }
 }
 .agent-editor-identity {
   display: flex;

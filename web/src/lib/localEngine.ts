@@ -304,6 +304,13 @@ export const engineStates: Record<EngineTaskState, string> = {
 export const taskIsActive = (task: EngineTask) =>
   ['starting', 'running', 'waiting_human', 'canceling'].includes(task.state);
 
+// A saved answer and resumed execution can arrive in separate snapshots.
+// This is a presentation distinction, never permission to restart the work.
+export const waitingAfterAnswer = (task: EngineTask) =>
+  task.state === 'waiting_human' &&
+  !!task.human_questions?.length &&
+  task.human_questions.every((question) => question.answer !== null);
+
 export interface WorkHumanQuestion {
   id: string;
   work_id: string;

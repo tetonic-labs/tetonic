@@ -1,4 +1,4 @@
-import type { EngineTask, LocalApproval } from './localEngine';
+import { waitingAfterAnswer, type EngineTask, type LocalApproval } from './localEngine';
 import { journeyMembers } from './workJourneys';
 import type { WorkRecord } from './workspaceRecords';
 
@@ -36,7 +36,9 @@ export function workSignal(
   approvals: LocalApproval[] = [],
   planning: EngineTask[] = [],
 ): WorkSignal {
-  if (approvalFor(work, approvals) || work.latest?.state === 'waiting_human') return 'needs_you';
+  if (approvalFor(work, approvals)) return 'needs_you';
+  if (work.latest?.state === 'waiting_human')
+    return waitingAfterAnswer(work.latest) ? 'waiting' : 'needs_you';
   if (
     planning.some(
       (t) => t.planning_for === work.id && ['starting', 'running', 'canceling'].includes(t.state),

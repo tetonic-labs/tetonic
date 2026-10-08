@@ -1,5 +1,5 @@
 import type { EngineWorkspace, LocalWorkItem, LocalApproval } from './localEngine';
-import { taskIsActive } from './localEngine';
+import { taskIsActive, waitingAfterAnswer } from './localEngine';
 import { engineAgentToUI } from './engineAdapters';
 import { workRecords, stateLabel, needsHelp, type WorkRecord } from './workspaceRecords';
 import type { ProjectView, ProjectTask } from './projectView';
@@ -68,11 +68,16 @@ export function teamWorkspace(
           agent,
           doing: shaping
             ? 'Preparing a work plan'
-            : active.some((record) => record.latest?.state === 'waiting_human')
+            : active.some(
+                  (record) =>
+                    record.latest?.state === 'waiting_human' && !waitingAfterAnswer(record.latest),
+                )
               ? 'Needs your input'
-              : active.length
-                ? `${active.length} active ${active.length === 1 ? 'request' : 'requests'}`
-                : 'No active request',
+              : active.length && active.every((record) => waitingAfterAnswer(record.latest!))
+                ? 'Waiting to continue'
+                : active.length
+                  ? `${active.length} active ${active.length === 1 ? 'request' : 'requests'}`
+                  : 'No active request',
         };
       });
     // One avatar per actual agent. Put it at its active request first; concurrent
