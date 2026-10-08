@@ -1,6 +1,8 @@
 # FAR-006 — Real MCP connections, tool attachments and skills
 
-Status: **in progress — local HTTP read-tool profile implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress — local HTTP read tools and standalone workspace skills implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+
+October 8 update: [workspace skill library implementation and evidence](workspace-skills-2026-10-08.md). Import/create, saved agent access, shared-runtime loading and revocation are implemented; the broader acceptance criteria below remain open.
 
 ## Work
 
@@ -32,7 +34,7 @@ The server must advertise `readOnlyHint: true` **and** the operator must name th
 | Teamwork | Independently assigned agents reuse the registered execution path | Agreed-plan child tool grants; existing delegated children remain prompt-only plus human escalation |
 | Stop | Stops waiting/inference, requests MCP cancellation, no automatic tool retry | Server termination acknowledgement; cancellation cannot undo or guarantee termination of server work |
 | State | Cached discovery inventory; failures clear availability; durable selected IDs | Session resumption, SSE reconnect, background tasks, server sampling/elicitation |
-| Skills | Unchanged | Versioned create/import/load and provenance |
+| Skills | Workspace create/import/review, immutable versions, provenance, saved agent grants, on-demand loading and revocation | Bundled scripts/references/assets, remote imports, delegated-child skill qualification, native vendor harnesses |
 
 Only the local UI host exposes this configuration in this slice. Do not imply daemon-wide or distributed connector deployment. See the [operator setup and protocol contract](../../../../implementation/contracts/local-ui-v1.md#local-mcp-connections).
 

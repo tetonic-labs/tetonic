@@ -29,7 +29,10 @@ export function toolDescription(names: readonly string[], catalog?: AgentCatalog
     catalog?.mcp_connections?.flatMap((c) =>
       c.tools.map((t) => [t.id, `${c.name}: ${t.name}`] as const),
     ) || [];
-  const labels = Object.fromEntries(mcp);
+  const labels = Object.fromEntries([
+    ...mcp,
+    ...(catalog?.skills || []).map((s) => [s.id, `${s.name} skill`]),
+  ]);
   return names
     .filter((name) => !internal.has(name))
     .map(
@@ -77,7 +80,7 @@ export function agentSetup(
     if (!catalog.providers?.find((p) => p.id === provider)?.key_saved)
       return needs('A provider key is needed before assigning work.');
     if (!agent.hosted_consent)
-      return needs('Create a replacement agent with permission to send prompts to this provider.');
+      return needs('Edit this agent to give permission to send prompts to this provider.');
   }
   const selected = (agent.tools || []).filter((tool) => !internal.has(tool));
   if (selected.length && !catalog.tools)
@@ -92,27 +95,35 @@ export function agentSetup(
       (scope.workspace || null) !== (agent.hosted_workspace || null)
     )
       return needs(
-        'Selected tool access has changed. Create a replacement agent to approve its current access.',
+        'Selected tool access has changed. Edit this agent to approve its current access.',
       );
   }
+  if (
+    selected.some(
+      (id) => id.startsWith('skill_') && !catalog.skills?.some((s) => s.id === id && s.enabled),
+    )
+  )
+    return needs(
+      'A saved skill was revoked or is unavailable. Edit this agent to remove it or choose another version.',
+    );
   if (selected.some((tool) => !supported.includes(tool)))
     return needs(
-      'Some selected tools are no longer available. Restore host access or create an agent with the available tools.',
+      'Some selected tools are no longer available. Restore access or edit this agent to remove unavailable capabilities.',
     );
   if (
     provider !== 'ollama' &&
-    selected.some((tool) => !tool.startsWith('mcp_')) &&
+    selected.some((tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_')) &&
     (!agent.hosted_workspace ||
       (catalog.workspace_root !== undefined && catalog.workspace_root !== agent.hosted_workspace))
   )
     return needs(
-      'The approved folder has changed. Create a replacement agent to approve its current file access.',
+      'The approved folder has changed. Edit this agent to approve its current file access.',
     );
   if (provider === 'ollama') {
     if (catalog.local_error) return { state: 'unknown', message: catalog.local_error };
     if (!catalog.models.some((model) => localModelTag(model) === localModelTag(agent.model)))
       return needs(
-        'This local model is unavailable. Restore it in Ollama or create an agent with an installed model.',
+        'This local model is unavailable. Restore it in Ollama or choose another model in the agent editor.',
       );
   }
   return {

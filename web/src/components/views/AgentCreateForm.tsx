@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
+import { AgentSkills } from './AgentSkills';
 import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database } from 'lucide-react';
 import type { Team } from '../../types';
 import type { WorkspaceResource } from '../../lib/toolLibrary';
@@ -42,6 +43,7 @@ export function AgentCreateForm({
   guide?: boolean;
   connected?: {
     catalog: AgentCatalog;
+    library?: ReactNode;
     saving: boolean;
     error: string;
     onSaveKey?: (provider: string, key: string) => Promise<void>;
@@ -78,7 +80,9 @@ export function AgentCreateForm({
   ]);
   const [approvedScope, setApprovedScope] = useState<string | null>(() => {
     const disclosure = agent?.tool_disclosure;
-    const hasWorkspaceTools = selectedTools.some((id) => !id.startsWith('mcp_'));
+    const hasWorkspaceTools = selectedTools.some(
+      (id) => !id.startsWith('mcp_') && !id.startsWith('skill_'),
+    );
     return disclosure?.version === 1 &&
       disclosure.provider === provider &&
       JSON.stringify([...disclosure.tools].sort()) === JSON.stringify([...selectedTools].sort()) &&
@@ -400,11 +404,12 @@ export function AgentCreateForm({
       {!guide && (
         <fieldset className="agent-tool-picker">
           <legend>
-            Tools{' '}
+            Tools & skills{' '}
             <span>
               {configuration.toolIds.length +
                 configuration.resourceIds.length +
-                selectedTools.filter((name) => name.startsWith('mcp_')).length}{' '}
+                selectedTools.filter((name) => name.startsWith('mcp_') || name.startsWith('skill_'))
+                  .length}{' '}
               selected
             </span>
           </legend>
@@ -475,6 +480,7 @@ export function AgentCreateForm({
               .filter(
                 (id) =>
                   !id.startsWith('mcp_') &&
+                  !id.startsWith('skill_') &&
                   !Object.values(agentToolGroups).some((group) => group.includes(id)),
               )
               .map((id) => (
@@ -517,6 +523,23 @@ export function AgentCreateForm({
               disabled={connected.saving}
             />
           )}
+          {connected && (
+            <>
+              <AgentSkills
+                skills={connected.catalog.skills || []}
+                selected={selectedTools}
+                supported={supportedTools}
+                onSelect={setSelectedTools}
+                disabled={connected.saving}
+              />
+              {connected.library && (
+                <details className="agent-capability-entry">
+                  <summary>Add tools, MCPs or skills to the workspace</summary>
+                  {connected.library}
+                </details>
+              )}
+            </>
+          )}
           {requiresToolConsent && !compatibilityIssue && (
             <label className="agent-hosted-consent">
               <input
@@ -526,7 +549,9 @@ export function AgentCreateForm({
               />
               <span>
                 Allow selected tool inputs and results to be sent to {lab?.name}.
-                {selectedTools.some((tool) => !tool.startsWith('mcp_')) &&
+                {selectedTools.some(
+                  (tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_'),
+                ) &&
                   ` Working folder: ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
                 Only the selected tools are included in this approval.
               </span>

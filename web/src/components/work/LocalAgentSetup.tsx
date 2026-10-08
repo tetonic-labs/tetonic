@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
 import { AgentCreateForm } from '../views/AgentCreateForm';
 import type { AgentDraft } from '../../lib/agentConfiguration';
 import type {
@@ -137,6 +138,16 @@ export function LocalAgentSetup({
       backLabel="Back to agents"
       connected={{
         catalog,
+        library: (
+          <WorkspaceCapabilityLibrary
+            client={client}
+            supported={Array.isArray(catalog.skills)}
+            onChanged={async () => {
+              const updated = await client.agentCatalog();
+              if (active.current) setCatalog(updated);
+            }}
+          />
+        ),
         saving,
         error,
         onDiscoverModels: discoverModels,

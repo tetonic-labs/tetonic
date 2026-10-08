@@ -1,4 +1,149 @@
 /* Restored toolkit presentation, shared with the original team workspace. */
+.capability-library {
+  margin: 20px 0;
+  font-size: 13px;
+  line-height: 1.6;
+}
+.capability-library > h3 {
+  font-size: 20px;
+  letter-spacing: -0.4px;
+}
+.capability-library p,
+.agent-skills p {
+  color: var(--canvas-muted);
+  margin: 8px 0 14px;
+}
+.capability-choices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin: 18px 0;
+}
+.capability-choices > * {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 17px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 12px;
+  text-align: left;
+  color: inherit;
+  background: var(--bg-ground);
+  text-decoration: none;
+  transition: border-color 120ms ease;
+}
+.capability-choices > *:hover,
+.capability-choices [aria-pressed='true'] {
+  border-color: var(--canvas-copper);
+}
+.capability-choices > *:disabled {
+  opacity: 0.55;
+}
+.capability-choices strong,
+.capability-choices small,
+.capability-skill-option small {
+  display: block;
+}
+.capability-choices small,
+.capability-skill-option small {
+  color: var(--canvas-muted);
+  font-size: 12px;
+  margin-top: 4px;
+}
+.capability-choices svg {
+  flex-shrink: 0;
+  margin-top: 3px;
+}
+.capability-choices strong svg {
+  display: inline;
+}
+.capability-editor {
+  border: 0;
+  padding: 8px 0;
+  min-width: 0;
+}
+.capability-editor legend {
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.capability-editor label {
+  display: grid;
+  gap: 6px;
+  margin: 14px 0;
+}
+.capability-editor label > span {
+  color: var(--canvas-muted);
+}
+.capability-editor input,
+.capability-editor textarea {
+  width: 100%;
+  background: var(--bg-ground);
+  border: 1px solid var(--color-border-subtle);
+  border-radius: 8px;
+  padding: 10px 12px;
+  color: inherit;
+  font: inherit;
+  resize: vertical;
+}
+.capability-editor input:focus,
+.capability-editor textarea:focus {
+  outline: 2px solid var(--canvas-copper);
+  outline-offset: 2px;
+}
+.capability-actions {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  margin: 18px 0;
+}
+.capability-library summary,
+.agent-capability-entry > summary,
+.skill-details summary {
+  cursor: pointer;
+  padding: 10px 0;
+}
+.agent-capability-entry {
+  margin: 18px 0;
+  border-top: 1px solid var(--color-border-subtle);
+}
+.agent-capability-entry > summary {
+  color: var(--canvas-copper);
+  font-size: 13px;
+}
+.agent-skills {
+  margin-top: 24px;
+  font-size: 13px;
+}
+.capability-skill-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 13px 0;
+  border-bottom: 1px solid var(--color-border-subtle);
+  cursor: pointer;
+}
+.capability-skill-option input {
+  flex: 0 0 auto;
+  margin-top: 4px;
+  accent-color: var(--canvas-copper);
+}
+.skill-details {
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+.skill-details pre {
+  white-space: pre-wrap;
+  max-height: 340px;
+  overflow: auto;
+  background: var(--bg-ground);
+  padding: 12px;
+  font: 11px/1.7 var(--font-mono);
+}
+.skill-details button {
+  color: var(--canvas-copper);
+  padding: 10px 0;
+}
 .tool-library .tl-controls {
   margin-top: 22px;
   flex-wrap: wrap;

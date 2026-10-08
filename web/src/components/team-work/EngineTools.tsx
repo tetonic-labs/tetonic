@@ -1,3 +1,5 @@
+import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
+import { SkillDetails } from '../views/SkillDetails';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { toolDescription } from '../../lib/agentCapabilities';
 import { ToolsView, type ToolkitResource } from '../views/ToolsView';
@@ -27,7 +29,7 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       name: toolDescription([id], catalog),
       available: !!ready && !!catalog?.tools?.includes(id),
     }));
-  const local = tools.filter((id) => !id.startsWith('mcp_'));
+  const local = tools.filter((id) => !id.startsWith('mcp_') && !id.startsWith('skill_'));
   const files = local.filter((id) => fileTools.has(id));
   const resources: ToolkitResource[] = [];
   if (files.length)
@@ -66,6 +68,36 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
       agents: users(ids),
     });
   }
+  for (const skill of catalog?.skills || [])
+    resources.push({
+      id: skill.id,
+      name: skill.name,
+      kind: 'skill',
+      description: skill.description,
+      tools: describe([skill.id]),
+      agents: users([skill.id]),
+      revoked: !skill.enabled,
+      detail: (
+        <SkillDetails
+          key={skill.id}
+          skill={skill}
+          client={engine.client}
+          onChanged={engine.refresh}
+        />
+      ),
+    });
+  const unknownSkills = tools.filter(
+    (id) => id.startsWith('skill_') && !catalog?.skills?.some((s) => s.id === id),
+  );
+  for (const id of unknownSkills)
+    resources.push({
+      id,
+      name: `Unavailable skill ${id.slice(6, 14)}`,
+      kind: 'skill',
+      description: 'This saved skill is absent from the current workspace library.',
+      tools: describe([id]),
+      agents: users([id]),
+    });
   const missing = tools.filter((id) => id.startsWith('mcp_') && !connectedIds.has(id));
   if (missing.length)
     resources.push({
@@ -80,6 +112,13 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
   return (
     <ToolsView
       resources={resources}
+      library={
+        <WorkspaceCapabilityLibrary
+          client={engine.client}
+          supported={ready && Array.isArray(catalog?.skills)}
+          onChanged={engine.refresh}
+        />
+      }
       ready={ready}
       workspaceRoot={catalog?.workspace_root}
       mcpSupported={Array.isArray(catalog?.mcp_connections)}

@@ -221,7 +221,16 @@ export interface EngineAgent {
   max_tokens: number;
   tools?: string[];
 }
+export interface WorkspaceSkill {
+  id: string;
+  name: string;
+  description: string;
+  source: string;
+  enabled: boolean;
+  created_at: string;
+}
 export interface AgentCatalog {
+  skills?: WorkspaceSkill[];
   mcp_connections?: McpConnection[];
   workspace_root?: string | null;
   runtime_profiles?: AgentRuntimeProfile[];
@@ -413,6 +422,19 @@ export class LocalEngine {
   }
   agentCatalog(signal?: AbortSignal) {
     return this.request<AgentCatalog>('/agent-catalog', undefined, signal);
+  }
+  importSkill(input: { content: string; source: string }) {
+    return this.request<WorkspaceSkill>('/skills', input);
+  }
+  revokeSkill(id: string) {
+    return this.request<WorkspaceSkill[]>('/skills/revoke', { id });
+  }
+  skillContent(id: string, signal?: AbortSignal) {
+    return this.request<{ content: string }>(
+      `/skills/${encodeURIComponent(id)}`,
+      undefined,
+      signal,
+    );
   }
   discoverMcp(id: string) {
     return this.request<McpConnection>(`/mcp-discover/${encodeURIComponent(id)}`, {});

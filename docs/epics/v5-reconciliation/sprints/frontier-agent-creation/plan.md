@@ -40,7 +40,7 @@ This is a dedicated implementation sprint, not an extra calendar week or an inde
 | [FAR-003](FAR-003-modern-inference-and-streaming.md) | In progress | L | Modern inference protocols, streaming and tool continuity |
 | [FAR-004](FAR-004-governed-tools.md) | In progress | L | Selected tools across frontier models |
 | [FAR-005](FAR-005-vendor-harnesses.md) | In progress | L | Frontier harness adapters inside managed execution |
-| [FAR-006](FAR-006-mcp-and-skills.md) | In progress | L | Local MCP read-tool profile delivered; remote/auth/writes, harness attachment and skills open |
+| [FAR-006](FAR-006-mcp-and-skills.md) | In progress | L | Local MCP reads and standalone workspace skills delivered; remote/auth/writes, harness attachment and bundled skills open |
 | [FAR-007](FAR-007-team-dispatch-and-edits.md) | In progress | L | Versioned agent editing and parallel mixed-provider general-harness teams delivered; vendor harnesses/live proof open |
 | [FAR-008](FAR-008-conformance-and-product-proof.md) | In progress | L | Conformance, installation and end-to-end product evidence |
 
