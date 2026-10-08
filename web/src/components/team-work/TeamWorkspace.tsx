@@ -484,6 +484,10 @@ function ConnectedTeamWorkspace() {
                   }}
                   dark={dark}
                   setDark={setDark}
+                  onTeam={(id) => {
+                    setRecipient(`team:${id}`);
+                    choose();
+                  }}
                   onOpenAgents={() => open({ kind: 'agents' })}
                   onOpenWork={() => open({ kind: 'work' })}
                 />

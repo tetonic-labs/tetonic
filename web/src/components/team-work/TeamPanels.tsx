@@ -22,6 +22,7 @@ export function TeamPanels({
   initialAgentId,
   onOpenAgents = () => {},
   onOpenWork = () => {},
+  onTeam = () => {},
   editInitially = false,
 }: {
   panel: TeamPanel;
@@ -33,6 +34,7 @@ export function TeamPanels({
   initialAgentId?: string;
   onOpenAgents?: () => void;
   onOpenWork?: () => void;
+  onTeam?: (id: string) => void;
   editInitially?: boolean;
 }) {
   const engine = useLocalEngine();
@@ -105,6 +107,7 @@ export function TeamPanels({
       <AgentRoster records={records} onSelect={setAgentId} onCreate={() => setCreating(true)} />
     );
   }
-  if (panel === 'teams') return <TeamsPanel onAgents={onOpenAgents} onWork={onOpenWork} />;
+  if (panel === 'teams')
+    return <TeamsPanel onAgents={onOpenAgents} onWork={onOpenWork} onTeam={onTeam} />;
   return <WorkspaceSettings dark={dark} setDark={setDark} />;
 }

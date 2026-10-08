@@ -8,6 +8,7 @@ import {
   type LocalApprovalsInspection,
   type LocalDigestResponse,
   type LocalTeamInfo,
+  type WorkTeamSelection,
   type EngineTask,
   type LocalApproval,
 } from '../lib/localEngine';
@@ -36,6 +37,7 @@ interface LocalEngineContextType {
     parent_id?: string,
     request_id?: string,
     purpose?: 'work' | 'explore',
+    work_team?: WorkTeamSelection,
   ) => Promise<EngineTask>;
   cancelTask: (id: string) => Promise<EngineTask>;
   createWorkItem: (
@@ -183,19 +185,26 @@ export function LocalEngineProvider({
       parent_id?: string,
       request_id?: string,
       purpose?: 'work' | 'explore',
+      work_team?: WorkTeamSelection,
     ) => {
       const engine = engineRef.current;
       if (!engine) throw new Error('Local engine not available');
       const requestId = request_id || crypto.randomUUID();
-      const task = purpose
-        ? await engine.submit(requestId, input, agent_key, parent_id, purpose)
-        : await engine.submit(requestId, input, agent_key, parent_id);
+      const task = work_team
+        ? await engine.submit(requestId, input, agent_key, parent_id, purpose, work_team)
+        : purpose
+          ? await engine.submit(requestId, input, agent_key, parent_id, purpose)
+          : await engine.submit(requestId, input, agent_key, parent_id);
       if (
         task.id !== requestId ||
         task.input !== input.trim() ||
         task.agent_key !== agent_key ||
         (task.purpose || 'work') !== (purpose || 'work') ||
-        (task.parent_id || undefined) !== parent_id
+        (task.parent_id || undefined) !== parent_id ||
+        (work_team &&
+          (task.work_team?.id !== work_team.id ||
+            task.work_team.revision !== work_team.revision)) ||
+        (!parent_id && !work_team && !!task.work_team)
       )
         throw new Error('The reply did not confirm this request. Check your work before retrying.');
       if (engine !== engineRef.current)

@@ -922,19 +922,170 @@ it('keeps a large work list bounded, searchable, and filterable without hiding t
   expect(overview.queryByRole('button', { name: /Effort 46/ })).toBeNull();
 });
 
-it('shows a real team roster with a direct path to agent management and truthful edit limits', async () => {
+it('shows a saved work-team roster with editing and a path to agent management', async () => {
   const f = fixture();
+  f.setData({
+    ...f.getData(),
+    work_teams: [
+      {
+        id: 'research',
+        name: 'Research partners',
+        purpose: 'Compare evidence',
+        agent_keys: [agent.key],
+        revision: 1,
+      },
+    ],
+  });
   f.view();
   await screen.findByRole('button', { name: 'Our team', exact: true });
   fireEvent.click(screen.getByRole('button', { name: 'Teams', exact: true }));
-  fireEvent.click(
-    await screen.findByRole('button', { name: /Our team 1 agent in this workspace Current/ }),
-  );
-  expect(screen.getByText(/Team names and membership are read-only/)).toBeTruthy();
+  fireEvent.click(await screen.findByRole('button', { name: /Research partners.*1 agents/ }));
+  expect(screen.getByRole('button', { name: 'Edit team' })).toBeTruthy();
   expect(
     within(screen.getByRole('complementary', { name: 'Project details' })).getByText('Mira'),
   ).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Manage agents' }));
   await screen.findByRole('region', { name: 'Agent roster' });
   expect(screen.getByRole('button', { name: 'Create agent' })).toBeTruthy();
+});
+
+it('creates and edits a reusable team from saved agents, then selects it on the map', async () => {
+  const f = fixture();
+  const jun = { ...agent, key: 'jun', id: 'jun-id', name: 'Jun', purpose: 'Review evidence' };
+  const guide = { ...agent, key: 'guide', id: 'guide-id', name: 'The Guide', tools: [] };
+  f.setData({
+    ...f.getData(),
+    work_teams: [],
+    shaping_agent_key: 'guide',
+    agents: [agent, jun, guide],
+  });
+  const save = vi.spyOn(f.client, 'saveWorkTeam').mockImplementation(async (r) => {
+    const result = {
+      id: r.id,
+      revision: r.expected_revision + 1,
+      name: r.name,
+      purpose: r.purpose,
+      agent_keys: r.agent_keys,
+    };
+    f.setData({ ...f.getData(), work_teams: [result] });
+    return result;
+  });
+  const createAgent = vi.spyOn(f.client, 'createAgent');
+  f.view();
+  fireEvent.click(await screen.findByRole('button', { name: 'Teams', exact: true }));
+  const create = await screen.findByRole('button', { name: 'Create team', exact: true });
+  await waitFor(() => expect(create).toHaveProperty('disabled', false));
+  fireEvent.click(create);
+  fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Research partners' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Mira Understand problems/ }));
+  fireEvent.click(screen.getByRole('checkbox', { name: /Jun Review evidence/ }));
+  expect(screen.queryByRole('checkbox', { name: /The Guide/ })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Create team', exact: true }));
+  await screen.findByRole('button', { name: 'Work with this team' });
+  expect(save.mock.calls[0][0]).toMatchObject({
+    expected_revision: 0,
+    name: 'Research partners',
+    agent_keys: ['mira', 'jun'],
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Edit team' }));
+  fireEvent.change(screen.getByLabelText('Team name'), { target: { value: 'Evidence team' } });
+  fireEvent.click(screen.getByRole('checkbox', { name: /Jun Review evidence/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save team' }));
+  await screen.findByRole('heading', { name: 'Evidence team' });
+  expect(save.mock.calls[1][0]).toMatchObject({
+    id: save.mock.calls[0][0].id,
+    expected_revision: 1,
+    agent_keys: ['mira'],
+  });
+  expect(createAgent).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Work with this team' }));
+  expect(screen.getByRole('combobox', { name: 'Assign to agent' })).toHaveProperty(
+    'value',
+    `team:${save.mock.calls[0][0].id}`,
+  );
+  expect(screen.getByText(/The Guide will coordinate Mira/)).toBeTruthy();
+});
+
+it('keeps a team recipient and roster revision across an uncertain send and reopening', async () => {
+  const f = fixture();
+  const guide = { ...agent, key: 'guide', id: 'guide-id', name: 'The Guide', tools: [] };
+  const team = {
+    id: 'research',
+    revision: 1,
+    name: 'Research partners',
+    purpose: 'Read evidence',
+    agent_keys: ['mira'],
+  };
+  f.setData({
+    ...f.getData(),
+    work_teams: [team],
+    shaping_agent_key: 'guide',
+    agents: [agent, guide],
+  });
+  const onShape = vi.fn();
+  const mount = () =>
+    render(
+      <LocalEngineProvider client={f.client}>
+        <WorkComposer recipient="team:research" onAccepted={() => {}} onShape={onShape} />
+      </LocalEngineProvider>,
+    );
+  f.submit.mockRejectedValueOnce(new Error('Connection dropped'));
+  let view = mount();
+  fireEvent.change(await screen.findByRole('textbox'), {
+    target: { value: 'Compare the evidence' },
+  });
+  const send = screen.getByRole('button', { name: 'Send to the Guide' });
+  await waitFor(() => expect(send).toHaveProperty('disabled', false));
+  fireEvent.click(send);
+  await screen.findByRole('alert');
+  const first = f.submit.mock.calls[0];
+  expect(first.slice(2)).toEqual(['guide', undefined, 'explore', { id: 'research', revision: 1 }]);
+  view.unmount();
+  f.setData({ ...f.getData(), work_teams: [{ ...team, revision: 2, name: 'Changed roster' }] });
+  f.submit.mockImplementationOnce(async (id, input, key, parent, purpose) => ({
+    ...saved,
+    id,
+    input,
+    agent_key: key,
+    parent_id: parent,
+    purpose,
+    work_team: team,
+  }));
+  view = mount();
+  const retry = await screen.findByRole('button', { name: 'Retry work request' });
+  await waitFor(() => expect(retry).toHaveProperty('disabled', false));
+  fireEvent.click(retry);
+  await waitFor(() => expect(onShape).toHaveBeenCalledWith(first[0]));
+  expect(f.submit.mock.calls[1]).toEqual(first);
+  view.unmount();
+});
+
+it('groups separate plans by their saved team without using the current roster as activity', () => {
+  const f = fixture();
+  const team = {
+    id: 'research',
+    revision: 1,
+    name: 'Research',
+    purpose: 'Evidence',
+    agent_keys: ['mira'],
+  };
+  const tasks = ['one', 'two'].map((id) => ({
+    ...saved,
+    id,
+    work_team: team,
+    plan: {
+      source_work_id: `source-${id}`,
+      root_work_id: id,
+      assignment_key: null,
+      title: id,
+      depends_on: [],
+    },
+  }));
+  const projected = teamWorkspace(
+    { ...f.getData(), tasks, work_teams: [{ ...team, revision: 2, agent_keys: ['someone-new'] }] },
+    [],
+  );
+  expect(projected.projects).toHaveLength(2);
+  expect(projected.projects.map((p) => p.area?.id)).toEqual(['roster:research', 'roster:research']);
+  expect(projected.projects.every((p) => p.people.every((a) => a.agent.id === 'mira'))).toBe(true);
 });

@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { EngineRequestError, type EngineTask } from '../../lib/localEngine';
+import { EngineRequestError, type EngineTask, type WorkTeamSelection } from '../../lib/localEngine';
 
 interface PendingSend {
   id: string;
@@ -7,6 +7,7 @@ interface PendingSend {
   agent: string;
   parent?: string;
   purpose?: 'work' | 'explore';
+  workTeam?: WorkTeamSelection;
 }
 interface Draft {
   text: string;
@@ -31,7 +32,11 @@ function read(key: string): Drafts {
               typeof d.pending.input === 'string' &&
               typeof d.pending.agent === 'string' &&
               (!d.pending.purpose || ['work', 'explore'].includes(d.pending.purpose)) &&
-              (!d.pending.parent || typeof d.pending.parent === 'string')))
+              (!d.pending.parent || typeof d.pending.parent === 'string') &&
+              (!d.pending.workTeam ||
+                (typeof d.pending.workTeam.id === 'string' &&
+                  Number.isInteger(d.pending.workTeam.revision) &&
+                  d.pending.workTeam.revision > 0))))
         );
       }),
     ) as Drafts;
@@ -76,9 +81,11 @@ export function useWorkspaceDraft(scope: string) {
       parent: string | undefined,
       id: string,
       purpose?: 'work' | 'explore',
+      workTeam?: WorkTeamSelection,
     ) => Promise<EngineTask>,
     onAccepted: (task: EngineTask) => void,
     purpose?: 'work' | 'explore',
+    workTeam?: WorkTeamSelection,
   ) {
     const draft = data.current[key] || { text: '' };
     if (inFlight.current || !draft.text.trim() || !agent) return;
@@ -88,18 +95,22 @@ export function useWorkspaceDraft(scope: string) {
       agent,
       parent,
       purpose,
+      workTeam,
     };
     inFlight.current = true;
     setBusyKey(key);
     put(key, { ...draft, pending, error: undefined });
     try {
-      const task = await submit(
-        pending.input,
-        pending.agent,
-        pending.parent,
-        pending.id,
-        pending.purpose,
-      );
+      const task = pending.workTeam
+        ? await submit(
+            pending.input,
+            pending.agent,
+            pending.parent,
+            pending.id,
+            pending.purpose,
+            pending.workTeam,
+          )
+        : await submit(pending.input, pending.agent, pending.parent, pending.id, pending.purpose);
       put(key, { text: '' });
       if (mounted.current) onAccepted(task);
     } catch (error) {

@@ -29,7 +29,9 @@ export function teamWorkspace(
         ? `plan:${launched.get(work.id)}`
         : work.item?.goal_id
           ? `goal:${work.item.goal_id}`
-          : `team:${workspace.team_id}`;
+          : work.latest?.work_team
+            ? `roster:${work.latest.work_team.id}`
+            : `team:${workspace.team_id}`;
     groups.set(group, [...(groups.get(group) || []), work]);
   }
   // A new connected team has a real place on the map even before its first run.
@@ -39,13 +41,20 @@ export function teamWorkspace(
     engineAgentToUI(agent, [...workspace.tasks, ...planning]),
   );
   const projects: ProjectView[] = [...groups].map(([id, work]) => {
-    const isTeam = id.startsWith('team:');
+    const isTeam = id.startsWith('team:') || id.startsWith('roster:');
+    const roster = work.find((r) => r.latest?.work_team)?.latest?.work_team;
+    const teamName = roster?.name || workspace.team_name;
     const planRoot = work.find((r) => r.id === r.latest?.plan?.root_work_id);
     const participantKeys = new Set(
       work.flatMap((record) => record.turns.map((turn) => turn.agent_key)),
     );
     const people = agents
-      .filter((agent) => isTeam || participantKeys.has(agent.id))
+      .filter(
+        (agent) =>
+          (isTeam && !roster) ||
+          participantKeys.has(agent.id) ||
+          (isTeam && !!roster?.agent_keys.includes(agent.id)),
+      )
       .map((agent) => {
         const owned = work.filter((record) => record.latest?.agent_key === agent.id);
         const active = owned.filter((record) => record.latest && taskIsActive(record.latest));
@@ -86,12 +95,21 @@ export function teamWorkspace(
     return {
       id,
       kind: id.startsWith('plan:') ? 'plan' : isTeam ? 'workspace' : 'goal',
-      title: planRoot?.title || (isTeam ? workspace.team_name : `Goal ${id.slice(5)}`),
-      team: workspace.team_name,
+      title: planRoot?.title || (isTeam ? teamName : `Goal ${id.slice(5)}`),
+      team: teamName,
       aim: isTeam
         ? 'Work and explorations in your connected team.'
         : 'Work grouped by its recorded goal reference.',
-      area: { id: workspace.team_id, name: workspace.team_name, aim: '', tone: 'copper' },
+      area: {
+        id: roster ? `roster:${roster.id}` : workspace.team_id,
+        name: teamName,
+        aim: roster?.purpose || '',
+        tone: roster
+          ? (['copper', 'forest', 'ink'] as const)[
+              [...roster.id].reduce((s, c) => s + c.charCodeAt(0), 0) % 3
+            ]
+          : 'copper',
+      },
       people,
       places: [], // This API does not report live tool destinations. Do not invent them.
       streams: work

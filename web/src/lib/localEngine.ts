@@ -141,6 +141,7 @@ export type EngineTaskState =
   | 'completed'
   | 'recovery_required';
 export interface EngineTask {
+  work_team?: WorkTeam | null;
   human_questions?: WorkHumanQuestion[];
   plan?: PlanTaskLink | null;
   planning_for?: string | null;
@@ -157,6 +158,7 @@ export interface EngineTask {
   messages: EngineMessage[];
 }
 export interface EngineWorkspace {
+  work_teams?: WorkTeam[];
   usage?: WorkUsage[];
   budget_setting?: BudgetSetting;
   budget_max_tokens?: number;
@@ -468,6 +470,7 @@ export class LocalEngine {
     agent_key: string,
     parent_id?: string,
     purpose?: 'work' | 'explore',
+    work_team?: WorkTeamSelection,
   ) {
     return this.request<EngineTask>('/tasks', {
       request_id,
@@ -475,7 +478,11 @@ export class LocalEngine {
       agent_key,
       ...(parent_id ? { parent_id } : {}),
       ...(purpose ? { purpose } : {}),
+      ...(work_team ? { work_team } : {}),
     });
+  }
+  saveWorkTeam(request: SaveWorkTeam) {
+    return this.request<WorkTeam>('/work-teams', request);
   }
   briefs(id: string, signal?: AbortSignal) {
     return this.request<WorkBrief[]>(`/briefs/${encodeURIComponent(id)}`, undefined, signal);
@@ -593,6 +600,24 @@ export interface LocalApprovalsInspection {
   active_stops: LocalControlStop[];
   pending_approvals: LocalApproval[];
   effort: unknown[];
+}
+
+export interface WorkTeamSelection {
+  id: string;
+  revision: number;
+}
+export interface WorkTeam extends WorkTeamSelection {
+  name: string;
+  purpose: string;
+  agent_keys: string[];
+}
+export interface SaveWorkTeam {
+  id: string;
+  request_id: string;
+  expected_revision: number;
+  name: string;
+  purpose: string;
+  agent_keys: string[];
 }
 
 export interface LocalTeamInfo {

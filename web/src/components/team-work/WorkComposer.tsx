@@ -24,13 +24,19 @@ export function WorkComposer({
   const agents = (engine.workspace?.agents || []).filter(
     (agent) => agent.key !== engine.workspace?.shaping_agent_key && !agent.plan_coordinator,
   );
-  const key = work ? `work:${work.id}` : 'new';
+  const teams = engine.workspace?.work_teams || [];
+  const teamChoice = choice.startsWith('team:') ? choice.slice(5) : undefined;
+  const key = work ? `work:${work.id}` : teamChoice ? `new-team:${teamChoice}` : 'new';
   const writer = useWorkspaceDraft(`team-work:${connectionDraftScope()}`);
   const draft = writer.drafts[key] || { text: '' };
+  const selectedTeam = teams.find((t) => t.id === (draft.pending?.workTeam?.id || teamChoice));
+  const teamSelection =
+    draft.pending?.workTeam ||
+    (selectedTeam ? { id: selectedTeam.id, revision: selectedTeam.revision } : undefined);
   const agentKey =
     draft.pending?.agent ||
     work?.latest?.agent_key ||
-    choice ||
+    (teamChoice ? engine.workspace?.shaping_agent_key : choice) ||
     engine.workspace?.shaping_agent_key ||
     agents[0]?.key ||
     '';
@@ -57,6 +63,7 @@ export function WorkComposer({
     engine.isConnected &&
     !!agentKey &&
     (!setupIssue || !!draft.pending) &&
+    (!teamChoice || !!selectedTeam || !!draft.pending) &&
     !writer.busyKey &&
     !!draft.text.trim() &&
     withinLimit &&
@@ -78,6 +85,7 @@ export function WorkComposer({
             else onAccepted(work?.id || task.id);
           },
           directing ? 'explore' : undefined,
+          teamSelection,
         );
       }}
     >
@@ -90,7 +98,7 @@ export function WorkComposer({
             With{' '}
             <select
               aria-label="Assign to agent"
-              value={agentKey}
+              value={teamChoice ? `team:${teamChoice}` : agentKey}
               disabled={!!draft.pending || !!writer.busyKey}
               onChange={(event) => setChoice(event.target.value)}
             >
@@ -103,6 +111,15 @@ export function WorkComposer({
               )}
               {agentKey && !selectedAgent && (
                 <option value={agentKey}>Selected agent unavailable</option>
+              )}
+              {teams.length > 0 && (
+                <optgroup label="Teams">
+                  {teams.map((team) => (
+                    <option key={team.id} value={`team:${team.id}`}>
+                      {team.name} · {team.agent_keys.length} agents
+                    </option>
+                  ))}
+                </optgroup>
               )}
               {agents.map((agent) => (
                 <option key={agent.key} value={agent.key}>
@@ -144,6 +161,18 @@ export function WorkComposer({
           {!work && <span>{directing ? 'Send' : 'Start work'}</span>}
         </button>
       </div>
+      {selectedTeam && !work && (
+        <p className="tw-team-recipient">
+          The Guide will coordinate{' '}
+          {selectedTeam.agent_keys
+            .map((key) => agents.find((a) => a.key === key)?.name || key)
+            .join(', ')}
+          . Review the plan before work starts.
+        </p>
+      )}
+      {teamChoice && !selectedTeam && (
+        <p role="alert">This team is unavailable. Choose a saved team or agent.</p>
+      )}
       {directing && selectedAgent && onGuideSettings && (
         <button
           type="button"
