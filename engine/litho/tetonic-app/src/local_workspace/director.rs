@@ -27,6 +27,11 @@ impl LocalWorkspace {
     ) -> Result<serde_json::Value, AppError> {
         let source = conversation_root(snapshot, turn);
         let mut context = observation(snapshot, turn);
+        if let Some(team) = self.work_team(source).await? {
+            context["agents"] =
+                serde_json::json!(agent_observations(snapshot, Some(&team.agent_keys)));
+            context["selected_team"] = serde_json::json!({"id":team.id,"name":team.name,"purpose":team.purpose,"roster_revision":team.revision,"agent_keys":team.agent_keys,"constraint":"Assign work only to this saved roster. Team membership grants no additional tools or access."});
+        }
         let view = self.plan_view(source).await?;
         if let Some(plan) = view.plans.first() {
             context["saved_plan"] = serde_json::json!({
@@ -55,6 +60,20 @@ impl LocalWorkspace {
         }
         Ok(context)
     }
+}
+
+fn agent_observations(
+    snapshot: &LocalWorkspaceSnapshot,
+    allowed: Option<&[String]>,
+) -> Vec<serde_json::Value> {
+    snapshot.agents.iter()
+        .filter(|a| a.key != shaping::GUIDE && !a.plan_coordinator && allowed.is_none_or(|keys|keys.contains(&a.key))).take(24)
+        .map(|a| serde_json::json!({
+            "key": a.key, "name": a.name, "purpose": short(&a.purpose, 240),
+            "provider": a.provider, "model": a.model, "tools": a.tools,
+            "max_tokens_per_run": a.max_tokens,
+            "workspace_active_assignments": snapshot.tasks.iter().filter(|t| t.agent_key == a.key && active(&t.state)).count(),
+        })).collect()
 }
 
 fn active(state: &str) -> bool {
@@ -114,14 +133,7 @@ fn observation(snapshot: &LocalWorkspaceSnapshot, turn: &str) -> serde_json::Val
         .iter()
         .filter(|u| work.iter().any(|t| t.id == u.work_id))
         .collect();
-    let agents: Vec<_> = snapshot.agents.iter()
-        .filter(|a| a.key != shaping::GUIDE && !a.plan_coordinator).take(24)
-        .map(|a| serde_json::json!({
-            "key": a.key, "name": a.name, "purpose": short(&a.purpose, 240),
-            "provider": a.provider, "model": a.model, "tools": a.tools,
-            "max_tokens_per_run": a.max_tokens,
-            "workspace_active_assignments": snapshot.tasks.iter().filter(|t| t.agent_key == a.key && active(&t.state)).count(),
-        })).collect();
+    let agents = agent_observations(snapshot, None);
     let work: Vec<_> = work.into_iter().take(24).map(|t| serde_json::json!({
         "id": t.id, "link": format!("#work={}", t.id),
         "title": short(t.plan.as_ref().map_or(t.input.as_str(), |p| p.title.as_str()), 160),
@@ -237,6 +249,7 @@ mod tests {
                     }
                 }
                 snapshot.tasks.push(LocalTask {
+                    work_team: None,
                     id: "follow-up".into(),
                     parent_id: Some(private.into()),
                     purpose: WorkPurpose::Explore,

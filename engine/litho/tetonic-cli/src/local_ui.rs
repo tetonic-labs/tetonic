@@ -159,6 +159,8 @@ fn authorized(headers: &hyper::HeaderMap, token: &str, origin: &str, host: &str)
 #[serde(deny_unknown_fields)]
 struct Submit {
     #[serde(default)]
+    work_team: Option<tetonic_app::local_workspace::WorkTeamSelection>,
+    #[serde(default)]
     purpose: WorkPurpose,
     #[serde(default)]
     parent_id: Option<String>,
@@ -234,6 +236,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             .approvals()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path == "/api/local/work-teams" {
+        state
+            .workspace
+            .work_teams()
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path == "/api/local/teams" {
         state
             .workspace
@@ -250,6 +258,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
         && matches!(
             path.as_str(),
             "/api/local/tasks"
+                | "/api/local/work-teams"
                 | "/api/local/agents"
                 | "/api/local/agents/update"
                 | "/api/local/skills"
@@ -282,7 +291,18 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/skills" {
+        if path == "/api/local/work-teams" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::local_workspace::SaveWorkTeam>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid team settings.");
+            };
+            state
+                .workspace
+                .save_work_team(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/skills" {
             let Ok(payload) = serde_json::from_slice::<ImportSkill>(&body) else {
                 return error(StatusCode::BAD_REQUEST, "Invalid skill import.");
             };
@@ -363,7 +383,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             };
             state
                 .workspace
-                .submit_with_purpose(
+                .submit_to_team(
                     payload.request_id,
                     payload.input,
                     payload
@@ -371,6 +391,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                         .unwrap_or_else(|| "Local assistant".into()),
                     payload.parent_id,
                     payload.purpose,
+                    payload.work_team,
                 )
                 .await
                 .map(|v| serde_json::to_value(v).unwrap_or_default())

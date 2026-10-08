@@ -591,6 +591,7 @@ impl Store {
             return invalid();
         }
         if let Some(content) = content {
+            self.validate_work_team_assignments(actor, org, team, work, content)?;
             content.validate()?;
         }
         self.require_team_participant(actor, org, team)?;
@@ -657,6 +658,7 @@ impl Store {
         revision: i64,
         content: &PlanContent,
     ) -> Result<HuddlePlan> {
+        self.validate_work_team_assignments(actor, org, team, work, content)?;
         content.validate()?;
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
         let row = self

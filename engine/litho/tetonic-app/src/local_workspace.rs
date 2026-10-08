@@ -33,11 +33,13 @@ mod plans;
 pub use plan_execution::{PlanExecutionView, PlanTaskLink, StartPlan};
 mod providers;
 mod shaping;
+mod work_teams;
 mod workroom;
 pub use agents::{CreateLocalAgent, LocalAgent, LocalAgentCatalog, UpdateLocalAgent};
 pub use plans::PlanCommand;
 pub use providers::{LocalModelCatalog, LocalProvider, RemoveProviderKey, SaveProviderKey};
 pub use shaping::{SaveWorkBrief, WorkPurpose};
+pub use work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
 pub use workroom::BudgetSettingsRequest;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -104,6 +106,7 @@ pub struct LocalDigestResponse {
 
 #[derive(Serialize)]
 pub struct LocalWorkspaceSnapshot {
+    pub work_teams: Vec<WorkTeam>,
     pub usage: Vec<tetonic_memory::WorkUsage>,
     pub budget_setting: tetonic_memory::TeamBudgetSetting,
     pub budget_max_tokens: u64,
@@ -122,6 +125,7 @@ pub struct LocalWorkspaceSnapshot {
 
 #[derive(Serialize)]
 pub struct LocalTask {
+    pub work_team: Option<WorkTeam>,
     pub human_questions: Vec<tetonic_memory::WorkHumanQuestion>,
     pub plan: Option<PlanTaskLink>,
     pub planning_for: Option<String>,
@@ -193,6 +197,7 @@ impl LocalWorkspace {
             tasks.push(self.project_task(item).await?);
         }
         Ok(LocalWorkspaceSnapshot {
+            work_teams: self.work_teams().await?,
             usage: self
                 .local
                 .resources()
@@ -265,7 +270,25 @@ impl LocalWorkspace {
         parent_id: Option<String>,
         purpose: WorkPurpose,
     ) -> Result<LocalTask, AppError> {
+        self.submit_to_team(id, input, agent_key, parent_id, purpose, None)
+            .await
+    }
+
+    pub async fn submit_to_team(
+        &self,
+        id: String,
+        input: String,
+        agent_key: String,
+        parent_id: Option<String>,
+        purpose: WorkPurpose,
+        work_team: Option<WorkTeamSelection>,
+    ) -> Result<LocalTask, AppError> {
         validate_request_id(&id)?;
+        if work_team.is_some() && (purpose != WorkPurpose::Explore || agent_key != shaping::GUIDE) {
+            return Err(AppError::InvalidRequest(
+                "Send team requests through the Guide to shape and review assignments.".into(),
+            ));
+        }
         if agent_key == plan_execution::COORDINATOR {
             return Err(AppError::InvalidRequest(
                 "Start an agreed plan to work with the team coordinator.".into(),
@@ -341,6 +364,27 @@ impl LocalWorkspace {
                         .into(),
                 ));
             }
+            let pinned = self.work_team(&id).await?;
+            let expected = if let Some(parent) = &parent_id {
+                self.work_team(parent).await?.map(|t| WorkTeamSelection {
+                    id: t.id,
+                    revision: t.revision,
+                })
+            } else {
+                work_team.clone()
+            };
+            if pinned.as_ref().map(|t| WorkTeamSelection {
+                id: t.id.clone(),
+                revision: t.revision,
+            }) != expected
+                || work_team
+                    .as_ref()
+                    .is_some_and(|s| expected.as_ref() != Some(s))
+            {
+                return Err(AppError::InvalidRequest(
+                    "This request already belongs to a different team roster.".into(),
+                ));
+            }
             if existing.run_id.is_some() {
                 return self.project_task(existing).await;
             }
@@ -353,7 +397,7 @@ impl LocalWorkspace {
         self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
         let mut settings = self.agent_execution_settings(&agent).await?;
         let work = resources
-            .create_team_work_item_for_purpose(
+            .create_work_with_roster(
                 &self.host.credential,
                 crate::resources::CreateTeamWorkItem {
                     org: ORG.into(),
@@ -365,6 +409,7 @@ impl LocalWorkspace {
                 },
                 Some(input.clone()),
                 purpose,
+                Some((work_team, parent_id.clone())),
             )
             .await
             .map_err(resource)?;
@@ -551,7 +596,14 @@ impl LocalWorkspace {
             .map(|p| p.information_context_id.clone())
             .unwrap_or_else(|| self.context.clone());
         let bound_attempt = work.attempt_id.clone();
+        let work_team = self
+            .work_team(
+                plan.as_ref()
+                    .map_or(work.work_id.as_str(), |p| p.source_work_id.as_str()),
+            )
+            .await?;
         let mut task = LocalTask {
+            work_team,
             human_questions: vec![],
             plan,
             planning_for: None,

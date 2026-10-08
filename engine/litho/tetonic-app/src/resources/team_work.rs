@@ -62,6 +62,18 @@ impl ResourceService {
         input: Option<String>,
         purpose: tetonic_memory::WorkPurpose,
     ) -> Result<TeamWorkItem, ResourceError> {
+        self.create_work_with_roster(credential, command, input, purpose, None)
+            .await
+    }
+
+    pub(crate) async fn create_work_with_roster(
+        &self,
+        credential: &str,
+        command: crate::resources::CreateTeamWorkItem,
+        input: Option<String>,
+        purpose: tetonic_memory::WorkPurpose,
+        roster: Option<(Option<tetonic_memory::WorkTeamSelection>, Option<String>)>,
+    ) -> Result<TeamWorkItem, ResourceError> {
         let crate::resources::CreateTeamWorkItem {
             org,
             team,
@@ -83,19 +95,26 @@ impl ResourceService {
         Ok(self
             .store
             .write(move |db| {
-                db.create_team_work_item_for_purpose(
-                    tetonic_memory::CreateTeamWorkItem {
-                        actor: &actor.principal_id,
-                        org: &org,
-                        team: &team,
-                        work_id: &work_id,
-                        title: &title,
-                        request_id: &request_id,
-                        goal_id: goal_id.as_deref(),
-                    },
-                    input.as_deref(),
-                    purpose,
-                )
+                let command = tetonic_memory::CreateTeamWorkItem {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    work_id: &work_id,
+                    title: &title,
+                    request_id: &request_id,
+                    goal_id: goal_id.as_deref(),
+                };
+                if let Some((selection, parent)) = roster {
+                    db.create_rostered_work(
+                        command,
+                        input.as_deref(),
+                        purpose,
+                        selection.as_ref(),
+                        parent.as_deref(),
+                    )
+                } else {
+                    db.create_team_work_item_for_purpose(command, input.as_deref(), purpose)
+                }
             })
             .await??)
     }

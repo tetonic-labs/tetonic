@@ -148,6 +148,7 @@ impl Store {
         }
         let content = plan.content.ok_or(StoreError::ControlResourceConflict)?;
         content.validate()?;
+        self.validate_work_team_assignments(actor, org, team, source, &content)?;
         let mut ids = std::collections::HashSet::new();
         ids.insert(root);
         if pins.len() != content.assignments.len()

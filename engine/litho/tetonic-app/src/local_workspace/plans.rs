@@ -92,6 +92,20 @@ impl LocalWorkspace {
         id: &str,
         command: PlanMutation,
     ) -> Result<HuddlePlan, AppError> {
+        if let Some(roster) = self.work_team(id).await? {
+            let content = match &command {
+                PlanMutation::Save { content, .. } => content.as_ref(),
+                PlanMutation::Capture { content, .. } => Some(content),
+                _ => None,
+            };
+            if content.is_some_and(|c| {
+                c.assignments
+                    .iter()
+                    .any(|a| !roster.agent_keys.contains(&a.agent_key))
+            }) {
+                return Err(AppError::InvalidRequest(format!("Choose contributors from {}'s saved roster. Start a new discussion to use a different team.",roster.name)));
+            }
+        }
         self.local.resources().mutate_huddle_plan(&self.host.credential,ORG.into(),TEAM.into(),id.into(),command).await.map_err(|e|match e {
             crate::resources::ResourceError::Conflict=>AppError::InvalidRequest("The plan or brief changed. Reload and review the current revision before trying again.".into()),
             other=>resource(other),
@@ -150,7 +164,7 @@ impl LocalWorkspace {
                     setup_issues = self.plan_setup_issues(content).await?;
                     readiness.extend(setup_issues.iter().map(|i| i.message.clone()));
                 }
-                let agents = self.agents().await?;
+                let agents = self.planning_agents(id).await?;
                 for assignment in &content.assignments {
                     match agents
                         .iter()
@@ -294,8 +308,8 @@ impl LocalWorkspace {
                                 "Save a working brief before proposing a plan.".into(),
                             )
                         })?;
-                    let agents = self.agents().await?;
-                    let roster:Vec<_>=agents.iter().filter(|a|a.key!=shaping::GUIDE && a.key!=plan_execution::COORDINATOR).take(12).map(|a|serde_json::json!({"agent_key":a.key,"purpose":a.purpose,"configured_tools":a.tools,"max_tokens_per_run":a.max_tokens})).collect();
+                    let agents = self.planning_agents(id).await?;
+                    let roster:Vec<_>=agents.iter().filter(|a|a.key!=shaping::GUIDE && a.key!=plan_execution::COORDINATOR).take(24).map(|a|serde_json::json!({"agent_key":a.key,"purpose":a.purpose,"configured_tools":a.tools,"max_tokens_per_run":a.max_tokens})).collect();
                     if roster.is_empty() {
                         return Err(AppError::InvalidRequest(
                             "Create a working agent before proposing assignments.".into(),

@@ -109,7 +109,7 @@ async fn independent_agents_reach_inference_together_and_keep_their_identities()
                     .await
                     .unwrap(),
             );
-            let source = seed_options(&workspace, false, true).await;
+            let source = seed_roster_options(&workspace, false, true, true).await;
             let before = workspace.agents().await.unwrap();
             workspace
                 .start_plan(

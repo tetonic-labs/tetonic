@@ -111,7 +111,7 @@ async fn continuation_keeps_owner_answers_and_latest_assignment_directions() {
                     .await
                     .unwrap(),
             );
-            let source = seed_variant(&workspace, true).await;
+            let source = seed_roster_options(&workspace, true, false, true).await;
             workspace
                 .start_plan(
                     &source,
@@ -166,6 +166,13 @@ async fn continuation_keeps_owner_answers_and_latest_assignment_directions() {
                 .plan_view(&continuation.continuation_work_id)
                 .await
                 .unwrap();
+            assert_eq!(
+                workspace
+                    .work_team(&continuation.continuation_work_id)
+                    .await
+                    .unwrap(),
+                workspace.work_team(&source).await.unwrap()
+            );
             let assignments = &view.plans[0].content.as_ref().unwrap().assignments;
             assert_eq!(assignments.len(), 2);
             let wrap = assignments.iter().find(|a| a.key == "wrap").unwrap();

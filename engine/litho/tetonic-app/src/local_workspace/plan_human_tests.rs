@@ -108,7 +108,7 @@ async fn human_wait_and_direction(scenario: u8) {
                     .await
                     .unwrap(),
             );
-            let source = seed_variant(&workspace, true).await;
+            let source = seed_roster_options(&workspace, true, false, true).await;
             let started = workspace
                 .start_plan(
                     &source,
@@ -149,6 +149,23 @@ async fn human_wait_and_direction(scenario: u8) {
                 !crate::team_work_controller::ready_assignments(&progress).contains(&"wrap".into()),
                 "unanswered producer is not completed evidence"
             );
+            let pinned = workspace.work_team(&source).await.unwrap().unwrap();
+            assert!(waiting
+                .assignments
+                .iter()
+                .all(|a| a.work_team.as_ref() == Some(&pinned)));
+            workspace
+                .save_work_team(SaveWorkTeam {
+                    id: pinned.id.clone(),
+                    request_id: uuid::Uuid::new_v4().to_string(),
+                    expected_revision: pinned.revision,
+                    name: "Changed for future work".into(),
+                    purpose: pinned.purpose.clone(),
+                    agent_keys: vec![AGENT.into()],
+                })
+                .await
+                .unwrap();
+            assert_eq!(workspace.work_team(&source).await.unwrap(), Some(pinned));
             let question = waiting.assignments[0].human_questions[0].clone();
             assert_eq!(waiting.assignments[2].state, "not_started");
             // A reply must include a sibling which completed while another

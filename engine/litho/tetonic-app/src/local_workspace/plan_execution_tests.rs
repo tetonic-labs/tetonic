@@ -256,37 +256,18 @@ pub(in crate::local_workspace) async fn seed_options(
     handoff: bool,
     parallel: bool,
 ) -> String {
+    seed_roster_options(workspace, handoff, parallel, false).await
+}
+
+async fn seed_roster_options(
+    workspace: &LocalWorkspace,
+    handoff: bool,
+    parallel: bool,
+    pin_roster: bool,
+) -> String {
     let source = uuid::Uuid::new_v4().to_string();
     let resources = workspace.local.resources();
     let secret = &workspace.host.credential;
-    resources
-        .create_team_work_item_for_purpose(
-            secret,
-            crate::resources::CreateTeamWorkItem {
-                org: ORG.into(),
-                team: TEAM.into(),
-                work_id: source.clone(),
-                title: "Explore workshops".into(),
-                request_id: format!("{source}@{}", shaping::GUIDE),
-                goal_id: None,
-            },
-            Some("PRIVATE_CANARY_MUST_NOT_LEAK".into()),
-            WorkPurpose::Explore,
-        )
-        .await
-        .unwrap();
-    workspace
-        .save_work_brief(
-            &source,
-            SaveWorkBrief {
-                request_id: uuid::Uuid::new_v4().to_string(),
-                expected_revision: 0,
-                body: "Compare one long workshop with several short sessions using reasoning only."
-                    .into(),
-            },
-        )
-        .await
-        .unwrap();
     let worker = workspace
         .create_agent(CreateLocalAgent {
             provider: "ollama".into(),
@@ -303,6 +284,58 @@ pub(in crate::local_workspace) async fn seed_options(
             max_tokens: 4096,
             tools: Some(vec![]),
         })
+        .await
+        .unwrap();
+    let roster = if pin_roster {
+        Some(
+            workspace
+                .save_work_team(SaveWorkTeam {
+                    id: uuid::Uuid::new_v4().to_string(),
+                    request_id: uuid::Uuid::new_v4().to_string(),
+                    expected_revision: 0,
+                    name: "Workshop team".into(),
+                    purpose: "Compare workshops".into(),
+                    agent_keys: vec![AGENT.into(), worker.key.clone()],
+                })
+                .await
+                .unwrap(),
+        )
+    } else {
+        None
+    };
+    resources
+        .create_work_with_roster(
+            secret,
+            crate::resources::CreateTeamWorkItem {
+                org: ORG.into(),
+                team: TEAM.into(),
+                work_id: source.clone(),
+                title: "Explore workshops".into(),
+                request_id: format!("{source}@{}", shaping::GUIDE),
+                goal_id: None,
+            },
+            Some("PRIVATE_CANARY_MUST_NOT_LEAK".into()),
+            WorkPurpose::Explore,
+            Some((
+                roster.map(|t| WorkTeamSelection {
+                    id: t.id,
+                    revision: t.revision,
+                }),
+                None,
+            )),
+        )
+        .await
+        .unwrap();
+    workspace
+        .save_work_brief(
+            &source,
+            SaveWorkBrief {
+                request_id: uuid::Uuid::new_v4().to_string(),
+                expected_revision: 0,
+                body: "Compare one long workshop with several short sessions using reasoning only."
+                    .into(),
+            },
+        )
         .await
         .unwrap();
     let mut content:PlanContent=serde_json::from_value(json!({"title":"Workshop options","summary":"Compare options, then check assumptions","token_budget":3000,"open_questions":[],"assignments":[

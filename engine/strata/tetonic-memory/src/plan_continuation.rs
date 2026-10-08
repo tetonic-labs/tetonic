@@ -141,6 +141,7 @@ impl Store {
             Some("Review the continuation proposal before starting more work."),
             crate::WorkPurpose::Explore,
         )?;
+        self.inherit_work_team(org, team, &receipt.source_work_id, id)?;
         self.save_work_brief_in_transaction(crate::SaveWorkBrief {
             actor,
             org,

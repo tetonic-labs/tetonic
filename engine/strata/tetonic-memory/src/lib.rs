@@ -62,6 +62,8 @@ pub use delegated_grants::{
 };
 mod delegated_lifetime;
 mod local_provider_keys;
+mod work_teams;
+pub use work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
 mod workspace_skills;
 pub use workspace_skills::WorkspaceSkill;
 mod local_work_notes;
