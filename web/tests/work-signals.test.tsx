@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { attentionItems } from '../src/lib/attentionItems';
 import { combinedSignal, journeySummary, workSignal } from '../src/lib/workSignals';
-import type { WorkRecord } from '../src/lib/workspaceRecords';
+import { stateLabel, type WorkRecord } from '../src/lib/workspaceRecords';
 import type { EngineTask, LocalApproval, WorkHumanQuestion } from '../src/lib/localEngine';
 
 function record(id: string, state: EngineTask['state'], root?: string): WorkRecord {
@@ -91,6 +91,17 @@ describe('work signals across concurrent contributions', () => {
       problems: [],
       questions: [{ work, question }],
     });
+    work.latest!.human_questions = [
+      { ...question, answer: 'New customers', response_id: 'receipt' },
+    ];
+    expect(attentionItems([work], [])).toMatchObject({ total: 0, problems: [], questions: [] });
+    expect(workSignal(work)).toBe('waiting');
+    expect(stateLabel(work)).toBe('Waiting to continue');
+    // A second unresolved question or a separate permission remains actionable.
+    expect(workSignal(work, [approval])).toBe('needs_you');
+    work.latest!.human_questions.push({ ...question, id: 'another' });
+    expect(workSignal(work)).toBe('needs_you');
+    expect(attentionItems([work], []).questions).toHaveLength(1);
   });
   it('reports real planning activity and does not mark absent or stopped work done', () => {
     const work = record('source', 'completed');

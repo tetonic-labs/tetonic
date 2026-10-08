@@ -1,6 +1,6 @@
 # Coherent workspace product experience tasks
 
-Date: October 8, 2026. Status: proposed. See the [ranked backlog and delivery rules](product-experience-priorities-2026-10-08.md) for impact/effort definitions, dependencies, placement rules and shared acceptance. Every task below is an incremental extension of existing owners. Parent OCT tickets retain their full acceptance; these tasks add no calendar sprint.
+Date: October 8, 2026. Status: implementation started; individual delivery notes below. See the [ranked backlog and delivery rules](product-experience-priorities-2026-10-08.md) for impact/effort definitions, dependencies, placement rules and shared acceptance. Every task below is an incremental extension of existing owners. Parent OCT tickets retain their full acceptance; these tasks add no calendar sprint.
 
 ## 1 One continuous effort workspace
 
@@ -158,6 +158,8 @@ Impact **5/5** · Effort **3** · ROI index **1.7**. Parents: OCT-102, OCT-103, 
 
 ### 5.1 Present decisions in human terms
 
+**Delivery:** Existing command approval and question cards implemented and verified locally. Questions, exact commands, affected folders and response controls are directly visible. [Evidence and remaining limits](decision-experience-2026-10-08.md).
+
 Impact **5/5** · Effort **2** · ROI index **2.5**. Parents: OCT-105. Prerequisites: existing baseline.
 
 **Work:** Restructure existing Decision and HumanQuestion components around the requested choice, known effects and scope. Reuse exact approval payloads, expiry and receipt checks. Label unknown consequences instead of inventing reassuring prose.
@@ -169,6 +171,8 @@ Impact **5/5** · Effort **2** · ROI index **2.5**. Parents: OCT-105. Prerequis
 <a id="task-52"></a>
 
 ### 5.2 Resolve the same request in the effort or inbox
+
+**Delivery:** Shared approval rendering now covers Needs you, direct work and executed team plans. Existing question resolution remains shared. Scope and reconciliation tests pass; browser fixtures verify work-to-inbox reconciliation. A live engine trial remains outside this UI validation. [Evidence](decision-experience-2026-10-08.md).
 
 Impact **5/5** · Effort **3** · ROI index **1.7**. Parents: OCT-105. Prerequisites: 5.1.
 
@@ -194,6 +198,8 @@ Impact **4/5** · Effort **5** · ROI index **0.8**. Parents: OCT-105, OCT-202. 
 
 ### 5.4 Acknowledge decisions and show the next state
 
+**Delivery:** Confirmed receipts stay visible in the current view; answers saved while execution remains waiting no longer generate another human-input alert. Actual running state controls the resumed message. Capacity-specific reasons and durable cross-view receipt history are not added. [Evidence](decision-experience-2026-10-08.md).
+
 Impact **4/5** · Effort **2** · ROI index **2.0**. Parents: OCT-105. Prerequisites: 5.1, 5.2.
 
 **Work:** Distinguish persisted response, eligibility to resume, queued execution and actual resumed activity using existing receipts and task state. Keep duplicate submission protection and offline uncertainty.
@@ -201,4 +207,3 @@ Impact **4/5** · Effort **2** · ROI index **2.0**. Parents: OCT-105. Prerequis
 **What the user experiences:** After answering, show Answer saved, Waiting for capacity or Working again as appropriate. Preserve a brief decision receipt and let the user move to the next request without an unexpected jump.
 
 **Completion check:** A saved answer never falsely claims resumed execution; an uncertain response remains recoverable without duplicate answers or approvals.
-

@@ -1,4 +1,9 @@
-import type { EngineTask, EngineWorkspace, LocalWorkItem } from './localEngine';
+import {
+  waitingAfterAnswer,
+  type EngineTask,
+  type EngineWorkspace,
+  type LocalWorkItem,
+} from './localEngine';
 
 export interface WorkRecord {
   id: string;
@@ -79,6 +84,7 @@ export const stateLabels: Record<string, string> = {
   recovery_required: 'Interrupted',
 };
 export const stateLabel = (work: WorkRecord) => {
+  if (work.latest && waitingAfterAnswer(work.latest)) return 'Waiting to continue';
   if (work.latest?.purpose === 'explore') {
     if (work.latest.state === 'completed') return 'Discussion ready';
     if (work.latest.state === 'running') return 'Thinking it through';
@@ -89,6 +95,7 @@ export const stateLabel = (work: WorkRecord) => {
 };
 export const needsHelp = (work: WorkRecord) =>
   !!work.latest &&
+  !waitingAfterAnswer(work.latest) &&
   (['failed', 'recovery_required', 'waiting_human'].includes(work.latest.state) ||
     (work.latest.state === 'not_started' && !work.latest.plan));
 export const canReply = (work?: WorkRecord) =>

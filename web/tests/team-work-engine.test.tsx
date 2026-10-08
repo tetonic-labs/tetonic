@@ -596,7 +596,6 @@ describe('one connected team workspace', () => {
       .mockResolvedValue({ ...approval, status: 'rejected' });
     f.view();
     fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
-    fireEvent.click(document.querySelector('.attention-item > summary')!);
     expect(screen.getByRole('button', { name: 'Approve unavailable' })).toHaveProperty(
       'disabled',
       true,
@@ -631,7 +630,6 @@ describe('one connected team workspace', () => {
       .mockResolvedValue({ ...approval, status: 'approved' });
     f.view();
     fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
-    fireEvent.click(document.querySelector('.attention-item > summary')!);
     expect(screen.getByText('git status --short')).toBeTruthy();
     expect(screen.getByText('C:/work/project')).toBeTruthy();
     expect(screen.getByText('Filesystem isolation is unavailable on this host.')).toBeTruthy();
@@ -851,7 +849,6 @@ it('lets the operator answer a waiting team directly from Needs you', async () =
     }));
   f.view();
   fireEvent.click(await screen.findByRole('button', { name: 'Needs you · 1' }));
-  fireEvent.click(document.querySelector('.attention-item > summary')!);
   expect(screen.getByText('Who is this for?')).toBeTruthy();
   fireEvent.click(screen.getByRole('button', { name: 'Beginners' }));
   fireEvent.click(screen.getByRole('button', { name: 'Send answer' }));

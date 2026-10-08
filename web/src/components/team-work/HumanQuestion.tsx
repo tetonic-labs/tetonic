@@ -13,11 +13,17 @@ export function HumanQuestion({
   question,
   refresh,
   showHeading = true,
+  onAnswered,
+  workTitle,
+  onWork,
 }: {
   task: EngineTask;
   question: WorkHumanQuestion;
   refresh: () => Promise<void>;
   showHeading?: boolean;
+  onAnswered?: (receipt: WorkHumanQuestion) => void;
+  workTitle?: string;
+  onWork?: () => void;
 }) {
   const engine = useLocalEngine();
   const key = `tetonic_human_answer:${connectionDraftScope()}:${question.id}`;
@@ -41,6 +47,15 @@ export function HumanQuestion({
   const [error, setError] = useState('');
   const [confirmed, setConfirmed] = useState<WorkHumanQuestion | null>(null);
   const gate = useRef(false);
+  const card = useRef<HTMLElement>(null);
+  const receiptStatus = useRef<HTMLParagraphElement>(null);
+  const focusReceipt = useRef(false);
+  useEffect(() => {
+    if (confirmed && focusReceipt.current) {
+      receiptStatus.current?.focus();
+      focusReceipt.current = false;
+    }
+  }, [confirmed]);
   useEffect(() => {
     const timer = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(timer);
@@ -55,7 +70,18 @@ export function HumanQuestion({
     }
   }
   async function send() {
-    if (gate.current || !engine.isConnected) return;
+    if (
+      gate.current ||
+      !engine.isConnected ||
+      confirmed ||
+      question.answer !== null ||
+      (!pending &&
+        (!waiting ||
+          question.deadline * 1000 <= Date.now() ||
+          !answer.trim() ||
+          new TextEncoder().encode(answer.trim()).length > 6000))
+    )
+      return;
     gate.current = true;
     setBusy(true);
     setError('');
@@ -76,7 +102,9 @@ export function HumanQuestion({
         receipt.answer !== command.answer
       )
         throw new Error('Your answer has not been confirmed. Check the same answer again.');
+      focusReceipt.current = !!card.current?.contains(document.activeElement);
       setConfirmed(receipt);
+      onAnswered?.(receipt);
       sessionStorage.removeItem(key);
       sessionStorage.removeItem(`${key}:draft`);
       setPending(null);
@@ -96,17 +124,48 @@ export function HumanQuestion({
   }
   if (confirmed || question.answer !== null)
     return (
-      <details className="tw-human-answer">
-        <summary>Your answer to {task.agent_name}</summary>
-        <p>{question.content.question}</p>
-        <p>{confirmed?.answer ?? question.answer}</p>
-      </details>
+      <section className="tw-human-answer" aria-label={`Answer saved for ${task.agent_name}`}>
+        <div className="tw-request-context">
+          <span>{task.agent_name} · Answer saved</span>
+          {workTitle && <p>{workTitle}</p>}
+        </div>
+        <p role="status" ref={receiptStatus} tabIndex={-1}>
+          {!engine.isConnected
+            ? 'Your answer was saved. Reconnect to check the work.'
+            : task.state === 'running'
+              ? `${task.agent_name} is working again.`
+              : task.state === 'completed'
+                ? 'This work has finished. Open the work to review what was recorded.'
+                : ['failed', 'recovery_required'].includes(task.state)
+                  ? 'The work needs a look before it can continue.'
+                  : ['canceled', 'canceling'].includes(task.state)
+                    ? 'The work has stopped or is stopping.'
+                    : `Waiting for an update from ${task.agent_name}.`}
+        </p>
+        <details>
+          <summary>Your answer to {task.agent_name}</summary>
+          <p>{question.content.question}</p>
+          <p>{confirmed?.answer ?? question.answer}</p>
+        </details>
+        {onWork && (
+          <button className="operator-secondary" onClick={onWork}>
+            Open related work
+          </button>
+        )}
+      </section>
     );
   return (
-    <section className="tw-human-question" aria-label={`${task.agent_name} needs your input`}>
+    <section
+      ref={card}
+      className="tw-human-question"
+      aria-label={`${task.agent_name} needs your input`}
+    >
       {showHeading && (
         <>
-          <span className="tw-small">{task.agent_name} needs your input</span>
+          <div className="tw-request-context">
+            <span>{task.agent_name} · Needs your input</span>
+            {workTitle && <p>{workTitle}</p>}
+          </div>
           <h3>{question.content.question}</h3>
         </>
       )}
@@ -156,10 +215,11 @@ export function HumanQuestion({
                 ? 'The wait ended; this checks whether your earlier answer was saved. '
                 : ''}
               Reply by{' '}
-              {new Date(question.deadline * 1000).toLocaleTimeString([], {
+              {new Date(question.deadline * 1000).toLocaleString([], {
+                month: 'short',
+                day: 'numeric',
                 hour: '2-digit',
                 minute: '2-digit',
-                second: '2-digit',
               })}
               . The current time limit still applies.
             </small>
@@ -178,6 +238,11 @@ export function HumanQuestion({
         </details>
       )}
       {error && <p role="alert">{error}</p>}
+      {onWork && (
+        <button className="operator-secondary tw-question-work" onClick={onWork}>
+          Open related work
+        </button>
+      )}
     </section>
   );
 }
