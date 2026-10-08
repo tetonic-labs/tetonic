@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { PlanReview } from '../src/components/team-work/PlanReview';
 import { PlanExecution } from '../src/components/team-work/PlanExecution';
+import { PlanReadiness } from '../src/components/team-work/PlanHandoff';
 import {
   LocalEngine,
   EngineRequestError,
@@ -174,6 +175,42 @@ afterEach(() => {
   vi.restoreAllMocks();
   sessionStorage.clear();
   window.history.replaceState(null, '', '/');
+});
+
+it('offers the specific agent access and workspace connection fixes without granting or starting work', async () => {
+  const view: PlanView = {
+    plans: [
+      {
+        ...plan,
+        content: {
+          ...content,
+          assignments: [{ ...content.assignments[0], tools: ['mcp_calendar_read'] }],
+        },
+      },
+    ],
+    brief_revision: 2,
+    generation: null,
+    readiness: ['The assignment needs access to calendar information.'],
+    execution_available: false,
+  };
+  const f = fixture(view);
+  const settings = vi.fn();
+  const tools = vi.fn();
+  const discuss = vi.fn();
+  const start = vi.spyOn(f.client, 'startPlan');
+  render(
+    <LocalEngineProvider client={f.client}>
+      <PlanReadiness view={view} onAgentSettings={settings} onTools={tools} onDiscuss={discuss} />
+    </LocalEngineProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Review worker’s access' }));
+  expect(settings).toHaveBeenCalledWith('worker');
+  fireEvent.click(screen.getByRole('button', { name: 'Add tools or a connection' }));
+  expect(tools).toHaveBeenCalledTimes(1);
+  fireEvent.click(screen.getByRole('button', { name: 'Work through this with the Guide' }));
+  expect(discuss).toHaveBeenCalledWith(expect.stringContaining(view.readiness[0]));
+  expect(f.submit).not.toHaveBeenCalled();
+  expect(start).not.toHaveBeenCalled();
 });
 
 const continuation: PlanContinuation = {
@@ -602,6 +639,71 @@ it('does not present a partial coordinator answer as a completed team result', a
   expect(screen.getByText(/Recorded contributions are kept/)).toBeTruthy();
   fireEvent.click(screen.getByText('What the team was given'));
   expect(screen.getByText('The original brief is unavailable for this saved run.')).toBeTruthy();
+});
+
+it('distinguishes active workers, dependency waits, and execution without a recorded result', async () => {
+  const execution: PlanExecutionView = {
+    receipt: {
+      source_work_id: 'shape',
+      request_id: 'start',
+      revision: 1,
+      root_work_id: 'root',
+      content,
+      assignments: content.assignments.map((a) => ({
+        assignment_key: a.key,
+        work_id: a.key,
+        agent_key: a.agent_key,
+        definition_digest: 'pinned',
+      })),
+    },
+    state: 'running',
+    root: null,
+    error: null,
+    assignments: content.assignments.map((a) => ({
+      id: a.key,
+      input: a.instructions,
+      agent_key: a.agent_key,
+      agent_name: a.agent_key,
+      state: a.depends_on.length ? 'not_started' : 'running',
+      run_id: null,
+      sequence: 1,
+      messages: [],
+    })),
+  };
+  const view: PlanView = {
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: false,
+    execution,
+  };
+  const f = fixture(view);
+  const element = () => (
+    <LocalEngineProvider client={f.client}>
+      <PlanExecution workId="shape" view={view} refresh={async () => {}} />
+    </LocalEngineProvider>
+  );
+  const page = render(element());
+  await screen.findByText('Working now: worker.');
+  expect(screen.getByText('Waiting for Compare formats')).toBeTruthy();
+  execution.assignments[0].state = 'completed';
+  page.rerender(element());
+  expect(screen.queryByText('Waiting for Compare formats')).toBeNull();
+  expect(screen.getByText('Waiting to start')).toBeTruthy();
+  execution.assignments.forEach((task) => {
+    task.state = 'running';
+  });
+  page.rerender(element());
+  expect(screen.getByText('Working now: worker · reviewer.')).toBeTruthy();
+  execution.state = 'completed';
+  execution.assignments.forEach((task) => {
+    task.state = 'completed';
+  });
+  page.rerender(element());
+  expect(screen.getByText(/Execution finished · no combined response recorded/)).toBeTruthy();
+  expect(screen.queryByRole('heading', { name: 'Your team’s result' })).toBeNull();
+  expect(screen.queryByText(/Working now:/)).toBeNull();
 });
 
 it('shows the exact execution brief beside the result even after the working brief changes', async () => {

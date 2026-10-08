@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Square } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { connectionDraftScope, taskIsActive, type PlanView } from '../../lib/localEngine';
+import {
+  connectionDraftScope,
+  taskIsActive,
+  type EngineTask,
+  type PlanView,
+} from '../../lib/localEngine';
 import { workRecords, stateLabel, stateLabels } from '../../lib/workspaceRecords';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { WorkingBrief } from '../workspace/WorkingBrief';
@@ -17,6 +22,7 @@ type ShapingProps = {
   onSelected?: (id: string) => void;
   onGuideSettings?: () => void;
   onAgentSettings?: (key: string) => void;
+  onTools?: () => void;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
@@ -29,6 +35,7 @@ function ConnectedShaping({
   onSelected,
   onGuideSettings,
   onAgentSettings,
+  onTools,
 }: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
@@ -40,6 +47,7 @@ function ConnectedShaping({
   );
   const [planView, setPlanView] = useState<PlanView>();
   const viewChanged = useCallback((value: PlanView) => setPlanView(value), []);
+  const [conversationOpen, setConversationOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefVersion, setBriefVersion] = useState(0);
   const [stopError, setStopError] = useState('');
@@ -59,6 +67,8 @@ function ConnectedShaping({
   const writer = useWorkspaceDraft(`team-shaping:${connectionDraftScope()}`);
   const draftKey = selectedId || 'new';
   const draft = writer.drafts[draftKey] || { text: '' };
+  const composer = useRef<HTMLTextAreaElement>(null);
+  const hasHandoff = !!planView?.plans[0] || !!planView?.execution;
   const currentKey = useRef(draftKey);
   currentKey.current = draftKey;
   const thread = useRef<HTMLDivElement>(null);
@@ -80,11 +90,25 @@ function ConnectedShaping({
       : undefined;
 
   useEffect(() => {
-    if (thread.current && following.current) thread.current.scrollTop = thread.current.scrollHeight;
-  }, [latest?.sequence, latest?.id, selectedId]);
+    if (thread.current && following.current && (!hasHandoff || conversationOpen))
+      thread.current.scrollTop = thread.current.scrollHeight;
+  }, [latest?.sequence, latest?.id, selectedId, hasHandoff, conversationOpen]);
+  useEffect(() => {
+    if (hasHandoff && thread.current && !conversationOpen) thread.current.scrollTop = 0;
+  }, [hasHandoff, conversationOpen]);
+  useEffect(() => {
+    if (active) setConversationOpen(true);
+  }, [active]);
 
+  function discuss(text: string) {
+    if (writer.busyKey || (draft.pending && !draft.editable)) return;
+    writer.edit(draftKey, draft.text.trim() ? `${draft.text}\n\n${text}` : text);
+    setConversationOpen(true);
+    composer.current?.focus();
+  }
   async function send() {
     if (!canSend) return;
+    setConversationOpen(true);
     const submittedKey = draftKey;
     await writer.send(
       draftKey,
@@ -124,11 +148,49 @@ function ConnectedShaping({
     }
   }
 
+  const renderTurn = (turn: EngineTask) => (
+    <article className="px-shaping-turn" key={turn.id}>
+      <div className="px-shaping-human">
+        <strong>You</strong>
+        <p>{turn.input}</p>
+      </div>
+      {turn.messages
+        .filter((message) => message.role === 'assistant')
+        .slice(-1)
+        .map((message) => (
+          <div className="px-shaping-answer" key={message.id}>
+            <strong>{turn.agent_name}</strong>
+            <FormattedMarkdown text={message.content} />
+          </div>
+        ))}
+      {taskIsActive(turn) && (
+        <p className="px-shaping-status" role="status">
+          {isConnected
+            ? 'Thinking it through…'
+            : 'Connection lost. The reply may still be running.'}
+        </p>
+      )}
+      {turn.error && <p role="alert">{turn.error}</p>}
+      {turn.state === 'canceled' && <p>Reply stopped. Your discussion is saved.</p>}
+      {turn.state === 'recovery_required' && (
+        <p>
+          This reply was interrupted. Earlier discussion is saved; start a new conversation to
+          continue.
+        </p>
+      )}
+    </article>
+  );
+
   if (missing && workspace?.tasks.some((task) => task.plan?.source_work_id === selectedId))
     return (
       <section className="px-shaping" aria-label="Team work">
         <div className="px-shaping-body">
-          <PlanReview workId={selectedId} onWork={onWork} onAgentSettings={onAgentSettings} />
+          <PlanReview
+            workId={selectedId}
+            onWork={onWork}
+            onAgentSettings={onAgentSettings}
+            onTools={onTools}
+          />
         </div>
       </section>
     );
@@ -148,8 +210,12 @@ function ConnectedShaping({
                 ? active
                   ? 'Thinking it through…'
                   : planView?.execution
-                    ? `Team · ${stateLabels[planView.execution.state] || planView.execution.state}`
-                    : stateLabel(selected)
+                    ? `Team · ${planView.execution.state === 'completed' && !planView.execution.root?.messages.some((message) => message.role === 'assistant' && message.content.trim()) ? 'Execution finished' : stateLabels[planView.execution.state] || planView.execution.state}`
+                    : planView?.plans[0]?.content
+                      ? planView.readiness.length
+                        ? 'A few things to resolve'
+                        : 'Proposal ready for review'
+                      : stateLabel(selected)
                 : 'Think it through. Put your team to work.'}
           </small>
         </span>
@@ -177,6 +243,7 @@ function ConnectedShaping({
       {setupIssue && <p role="status">{setupIssue} Open Guide model to review its settings.</p>}
       <div
         className="px-shaping-body"
+        data-handoff={hasHandoff}
         ref={thread}
         onScroll={() => {
           const element = thread.current;
@@ -187,44 +254,16 @@ function ConnectedShaping({
       >
         {selected ? (
           <>
-            {selected.turns.map((turn) => (
-              <article className="px-shaping-turn" key={turn.id}>
-                <div className="px-shaping-human">
-                  <strong>You</strong>
-                  <p>{turn.input}</p>
-                </div>
-                {turn.messages
-                  .filter((message) => message.role === 'assistant')
-                  .slice(-1)
-                  .map((message) => (
-                    <div className="px-shaping-answer" key={message.id}>
-                      <strong>{turn.agent_name}</strong>
-                      <FormattedMarkdown text={message.content} />
-                    </div>
-                  ))}
-                {taskIsActive(turn) && (
-                  <p className="px-shaping-status" role="status">
-                    {isConnected
-                      ? 'Thinking it through…'
-                      : 'Connection lost. The reply may still be running.'}
-                  </p>
-                )}
-                {turn.error && <p role="alert">{turn.error}</p>}
-                {turn.state === 'canceled' && <p>Reply stopped. Your discussion is saved.</p>}
-                {turn.state === 'recovery_required' && (
-                  <p>
-                    This reply was interrupted. Earlier discussion is saved; start a new
-                    conversation to continue.
-                  </p>
-                )}
-              </article>
-            ))}
-            <div className="tw-conversation-plan">
+            <div className="tw-conversation-plan" data-handoff={hasHandoff}>
               <PlanReview
                 key={`${selected.id}:${briefVersion}`}
                 workId={selected.id}
                 onView={viewChanged}
                 onAgentSettings={onAgentSettings}
+                onTools={onTools}
+                onDiscuss={
+                  writer.busyKey || (draft.pending && !draft.editable) ? undefined : discuss
+                }
                 onWork={onWork}
                 suggestion={suggestion}
                 conversationActive={active}
@@ -251,6 +290,21 @@ function ConnectedShaping({
                 </details>
               )}
             </div>
+            {hasHandoff ? (
+              <details
+                className="tw-handoff-conversation"
+                open={conversationOpen}
+                onToggle={(event) => setConversationOpen(event.currentTarget.open)}
+              >
+                <summary>
+                  Conversation · {selected.turns.length}{' '}
+                  {selected.turns.length === 1 ? 'exchange' : 'exchanges'}
+                </summary>
+                {selected.turns.map(renderTurn)}
+              </details>
+            ) : (
+              selected.turns.map(renderTurn)
+            )}
           </>
         ) : (
           <div className="px-shaping-empty">
@@ -276,6 +330,7 @@ function ConnectedShaping({
         <div>
           <textarea
             id="shaping-message"
+            ref={composer}
             value={draft.text}
             onChange={(event) => writer.edit(draftKey, event.target.value)}
             readOnly={!!writer.busyKey || (!!draft.pending && !draft.editable)}

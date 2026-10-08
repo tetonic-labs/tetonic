@@ -24,6 +24,8 @@ export function TeamPanels({
   onOpenWork = () => {},
   onTeam = () => {},
   editInitially = false,
+  onSetupComplete,
+  onSetupCancel,
 }: {
   panel: TeamPanel;
   records: WorkRecord[];
@@ -36,6 +38,8 @@ export function TeamPanels({
   onOpenWork?: () => void;
   onTeam?: (id: string) => void;
   editInitially?: boolean;
+  onSetupComplete?: () => void;
+  onSetupCancel?: () => void;
 }) {
   const engine = useLocalEngine();
   const { workspace, client } = engine;
@@ -58,11 +62,12 @@ export function TeamPanels({
           client={client}
           workspace={workspace}
           agent={editingAgent}
-          onBack={() => setEditingAgent(null)}
+          onBack={() => (onSetupCancel ? onSetupCancel() : setEditingAgent(null))}
           onCreated={async (saved) => {
             await engine.refresh();
             setUpdatedAgentKey(saved.key);
             setEditingAgent(null);
+            onSetupComplete?.();
           }}
         />
       );

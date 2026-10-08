@@ -447,6 +447,7 @@ function ConnectedTeamWorkspace() {
                   key={focusSource || 'new'}
                   workId={focusSource}
                   onAgentSettings={(key) => open({ kind: 'agents', id: key, edit: true })}
+                  onTools={() => open({ kind: 'tools' })}
                   onWork={showWork}
                   onGuideSettings={() =>
                     open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
@@ -474,6 +475,16 @@ function ConnectedTeamWorkspace() {
                   records={panel.kind === 'attention' ? attentionRecords : records}
                   initialAgentId={panel.id}
                   editInitially={panel.edit}
+                  onSetupComplete={
+                    panel.edit && ['shaping', 'detail'].includes(trail.at(-1)?.kind || '')
+                      ? back
+                      : undefined
+                  }
+                  onSetupCancel={
+                    panel.edit && ['shaping', 'detail'].includes(trail.at(-1)?.kind || '')
+                      ? back
+                      : undefined
+                  }
                   onWork={showWork}
                   onAgent={(key) => {
                     if (key === workspace?.shaping_agent_key) shape();

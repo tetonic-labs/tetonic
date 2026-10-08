@@ -11,6 +11,7 @@ import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { HumanQuestion } from './HumanQuestion';
 import { PlanDirectionEditor } from './PlanDirectionEditor';
 import { PlanRecovery } from './PlanRecovery';
+import { PlanReadiness } from './PlanHandoff';
 
 export function PlanExecution({
   workId,
@@ -18,6 +19,8 @@ export function PlanExecution({
   refresh,
   onWork,
   onAgentSettings,
+  onDiscuss,
+  onTools,
   disabled = false,
 }: {
   workId: string;
@@ -25,9 +28,17 @@ export function PlanExecution({
   refresh: () => Promise<void>;
   onWork?: (id: string, inspect?: boolean) => void;
   onAgentSettings?: (key: string) => void;
+  onDiscuss?: (text: string) => void;
+  onTools?: () => void;
   disabled?: boolean;
 }) {
-  const { client, isConnected, cancelTask, workspace } = useLocalEngine();
+  const {
+    client,
+    isConnected,
+    cancelTask,
+    workspace,
+    refresh: refreshWorkspace,
+  } = useLocalEngine();
   const key = `tetonic_plan_start:${connectionDraftScope()}:${workId}`;
   const [pending, setPending] = useState<StartPlanRequest | null>(() => {
     try {
@@ -106,7 +117,7 @@ export function PlanExecution({
         throw new Error('The engine has not confirmed this start. Retry the same request.');
       sessionStorage.removeItem(key);
       setPending(null);
-      await refresh();
+      await Promise.all([refresh(), refreshWorkspace()]);
     } catch (e) {
       if (e instanceof EngineRequestError && e.status >= 400 && e.status < 500) {
         // An explicit rejection is safe to correct; an uncertain response retains
@@ -257,19 +268,13 @@ export function PlanExecution({
               )}
             </p>
           )}
-          {view.setup_issues?.map((issue) => (
-            <div key={issue.agent_key} role="status">
-              <p>{issue.message}</p>
-              {onAgentSettings && (
-                <button
-                  disabled={busy || !isConnected}
-                  onClick={() => onAgentSettings(issue.agent_key)}
-                >
-                  Review agent setup
-                </button>
-              )}
-            </div>
-          ))}
+          <PlanReadiness
+            view={view}
+            disabled={disabled || busy || !!pending}
+            onDiscuss={onDiscuss}
+            onAgentSettings={onAgentSettings}
+            onTools={onTools}
+          />
           {hosted && (
             <label className="agent-hosted-consent">
               <input
@@ -285,6 +290,10 @@ export function PlanExecution({
               </span>
             </label>
           )}
+          <p className="tw-handoff-allowance">
+            <strong>{content.token_budget.toLocaleString()} token allowance</strong> shared by the
+            team and coordination.
+          </p>
           <details>
             <summary>Budget & time limit</summary>
             <p>
@@ -326,10 +335,34 @@ export function PlanExecution({
             {!isConnected && 'Last seen: '}
             {pendingQuestions.length
               ? 'Needs your input'
-              : stateLabels[execution.state] || 'Status unavailable'}{' '}
+              : execution.state === 'completed' && !result
+                ? 'Execution finished · no combined response recorded'
+                : stateLabels[execution.state] || 'Status unavailable'}{' '}
             · {execution.assignments.filter((t) => t.state === 'completed').length} of{' '}
             {execution.receipt.assignments.length} contributions ready
           </p>
+          {active && isConnected && (
+            <div className="tw-handoff-progress" role="status">
+              <span className="tw-handoff-activity" aria-hidden="true" />
+              <p>
+                {execution.state === 'canceling'
+                  ? 'Stopping the team and its active work…'
+                  : execution.assignments.some((task) =>
+                        ['starting', 'running'].includes(task.state),
+                      )
+                    ? `Working now: ${execution.assignments
+                        .filter((task) => ['starting', 'running'].includes(task.state))
+                        .map((task) => task.plan?.title || task.agent_name)
+                        .join(' · ')}.`
+                    : pendingQuestions.length
+                      ? 'The team needs your input below to move this work forward.'
+                      : execution.assignments.length === execution.receipt.assignments.length &&
+                          execution.assignments.every((task) => task.state === 'completed')
+                        ? 'The contributions are ready. Coordination is still underway.'
+                        : 'Coordinating the next assignments. Their progress will appear here.'}
+              </p>
+            </div>
+          )}
           {execution.error && <p role="alert">{execution.error}</p>}
           {continuation && (
             <p>
@@ -388,10 +421,18 @@ export function PlanExecution({
               const assignment = execution.receipt.content.assignments.find(
                 (a) => a.key === pin.assignment_key,
               )!;
+              const waitingFor = assignment.depends_on.filter((key) => {
+                const pin = execution.receipt.assignments.find((p) => p.assignment_key === key);
+                return (
+                  execution.assignments.find((t) => t.id === pin?.work_id)?.state !== 'completed'
+                );
+              });
               const state =
                 !task || task.state === 'not_started'
                   ? active
-                    ? 'Up next'
+                    ? waitingFor.length
+                      ? `Waiting for ${waitingFor.map((key) => content.assignments.find((a) => a.key === key)?.title || key).join(', ')}`
+                      : 'Waiting to start'
                     : 'Did not start'
                   : stateLabels[task.state];
               const response = task?.messages.filter((m) => m.role === 'assistant').at(-1)?.content;

@@ -93,6 +93,95 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('keeps the saved proposal first and resolves questions in the same unsent conversation', async () => {
+    const f = fixture([saved]);
+    vi.mocked(f.client.plan).mockResolvedValue({
+      plans: [
+        {
+          work_id: saved.id,
+          revision: 3,
+          brief_revision: 2,
+          request_id: 'proposal',
+          generation_id: 'generation',
+          status: 'draft',
+          created_by: 'owner',
+          agreed_by: null,
+          agreement_id: null,
+          content: {
+            title: 'A decision we can use',
+            summary: 'Compare the source material and explain the tradeoffs.',
+            token_budget: 4000,
+            open_questions: ['Which audience is this for?'],
+            assignments: [
+              {
+                key: 'compare',
+                title: 'Assess the evidence',
+                instructions: 'Use supplied sources.',
+                agent_key: 'worker',
+                tools: [],
+                depends_on: [],
+                deliverable: 'A sourced comparison',
+                token_budget: 2000,
+              },
+            ],
+          },
+        },
+      ],
+      brief_revision: 2,
+      generation: null,
+      readiness: ['An assignment needs a working agent.'],
+      execution_available: false,
+    });
+    const start = vi.spyOn(f.client, 'startPlan');
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    f.view();
+    const planHeading = await screen.findByRole('heading', {
+      name: 'A decision we can use',
+      level: 3,
+    });
+    const historySummary = await screen.findByText('Conversation · 1 exchange');
+    expect(historySummary.closest('details')).toHaveProperty('open', false);
+    expect(
+      planHeading.compareDocumentPosition(historySummary) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(composer, { target: { value: 'Keep this thought.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Work through this with the Guide' }));
+    expect(composer).toHaveProperty('value', expect.stringContaining('Keep this thought.'));
+    expect(composer).toHaveProperty(
+      'value',
+      expect.stringContaining('Which audience is this for?'),
+    );
+    expect(document.activeElement).toBe(composer);
+    expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(f.submit).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('returns from a saved Guide setup change to the same discussion with the draft intact', async () => {
+    const f = fixture([saved]);
+    const update = vi
+      .spyOn(f.client, 'updateAgent')
+      .mockResolvedValue({ ...guide, definition_digest: 'new-revision' });
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    f.view();
+    const composer = await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(composer, { target: { value: 'Keep our direction.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Guide model' }));
+    const save = await screen.findByRole('button', { name: /Save/ });
+    await waitFor(() => expect(save).toHaveProperty('disabled', false));
+    fireEvent.click(save);
+    expect(
+      await screen.findByRole('textbox', { name: 'Continue the conversation' }),
+    ).toHaveProperty('value', 'Keep our direction.');
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(location.hash).toBe(`#shape=${saved.id}`);
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+
   it('points a hosted Guide with a removed key to settings without submitting phantom work', async () => {
     const f = fixture([saved]);
     const current = await f.client.snapshot();

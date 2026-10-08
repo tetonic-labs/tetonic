@@ -226,6 +226,122 @@
   scrollbar-width: thin;
   overscroll-behavior: contain;
   padding: 0 8px 16px 0;
+  display: flex;
+  flex-direction: column;
+}
+.px-shaping-body > * {
+  flex-shrink: 0;
+}
+.tw-conversation-plan[data-handoff='false'] {
+  order: 1;
+}
+.tw-conversation-plan[data-handoff='true'] {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+}
+.tw-handoff-sequence {
+  color: var(--text-secondary);
+  font-size: 12px;
+}
+.tw-handoff-assignments {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0;
+}
+.tw-handoff-assignments > li {
+  padding: 14px 0;
+  border-top: 1px solid var(--brand-rule);
+}
+.tw-handoff-owner {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  color: var(--text-secondary);
+  font-size: 11px;
+  margin-bottom: 7px;
+}
+.tw-handoff-owner > span:last-child {
+  margin-left: auto;
+  max-width: 70%;
+}
+.tw-handoff-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-field);
+  flex-shrink: 0;
+}
+.tw-handoff-assignments h4 {
+  overflow-wrap: anywhere;
+}
+.tw-handoff-assignments p {
+  margin-bottom: 2px;
+}
+.tw-handoff-assignments summary {
+  padding: 5px 0;
+}
+.tw-handoff-readiness {
+  padding: 16px;
+  margin: 12px 0;
+  background: var(--brand-wash);
+  border-left: 2px solid var(--brand-field);
+  border-radius: 2px 10px 10px 2px;
+}
+.tw-handoff-readiness ul {
+  padding-left: 18px;
+  line-height: 1.6;
+}
+.tw-handoff-readiness li + li {
+  margin-top: 7px;
+}
+.tw-handoff-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.tw-handoff-conversation {
+  border-top: 1px solid var(--brand-rule);
+  margin-top: 12px;
+  padding-top: 8px;
+}
+.tw-handoff-conversation > summary {
+  cursor: pointer;
+  padding: 10px 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tw-handoff-progress {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--brand-wash);
+  border-radius: 3px 10px 10px 3px;
+  margin: 12px 0;
+}
+.tw-handoff-progress p {
+  margin: 0;
+}
+.tw-handoff-activity {
+  width: 8px;
+  height: 8px;
+  flex-shrink: 0;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--brand-field);
+  animation: handoff-activity 1.4s ease-in-out infinite alternate;
+}
+@keyframes handoff-activity {
+  to {
+    opacity: 0.35;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-handoff-activity {
+    animation: none;
+  }
 }
 .px-shaping-empty {
   padding: 16px 0 30px;
@@ -417,6 +533,10 @@
   border-top: 1px solid var(--brand-rule);
   margin-top: 28px;
   padding-top: 24px;
+}
+.tw-handoff > .cw-plan-execution {
+  margin-top: 16px;
+  padding-top: 12px;
 }
 .cw-plan-execution > p {
   color: var(--text-secondary);

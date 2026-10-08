@@ -1,4 +1,5 @@
 import { PlanExecution } from './PlanExecution';
+import { PlanHandoff } from './PlanHandoff';
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import {
@@ -24,6 +25,8 @@ export function PlanReview({
   onWork,
   onBrief,
   onAgentSettings,
+  onDiscuss,
+  onTools,
   suggestion,
   conversationActive = false,
 }: {
@@ -32,6 +35,8 @@ export function PlanReview({
   onWork?: (id: string, inspect?: boolean) => void;
   onBrief?: () => void;
   onAgentSettings?: (key: string) => void;
+  onDiscuss?: (text: string) => void;
+  onTools?: () => void;
   suggestion?: string;
   conversationActive?: boolean;
 }) {
@@ -244,6 +249,19 @@ export function PlanReview({
     if (edit) setEdit({ ...edit, content: { ...edit.content, ...value } });
   }
   const content = edit?.content || current?.content;
+  const executionPanel =
+    view && !edit && !reworking ? (
+      <PlanExecution
+        workId={workId}
+        view={view}
+        refresh={refresh}
+        onWork={onWork}
+        onAgentSettings={onAgentSettings}
+        onDiscuss={onDiscuss}
+        onTools={onTools}
+        disabled={disabled || stale}
+      />
+    ) : null;
   if (conversationActive && !current) return null;
   return (
     <section className="tw-plan" aria-label="Work plan">
@@ -393,59 +411,50 @@ export function PlanReview({
                   {view.brief_revision}.
                 </p>
               )}
-              {content && (
-                <fieldset className="tw-plan-edit" disabled={disabled}>
-                  {edit ? (
-                    <>
-                      <label>
-                        Outcome
-                        <input
-                          value={content.title}
-                          onChange={(e) => change({ title: e.target.value })}
-                        />
-                      </label>
-                      <label>
-                        Approach
-                        <textarea
-                          value={content.summary}
-                          onChange={(e) => change({ summary: e.target.value })}
-                        />
-                      </label>
-                    </>
-                  ) : (
-                    <>
-                      <h3>{content.title}</h3>
-                      <div className="tw-plan-approach">
-                        <FormattedMarkdown text={content.summary} />
-                      </div>
-                    </>
-                  )}
-                  <ol className="tw-plan-assignments">
-                    {content.assignments.map((assignment, index) => (
-                      <li key={assignment.key}>
-                        <div className="tw-plan-task-heading">
-                          <span>{index + 1}</span>
-                          <div>
-                            <h4>{assignment.title}</h4>
-                            <small>
-                              {agents.find((a) => a.key === assignment.agent_key)?.name ||
-                                assignment.agent_key}{' '}
-                              · {assignment.token_budget.toLocaleString()} proposed tokens
-                            </small>
+              {content &&
+                (edit ? (
+                  <fieldset className="tw-plan-edit" disabled={disabled}>
+                    <label>
+                      Outcome
+                      <input
+                        value={content.title}
+                        onChange={(e) => change({ title: e.target.value })}
+                      />
+                    </label>
+                    <label>
+                      Approach
+                      <textarea
+                        value={content.summary}
+                        onChange={(e) => change({ summary: e.target.value })}
+                      />
+                    </label>
+                    <ol className="tw-plan-assignments">
+                      {content.assignments.map((assignment, index) => (
+                        <li key={assignment.key}>
+                          <div className="tw-plan-task-heading">
+                            <span>{index + 1}</span>
+                            <div>
+                              <h4>{assignment.title}</h4>
+                              <small>
+                                {agents.find((a) => a.key === assignment.agent_key)?.name ||
+                                  assignment.agent_key}{' '}
+                                · {assignment.token_budget.toLocaleString()} proposed tokens
+                              </small>
+                            </div>
                           </div>
-                        </div>
-                        <p>{assignment.deliverable}</p>
-                        {!!assignment.depends_on.length && (
-                          <small>
-                            After:{' '}
-                            {assignment.depends_on
-                              .map((k) => content.assignments.find((a) => a.key === k)?.title || k)
-                              .join(' · ')}
-                          </small>
-                        )}
-                        <details open={!!edit}>
-                          <summary>{edit ? 'Adjust assignment' : 'Assignment details'}</summary>
-                          {edit ? (
+                          <p>{assignment.deliverable}</p>
+                          {!!assignment.depends_on.length && (
+                            <small>
+                              After:{' '}
+                              {assignment.depends_on
+                                .map(
+                                  (k) => content.assignments.find((a) => a.key === k)?.title || k,
+                                )
+                                .join(' · ')}
+                            </small>
+                          )}
+                          <details open>
+                            <summary>Adjust assignment</summary>
                             <div className="tw-plan-fields">
                               <label>
                                 Task
@@ -588,149 +597,134 @@ export function PlanReview({
                                 Remove assignment
                               </button>
                             </div>
-                          ) : (
-                            <>
-                              <FormattedMarkdown text={assignment.instructions} />
-                              <small>
-                                {assignment.tools.length
-                                  ? `Requested tools: ${assignment.tools.join(', ')}`
-                                  : 'No tools requested'}
-                              </small>
-                            </>
-                          )}
-                        </details>
-                      </li>
-                    ))}
-                  </ol>
-                  {edit && (
-                    <button
-                      disabled={content.assignments.length >= 12 || !agents.length}
-                      onClick={() =>
-                        change({
-                          assignments: [
-                            ...content.assignments,
-                            {
-                              key: `task-${crypto.randomUUID().slice(0, 8)}`,
-                              title: 'New assignment',
-                              instructions: '',
-                              agent_key: agents[0].key,
-                              deliverable: '',
-                              depends_on: [],
-                              tools: [],
-                              token_budget: 1000,
-                            },
-                          ],
-                        })
-                      }
-                    >
-                      Add assignment
-                    </button>
-                  )}
-                  {edit ? (
-                    <>
-                      <label>
-                        Proposed total token budget
-                        <input
-                          type="number"
-                          min={1}
-                          max={1000000}
-                          value={content.token_budget}
-                          onChange={(e) => change({ token_budget: Number(e.target.value) })}
-                        />
-                      </label>
-                      <label>
-                        Open questions (one per line)
-                        <textarea
-                          value={content.open_questions.join('\n')}
-                          onChange={(e) =>
-                            change({
-                              open_questions: e.target.value.split('\n'),
-                            })
-                          }
-                        />
-                      </label>
-                    </>
-                  ) : (
-                    <>
-                      <p>
-                        {content.assignments.length} proposed assignments ·{' '}
-                        {content.token_budget.toLocaleString()} proposed tokens
-                      </p>
-                      {!!content.open_questions.length && (
-                        <details>
-                          <summary>Questions to resolve · {content.open_questions.length}</summary>
-                          <ul>
-                            {content.open_questions.map((q, i) => (
-                              <li key={i}>{q}</li>
-                            ))}
-                          </ul>
-                        </details>
-                      )}
-                    </>
-                  )}
-                  {!!unresolved.length && (
-                    <details>
-                      <summary>Things to resolve · {unresolved.length}</summary>
-                      <ul>
-                        {unresolved.map((r, i) => (
-                          <li key={i}>{r}</li>
-                        ))}
-                      </ul>
-                    </details>
-                  )}
-                  {editStale && (
-                    <p role="alert">
-                      A newer plan or brief is saved. Your edits are preserved. Reload and review
-                      before applying them.
-                    </p>
-                  )}
-                  <div className="tw-plan-actions">
-                    {edit ? (
-                      <>
-                        <button
-                          className="cw-primary"
-                          disabled={disabled || editStale}
-                          onClick={() =>
-                            void perform({
-                              action: 'revise',
-                              request_id: crypto.randomUUID(),
-                              expected_revision: edit.base,
-                              brief_revision: edit.brief,
-                              content: {
-                                ...content,
-                                open_questions: content.open_questions
-                                  .map((q) => q.trim())
-                                  .filter(Boolean),
-                                assignments: content.assignments.map((a) => ({
-                                  ...a,
-                                  tools: a.tools.map((t) => t.trim()).filter(Boolean),
-                                })),
+                          </details>
+                        </li>
+                      ))}
+                    </ol>
+                    {edit && (
+                      <button
+                        disabled={content.assignments.length >= 12 || !agents.length}
+                        onClick={() =>
+                          change({
+                            assignments: [
+                              ...content.assignments,
+                              {
+                                key: `task-${crypto.randomUUID().slice(0, 8)}`,
+                                title: 'New assignment',
+                                instructions: '',
+                                agent_key: agents[0].key,
+                                deliverable: '',
+                                depends_on: [],
+                                tools: [],
+                                token_budget: 1000,
                               },
+                            ],
+                          })
+                        }
+                      >
+                        Add assignment
+                      </button>
+                    )}
+                    <label>
+                      Proposed total token budget
+                      <input
+                        type="number"
+                        min={1}
+                        max={1000000}
+                        value={content.token_budget}
+                        onChange={(e) => change({ token_budget: Number(e.target.value) })}
+                      />
+                    </label>
+                    <label>
+                      Open questions (one per line)
+                      <textarea
+                        value={content.open_questions.join('\n')}
+                        onChange={(e) =>
+                          change({
+                            open_questions: e.target.value.split('\n'),
+                          })
+                        }
+                      />
+                    </label>
+                    {!!unresolved.length && (
+                      <details>
+                        <summary>Things to resolve · {unresolved.length}</summary>
+                        <ul>
+                          {unresolved.map((r, i) => (
+                            <li key={i}>{r}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    )}
+                    {editStale && (
+                      <p role="alert">
+                        A newer plan or brief is saved. Your edits are preserved. Reload and review
+                        before applying them.
+                      </p>
+                    )}
+                    <div className="tw-plan-actions">
+                      <button
+                        className="cw-primary"
+                        disabled={disabled || editStale}
+                        onClick={() =>
+                          void perform({
+                            action: 'revise',
+                            request_id: crypto.randomUUID(),
+                            expected_revision: edit.base,
+                            brief_revision: edit.brief,
+                            content: {
+                              ...content,
+                              open_questions: content.open_questions
+                                .map((q) => q.trim())
+                                .filter(Boolean),
+                              assignments: content.assignments.map((a) => ({
+                                ...a,
+                                tools: a.tools.map((t) => t.trim()).filter(Boolean),
+                              })),
+                            },
+                          })
+                        }
+                      >
+                        Save plan revision
+                      </button>
+                      <button disabled={disabled} onClick={() => setEdit(undefined)}>
+                        Discard edits
+                      </button>
+                      {editStale && (
+                        <button
+                          disabled={disabled}
+                          onClick={() =>
+                            setEdit({
+                              ...edit,
+                              base: current.revision,
+                              brief: view.brief_revision,
                             })
                           }
                         >
-                          Save plan revision
+                          Apply edits against current revisions
                         </button>
-                        <button disabled={disabled} onClick={() => setEdit(undefined)}>
-                          Discard edits
-                        </button>
-                        {editStale && (
-                          <button
-                            disabled={disabled}
-                            onClick={() =>
-                              setEdit({
-                                ...edit,
-                                base: current.revision,
-                                brief: view.brief_revision,
-                              })
-                            }
-                          >
-                            Apply edits against current revisions
-                          </button>
-                        )}
-                      </>
-                    ) : (
-                      <>
+                      )}
+                    </div>
+                    {view.generation && (
+                      <details>
+                        <summary>Planning reply and run</summary>
+                        <small>
+                          Request {view.generation.id} · run{' '}
+                          {view.generation.run_id || 'not admitted'}
+                        </small>
+                        {view.generation.messages
+                          .filter((m) => m.role === 'assistant')
+                          .map((m) => (
+                            <FormattedMarkdown key={m.id} text={m.content} />
+                          ))}
+                      </details>
+                    )}
+                  </fieldset>
+                ) : (
+                  <>
+                    <PlanHandoff content={content}>
+                      {executionPanel}
+                      <div className="tw-plan-actions">
                         <button
                           disabled={disabled}
                           onClick={() =>
@@ -743,44 +737,29 @@ export function PlanReview({
                         >
                           Adjust plan
                         </button>
-                      </>
-                    )}
-                  </div>
-                  {view.generation && (
-                    <details>
-                      <summary>Planning reply and run</summary>
-                      <small>
-                        Request {view.generation.id} · run{' '}
-                        {view.generation.run_id || 'not admitted'}
-                      </small>
-                      {view.generation.messages
-                        .filter((m) => m.role === 'assistant')
-                        .map((m) => (
-                          <FormattedMarkdown key={m.id} text={m.content} />
-                        ))}
-                    </details>
-                  )}
-                </fieldset>
-              )}
-              {!running && !edit && (
-                <button disabled={disabled} onClick={() => setReworking(true)}>
-                  Refine this proposal
-                </button>
-              )}
+                        {!running && (
+                          <button
+                            disabled={disabled}
+                            onClick={() =>
+                              onDiscuss
+                                ? onDiscuss(
+                                    `I’d like to refine the saved proposal “${content.title}”. My changes: `,
+                                  )
+                                : setReworking(true)
+                            }
+                          >
+                            Refine this proposal
+                          </button>
+                        )}
+                      </div>
+                    </PlanHandoff>
+                  </>
+                ))}
             </>
           )}
         </>
       )}
-      {view && !edit && !reworking && (
-        <PlanExecution
-          workId={workId}
-          view={view}
-          refresh={refresh}
-          onWork={onWork}
-          onAgentSettings={onAgentSettings}
-          disabled={disabled || stale}
-        />
-      )}
+      {(!content || view?.execution) && executionPanel}
       {pending && (
         <div role="status">
           <p>
