@@ -26,10 +26,3 @@ mod tls_identity;
 pub use tls_identity::{
     load_or_create_tls_identity, revoke_tls_identity, rotate_tls_identity, TlsIdentity,
 };
-
-pub mod role;
-#[allow(deprecated)]
-pub use role::{
-    FailoverEvent, KeeperError, KeeperRegistry, NodeCapabilities, NodeLifecycle, NodeRole,
-    RunnerClient, RunnerRegistration, RunnerStatus,
-};

@@ -3,8 +3,6 @@
 mod briefing;
 mod critic;
 mod domain_pack;
-pub mod fleet;
-pub mod fleet_supervisor;
 mod handoff;
 mod host;
 mod router;
@@ -31,10 +29,6 @@ pub use critic::{
     should_run_critic_enhanced, CriticOutcome,
 };
 pub use domain_pack::{DomainPack, PackManifest};
-pub use fleet::{BudgetQuota, Bulletin, FleetError, Organization, SharedWorkpad, Squad};
-pub use fleet_supervisor::{
-    AgentLifecycleState, AgentStatusSummary, FleetSnapshot, FleetSupervisor, ManagedAgent,
-};
 pub use handoff::{carve_max_steps, SpawnHandoff, SpawnPointer};
 pub use host::{SessionHost, SessionStartPlan, TurnHooks, VerifyResolver};
 pub use router::{

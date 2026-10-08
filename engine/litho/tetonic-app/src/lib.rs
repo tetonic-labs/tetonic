@@ -13,14 +13,12 @@ pub mod errors;
 pub mod estate_enrollment;
 pub mod events;
 pub mod fabric_run_bridge;
-pub mod fleet_api;
 pub mod inference_selection;
 pub mod job_launch;
 pub mod local_workspace;
 pub mod lsp_launcher;
 pub mod lsp_session;
 pub mod node_worker;
-pub mod operator_control;
 pub mod product_submit;
 pub mod redaction_audit;
 pub mod resources;
@@ -33,7 +31,6 @@ pub mod spawn_budget;
 pub mod store_audit;
 mod team_work_controller;
 pub mod test_harness;
-pub mod thought_stream;
 pub mod turn_attestation;
 pub mod turn_execution;
 
@@ -91,19 +88,6 @@ pub use tetonic_orchestrator::{next_child_agent_id, ROOT_AGENT};
 pub use tetonic_policy::data_class_name;
 pub use tetonic_secrets::ScannerEngine;
 pub use tetonic_telemetry;
-
-#[allow(deprecated)]
-pub use fleet_api::{
-    AgentResponse, CreateAgentRequest, CreateOrgRequest, CreateSquadRequest, FleetApiError,
-    FleetManager, OrgResponse, SquadResponse,
-};
-#[allow(deprecated)]
-pub use operator_control::{
-    EstopRequest, EstopResponse, OperatorControlError, OperatorController, OperatorDashboardView,
-    SteerAgentRequest, SteerResponse,
-};
-#[allow(deprecated)]
-pub use thought_stream::{TelemetryEvent, ThoughtStreamHub};
 
 use crate::services::*;
 use std::sync::Arc;
