@@ -118,6 +118,21 @@ impl WorkService {
         &self,
         work: tetonic_memory::TeamWorkItem,
     ) -> Result<LocalTask, AppError> {
+        self.project_task_with_content(work, true).await
+    }
+
+    pub(super) async fn project_task_summary(
+        &self,
+        work: tetonic_memory::TeamWorkItem,
+    ) -> Result<LocalTask, AppError> {
+        self.project_task_with_content(work, false).await
+    }
+
+    async fn project_task_with_content(
+        &self,
+        work: tetonic_memory::TeamWorkItem,
+        include_content: bool,
+    ) -> Result<LocalTask, AppError> {
         let app_scope = self.services.authorized_scope().await?;
         let (request_id, parent_id) = conversations::split_parent(&work.request_id);
         let plan = self.plan_link(&work.work_id).await?;
@@ -263,6 +278,9 @@ impl WorkService {
                 task_failure_message(attempt.and_then(|a| a.failure_reason.as_deref())).into(),
             );
         }
+        if !include_content {
+            return Ok(task);
+        }
         if let Some(history) = bound_task
             .and_then(|t| {
                 t.binding
@@ -333,21 +351,20 @@ impl WorkService {
                     if read_ok
                         && format!("sha256:{:x}", sha2::Sha256::digest(&bytes)) == output.digest
                     {
-                        if let Ok(value) = serde_json::from_slice::<serde_json::Value>(&bytes) {
-                            if value["v"] == 1 && value["outcome"] == "completed" {
-                                if let Some(answer) =
-                                    value["message"].as_str().filter(|s| !s.trim().is_empty())
-                                {
-                                    let has_assistant = task.messages.iter().any(|message| {
-                                        message.role == "assistant" && message.content == answer
+                        if let Ok(value) = serde_json::from_slice::<
+                            tetonic_domain::candidate_artifact::CandidateArtifactV1,
+                        >(&bytes)
+                        {
+                            if let Some(answer) = value.completed_message() {
+                                let has_assistant = task.messages.iter().any(|message| {
+                                    message.role == "assistant" && message.content == answer
+                                });
+                                if !has_assistant {
+                                    task.messages.push(LocalMessage {
+                                        id: -1,
+                                        role: "assistant".into(),
+                                        content: answer.into(),
                                     });
-                                    if !has_assistant {
-                                        task.messages.push(LocalMessage {
-                                            id: -1,
-                                            role: "assistant".into(),
-                                            content: answer.into(),
-                                        });
-                                    }
                                 }
                             }
                         }

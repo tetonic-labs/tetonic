@@ -5,7 +5,17 @@ use super::*;
 pub struct BudgetSettingsRequest {
     pub request_id: String,
     pub expected_revision: i64,
+    #[serde(deserialize_with = "required_token_limit")]
     pub token_limit: Option<i64>,
+}
+
+// An omitted limit must never accidentally clear a saved allowance. `null` is
+// the explicit reset command; the revision and request ID still guard the write.
+fn required_token_limit<'de, D>(deserializer: D) -> Result<Option<i64>, D::Error>
+where
+    D: serde::Deserializer<'de>,
+{
+    serde::Deserialize::deserialize(deserializer)
 }
 
 impl WorkService {
@@ -127,7 +137,17 @@ impl WorkService {
                 .as_ref()
                 .map(|link| link.agent_key.clone())
                 .or(agent_key);
-            let status = if plan_link.is_some() {
+            // Presentation edits are not lifecycle commands. Once execution is
+            // bound, use the same authorized journal projection as the inspector.
+            // Summary reads deliberately skip transcript and artifact payload IO.
+            let execution = if item.run_id.is_some() {
+                Some(self.project_task_summary(item.clone()).await?)
+            } else {
+                None
+            };
+            let status = if let Some(task) = &execution {
+                task.state.clone()
+            } else if plan_link.is_some() {
                 item.status
             } else {
                 local_data.status.unwrap_or(item.status)
@@ -138,7 +158,9 @@ impl WorkService {
                 id: item.work_id,
                 title: item.title,
                 status,
-                agent_key: lead_id.clone().or(agent_key),
+                agent_key: execution
+                    .map(|task| task.agent_key)
+                    .or_else(|| lead_id.clone().or(agent_key)),
                 goal_id: item.goal_id,
                 run_id: item.run_id,
                 request_id: item.request_id,

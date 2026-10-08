@@ -54,6 +54,30 @@ async fn non_default_scope_uses_existing_managed_execution_and_idempotency() {
                 serde_json::to_string(&result).unwrap()
             );
             assert_eq!(result.run_id, admitted.run_id);
+            alice
+                .set_local_work_data(
+                    &id,
+                    None,
+                    Some("blocked".into()),
+                    Some("presentation-lead".into()),
+                    None,
+                )
+                .await
+                .unwrap();
+            let listed = alice.work_items().await.unwrap();
+            let listed = listed.iter().find(|item| item.id == id).unwrap();
+            assert_eq!(listed.status, result.state);
+            assert_eq!(listed.agent_key.as_deref(), Some(result.agent_key.as_str()));
+            assert_eq!(listed.lead_id.as_deref(), Some("presentation-lead"));
+            assert_eq!(
+                alice
+                    .get_local_work_data(&id)
+                    .await
+                    .unwrap()
+                    .status
+                    .as_deref(),
+                Some("blocked")
+            );
             let retried = alice
                 .submit(id.clone(), "Answer briefly.".into())
                 .await

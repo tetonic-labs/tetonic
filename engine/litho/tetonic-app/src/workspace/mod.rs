@@ -78,7 +78,7 @@ impl WorkspaceServices {
     }
 }
 pub(crate) fn resource(error: crate::resources::ResourceError) -> AppError {
-    AppError::InvalidRequest(error.to_string())
+    error.into()
 }
 pub(crate) fn validate_request_id(id: &str) -> Result<(), AppError> {
     if uuid::Uuid::parse_str(id).is_err() {

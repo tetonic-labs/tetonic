@@ -17,7 +17,7 @@ impl Store {
         if query.len() > 4096 {
             return Err(StoreError::InvalidControlResource("query".into()));
         }
-        let query = crate::recall::fts_term(query);
+        let query = crate::context::recall::fts_term(query);
         if query == "\"\"" {
             return Ok(Vec::new());
         }

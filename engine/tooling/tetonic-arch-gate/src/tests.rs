@@ -1,6 +1,26 @@
 use super::*;
 
 #[test]
+fn run_journal_gate_allows_its_grouped_owner_but_rejects_other_persistence_areas() {
+    let directory = tempfile::tempdir().unwrap();
+    let root = directory.path();
+    let owner = root.join("strata/tetonic-memory/src/execution/run_store.rs");
+    std::fs::create_dir_all(owner.parent().unwrap()).unwrap();
+    std::fs::write(&owner, "fn commit_run_command() {}").unwrap();
+    assert!(check_run_state_mutations(root).is_empty());
+    for area in ["control", "usage", "context", "artifacts"] {
+        let misplaced = root.join(format!("strata/tetonic-memory/src/{area}/bypass.rs"));
+        std::fs::create_dir_all(misplaced.parent().unwrap()).unwrap();
+        std::fs::write(&misplaced, "db.commit_run_command(snapshot, event)").unwrap();
+        let failures = check_run_state_mutations(root);
+        assert_eq!(failures.len(), 1, "{area}");
+        assert_eq!(failures[0].rule, "run_state_mutation_bypass");
+        assert_eq!(failures[0].path, misplaced);
+        std::fs::remove_file(misplaced).unwrap();
+    }
+}
+
+#[test]
 fn compute_wiring_gate_follows_host_composition_and_rejects_missing_boundaries() {
     let source = engine_root();
     let directory = tempfile::tempdir().unwrap();

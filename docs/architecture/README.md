@@ -8,6 +8,7 @@ inference workers. Distributed inference is not the same as distributed agent
 execution.
 
 This is the current architecture entry point, updated with the October 8, 2026
+[durable-state and contract organization](durable-state-and-contracts.md),
 [execution-boundary refactor](execution-boundaries.md),
 [scoped work-service extraction](work-services.md) and
 [host composition refactor](host-configuration.md). The [ownership map](ownership.md) identifies where
@@ -103,6 +104,7 @@ effects are not automatically safe to replay. See the
 - [Application host and operator configuration](host-configuration.md)
 - [Scoped workspace services and work lifecycle](work-services.md)
 - [Execution, harness and inference boundaries](execution-boundaries.md)
+- [Durable state, budgets and public contracts](durable-state-and-contracts.md)
 - [Contribution workflow](../../CONTRIBUTING.md)
 - [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
 - [Retirement record](../epics/v5-reconciliation/retirement.md)

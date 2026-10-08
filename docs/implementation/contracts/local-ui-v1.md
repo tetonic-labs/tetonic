@@ -8,6 +8,30 @@ to their organization/team. The existing upgrade machinery preserves a backup;
 ambiguous legacy work IDs are retained for explicit recovery rather than assigned
 to a team automatically. This does not add a multi-user HTTP surface.
 
+## Version and failure contract — October 8, 2026
+
+Every JSON response includes `X-Tetonic-Api-Version: 1`. Clients may send this
+header on requests; a missing header means legacy v1, while unsupported or
+duplicate values are rejected after authentication and before a command runs.
+Endpoint paths and successful response shapes are retained.
+
+Failures retain the existing `error` text field and add `schema_version: 1`,
+`code`, `recovery` and `recovery_hint`. Resource revision conflicts return 409,
+access denials 403, occupied execution capacity 429, unavailable inference or
+workspace 503, and storage/tool/internal failures 500. Malformed input remains
+400; invalid local connection credentials return 401. Raw storage, tool and
+internal error bodies are hidden. Recovery guidance never authorizes automatic
+replay of a mutation whose outcome is unknown.
+
+Budget updates require `token_limit` explicitly: a number sets it and `null`
+resets it; omission is invalid. `request_id` and `expected_revision` remain
+required. Work-list entries with bound execution now use the same authorized
+state and actual agent assignment as task inspection. Editable presentation
+metadata cannot override that execution truth.
+
+See [durable state and public contracts](../../architecture/durable-state-and-contracts.md)
+for the canonical types, transaction boundaries, accounting trace and limits.
+
 ## Start
 
 The optional `--host-config <file.json>` configures storage, sanitized logging and

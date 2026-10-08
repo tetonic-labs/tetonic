@@ -539,7 +539,7 @@ pub fn check_run_state_mutations(root: &Path) -> Vec<Violation> {
         "mantle/lokai-run/",
         "mantle/tetonic-run/",
         "strata/lokai-memory/src/run_store.rs",
-        "strata/tetonic-memory/src/run_store.rs",
+        "strata/tetonic-memory/src/execution/run_store.rs",
         "tooling/lokai-arch-gate/",
         "tooling/tetonic-arch-gate/",
         "/tests/",

@@ -1,6 +1,6 @@
 //! TLS persistence: public certificate, versioned opaque reference, and CAS revision.
 //! OS key custody and TLS validation are deliberately outside this adapter.
-use crate::worker_store::{WorkerResult, WorkerStore, WorkerStoreError};
+use crate::execution::worker_store::{WorkerResult, WorkerStore, WorkerStoreError};
 use rusqlite::{params, OptionalExtension};
 use tetonic_domain::key_storage::{SecretBytes, SecretKeyRef};
 

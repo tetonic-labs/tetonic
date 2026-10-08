@@ -121,7 +121,7 @@ impl WorkService {
             }
         }
         self.services.local.resources().mutate_huddle_plan(&self.services.host.credential,app_scope.organization().into(),app_scope.team().into(),id.into(),command).await.map_err(|e|match e {
-            crate::resources::ResourceError::Conflict=>AppError::InvalidRequest("The plan or brief changed. Reload and review the current revision before trying again.".into()),
+            crate::resources::ResourceError::Conflict=>AppError::Conflict("The plan or brief changed. Reload and review the current revision before trying again.".into()),
             other=>resource(other),
         })
     }

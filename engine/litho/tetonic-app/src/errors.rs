@@ -1,7 +1,12 @@
 use thiserror::Error;
 
+mod public;
+pub use public::{FailureCode, PublicFailureV1, RecoveryAction};
+
 #[derive(Debug, Error)]
 pub enum AppError {
+    #[error("{0}")]
+    Conflict(String),
     #[error("organization execution capacity is occupied; retry after admitted work quiesces")]
     OrganizationCapacityExceeded,
     #[error("team execution capacity is occupied; retry after admitted work quiesces")]
@@ -61,6 +66,25 @@ impl AppError {
             | Self::Canceled
             | Self::WorkspaceUnavailable
             | Self::InferenceUnavailable => self.to_string(),
+            Self::Conflict(message) => message.clone(),
+        }
+    }
+}
+
+impl From<crate::resources::ResourceError> for AppError {
+    fn from(error: crate::resources::ResourceError) -> Self {
+        use crate::resources::ResourceError;
+        match error {
+            ResourceError::Denied => Self::PolicyDenied("resource access denied".into()),
+            ResourceError::Conflict => Self::Conflict(
+                "This item changed, or the request belongs to a different edit. Refresh it before applying your change.".into(),
+            ),
+            ResourceError::Storage | ResourceError::StorageRequired => {
+                Self::PersistenceFailed("resource storage unavailable".into())
+            }
+            ResourceError::Invalid | ResourceError::LastAdministrator => {
+                Self::InvalidRequest(error.to_string())
+            }
         }
     }
 }

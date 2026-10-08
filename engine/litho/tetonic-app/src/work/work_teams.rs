@@ -32,7 +32,7 @@ impl WorkService {
             ));
         }
         self.services.local.resources().save_work_team(&self.services.host.credential,app_scope.organization().into(),app_scope.team().into(),request).await.map_err(|e|match e {
-            crate::resources::ResourceError::Conflict=>AppError::InvalidRequest("This team changed, or this save belongs to another edit. Reload the team before saving again.".into()),
+            crate::resources::ResourceError::Conflict=>AppError::Conflict("This team changed, or this save belongs to another edit. Reload the team before saving again.".into()),
             other=>resource(other),
         })
     }

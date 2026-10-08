@@ -35,7 +35,7 @@ finalization follow the [existing execution path](README.md#current-execution-pa
 | Shaping, plans, continuation and human work questions | [`work/`](../../engine/litho/tetonic-app/src/work/mod.rs) |
 | Product snapshots and task projections | [`work/inspection.rs`](../../engine/litho/tetonic-app/src/work/inspection.rs) |
 | Eligibility and parallel dispatch loop | [`team_work_controller.rs`](../../engine/litho/tetonic-app/src/team_work_controller.rs), using [`WorkService`'s host implementation](../../engine/litho/tetonic-app/src/work/plan_execution/controller.rs) |
-| Presentation notes, lead and roster metadata persistence | [`work_metadata.rs`](../../engine/strata/tetonic-memory/src/work_metadata.rs), through resource authorization |
+| Presentation notes, lead and roster metadata persistence | [`work_metadata.rs`](../../engine/strata/tetonic-memory/src/control/work_metadata.rs), through resource authorization |
 | Actual run/task/attempt lifecycle and outcome | Existing [managed execution owner](ownership.md#managed-execution-and-recovery) |
 
 `local_workspace::LocalWorkspace` remains a public alias for `WorkService`.
@@ -100,7 +100,7 @@ execution outcome.
   cover non-default principals/teams, identical work IDs in separate teams,
   foreign access, credential mismatch/revocation, membership removal and reopen,
   plus managed execution with scoped grants and idempotent retry.
-- [Metadata tests](../../engine/strata/tetonic-memory/src/work_metadata.rs)
+- [Metadata tests](../../engine/strata/tetonic-memory/src/control/work_metadata.rs)
   cover both legacy layouts, ambiguity preservation, patch behavior and isolation.
 - [Source boundary checks](../../engine/litho/tetonic-app/tests/scope04_boundaries.rs)
   prevent local identifiers or lifecycle behavior from returning to the wrong module.

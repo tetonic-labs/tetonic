@@ -279,11 +279,11 @@ const FILE_SIZE_ALLOWLIST: &[&str] = &[
     // Owner: MVP-602. Reason: run store durable attempt lifecycle and step persistence.
     // Removal: split store into step and attempt state tables.
     "strata/lokai-memory/src/run_store.rs",
-    "strata/tetonic-memory/src/run_store.rs",
+    "strata/tetonic-memory/src/execution/run_store.rs",
     // Owner: MVP-602. Reason: team work items, goals, and huddle coordination state machine.
     // Removal: split huddle and task backlog persistence.
     "strata/lokai-memory/src/team_work.rs",
-    "strata/tetonic-memory/src/team_work.rs",
+    "strata/tetonic-memory/src/control/team_work.rs",
 ];
 
 pub fn check_file_sizes(root: &Path) -> Vec<Violation> {

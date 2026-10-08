@@ -1,119 +1,62 @@
-//! Local audit/memory store — the precious `lokai.db` (Phase A slice).
+//! Durable SQLite state for control, execution, scoped context, usage and artifact bindings.
 //!
-//! This is the on-disk, **local-only** record of what the agent did: sessions,
-//! the full conversation, every tool call, structured events, and a mirror of
-//! the egress log. It exists so the user can *see and trust* (and later undo)
-//! the agent's actions — see contracts/memory-store-v2.md.
-//!
-//! By construction this crate has **no network path**: it never depends on
-//! `lokai-egress` or any HTTP client. It holds project content, so it stays on
-//! the machine.
-//!
-//! This slice ships the audit spine (sessions, messages, tool_calls, events,
-//! egress_log), `file_changes` (undo), time-travel (`checkpoints`/`workspace_head`/`restores`),
-//! trust/approvals (v9), project memory, recall FTS, estate, and capacity profiles.
+//! Store owns transactions and integrity checks; application services authorize
+//! use cases, and tetonic-run owns lifecycle transitions. SharedStore keeps one
+//! writer and pooled readers. Grouped modules share that same transaction boundary.
+//! Artifact payloads live in tetonic-artifact; telemetry is not a second journal.
 
 use std::path::{Path, PathBuf};
 
 use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 
+mod artifacts;
+mod context;
+mod control;
+mod execution;
+mod usage;
+
 mod backup;
 mod blob;
-mod capability;
-mod capacity;
-mod capacity_tables;
-mod compute_reservation;
 #[cfg(test)]
 mod durability_tests;
-mod estate;
-mod identity_store;
-#[cfg(test)]
-mod organization_agent_edit_tests;
-mod organization_agent_edits;
-mod organization_agent_revisions;
-pub use organization_agent_edits::AgentEdit;
-mod organization_agents;
-pub use organization_agents::RegisteredAgent;
-mod context_access;
-mod context_artifacts;
-mod context_history;
-mod context_publication;
-mod context_recall;
-mod context_scope;
-mod control_bootstrap;
-mod control_credentials;
-mod control_requests;
-pub use control_requests::{
+pub use context::context_access::{team_participation_context_id, ContextOwner};
+pub use context::context_publication::ContextPublication;
+pub use control::control_requests::{
     ActivateWorkCursor, AmendPlanAssignment, AnswerWorkHuman, AskWorkHuman, BeginHuddleExecution,
     BeginWorkInference, ClaimWorkerAssignment, CreateTeamWorkItem, CreateWorkDelegation,
     DelegatedExecutionBinding, EnrollWorkstation, ProposeEffectApproval, PublishContextMessage,
     RecordTeamEffort, ResolveEffectApproval, SaveHuddlePlan, SaveWorkBrief,
 };
-mod membership_admin;
-mod membership_store;
-mod team_admin;
-pub use context_access::{team_participation_context_id, ContextOwner};
-pub use context_publication::ContextPublication;
-mod delegated_grants;
-mod execution_limits;
-pub use delegated_grants::{
+pub use control::delegated_grants::{
     DelegatedExecutionGrant, DelegatedGrantLineage, DelegatedGrantRequest, DelegationLifetime,
 };
-mod delegated_lifetime;
-mod local_provider_keys;
-mod work_teams;
-pub use work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
-mod workspace_skills;
-pub use workspace_skills::WorkspaceSkill;
-mod workspace_mcp;
-pub use workspace_mcp::WorkspaceMcpConnection;
-mod local_work_notes;
-mod work_metadata;
-pub use local_work_notes::LocalWorkData;
-pub use work_metadata::WorkMetadataPatch;
-mod child_capacity;
+pub use control::local_work_notes::LocalWorkData;
+pub use control::organization_agent_edits::AgentEdit;
+pub use control::organization_agents::RegisteredAgent;
+pub use control::work_metadata::WorkMetadataPatch;
+pub use control::work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
+pub use control::workspace_mcp::WorkspaceMcpConnection;
+pub use control::workspace_skills::WorkspaceSkill;
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
-mod policy;
-mod projects;
-mod recall;
-mod result_disposition;
-mod run_capacity;
-pub use execution_limits::{OrganizationExecutionLimits, TeamExecutionLimits};
-mod human_controls;
-mod run_store;
-mod scheduler_decision;
+pub use usage::execution_limits::{OrganizationExecutionLimits, TeamExecutionLimits};
 mod schema;
-mod secret_overrides;
 mod sync_lock;
-mod team_store;
-mod team_work;
-mod work_briefs;
-mod work_budgets;
-mod work_usage;
-mod work_usage_resume;
-pub use work_budgets::{WorkBudget, WorkBudgetReservation};
-pub use work_usage::{work_activation_request_id, TeamBudgetSetting, WorkUsage};
-mod huddle_plans;
-mod plan_human;
-pub use plan_human::{
-    HumanQuestionContent, PlanDirection, SavedHumanWait, SuspendedHumanQuestion, WorkHumanQuestion,
-};
-mod huddle_execution;
-mod plan_continuation;
-pub use huddle_execution::{
+pub use control::huddle_execution::{
     AssignmentProgress, AssignmentState, HuddleExecution, HuddleProgress, PlanAgentPin,
 };
-pub use huddle_plans::{HuddlePlan, PlanAssignment, PlanContent};
-pub use plan_continuation::{CreatePlanContinuation, PlanContinuation, RetainedPlanWork};
-pub use team_work::WorkPurpose;
-pub use work_briefs::WorkBrief;
-mod trust;
+pub use control::huddle_plans::{HuddlePlan, PlanAssignment, PlanContent};
+pub use control::plan_continuation::{CreatePlanContinuation, PlanContinuation, RetainedPlanWork};
+pub use control::plan_human::{
+    HumanQuestionContent, PlanDirection, SavedHumanWait, SuspendedHumanQuestion, WorkHumanQuestion,
+};
+pub use control::team_work::WorkPurpose;
+pub use control::work_briefs::WorkBrief;
+pub use usage::work_budgets::{WorkBudget, WorkBudgetReservation};
+pub use usage::work_usage::{work_activation_request_id, TeamBudgetSetting, WorkUsage};
 mod util;
-mod worker_store;
-mod workstation_placement;
 
 pub use backup::{
     is_ephemeral_db_path, pre_migrate_backup_directory, pre_migrate_backup_path,
@@ -122,28 +65,32 @@ pub use backup::{
 pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
-pub use control_credentials::ControlCredentialRow;
-pub use human_controls::{
+pub use context::recall::RecallHit;
+pub use control::control_credentials::ControlCredentialRow;
+pub use control::human_controls::{
     ControlStop, EffectApproval, ShellApprovalProposal, TeamEffortEntry, TeamWorkInspection,
 };
-pub use identity_store::AgentIdentityRow;
-pub use membership_store::{ControlPermission, OrganizationRole};
-pub use recall::RecallHit;
-pub use team_store::{OrganizationRow, TeamRow};
-pub use team_work::{HuddleProposal, TeamGoal, TeamWorkItem, WorkActivationCursor, WorkDelegation};
-pub use trust::{ApprovalRow, EgressAllowRow};
-pub use workstation_placement::{
+pub use control::identity_store::AgentIdentityRow;
+pub use control::membership_store::{ControlPermission, OrganizationRole};
+pub use control::team_store::{OrganizationRow, TeamRow};
+pub use control::team_work::{
+    HuddleProposal, TeamGoal, TeamWorkItem, WorkActivationCursor, WorkDelegation,
+};
+pub use control::trust::{ApprovalRow, EgressAllowRow};
+pub use execution::workstation_placement::{
     WorkPlacementPin, WorkerAssignmentClaim, Workstation, WorkstationGrant,
 };
 
-pub use capacity::RuntimeProfileRow;
-pub use compute_reservation::ComputeReservationRow;
-pub use estate::{OwnerIdentityRow, WorkerEnrollmentRow};
-pub use result_disposition::DurableDispositionRecord;
-pub use run_store::CompactReport;
-pub use scheduler_decision::SchedulerDecisionRow;
-pub use secret_overrides::{SecretOverrideAuditRow, SecretOverrideRow, SecretOverrideScope};
-pub use worker_store::{CoordinatorPinRow, WorkerStore, WorkerStoreError};
+pub use artifacts::result_disposition::DurableDispositionRecord;
+pub use control::estate::{OwnerIdentityRow, WorkerEnrollmentRow};
+pub use control::secret_overrides::{
+    SecretOverrideAuditRow, SecretOverrideRow, SecretOverrideScope,
+};
+pub use execution::run_store::CompactReport;
+pub use execution::worker_store::{CoordinatorPinRow, WorkerStore, WorkerStoreError};
+pub use usage::capacity::RuntimeProfileRow;
+pub use usage::compute_reservation::ComputeReservationRow;
+pub use usage::scheduler_decision::SchedulerDecisionRow;
 
 #[derive(Debug, Error)]
 pub enum StoreError {
@@ -601,7 +548,7 @@ impl Store {
             now()
         ])?;
         let row_id = self.conn.last_insert_rowid();
-        recall::after_message_insert(self, session_id, role, content);
+        context::recall::after_message_insert(self, session_id, role, content);
         Ok(row_id)
     }
 
@@ -653,7 +600,7 @@ impl Store {
             } else {
                 result_summary.to_string()
             };
-            recall::after_tool_insert(self, session_id, tool, &body);
+            context::recall::after_tool_insert(self, session_id, tool, &body);
         }
         Ok(())
     }
@@ -1673,8 +1620,6 @@ mod tests {
     }
 }
 
-mod worker_tls;
-pub use worker_tls::{WorkerTlsIdentity, WorkerTlsKey};
+pub use execution::worker_tls::{WorkerTlsIdentity, WorkerTlsKey};
 
-mod execution_grants;
-pub use execution_grants::ExecutionGrant;
+pub use control::execution_grants::ExecutionGrant;

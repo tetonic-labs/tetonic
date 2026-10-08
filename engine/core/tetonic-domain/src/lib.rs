@@ -2,6 +2,7 @@
 
 pub mod artifact;
 pub mod brain;
+pub mod candidate_artifact;
 pub mod canonical;
 pub mod classify;
 pub mod code_index;

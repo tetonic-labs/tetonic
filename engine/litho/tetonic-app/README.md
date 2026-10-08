@@ -9,6 +9,7 @@ execution engine. It does not own a second run journal or executor lifecycle.
 | Owner | Responsibility |
 |---|---|
 | `host` | Shared application dependencies, storage and diagnostics configuration |
+| `errors::PublicFailureV1` | Versioned safe failure categories and recovery guidance; transport status mapping stays in the adapter |
 | `work::WorkService` | Work shaping, plans, submission, human questions, continuation and inspection |
 | `workspace::WorkspaceServices` | Scoped agent editing, providers and capability operations |
 | `resources` | Authenticated identity, grants, context, work and control operations |
@@ -40,6 +41,7 @@ saved tool names and team membership cannot manufacture grants. A live managed
 - [Host configuration](../../../docs/architecture/host-configuration.md)
 - [Scoped work services](../../../docs/architecture/work-services.md)
 - [Execution, harness and inference boundaries](../../../docs/architecture/execution-boundaries.md)
+- [Durable state, budgets and public contracts](../../../docs/architecture/durable-state-and-contracts.md)
 - [Local UI contract](../../../docs/implementation/contracts/local-ui-v1.md)
 
 From `engine`, run `cargo test -p tetonic-app` and

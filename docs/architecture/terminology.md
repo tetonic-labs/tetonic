@@ -24,10 +24,10 @@ change each record.
 
 Sources: [resource authority](../../engine/litho/tetonic-app/src/resources.rs),
 [identity types](../../engine/core/tetonic-domain/src/identity.rs),
-[agent revisions](../../engine/strata/tetonic-memory/src/organization_agent_revisions.rs),
-[security teams](../../engine/strata/tetonic-memory/src/team_store.rs),
-[work rosters](../../engine/strata/tetonic-memory/src/work_teams.rs),
-[context access](../../engine/strata/tetonic-memory/src/context_access.rs),
+[agent revisions](../../engine/strata/tetonic-memory/src/control/organization_agent_revisions.rs),
+[security teams](../../engine/strata/tetonic-memory/src/control/team_store.rs),
+[work rosters](../../engine/strata/tetonic-memory/src/control/work_teams.rs),
+[context access](../../engine/strata/tetonic-memory/src/context/context_access.rs),
 [local product bootstrap](../../engine/litho/tetonic-app/src/local_workspace/bootstrap.rs).
 
 ## Work and execution
@@ -48,8 +48,8 @@ Sources: [resource authority](../../engine/litho/tetonic-app/src/resources.rs),
 | Session / conversation | A history/audit correlation or in-memory model conversation, depending on the type. | Retained session records and `AssemblyMode::Session` do not restore the retired terminal-chat/session supervisor. |
 | Human request | A pending question or approval associated with work and its execution context. | A durable human wait has a specific checkpoint/restore contract; ordinary crash recovery is not the same operation. |
 
-Sources: [work types](../../engine/strata/tetonic-memory/src/team_work.rs),
-[accepted plan pins](../../engine/strata/tetonic-memory/src/huddle_execution.rs),
+Sources: [work types](../../engine/strata/tetonic-memory/src/control/team_work.rs),
+[accepted plan pins](../../engine/strata/tetonic-memory/src/control/huddle_execution.rs),
 [runtime lifecycle types](../../engine/core/tetonic-domain/src/run.rs),
 [identity/job contracts](../../engine/core/tetonic-domain/src/identity.rs),
 [local API projection](../../engine/litho/tetonic-app/src/work/types.rs).
@@ -85,6 +85,6 @@ answer different questions and must not be substituted for one another.
 
 Sources: [host composition](../../engine/litho/tetonic-app/src/job_launch.rs),
 [compute plane](../../engine/litho/tetonic-app/src/compute_plane.rs),
-[worker ingress](../../engine/mantle/tetonic-node/src/job_ingress.rs),
-[work reservations](../../engine/strata/tetonic-memory/src/work_budgets.rs),
-[usage accounting](../../engine/strata/tetonic-memory/src/work_usage.rs).
+[worker ingress](../../engine/mantle/tetonic-node/src/inference_ingress.rs),
+[work reservations](../../engine/strata/tetonic-memory/src/usage/work_budgets.rs),
+[usage accounting](../../engine/strata/tetonic-memory/src/usage/work_usage.rs).

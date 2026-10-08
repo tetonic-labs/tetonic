@@ -13,18 +13,9 @@ pub struct SealedTurn {
 }
 
 pub fn encode_candidate_bytes(outcome: &CandidateOutcome) -> Result<Vec<u8>, ManagedRunError> {
-    let (tag, message) = match outcome {
-        CandidateOutcome::Completed { summary, .. } => ("completed", summary.as_str()),
-        CandidateOutcome::Canceled { reason } => ("canceled", reason.as_str()),
-        CandidateOutcome::Limited { message, .. } => ("limited", message.as_str()),
-        CandidateOutcome::Failed { message } => ("failed", message.as_str()),
-    };
-    serde_json::to_vec(&serde_json::json!({
-        "v": 1,
-        "outcome": tag,
-        "message": message,
-    }))
-    .map_err(|e| ManagedRunError::InternalViolation(e.to_string()))
+    tetonic_domain::candidate_artifact::CandidateArtifactV1::from(outcome)
+        .encode()
+        .map_err(|e| ManagedRunError::InternalViolation(e.to_string()))
 }
 
 pub async fn seal_output_set(

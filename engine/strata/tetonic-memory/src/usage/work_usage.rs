@@ -239,7 +239,7 @@ impl Store {
         {
             return Err(StoreError::ControlAccessDenied);
         }
-        let fence = crate::work_usage_resume::execution_fence(attempt_row)?;
+        let fence = crate::usage::work_usage_resume::execution_fence(attempt_row)?;
         let existing: Option<BudgetExecutionRow> = self.conn.query_row(
             "SELECT work_id,run_id,fence,allowance,released_tokens,org_id,team_id,task_id FROM work_budget_executions WHERE attempt_id=?1",[attempt],
             |r| Ok((r.get(0)?,r.get(1)?,r.get(2)?,r.get(3)?,r.get(4)?,r.get(5)?,r.get(6)?,r.get(7)?))).optional()?;
@@ -385,7 +385,7 @@ impl Store {
                 .attempts
                 .get(&AttemptId::new(attempt))
                 .ok_or(StoreError::ControlAccessDenied)?;
-            let current_fence = crate::work_usage_resume::execution_fence(owner)?;
+            let current_fence = crate::usage::work_usage_resume::execution_fence(owner)?;
             if !owner.execution_quiesced
                 || owner.task_id.0 != task
                 || current_fence != fence

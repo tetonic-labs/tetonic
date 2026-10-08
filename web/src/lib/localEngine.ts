@@ -1,3 +1,5 @@
+import { readEngineFailure } from './engineFailure';
+
 export interface WorkBrief {
   work_id: string;
   revision: number;
@@ -383,6 +385,9 @@ export class EngineRequestError extends Error {
   constructor(
     message: string,
     public status: number,
+    public code?: string,
+    public recovery?: string,
+    public recoveryHint?: string,
   ) {
     super(message);
   }
@@ -402,6 +407,7 @@ export class LocalEngine {
         method: body === undefined ? 'GET' : 'POST',
         headers: {
           Authorization: `Bearer ${this.token}`,
+          'X-Tetonic-Api-Version': '1',
           ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
         },
         body: body === undefined ? undefined : JSON.stringify(body),
@@ -413,12 +419,21 @@ export class LocalEngine {
       } catch {
         throw new Error('The local engine is unavailable. Start it and reconnect.');
       }
-      if (!response.ok)
-        throw new EngineRequestError(
-          (value as { error?: string }).error ||
-            'The local engine could not complete this request.',
-          response.status,
+      const version = response.headers?.get('x-tetonic-api-version');
+      if (version && version !== '1')
+        throw new Error(
+          'The engine and this app use different API versions. Update the app and reconnect.',
         );
+      if (!response.ok) {
+        const failure = readEngineFailure(value);
+        throw new EngineRequestError(
+          failure.message,
+          response.status,
+          failure.code,
+          failure.recovery,
+          failure.recoveryHint,
+        );
+      }
       return value as T;
     } finally {
       clearTimeout(timer);

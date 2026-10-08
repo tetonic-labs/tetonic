@@ -26,6 +26,9 @@ pub(in crate::resources) fn resource_error(error: ResourceError) -> AppError {
         ResourceError::Storage | ResourceError::StorageRequired => {
             AppError::PersistenceFailed("registered job storage unavailable".into())
         }
+        ResourceError::Conflict => AppError::Conflict(
+            "This registered job changed. Review its current state before submitting again.".into(),
+        ),
         _ => AppError::InvalidRequest("invalid registered job".into()),
     }
 }

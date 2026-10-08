@@ -2,7 +2,7 @@
 
 use rusqlite::{params, OptionalExtension};
 
-use crate::capacity_tables::{
+use crate::usage::capacity_tables::{
     CREATE_CAPACITY_BINDINGS, CREATE_RUNTIME_PROFILES, INSERT_RUNTIME_PROFILE,
     LIST_RUNTIME_PROFILES, LIST_RUNTIME_PROFILES_FOR_NODE, SELECT_CAPACITY_BINDING,
     SELECT_RUNTIME_PROFILE, UPSERT_CAPACITY_BINDING,

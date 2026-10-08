@@ -59,7 +59,7 @@ impl WorkspaceServices {
             harness: input.configuration.harness,
             configuration: config,
         }).await.map_err(|error| match error {
-            crate::resources::ResourceError::Conflict => AppError::InvalidRequest("This agent changed since you opened it, or this save belongs to a different edit. Reopen the agent before saving again.".into()),
+            crate::resources::ResourceError::Conflict => AppError::Conflict("This agent changed since you opened it, or this save belongs to a different edit. Reopen the agent before saving again.".into()),
             other => resource(other),
         })?;
         self.agent_profile(input.agent_key, &stored)

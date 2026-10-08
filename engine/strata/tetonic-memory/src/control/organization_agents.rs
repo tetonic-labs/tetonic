@@ -170,7 +170,7 @@ impl Store {
     }
 }
 
-pub(super) fn definition_payload(
+pub(crate) fn definition_payload(
     key: &str,
     harness: &str,
     configuration: &serde_json::Value,

@@ -67,15 +67,15 @@ authorization limits when preparing execution.
   [`PreparedAgentRevision` and general harness preparation](../../engine/litho/tetonic-app/src/resources/registered/harness.rs).
   The [agent product adapter](../../engine/litho/tetonic-app/src/workspace/agents.rs)
   supplies editor/catalog behavior.
-- **Durable owner:** [`organization_agents`](../../engine/strata/tetonic-memory/src/organization_agents.rs),
-  [`organization_agent_revisions`](../../engine/strata/tetonic-memory/src/organization_agent_revisions.rs),
-  [`organization_agent_edits`](../../engine/strata/tetonic-memory/src/organization_agent_edits.rs)
-  and [`identity_store`](../../engine/strata/tetonic-memory/src/identity_store.rs).
+- **Durable owner:** [`organization_agents`](../../engine/strata/tetonic-memory/src/control/organization_agents.rs),
+  [`organization_agent_revisions`](../../engine/strata/tetonic-memory/src/control/organization_agent_revisions.rs),
+  [`organization_agent_edits`](../../engine/strata/tetonic-memory/src/control/organization_agent_edits.rs)
+  and [`identity_store`](../../engine/strata/tetonic-memory/src/control/identity_store.rs).
 - **Dependencies and rule:** resource authorization → revision storage → prepared
   identity/job specification. Saved tool names and model preferences are data,
   not grants. Editing an agent must not silently rewrite a revision pinned by
   accepted work or a running attempt.
-- **Boundary evidence:** [agent revision tests](../../engine/strata/tetonic-memory/src/organization_agent_edit_tests.rs),
+- **Boundary evidence:** [agent revision tests](../../engine/strata/tetonic-memory/src/control/organization_agent_edit_tests.rs),
   [product editing tests](../../engine/litho/tetonic-app/src/workspace/agents/editing_tests.rs),
   [agent editor UI tests](../../web/tests/agent-editing.test.tsx).
 
@@ -88,8 +88,8 @@ resource actions, and bind separately authorized execution and context access.
   [`LocalControl`](../../engine/litho/tetonic-app/src/resources/local_control.rs),
   [`execution_grants`](../../engine/litho/tetonic-app/src/resources/execution_grants.rs)
   and [`registered authority`](../../engine/litho/tetonic-app/src/resources/registered/authority.rs).
-- **Durable owner:** [`team_store`](../../engine/strata/tetonic-memory/src/team_store.rs),
-  [`execution_grants`](../../engine/strata/tetonic-memory/src/execution_grants.rs),
+- **Durable owner:** [`team_store`](../../engine/strata/tetonic-memory/src/control/team_store.rs),
+  [`execution_grants`](../../engine/strata/tetonic-memory/src/control/execution_grants.rs),
   context-access records and delegated grants in `tetonic-memory`.
 - **Dependencies and rule:** trusted credential verification → current resource
   authorization → checked store operation. A resource identifier, saved agent,
@@ -120,11 +120,11 @@ and continuation. Models may propose changes; authorized services accept them.
   [Work resource services](../../engine/litho/tetonic-app/src/resources/team_work.rs)
   own authorized mutations. `WorkService` binds scoped workspace services to
   the existing controller, registered admission and read projections.
-- **Durable owner:** [`TeamGoal`, `TeamWorkItem`, `HuddleProposal` and delegation](../../engine/strata/tetonic-memory/src/team_work.rs),
-  [briefs](../../engine/strata/tetonic-memory/src/work_briefs.rs),
-  [`WorkTeam` versions/bindings](../../engine/strata/tetonic-memory/src/work_teams.rs),
-  [`HuddleExecution` receipts](../../engine/strata/tetonic-memory/src/huddle_execution.rs)
-  and [execution-derived progress](../../engine/strata/tetonic-memory/src/huddle_execution/progress.rs).
+- **Durable owner:** [`TeamGoal`, `TeamWorkItem`, `HuddleProposal` and delegation](../../engine/strata/tetonic-memory/src/control/team_work.rs),
+  [briefs](../../engine/strata/tetonic-memory/src/control/work_briefs.rs),
+  [`WorkTeam` versions/bindings](../../engine/strata/tetonic-memory/src/control/work_teams.rs),
+  [`HuddleExecution` receipts](../../engine/strata/tetonic-memory/src/control/huddle_execution.rs)
+  and [execution-derived progress](../../engine/strata/tetonic-memory/src/control/huddle_execution/progress.rs).
 - **Dependencies and rule:** work services → registry and grants → managed
   delegation. Coordination may run independent assignments concurrently, subject
   to dependencies and capacity. It must not mint its own attempt leases, bypass
@@ -153,7 +153,7 @@ interrupted execution and restore explicitly supported checkpoints.
   [`registered execution`](../../engine/litho/tetonic-app/src/resources/registered/mod.rs)
   prepares and submits to this owner; it is not another supervisor.
 - **Durable owner:** [`RunSnapshot`, `TaskRecord`, `AttemptRecord` and commands/events](../../engine/core/tetonic-domain/src/run.rs)
-  persisted by [`commit_run_command`](../../engine/strata/tetonic-memory/src/run_store.rs).
+  persisted by [`commit_run_command`](../../engine/strata/tetonic-memory/src/execution/run_store.rs).
   Event, projection and command idempotency are committed together, with capacity
   and usage integration at the transaction boundary.
 - **Dependencies and rule:** managed execution → runtime executor + transactional
@@ -178,7 +178,7 @@ and connect them to work continuation and managed execution lifetime.
 - **Entry points:** [authorized human controls](../../engine/litho/tetonic-app/src/resources/human_controls.rs),
   [shell approval binding](../../engine/litho/tetonic-app/src/resources/shell_approval.rs),
   and [plan questions/amendments](../../engine/litho/tetonic-app/src/work/plan_human.rs).
-- **Durable owner:** [`ControlStop`, `EffectApproval` and associated records](../../engine/strata/tetonic-memory/src/human_controls.rs),
+- **Durable owner:** [`ControlStop`, `EffectApproval` and associated records](../../engine/strata/tetonic-memory/src/control/human_controls.rs),
   accepted plan/question state and managed suspension/checkpoint records.
   Product adapters deliver decisions to the existing work/runtime owners.
 - **Dependencies and rule:** authorize the decision → validate its target and
@@ -186,7 +186,7 @@ and connect them to work continuation and managed execution lifetime.
   approval for one attempt must not authorize another agent's identical command.
   Persisting a stop and quiescing live execution are related but distinct steps;
   the UI must not claim all effects have stopped just because it saved a record.
-- **Boundary evidence:** [human control tests](../../engine/strata/tetonic-memory/src/human_controls_tests.rs),
+- **Boundary evidence:** [human control tests](../../engine/strata/tetonic-memory/src/control/human_controls_tests.rs),
   [parallel approvals](../../engine/litho/tetonic-app/src/workspace/providers/tests/parallel_approval_tests.rs),
   [plan questions](../../engine/litho/tetonic-app/src/work/plan_human_tests.rs),
   [handoff UI](../../web/tests/human-handoff.test.tsx).
@@ -240,8 +240,8 @@ enforcement.
   The [MCP](../../engine/litho/tetonic-app/src/workspace/mcp.rs) and
   [skill](../../engine/litho/tetonic-app/src/workspace/skills.rs) product
   adapters expose workspace management; agent revisions select capabilities.
-- **Durable owner:** [`workspace_mcp`](../../engine/strata/tetonic-memory/src/workspace_mcp.rs)
-  and [`workspace_skills`](../../engine/strata/tetonic-memory/src/workspace_skills.rs),
+- **Durable owner:** [`workspace_mcp`](../../engine/strata/tetonic-memory/src/control/workspace_mcp.rs)
+  and [`workspace_skills`](../../engine/strata/tetonic-memory/src/control/workspace_skills.rs),
   plus agent revisions and execution grants. Connection state and imported
   instructions do not independently grant authority.
 - **Dependencies and rule:** selected tool hosts → runtime capabilities and
@@ -268,7 +268,7 @@ with configured inference workers.
   `tetonic-memory` when composed with durable storage. Provider transport uses
   `tetonic-egress`; remote inference also uses fabric protocol/client, enrollment
   and node ingress. Worker delivery receipts live in
-  [`WorkerStore`](../../engine/strata/tetonic-memory/src/worker_store.rs), separate
+  [`WorkerStore`](../../engine/strata/tetonic-memory/src/execution/worker_store.rs), separate
   from the agent run journal.
 - **Rule:** a remote model request does not move the agent's tools or workspace
   onto the model server. The [current worker](../../engine/mantle/tetonic-node/src/inference_ingress.rs)
@@ -276,7 +276,7 @@ with configured inference workers.
   records are not by themselves a remote executor or distributed lease service.
 - **Boundary evidence:** `compute_plane.rs` tests, broker/egress/provider crate
   tests, [provider tool journeys](../../engine/litho/tetonic-app/src/workspace/providers/tests/tools.rs),
-  [workstation placement records](../../engine/strata/tetonic-memory/src/workstation_placement_tests.rs).
+  [workstation placement records](../../engine/strata/tetonic-memory/src/execution/workstation_placement_tests.rs).
 
 ## Budgets, capacity and usage
 
@@ -289,19 +289,19 @@ resources with different accounting boundaries, not one interchangeable number.
   [`WorkUsageProvider`](../../engine/litho/tetonic-app/src/resources/work_usage.rs),
   [execution limits](../../engine/litho/tetonic-app/src/resources/execution_limits.rs),
   and broker admission.
-- **Durable owner:** [work reservations](../../engine/strata/tetonic-memory/src/work_budgets.rs),
-  [reported token usage and holds](../../engine/strata/tetonic-memory/src/work_usage.rs),
-  [root capacity](../../engine/strata/tetonic-memory/src/run_capacity.rs),
-  [child capacity](../../engine/strata/tetonic-memory/src/child_capacity.rs),
+- **Durable owner:** [work reservations](../../engine/strata/tetonic-memory/src/usage/work_budgets.rs),
+  [reported token usage and holds](../../engine/strata/tetonic-memory/src/usage/work_usage.rs),
+  [root capacity](../../engine/strata/tetonic-memory/src/usage/run_capacity.rs),
+  [child capacity](../../engine/strata/tetonic-memory/src/usage/child_capacity.rs),
   compute reservation and scheduler-decision records.
 - **Dependencies and rule:** admission reserves against the relevant ledger;
   execution records attributable usage; completion/stop settles supported
   reservations. Unknown provider usage must remain unknown/held, not become zero.
   Token accounting is not exact currency billing or a guarantee that the final
   in-flight request cannot exceed a reported-token allowance.
-- **Boundary evidence:** [work budget tests](../../engine/strata/tetonic-memory/src/work_budgets_tests.rs),
-  [usage tests](../../engine/strata/tetonic-memory/src/work_usage_tests.rs),
-  [resumption accounting](../../engine/strata/tetonic-memory/src/work_usage_resume_tests.rs),
+- **Boundary evidence:** [work budget tests](../../engine/strata/tetonic-memory/src/usage/work_budgets_tests.rs),
+  [usage tests](../../engine/strata/tetonic-memory/src/usage/work_usage_tests.rs),
+  [resumption accounting](../../engine/strata/tetonic-memory/src/usage/work_usage_resume_tests.rs),
   [usage UI](../../web/tests/usage.test.tsx).
 
 ## Scoped context and artifacts
@@ -334,8 +334,8 @@ views. The web client organizes and presents those views; telemetry reports
 activity without becoming authoritative state.
 
 - **Entry points:** [`Store` / `SharedStore`](../../engine/strata/tetonic-memory/src/lib.rs),
-  [`run_store`](../../engine/strata/tetonic-memory/src/run_store.rs),
-  [scoped work metadata](../../engine/strata/tetonic-memory/src/work_metadata.rs),
+  [`run_store`](../../engine/strata/tetonic-memory/src/execution/run_store.rs),
+  [scoped work metadata](../../engine/strata/tetonic-memory/src/control/work_metadata.rs),
   [`WorkService::snapshot` and task projection](../../engine/litho/tetonic-app/src/work/inspection.rs),
   [`run_inspection`](../../engine/litho/tetonic-app/src/resources/run_inspection.rs),
   and [`LocalEngineProvider`](../../web/src/context/LocalEngineContext.tsx).

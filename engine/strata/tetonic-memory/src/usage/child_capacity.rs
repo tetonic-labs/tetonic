@@ -68,7 +68,7 @@ impl Store {
                 || parent.task_id == task.task_id
                 || parent_task.binding.execution_scope.as_ref() != Some(scope)
                 || task.binding.execution_grant_id.is_none()
-                || crate::run_capacity::registered_scope(snapshot) != Some(scope)
+                || crate::usage::run_capacity::registered_scope(snapshot) != Some(scope)
             {
                 return Err(StoreError::ControlAccessDenied);
             }

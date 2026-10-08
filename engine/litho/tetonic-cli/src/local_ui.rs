@@ -1,5 +1,7 @@
 //! Loopback-only adapter for the owner-controlled local workspace.
+mod contract;
 use clap::Parser;
+use contract::{application_error, error};
 use http_body_util::{BodyExt, Full, Limited};
 use hyper::{
     body::{Bytes, Incoming},
@@ -215,6 +217,9 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             StatusCode::UNAUTHORIZED,
             "Reconnect using the local engine's connection link.",
         );
+    }
+    if let Some(failure) = contract::check_version(request.headers()) {
+        return failure;
     }
     let method = request.method().clone();
     let path = request.uri().path().to_string();
@@ -689,7 +694,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
                 .await
             {
-                return error(StatusCode::INTERNAL_SERVER_ERROR, &e.employee_message());
+                return application_error(&e);
             }
             return json(StatusCode::OK, serde_json::json!({ "ok": true }));
         } else {
@@ -700,16 +705,17 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
     };
     match result {
         Ok(value) => json(StatusCode::OK, value),
-        Err(failure) => error(StatusCode::BAD_REQUEST, &failure.employee_message()),
+        Err(failure) => application_error(&failure),
     }
 }
 
-fn error(status: StatusCode, message: &str) -> Response<Full<Bytes>> {
-    json(status, serde_json::json!({ "error": message }))
-}
 fn json(status: StatusCode, value: serde_json::Value) -> Response<Full<Bytes>> {
     let mut response = Response::new(Full::new(Bytes::from(value.to_string())));
     *response.status_mut() = status;
+    response.headers_mut().insert(
+        "x-tetonic-api-version",
+        hyper::header::HeaderValue::from_static("1"),
+    );
     response.headers_mut().insert(
         "content-type",
         hyper::header::HeaderValue::from_static("application/json"),
@@ -733,6 +739,15 @@ mod tests {
         let command =
             serde_json::json!({"request_id":"id","expected_revision":0,"token_limit":1024});
         assert!(serde_json::from_value::<BudgetSettingsRequest>(command.clone()).is_ok());
+        let mut reset = command.clone();
+        reset["token_limit"] = serde_json::Value::Null;
+        assert!(serde_json::from_value::<BudgetSettingsRequest>(reset)
+            .unwrap()
+            .token_limit
+            .is_none());
+        let mut missing = command.clone();
+        missing.as_object_mut().unwrap().remove("token_limit");
+        assert!(serde_json::from_value::<BudgetSettingsRequest>(missing).is_err());
         for field in [
             "used_tokens",
             "released_tokens",

@@ -50,7 +50,7 @@ impl WorkService {
             )
             .await
             .map_err(|e| match e {
-            crate::resources::ResourceError::Conflict => AppError::InvalidRequest("This brief changed, or this save belongs to another edit. Reload the saved brief before applying your changes.".into()),
+            crate::resources::ResourceError::Conflict => AppError::Conflict("This brief changed, or this save belongs to another edit. Reload the saved brief before applying your changes.".into()),
             other=>resource(other),
         })
     }

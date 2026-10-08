@@ -5,7 +5,7 @@ use tetonic_domain::{AttemptRecord, AttemptState, RunSnapshot, TaskRecord, TaskS
 impl crate::Store {
     /// Existing control records are the generation authority. Include both
     /// agents and every work/goal ancestor, but do not couple unrelated teams.
-    pub(super) fn delegation_stop_binding(
+    pub(crate) fn delegation_stop_binding(
         &self,
         lineage: &DelegatedGrantLineage,
         parent: &tetonic_domain::AgentJobSpec,
@@ -68,7 +68,7 @@ fn lease_matches(lineage: &DelegatedGrantLineage, attempt: &AttemptRecord) -> bo
     })
 }
 
-pub(super) fn validate_live_parent(
+pub(crate) fn validate_live_parent(
     lineage: &DelegatedGrantLineage,
     run: &RunSnapshot,
     now: i64,
@@ -107,7 +107,7 @@ fn running(task: &TaskRecord, attempt: &AttemptRecord, now: i64) -> bool {
         && current_time(task, attempt, now)
 }
 
-pub(super) fn validate_parent_lifetime(
+pub(crate) fn validate_parent_lifetime(
     lineage: &DelegatedGrantLineage,
     task: &TaskRecord,
     attempt: &AttemptRecord,

@@ -7,10 +7,9 @@ repository = { workspace = true }
 rust-version = { workspace = true }
 publish = false
 
-# The precious, local-only audit/memory store (`lokai.db`). By design this crate
-# has NO network capability: it never depends on `lokai-egress` or any HTTP
-# client. It holds project content, so it stays on-device — see
-# contracts/memory-store-v2.md (Privacy posture).
+# Durable control, execution, scoped context, usage, artifact bindings and audit.
+# This SQLite persistence crate has no network client. Payload storage and
+# distributed transport remain separate concerns; see README.md for ownership.
 [lib]
 name = "tetonic_memory"
 

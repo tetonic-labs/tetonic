@@ -67,9 +67,10 @@ impl Store {
             let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
                 StoreError::InvalidControlResource(format!("registered run projection: {e}"))
             })?;
-            let scope = crate::run_capacity::registered_scope(&snapshot).ok_or_else(|| {
-                StoreError::InvalidControlResource("registered run scope missing".into())
-            })?;
+            let scope =
+                crate::usage::run_capacity::registered_scope(&snapshot).ok_or_else(|| {
+                    StoreError::InvalidControlResource("registered run scope missing".into())
+                })?;
             self.conn.execute("UPDATE run_projections SET execution_org_id=?2,execution_principal_id=?3 WHERE run_id=?1",
                 params![snapshot.run_id.0, scope.organization_id, scope.principal_id])?;
         }
@@ -117,7 +118,7 @@ impl Store {
             let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
                 StoreError::InvalidControlResource(format!("registered run projection: {e}"))
             })?;
-            let Some(scope) = crate::run_capacity::registered_scope(&snapshot) else {
+            let Some(scope) = crate::usage::run_capacity::registered_scope(&snapshot) else {
                 continue;
             };
             let team = self.team_for_execution_context(&scope.information_context_id)?;
@@ -162,7 +163,7 @@ impl Store {
             let snapshot: RunSnapshot = serde_json::from_str(&json).map_err(|e| {
                 StoreError::InvalidControlResource(format!("registered run projection: {e}"))
             })?;
-            let (identity, held) = crate::run_capacity::registered_capacity(&snapshot)?;
+            let (identity, held) = crate::usage::run_capacity::registered_capacity(&snapshot)?;
             self.conn.execute(
                 "UPDATE run_projections SET registered_identity_id=?2, execution_held=?3 WHERE run_id=?1",
                 params![snapshot.run_id.0, identity, held],
@@ -193,8 +194,8 @@ impl Store {
         )?;
         let new_seq = snapshot.sequence;
         let (registered_identity, execution_held) =
-            crate::run_capacity::registered_capacity(snapshot)?;
-        let scope = crate::run_capacity::registered_scope(snapshot);
+            crate::usage::run_capacity::registered_capacity(snapshot)?;
+        let scope = crate::usage::run_capacity::registered_scope(snapshot);
         let organization_id = scope.map(|scope| scope.organization_id.clone());
         let principal_id = scope.map(|scope| scope.principal_id.clone());
         let team_id = match scope {
@@ -364,8 +365,8 @@ impl Store {
     /// `commit_run_command`.
     pub fn persist_run_projection(&self, snapshot: &RunSnapshot) -> Result<()> {
         let (registered_identity, execution_held) =
-            crate::run_capacity::registered_capacity(snapshot)?;
-        let scope = crate::run_capacity::registered_scope(snapshot);
+            crate::usage::run_capacity::registered_capacity(snapshot)?;
+        let scope = crate::usage::run_capacity::registered_scope(snapshot);
         let organization_id = scope.map(|scope| scope.organization_id.clone());
         let principal_id = scope.map(|scope| scope.principal_id.clone());
         let team_id = match scope {
