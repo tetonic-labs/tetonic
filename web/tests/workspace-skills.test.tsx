@@ -3,6 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
 import { SkillDetails } from '../src/components/views/SkillDetails';
+import { WorkspaceCapabilityLibrary } from '../src/components/views/WorkspaceCapabilityLibrary';
 import { agentSetup } from '../src/lib/agentCapabilities';
 import {
   LocalEngine,
@@ -151,4 +152,47 @@ it('requires an explicit revocation and displays reviewed content as text', asyn
   fireEvent.click(screen.getByRole('button', { name: 'Revoke this skill' }));
   await waitFor(() => expect(changed).toHaveBeenCalledOnce());
   expect(revoke).toHaveBeenCalledWith(skill.id);
+});
+
+it('keeps a skill draft when returning to the library and restores keyboard focus', async () => {
+  const user = userEvent.setup();
+  const client = new LocalEngine('fixture');
+  const add = vi.spyOn(client, 'importSkill');
+  render(<WorkspaceCapabilityLibrary client={client} supported onChanged={vi.fn()} />);
+  await user.click(screen.getByRole('button', { name: /Write a skill/ }));
+  expect(document.activeElement).toBe(screen.getByLabelText('Skill name'));
+  await user.type(screen.getByLabelText('Skill name'), 'research-sources');
+  expect(screen.queryByRole('button', { name: /Import a skill/ })).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'All abilities' }));
+  await waitFor(() =>
+    expect(document.activeElement).toBe(screen.getByRole('button', { name: /Write a skill/ })),
+  );
+  await user.click(screen.getByRole('button', { name: /Write a skill/ }));
+  expect(screen.getByLabelText('Skill name')).toHaveProperty('value', 'research-sources');
+  expect(add).not.toHaveBeenCalled();
+});
+
+it('reveals pasted skill content for review, preserves it on failure, and allows retry', async () => {
+  const user = userEvent.setup();
+  const client = new LocalEngine('fixture');
+  const add = vi
+    .spyOn(client, 'importSkill')
+    .mockRejectedValueOnce(new Error('Engine connection lost'))
+    .mockResolvedValueOnce(skill);
+  const changed = vi.fn().mockResolvedValue(undefined);
+  render(<WorkspaceCapabilityLibrary client={client} supported onChanged={changed} />);
+  await user.click(screen.getByRole('button', { name: /Import a skill/ }));
+  expect(screen.queryByLabelText('Review instructions')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Or paste instructions' }));
+  const content = '---\nname: research\ndescription: Gather evidence\n---\nCheck sources.';
+  fireEvent.change(screen.getByLabelText('Review instructions'), { target: { value: content } });
+  expect(add).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Add skill to workspace' }));
+  expect(await screen.findByRole('alert')).toHaveProperty('textContent', 'Engine connection lost');
+  expect(screen.getByLabelText('Review instructions')).toHaveProperty('value', content);
+  expect(changed).not.toHaveBeenCalled();
+  await user.click(screen.getByRole('button', { name: 'Add skill to workspace' }));
+  await screen.findByText(/Saved to the workspace/);
+  expect(add).toHaveBeenLastCalledWith({ content, source: 'Imported SKILL.md' });
+  expect(changed).toHaveBeenCalledOnce();
 });

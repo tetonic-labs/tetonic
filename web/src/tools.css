@@ -1,40 +1,46 @@
 /* Restored toolkit presentation, shared with the original team workspace. */
 .capability-library {
-  margin: 20px 0;
+  margin: 12px 0 24px;
   font-size: 13px;
   line-height: 1.6;
 }
 .capability-library > h3 {
-  font-size: 20px;
+  font-size: 19px;
+  margin: 0;
   letter-spacing: -0.4px;
 }
 .capability-library p,
 .agent-skills p {
-  color: var(--canvas-muted);
+  color: var(--text-secondary);
   margin: 8px 0 14px;
 }
 .capability-choices {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 10px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0;
   margin: 18px 0;
+  border: 1px solid var(--brand-rule);
+  border-radius: 6px;
+  overflow: hidden;
 }
 .capability-choices > * {
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 17px;
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 12px;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: 0;
+  border-radius: 0;
   text-align: left;
   color: inherit;
-  background: var(--bg-ground);
+  background: var(--bg-surface);
   text-decoration: none;
-  transition: border-color 120ms ease;
+  transition: background 120ms ease;
 }
-.capability-choices > *:hover,
-.capability-choices [aria-pressed='true'] {
-  border-color: var(--canvas-copper);
+.capability-choices > * + * {
+  border-top: 1px solid var(--brand-rule);
+}
+.capability-choices > *:hover {
+  background: var(--bg-surface-hover);
 }
 .capability-choices > *:disabled {
   opacity: 0.55;
@@ -46,7 +52,7 @@
 }
 .capability-choices small,
 .capability-skill-option small {
-  color: var(--canvas-muted);
+  color: var(--text-secondary);
   font-size: 12px;
   margin-top: 4px;
 }
@@ -59,27 +65,30 @@
 }
 .capability-editor {
   border: 0;
-  padding: 8px 0;
+  padding: 12px 0 0;
+  margin: 18px 0 0;
   min-width: 0;
 }
 .capability-editor legend {
   font-weight: 600;
-  margin-bottom: 12px;
+  font-size: 18px;
+  margin-bottom: 4px;
 }
 .capability-editor label {
   display: grid;
   gap: 6px;
-  margin: 14px 0;
+  margin: 18px 0;
+  font-size: 13px;
 }
 .capability-editor label > span {
-  color: var(--canvas-muted);
+  color: var(--text-secondary);
 }
 .capability-editor input,
 .capability-editor textarea {
   width: 100%;
-  background: var(--bg-ground);
-  border: 1px solid var(--color-border-subtle);
-  border-radius: 8px;
+  background: var(--bg-surface);
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
   padding: 10px 12px;
   color: inherit;
   font: inherit;
@@ -87,7 +96,7 @@
 }
 .capability-editor input:focus,
 .capability-editor textarea:focus {
-  outline: 2px solid var(--canvas-copper);
+  outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
 .capability-actions {
@@ -104,10 +113,12 @@
 }
 .agent-capability-entry {
   margin: 18px 0;
-  border-top: 1px solid var(--color-border-subtle);
+  border: 1px solid var(--brand-rule);
+  border-radius: 5px;
+  padding: 0 14px;
 }
 .agent-capability-entry > summary {
-  color: var(--canvas-copper);
+  color: var(--color-accent);
   font-size: 13px;
 }
 .agent-skills {
@@ -118,14 +129,93 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 13px 0;
-  border-bottom: 1px solid var(--color-border-subtle);
+  padding: 13px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 4px;
+  margin-bottom: 8px;
   cursor: pointer;
 }
 .capability-skill-option input {
   flex: 0 0 auto;
   margin-top: 4px;
-  accent-color: var(--canvas-copper);
+  accent-color: var(--signal-working);
+}
+.capability-skill-option[data-selected='true'] {
+  background: var(--bg-ground);
+  border-color: var(--signal-working);
+}
+.capability-choices .capability-choice-arrow {
+  margin-left: auto;
+  color: var(--text-secondary);
+}
+.capability-choices > * > svg:first-child {
+  color: var(--color-accent);
+}
+.capability-library .capability-status {
+  padding: 12px 14px;
+  background: var(--bg-ground);
+  border-left: 2px solid var(--color-accent);
+}
+.capability-editor label small {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.capability-library .capability-name-hint {
+  font-size: 11px;
+  margin-top: -12px;
+}
+.capability-file input::file-selector-button {
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  margin-right: 12px;
+  background: var(--bg-ground);
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.capability-source {
+  border-block: 1px solid var(--brand-rule);
+  margin: 18px 0;
+}
+.capability-source summary span {
+  font-size: 11px;
+  color: var(--text-secondary);
+  margin-left: 8px;
+}
+.capability-library .capability-scope-note {
+  font-size: 12px;
+  margin-top: 14px;
+}
+.capability-library .capability-paste {
+  font-size: 12px;
+  color: var(--color-accent);
+  padding: 4px 0;
+}
+.capability-help {
+  border-top: 1px solid var(--brand-rule);
+}
+.capability-library .canvas-primary {
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  padding: 10px 14px;
+  border-radius: 4px;
+}
+.capability-library .quiet-back,
+.tool-library .quiet-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  padding: 8px 0;
+  color: var(--text-secondary);
+}
+.tl-setup:focus {
+  outline: none;
+}
+.capability-actions button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 .skill-details {
   font-size: 12px;
@@ -540,27 +630,13 @@
   justify-self: start;
 }
 .tl-setup h3 {
-  font-size: 27px;
-  letter-spacing: -0.8px;
+  font-size: 22px;
+  letter-spacing: -0.4px;
 }
 .tl-setup > p {
   font-size: 13px;
   color: var(--canvas-muted);
   line-height: 1.6;
-}
-.tl-setup label {
-  display: grid;
-  gap: 9px;
-  font-size: 12px;
-  font-weight: 500;
-}
-.tl-setup input {
-  padding: 13px;
-  background: var(--bg-surface-elevated);
-  border-bottom: 1px solid var(--control-border);
-  color: var(--canvas-ink);
-  border-radius: 3px;
-  width: 100%;
 }
 .tl-setup small,
 .tl-hint {

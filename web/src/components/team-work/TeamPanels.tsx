@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
 import { Plus } from 'lucide-react';
+import { WorkspaceSettings } from './WorkspaceSettings';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import type { EngineAgent, LocalApproval } from '../../lib/localEngine';
 import { needsHelp, stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
@@ -341,50 +342,5 @@ export function TeamPanels({
         </p>
       </>
     );
-  return (
-    <div className="tw-settings">
-      <label>
-        <input type="checkbox" checked={dark} onChange={(event) => setDark(event.target.checked)} />{' '}
-        Dark appearance
-      </label>
-      <h3>Connection</h3>
-      <p>
-        {engine.isConnected
-          ? `Connected to ${workspace?.organization}.`
-          : 'Open the connection link printed by your local Tetonic engine.'}
-      </p>
-      <button onClick={engine.reconnect}>Reconnect</button>
-      <details>
-        <summary>Connection details</summary>
-        <p>{engine.error || 'The workspace is receiving engine state.'}</p>
-        {Object.entries(readErrors).map(([name, error]) => (
-          <p key={name}>
-            {name}: {error}
-          </p>
-        ))}
-      </details>
-      <h3>Who can see this work?</h3>
-      <p>
-        This is the local owner workspace. Requests and replies are saved in its engine storage. A
-        configured hosted model may receive the conversation; inspect the assistant’s settings for
-        its provider. This is not a separate private chat boundary.
-      </p>
-      <h3>Stopping work</h3>
-      <p>
-        Open a running request and choose Stop this request. That asks the engine to stop that
-        execution; it does not undo completed actions. Workspace-wide emergency stop is not exposed
-        by this connection yet.
-      </p>
-      {!!approvals?.active_stops.length && (
-        <div className="tw-notice">
-          <h3>Active restrictions</h3>
-          {approvals.active_stops.map((stop) => (
-            <p key={`${stop.scope_kind}:${stop.scope_id}`}>
-              {stop.mode}: {stop.reason} ({stop.scope_kind})
-            </p>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  return <WorkspaceSettings dark={dark} setDark={setDark} />;
 }

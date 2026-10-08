@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useId, useState, type ReactNode } from 'react';
 import { AgentSkills } from './AgentSkills';
 import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database } from 'lucide-react';
 import type { Team } from '../../types';
@@ -55,6 +55,7 @@ export function AgentCreateForm({
     onDiscoverMcp?: (id: string) => Promise<void>;
   };
 }) {
+  const saveHintId = useId();
   const [name, setName] = useState(agent?.name || ''),
     [purpose, setPurpose] = useState(agent?.purpose || '');
   const [teamId, setTeamId] = useState(
@@ -152,6 +153,21 @@ export function AgentCreateForm({
   const choices = [...new Set([defaultModel, ...models])].filter(
     (name) => name && name !== 'Not connected' && name !== 'Workspace default',
   );
+  const saveHint = !name.trim()
+    ? 'Start with a name for your agent.'
+    : !resolvedModel
+      ? 'Choose a model to continue.'
+      : hosted && !lab?.key_saved
+        ? `Add your ${lab?.name || provider} API key above.`
+        : hosted && !hostedConsent
+          ? 'Review and allow conversation sharing above.'
+          : compatibilityIssue
+            ? 'Review the model and tool compatibility above.'
+            : requiresToolConsent && !hostedToolsConsent
+              ? 'Review and allow sharing for the selected tools.'
+              : agent
+                ? 'Changes apply to new work.'
+                : 'You can change these settings later.';
   function changeTeam(id: string) {
     const next = configurationForTeam(configuration, resources, id);
     setNotice(
@@ -251,7 +267,7 @@ export function AgentCreateForm({
                 onChange={(event) => setName(event.target.value)}
               />
             </label>
-            <label>
+            <label className="agent-purpose-field">
               What will they help with?
               <textarea
                 rows={2}
@@ -261,61 +277,72 @@ export function AgentCreateForm({
                 onChange={(event) => setPurpose(event.target.value)}
               />
             </label>
-            <label>
-              Team
-              <select value={teamId} onChange={(event) => changeTeam(event.target.value)}>
-                {!connected && <option value="">No team yet</option>}
-                {teams.map((team) => (
-                  <option key={team.id} value={team.id}>
-                    {team.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {teams.length > 1 || !connected ? (
+              <label>
+                Team
+                <select value={teamId} onChange={(event) => changeTeam(event.target.value)}>
+                  {!connected && <option value="">No team yet</option>}
+                  {teams.map((team) => (
+                    <option key={team.id} value={team.id}>
+                      {team.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : (
+              <p className="agent-team-note">
+                In {teams.find((team) => team.id === teamId)?.name || 'your workspace'}
+              </p>
+            )}
           </div>
         )}
         <div className="agent-runtime-fields">
-          <span className="agent-runtime-title">
+          <h3 className="agent-runtime-title">
             <Cpu size={17} />
-            How they work
-          </span>
-          {!!connected?.catalog.providers?.length && (
-            <label>
-              Model provider
-              <select
-                value={provider}
-                disabled={connected.saving}
-                onChange={(event) => {
-                  setProvider(event.target.value);
-                  setModel('');
-                  setCustomModel('');
-                  setHostedConsent(false);
-                  setApprovedScope(null);
-                }}
-              >
-                <option value="ollama">On this machine · Ollama</option>
-                {connected.catalog.providers.map((value) => (
-                  <option key={value.id} value={value.id}>
-                    {value.name}
-                  </option>
-                ))}
-              </select>
-            </label>
-          )}
-          <AgentModelSelect
-            key={`models-${provider}`}
-            provider={provider}
-            keySaved={!!lab?.key_saved}
-            connectionRevision={connected?.connectionRevision}
-            discover={connected?.onDiscoverModels}
-            choices={choices}
-            defaultModel={defaultModel}
-            model={model}
-            customModel={customModel}
-            onModel={setModel}
-            onCustomModel={setCustomModel}
-            connected={!!connected}
-          />
+            Model & connection
+          </h3>
+          <div
+            className="agent-model-fields"
+            data-local={!hosted && !!connected?.catalog.providers?.length}
+          >
+            {!!connected?.catalog.providers?.length && (
+              <label>
+                Model provider
+                <select
+                  value={provider}
+                  disabled={connected.saving}
+                  onChange={(event) => {
+                    setProvider(event.target.value);
+                    setModel('');
+                    setCustomModel('');
+                    setHostedConsent(false);
+                    setApprovedScope(null);
+                  }}
+                >
+                  <option value="ollama">On this machine · Ollama</option>
+                  {connected.catalog.providers.map((value) => (
+                    <option key={value.id} value={value.id}>
+                      {value.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            <AgentModelSelect
+              key={`models-${provider}`}
+              provider={provider}
+              keySaved={!!lab?.key_saved}
+              connectionRevision={connected?.connectionRevision}
+              discover={connected?.onDiscoverModels}
+              choices={choices}
+              defaultModel={defaultModel}
+              model={model}
+              customModel={customModel}
+              onModel={setModel}
+              onCustomModel={setCustomModel}
+              connected={!!connected}
+            />
+          </div>
           {hosted && lab && connected?.onSaveKey && (
             <AgentProviderKey
               key={provider}
@@ -339,66 +366,65 @@ export function AgentCreateForm({
                   {lab?.name}. Provider usage charges apply.
                 </span>
               </label>
-              {!guide && (
-                <p>
-                  {runtimeProfile?.tools.length
-                    ? 'This teammate can use the tools you select below.'
-                    : 'This profile works with your prompts and conversation only.'}
-                </p>
+              {!guide && !runtimeProfile?.tools.length && (
+                <p>This profile works with your prompts and conversation only.</p>
               )}
             </>
           )}
           {!hosted && connected?.catalog.local_error && (
             <p role="status">{connected.catalog.local_error}</p>
           )}
-          {connected?.onRefresh && (
-            <button
-              type="button"
-              className="px-text-button"
-              disabled={connected.refreshing || connected.saving}
-              onClick={connected.onRefresh}
-            >
-              {connected.refreshing ? 'Checking setup…' : 'Refresh engine setup'}
-            </button>
-          )}
-          {!guide && (!connected || connected.catalog.harnesses.length > 1) && (
-            <label>
-              Harness
-              <select
-                value={configuration.harness}
-                onChange={(event) =>
-                  setConfiguration({
-                    ...configuration,
-                    harness: event.target.value as 'general' | 'coding',
-                  })
-                }
+          <details className="agent-execution-details">
+            <summary>Where and how this agent runs</summary>
+            {connected?.onRefresh && (
+              <button
+                type="button"
+                className="px-text-button"
+                disabled={connected.refreshing || connected.saving}
+                onClick={connected.onRefresh}
               >
-                {harnesses
-                  .filter(
-                    (harness) => !connected || connected.catalog.harnesses.includes(harness.id),
-                  )
-                  .map((harness) => (
-                    <option key={harness.id} value={harness.id}>
-                      {harness.name}
-                    </option>
-                  ))}
-              </select>
-            </label>
-          )}
-          <p>
-            {guide
-              ? 'The Guide can read work status and save proposals. You choose when a plan starts.'
-              : connected
-                ? hosted
-                  ? `Tetonic runs the agent here. Model requests go to ${lab?.name || provider}. Codex and Claude Code runtimes are not connected yet.`
-                  : 'Tetonic runs the agent and its tools here, using your local model.'
-                : harnesses.find((harness) => harness.id === configuration.harness)?.description}
-          </p>
-          {!connected && (
-            <span className="agent-runtime-caption">
-              Model = intelligence. Harness = how it works.
-            </span>
-          )}
+                {connected.refreshing ? 'Checking setup…' : 'Refresh engine setup'}
+              </button>
+            )}
+            {!guide && (!connected || connected.catalog.harnesses.length > 1) && (
+              <label>
+                Harness
+                <select
+                  value={configuration.harness}
+                  onChange={(event) =>
+                    setConfiguration({
+                      ...configuration,
+                      harness: event.target.value as 'general' | 'coding',
+                    })
+                  }
+                >
+                  {harnesses
+                    .filter(
+                      (harness) => !connected || connected.catalog.harnesses.includes(harness.id),
+                    )
+                    .map((harness) => (
+                      <option key={harness.id} value={harness.id}>
+                        {harness.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            )}
+            <p>
+              {guide
+                ? 'The Guide can read work status and save proposals. You choose when a plan starts.'
+                : connected
+                  ? hosted
+                    ? `Tetonic runs the agent here. Model requests go to ${lab?.name || provider}. Codex and Claude Code runtimes are not connected yet.`
+                    : 'Tetonic runs the agent and its tools here, using your local model.'
+                  : harnesses.find((harness) => harness.id === configuration.harness)?.description}
+            </p>
+            {!connected && (
+              <span className="agent-runtime-caption">
+                Model = intelligence. Harness = how it works.
+              </span>
+            )}
+          </details>
         </div>
       </div>
       {!guide && (
@@ -468,11 +494,9 @@ export function AgentCreateForm({
           </div>
           {connected && (
             <p className="agent-field-note">
-              {hosted
-                ? 'Workspace tools need a supported execution profile. Your selections are kept when you change providers.'
-                : tools.length
-                  ? 'Only selected tools are granted. Terminal commands need your approval each time.'
-                  : 'No workspace tools are available for this provider and host.'}
+              {tools.length
+                ? 'Only selected abilities are granted. They stay with this agent across assignments.'
+                : 'No workspace tools are available for this provider and host.'}
             </p>
           )}
           {connected &&
@@ -665,20 +689,13 @@ export function AgentCreateForm({
         </p>
       )}
       <footer className="agent-create-footer">
-        <p className="preview-footnote">
-          {connected ? (
-            'Agents and their work are saved in your local engine.'
-          ) : (
-            <>
-              Preview configuration.
-              <br />
-              Model, tools, and access aren’t connected yet.
-            </>
-          )}
+        <p id={saveHintId} className="agent-save-hint" aria-live="polite">
+          {connected ? saveHint : 'Preview only. Model, tools, and access aren’t connected yet.'}
         </p>
         <button
           type="submit"
           className="canvas-primary"
+          aria-describedby={saveHintId}
           disabled={
             !name.trim() ||
             !resolvedModel ||

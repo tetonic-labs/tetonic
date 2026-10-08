@@ -1,5 +1,8 @@
 .agent-create-form {
-  gap: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  container-type: inline-size;
 }
 .agent-create-heading {
   padding-right: 20px;
@@ -19,8 +22,8 @@
 }
 .agent-create-basics {
   display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  gap: 25px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 28px;
 }
 .agent-create-basics[data-guide='true'] {
   grid-template-columns: minmax(0, 1fr);
@@ -34,44 +37,46 @@
 }
 .agent-create-form textarea {
   resize: vertical;
-  min-height: 76px;
+  min-height: 64px;
 }
 .agent-runtime-fields {
-  padding: 16px;
-  background: var(--surface-ink);
-  color: var(--on-ink);
-  border-radius: 4px 4px 14px 4px;
-  box-shadow: var(--surface-depth);
+  padding: 24px 0 0;
+  border-top: 1px solid var(--brand-rule);
+  color: var(--text-primary);
 }
 .agent-runtime-title {
   display: flex;
   align-items: center;
   gap: 9px;
-  font-size: 12px;
-  color: #e4ae89;
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0 0 6px;
+}
+.agent-runtime-title svg {
+  color: var(--color-accent);
 }
 .agent-runtime-fields label {
-  color: var(--muted-on-ink);
+  color: var(--text-primary);
 }
 .agent-runtime-fields select,
 .agent-runtime-fields input {
-  background: #ffffff0c;
-  color: var(--on-ink);
-  border-color: #a4b39670;
+  background: var(--bg-surface);
+  color: var(--text-primary);
+  border-color: var(--control-border);
   font-size: 13px;
 }
 .agent-runtime-fields option {
-  background: var(--surface-ink);
-  color: var(--on-ink);
+  background: var(--bg-surface);
+  color: var(--text-primary);
 }
 .agent-runtime-fields p {
-  color: var(--muted-on-ink);
+  color: var(--text-secondary);
   font-size: 12px;
   line-height: 1.6;
 }
 .agent-runtime-caption {
   font-size: 10px;
-  color: var(--muted-on-ink);
+  color: var(--text-secondary);
   margin-top: auto;
   padding-top: 6px;
 }
@@ -83,7 +88,7 @@
 }
 .agent-create-form legend {
   width: 100%;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   margin-bottom: 12px;
 }
@@ -101,23 +106,26 @@
 .agent-resource-options {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
+  gap: 8px;
 }
 .simple-form .agent-tool-choice {
   flex-direction: row;
   align-items: center;
   gap: 10px;
   cursor: pointer;
-  padding: 8px 12px;
-  background: var(--bg-ground);
-  border-radius: 3px;
+  padding: 14px;
+  background: var(--bg-surface);
+  border: 1px solid var(--brand-rule);
+  border-radius: 5px;
   min-width: 0;
   color: var(--text-primary);
-  box-shadow: inset 3px 0 transparent;
+  transition:
+    background 120ms ease,
+    border-color 120ms ease;
 }
 .simple-form .agent-tool-choice[data-selected='true'] {
-  background: var(--bg-surface-elevated);
-  box-shadow: inset 3px 0 var(--signal-working);
+  background: var(--bg-ground);
+  border-color: var(--signal-working);
 }
 .simple-form .agent-tool-choice:hover {
   background: var(--bg-surface-hover);
@@ -143,11 +151,12 @@
   overflow-wrap: anywhere;
 }
 .agent-tool-choice strong {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 550;
 }
 .agent-tool-choice small {
-  font-size: 10px;
+  font-size: 11px;
+  line-height: 1.5;
   color: var(--text-secondary);
   margin-top: 3px;
 }
@@ -214,7 +223,7 @@
 .agent-model-actions a,
 .agent-model-actions button,
 .tw-live .px-inspector .agent-create-form .agent-model-actions button {
-  color: var(--on-ink);
+  color: var(--color-accent);
   font-size: 12px;
   text-underline-offset: 3px;
 }
@@ -241,7 +250,7 @@
 .agent-advanced summary small {
   display: block;
   color: var(--text-secondary);
-  font-size: 10px;
+  font-size: 11px;
   margin-top: 3px;
 }
 .agent-disclosure {
@@ -294,11 +303,42 @@
   gap: 18px;
   background: var(--bg-surface);
   padding: 15px 0;
-  margin-top: -10px;
+  margin-top: 0;
+  border-top: 1px solid var(--brand-rule);
   z-index: 1;
 }
 .agent-create-footer .canvas-primary {
   white-space: nowrap;
+}
+.agent-create-footer .canvas-primary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.agent-model-fields {
+  display: grid;
+  gap: 12px;
+}
+.agent-model-fields[data-local='true'] {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.agent-model-fields > label {
+  min-width: 0;
+}
+.agent-model-fields select {
+  text-overflow: ellipsis;
+}
+.agent-mcp-section[data-empty='true'],
+.agent-skills[data-empty='true'] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 18px;
+  margin: 18px 0;
+}
+.agent-mcp-section[data-empty='true'] > p,
+.agent-skills[data-empty='true'] > p {
+  margin: 0;
+  font-size: 12px;
 }
 .agent-config-summary {
   margin: 18px 0;
@@ -350,7 +390,7 @@
     gap: 20px;
   }
   .agent-runtime-fields {
-    padding: 16px;
+    padding: 24px 0 0;
   }
   .agent-form-grid.three-columns,
   .agent-form-grid {
@@ -380,8 +420,8 @@
 
 .agent-provider-key {
   padding: 0.9rem 0;
-  border-top: 1px solid var(--line, #d6d2ca);
-  border-bottom: 1px solid var(--line, #d6d2ca);
+  border-top: 1px solid var(--brand-rule);
+  border-bottom: 1px solid var(--brand-rule);
   display: grid;
   gap: 0.65rem;
 }
@@ -399,10 +439,11 @@
 }
 .agent-key-status button,
 .agent-key-save {
-  border: 0;
+  border: 1px solid var(--control-border);
+  border-radius: 4px;
   padding: 0.4rem 0.65rem;
-  background: #ded8c9;
-  color: #292d26;
+  background: var(--bg-surface);
+  color: var(--text-primary);
   cursor: pointer;
 }
 .agent-key-save {
@@ -423,4 +464,65 @@
   height: 16px;
   margin-top: 0.18rem;
   accent-color: #bd613d;
+}
+
+.agent-execution-details {
+  font-size: 12px;
+}
+.agent-execution-details summary {
+  cursor: pointer;
+  padding: 7px 0;
+  color: var(--text-secondary);
+}
+.agent-execution-details[open] {
+  padding: 10px 14px;
+  background: var(--bg-ground);
+  border-radius: 4px;
+}
+.agent-execution-details > p {
+  margin: 10px 0;
+}
+.agent-team-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 0;
+}
+.agent-mcp-section {
+  margin: 22px 0 0;
+}
+.agent-mcp-section h4,
+.agent-skills h4 {
+  font-size: 13px;
+  font-weight: 600;
+  margin: 0;
+}
+.agent-mcp-section > p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin: 6px 0 12px;
+}
+.agent-create-form .agent-save-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  max-width: 290px;
+}
+.agent-create-form :is(input, select, textarea):focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.agent-create-form .agent-hosted-consent {
+  padding: 12px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 4px;
+  background: var(--bg-ground);
+}
+@container (max-width: 460px) {
+  .agent-model-fields[data-local='true'] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .agent-tool-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }

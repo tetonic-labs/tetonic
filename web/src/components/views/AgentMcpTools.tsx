@@ -25,7 +25,7 @@ export function McpConnections({
                 ? 'Not checked yet'
                 : 'Connection needs attention'}
           </p>
-          <small>{connection.message}</small>
+          {connection.status === 'unavailable' && <p role="status">{connection.message}</p>}
           <button
             type="button"
             className="px-text-button"
@@ -51,6 +51,7 @@ export function McpConnections({
           <details>
             <summary>Connection details</summary>
             <p>{connection.endpoint}</p>
+            {connection.status !== 'unavailable' && <p>{connection.message}</p>}
             <p>
               Configured by the engine operator. Only explicitly allowed read tools are offered.
               Connecting does not give an agent access.
@@ -90,20 +91,15 @@ export function AgentMcpTools({
     ]),
   ];
   return (
-    <section>
-      <h3>MCP connections</h3>
+    <section className="agent-mcp-section" data-empty={!connections.length && !ids.length}>
+      <h4>MCP connections</h4>
       <p>
-        Choose the individual tools this teammate can use. Your selections stay with the agent when
-        you change model providers.
+        {connections.length
+          ? 'Choose which connected tools this agent can use.'
+          : 'No services connected yet. Explore connections below.'}
       </p>
-      {onDiscover && (
+      {onDiscover && !!connections.length && (
         <McpConnections connections={connections} onDiscover={onDiscover} disabled={disabled} />
-      )}
-      {!connections.length && (
-        <p className="agent-field-note">
-          Your engine operator can add an MCP server to the engine configuration. Once connected,
-          its tools can be selected here.
-        </p>
       )}
       <div className="agent-tool-grid">
         {ids.map((id) => {

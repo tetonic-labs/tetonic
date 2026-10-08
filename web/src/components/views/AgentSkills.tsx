@@ -17,12 +17,23 @@ export function AgentSkills({
     (id) => id.startsWith('skill_') && !skills.some((s) => s.id === id),
   );
   return (
-    <section className="agent-skills" aria-label="Agent skills">
+    <section
+      className="agent-skills"
+      aria-label="Agent skills"
+      data-empty={!skills.length && !missing.length}
+    >
       <h4>Skills</h4>
-      <p>Reusable instructions this agent can draw on. Saved with the agent across assignments.</p>
-      {!skills.length && !missing.length && <p>No skills yet. Add one to your workspace below.</p>}
+      <p>
+        {skills.length || missing.length
+          ? 'Reusable instructions for how to work.'
+          : 'No skills added yet. Add reusable instructions below.'}
+      </p>
       {skills.map((skill) => (
-        <label key={skill.id} className="capability-skill-option">
+        <label
+          key={skill.id}
+          className="capability-skill-option"
+          data-selected={selected.includes(skill.id)}
+        >
           <input
             type="checkbox"
             checked={selected.includes(skill.id)}

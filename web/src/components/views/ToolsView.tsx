@@ -89,7 +89,7 @@ export function ToolsView({
         .includes(query.trim().toLowerCase()),
   );
   useEffect(() => {
-    if (selected || setup) heading.current?.focus();
+    if (selected || setup) heading.current?.focus({ preventScroll: setup });
   }, [selected, setup]);
   function closeDetails() {
     setSelected(null);
@@ -133,14 +133,17 @@ export function ToolsView({
         </p>
       )}
       {setup ? (
-        <section className="tl-setup">
+        <section
+          className="tl-setup"
+          ref={heading}
+          tabIndex={-1}
+          aria-label="Add workspace abilities"
+        >
           {library}
           <details>
             <summary>Operator setup for tools & MCPs</summary>
             <ResourceIcon resource={{ kind: 'mcp', id: 'setup' }} />
-            <h3 ref={heading} tabIndex={-1}>
-              Connect your toolkit.
-            </h3>
+            <h3>Connect your toolkit.</h3>
             <p>
               File and Terminal tools come from your engine. Select the tools an agent can use when
               you create them in Agents.

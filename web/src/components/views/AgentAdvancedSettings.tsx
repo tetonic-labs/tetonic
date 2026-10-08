@@ -21,9 +21,11 @@ export function AgentAdvancedSettings({
       <summary>
         <SlidersHorizontal size={17} aria-hidden="true" />
         <span>
-          Advanced settings
+          {enforcedLimits ? 'Working limits' : 'Advanced settings'}
           <small>
-            {enforcedLimits ? 'Local execution & run limits' : 'Permissions, scope & run limits'}
+            {enforcedLimits
+              ? `${value.limits.maxSteps} steps · ${value.limits.maxSeconds}s · ${value.limits.maxTokens.toLocaleString()} tokens per run`
+              : 'Permissions, scope & run limits'}
           </small>
         </span>
         <ChevronDown size={17} className="agent-disclosure" aria-hidden="true" />

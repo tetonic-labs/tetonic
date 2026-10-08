@@ -391,11 +391,68 @@
 .tw-live .px-inspector .simple-form .agent-tool-choice {
   display: flex;
 }
-.tw-live .px-inspector .simple-form .agent-runtime-fields select,
-.tw-live .px-inspector .simple-form .agent-runtime-fields input {
-  background: #ffffff0c;
-  color: var(--on-ink);
-  border-color: #a4b39670;
+.tw-live .px-inspector .simple-form .agent-hosted-consent,
+.tw-live .px-inspector .simple-form .capability-skill-option {
+  display: flex;
+}
+.tw-live .px-inspector .agent-create-form .quiet-back,
+.tw-live .px-inspector .agent-execution-details button {
+  padding: 4px 0;
+  font-size: 12px;
+}
+.tw-live .px-inspector:has(.agent-create-form) > h2 {
+  /* The editor has its own heading. Retain the panel's accessible focus target. */
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+.tw-live .px-inspector:has(.agent-create-form) > header {
+  margin-bottom: 4px;
+}
+.tw-live .px-inspector .agent-create-form > .quiet-back {
+  margin-bottom: -8px;
+}
+.tw-live .px-inspector .agent-runtime-title {
+  margin: 0 0 4px;
+}
+.tw-live .px-inspector .agent-create-form .capability-choices > * {
+  padding: 16px;
+}
+.tw-live .px-inspector .capability-library > h3 {
+  margin: 0;
+}
+.tw-live .px-inspector .agent-execution-details > p {
+  margin: 10px 0;
+}
+.tw-live .px-inspector .agent-create-form .agent-hosted-consent {
+  font-size: 12px;
+}
+.tw-live .px-inspector .agent-create-form .agent-create-heading {
+  padding-right: 0;
+}
+.tw-live .px-inspector .agent-create-form .agent-tool-choice:has(input:disabled) {
+  opacity: 0.65;
+}
+.tw-live .px-inspector .agent-create-form input[type='checkbox'] {
+  flex-shrink: 0;
+}
+.tw-live
+  .px-inspector
+  .agent-create-form
+  .agent-runtime-fields
+  .agent-provider-key
+  .agent-key-save {
+  font-size: 12px;
+}
+.tw-live .px-inspector .agent-create-heading h2 {
+  font-size: 28px;
+  margin: 0;
+}
+.tw-live .px-inspector .agent-create-heading p {
+  margin: 8px 0 0;
+  font-size: 13px;
 }
 .tw-live .px-inspector .agent-create-footer {
   bottom: 0;
