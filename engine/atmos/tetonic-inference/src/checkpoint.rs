@@ -69,6 +69,37 @@ pub fn deserialize<'de, D: Deserializer<'de>>(deserializer: D) -> Result<Vec<Mes
         .collect()
 }
 
+/// Content view for scanning a protected local checkpoint. It is never used for
+/// execution or serialization. Portable history cannot supply provider state.
+pub fn disclosure_scan_messages(messages: &[Message]) -> serde_json::Value {
+    let history: Vec<_> = messages
+        .iter()
+        .map(|message| {
+            let mut value = serde_json::to_value(message).expect("message is serializable");
+            value.as_object_mut().unwrap().remove("tool_call_id");
+            if let Some(state) = &message.provider_state {
+                let items = if state.protocol == "openai-responses" && message.role == "assistant" {
+                    let request = crate::ChatRequest {
+                        model: state.model.clone(),
+                        messages: vec![message.clone()],
+                        ..Default::default()
+                    };
+                    crate::hosted::responses::disclosure_scan_body(
+                        &request,
+                        &serde_json::json!({"input":state.items}),
+                    )["input"]
+                        .clone()
+                } else {
+                    serde_json::json!(state.items)
+                };
+                value["provider_content"] = items;
+            }
+            value
+        })
+        .collect();
+    serde_json::json!(history)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

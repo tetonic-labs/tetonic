@@ -75,7 +75,7 @@ impl ManagedRunService {
         let mut writer = self
             .artifacts
             .begin_write(ArtifactDeclaration {
-                kind: ArtifactKind::ContextPack,
+                kind: ArtifactKind::ExecutionCheckpoint,
                 producer_run_id: binding.run_id.clone(),
                 producer_task_id: binding.task_id.clone(),
                 producer_attempt_id: binding.attempt_id.clone(),

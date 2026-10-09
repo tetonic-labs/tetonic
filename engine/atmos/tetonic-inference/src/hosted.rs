@@ -1,6 +1,8 @@
 //! Opt-in, buffered Chat Completions and Messages adapter. No automatic routing or fallback.
 //! Backend options and authentication remain outside the portable agent loop.
 pub mod anthropic;
+#[cfg(test)]
+mod continuation_tests;
 pub mod gemini;
 pub mod openai;
 pub mod registry;
@@ -322,10 +324,16 @@ impl InferenceProvider for HostedChatProvider {
             });
         }
         let body = wire::request(&req, &self.config)?;
-        // Scan exactly what will be sent, including tool schemas, function arguments,
-        // and structured-output schemas. Never trust a stamp from a different payload.
-        let raw =
-            serde_json::to_string(&body).map_err(|_| error("hosted request encoding failed"))?;
+        // Scan all disclosed content, including schemas, arguments and tool results.
+        // Responses also returns private protocol state which must be echoed back:
+        // ciphertext and correlation IDs are not newly disclosed local secrets.
+        let scan_body = if self.config.protocol == HostedWireProtocol::OpenAiResponses {
+            responses::disclosure_scan_body(&req, &body)
+        } else {
+            body.clone()
+        };
+        let raw = serde_json::to_string(&scan_body)
+            .map_err(|_| error("hosted request encoding failed"))?;
         let class = crate::aggregate_chat_classification(&req)
             .map(|c| c.class)
             .unwrap_or(DataClass::RepositorySource);

@@ -9,6 +9,52 @@ use std::collections::{BTreeMap, HashSet};
 
 const PROTOCOL: &str = "openai-responses";
 
+/// For wire requests this follows `request` validation; protected checkpoint
+/// scans use the same projection after validating the saved execution boundary.
+/// Exclude only protocol fields echoed from that continuation, never arbitrary
+/// keys in user text, tool results, arguments, schemas or provider prose.
+pub(crate) fn disclosure_scan_body(req: &ChatRequest, body: &Value) -> Value {
+    let states: Vec<_> = req
+        .messages
+        .iter()
+        .filter_map(|message| {
+            message.provider_state.as_ref().filter(|state| {
+                message.role == "assistant"
+                    && state.protocol == PROTOCOL
+                    && state.model == req.model
+            })
+        })
+        .collect();
+    let mut scan = body.clone();
+    if let Some(input) = scan["input"].as_array_mut() {
+        for item in input {
+            let echoed = states.iter().any(|state| state.items.contains(item));
+            let result_id = item["type"] == "function_call_output"
+                && item["call_id"].as_str().is_some_and(|id| {
+                    states
+                        .iter()
+                        .any(|state| state.call_ids.iter().any(|known| known == id))
+                });
+            let kind = item["type"].as_str().unwrap_or_default().to_owned();
+            if let Some(fields) = item.as_object_mut() {
+                if echoed && matches!(kind.as_str(), "reasoning" | "message" | "function_call") {
+                    fields.remove("id");
+                    if kind == "reasoning" {
+                        fields.remove("encrypted_content");
+                    }
+                    if kind == "function_call" {
+                        fields.remove("call_id");
+                    }
+                }
+                if result_id {
+                    fields.remove("call_id");
+                }
+            }
+        }
+    }
+    scan
+}
+
 pub fn request(req: &ChatRequest, config: &HostedModelConfig) -> Result<Value, InferenceError> {
     if !config.is_model_allowed(&req.model)
         || req.model_digest.is_some()

@@ -53,6 +53,24 @@ pub struct WaitCheckpoint {
 }
 
 impl WaitCheckpoint {
+    /// Scan content at the private execution-state boundary, retaining all local
+    /// instructions, tool arguments/results and schemas. Correlation IDs and
+    /// provider ciphertext remain in the sealed bytes, but are not user secrets.
+    pub fn disclosure_scan_text(&self) -> Result<String, &'static str> {
+        self.validate()?;
+        let bytes = serde_json::to_vec(self).map_err(|_| "checkpoint encoding failed")?;
+        let mut value: serde_json::Value =
+            serde_json::from_slice(&bytes).map_err(|_| "checkpoint decoding failed")?;
+        value["messages"] = tetonic_inference::checkpoint::disclosure_scan_messages(&self.messages);
+        value["pending"]["call_id"] = serde_json::json!("correlation");
+        if let Some(calls) = value["received_host_calls"].as_array_mut() {
+            for call in calls {
+                call["request"]["call_id"] = serde_json::json!("correlation");
+            }
+        }
+        serde_json::to_string(&value).map_err(|_| "checkpoint scan encoding failed")
+    }
+
     pub fn validate(&self) -> Result<(), &'static str> {
         if !matches!(self.version, 1 | 2)
             || self.messages.is_empty()

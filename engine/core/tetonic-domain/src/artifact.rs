@@ -13,6 +13,8 @@ pub enum ArtifactKind {
     Patch,
     FileSnapshot,
     ContextPack,
+    /// Local, scope-bound executor state; never portable work output.
+    ExecutionCheckpoint,
     AnalysisReport,
     TestReport,
     VerificationReport,

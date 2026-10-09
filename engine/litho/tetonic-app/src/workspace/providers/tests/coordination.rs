@@ -97,7 +97,14 @@ impl HostedTransport for TeamTransport {
             }
             _ => panic!("unexpected {role} call {count}"),
         };
-        Ok(parity::completion(provider, tool, args, id))
+        let mut response = parity::completion(provider, tool, args, id);
+        if provider == "openai" {
+            response["output"].as_array_mut().unwrap().insert(0, json!({
+                "type":"reasoning", "id":"reasoning-state", "summary":[],
+                "encrypted_content":"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            }));
+        }
+        Ok(response)
     }
 }
 

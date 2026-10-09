@@ -23,3 +23,6 @@ futures-util = { workspace = true }
 chrono = { workspace = true, features = ["serde"] }
 tokio = { workspace = true, features = ["io-util", "net", "rt", "time"] }
 tracing = { workspace = true }
+
+[dev-dependencies]
+tetonic-secrets = { path = "../../core/tetonic-secrets" }

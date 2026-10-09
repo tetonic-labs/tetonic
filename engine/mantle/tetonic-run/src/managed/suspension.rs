@@ -149,7 +149,12 @@ impl ManagedRunService {
         if meta.producer_run_id != binding.run_id
             || meta.producer_task_id != binding.task_id
             || meta.producer_attempt_id != binding.attempt_id
-            || meta.kind != tetonic_domain::artifact::ArtifactKind::ContextPack
+            || !matches!(
+                meta.kind,
+                tetonic_domain::artifact::ArtifactKind::ContextPack
+                    | tetonic_domain::artifact::ArtifactKind::ExecutionCheckpoint
+            )
+            || meta.data_class != tetonic_domain::DataClass::Secret
             || meta.size_bytes > MAX_CHECKPOINT_BYTES as u64
             || format!("sha256:{}", meta.content_digest.0) != reference.digest
         {

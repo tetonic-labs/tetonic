@@ -62,6 +62,51 @@ fn checkpoint() -> WaitCheckpoint {
 }
 
 #[test]
+fn protected_checkpoint_scan_distinguishes_protocol_state_from_disclosed_content() {
+    const OPAQUE: &str = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    let mut value = serde_json::to_value(checkpoint()).unwrap();
+    let id = format!("call_{OPAQUE}");
+    value["pending"]["call_id"] = serde_json::json!(id);
+    value["messages"][1]["continuation"] = serde_json::json!({
+        "protocol":"openai-responses", "model":"pinned", "call_ids":[id],
+        "items":[
+            {"type":"reasoning","id":OPAQUE,"encrypted_content":OPAQUE,"summary":[]},
+            {"type":"function_call","call_id":id,"name":"dispatch","arguments":"{\"keys\":[\"second\"]}"}
+        ]
+    });
+    let saved: WaitCheckpoint = serde_json::from_value(value).unwrap();
+    let scan = saved.disclosure_scan_text().unwrap();
+    assert!(!scan.contains(OPAQUE));
+    assert!(scan.contains("Shared brief") && scan.contains("Coordinate the agreed work"));
+    assert!(
+        serde_json::to_string(&saved).unwrap().contains(OPAQUE),
+        "sealed checkpoint retains exact provider state"
+    );
+    for kind in 0..4 {
+        let mut contaminated = saved.clone();
+        match kind {
+            0 => contaminated.invocation.user_input = OPAQUE.into(),
+            1 => contaminated.messages[0].content = OPAQUE.into(),
+            2 => {
+                contaminated.harness =
+                    serde_json::json!({"tool_schema":{"encrypted_content":OPAQUE}})
+            }
+            _ => {
+                contaminated.received_host_calls[0].request.arguments =
+                    serde_json::json!({"secret":OPAQUE})
+            }
+        }
+        assert!(contaminated
+            .disclosure_scan_text()
+            .unwrap()
+            .contains(OPAQUE));
+    }
+    let mut invalid = saved;
+    invalid.pending.call_id = "mismatched".into();
+    assert!(invalid.disclosure_scan_text().is_err());
+}
+
+#[test]
 fn received_calls_survive_compaction_and_checkpoint_roundtrip_without_duplicating_output() {
     let bytes = serde_json::to_vec(&checkpoint()).unwrap();
     assert!(!String::from_utf8_lossy(&bytes).contains("Private contribution"));

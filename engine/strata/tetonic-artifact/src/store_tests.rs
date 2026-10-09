@@ -23,6 +23,39 @@ fn clean_scan() -> ScanPolicy {
 }
 
 #[tokio::test]
+async fn private_checkpoint_scan_is_bounded_complete_and_does_not_exempt_ordinary_artifacts() {
+    let (dir, store) = store_with(ScanPolicy::WithCheckpoints {
+        artifact: Arc::new(|text| text.contains("ciphertext")),
+        checkpoint: Arc::new(|text| text != "{\"state\":\"ciphertext héllo\"}"),
+    })
+    .await;
+    let mut declaration = test_declaration();
+    declaration.kind = ArtifactKind::ExecutionCheckpoint;
+    let mut writer = store.begin_write(declaration.clone()).await.unwrap();
+    // Even a split UTF-8 code point must be scanned as complete structured data.
+    for byte in "{\"state\":\"ciphertext héllo\"}".as_bytes() {
+        writer.write_chunk(&[*byte]).await.unwrap();
+    }
+    let meta = writer.seal().await.unwrap();
+    store.open(&meta.artifact_id).await.unwrap();
+    let mut malformed = store.begin_write(declaration.clone()).await.unwrap();
+    malformed.write_chunk(b"not a checkpoint").await.unwrap();
+    assert!(malformed.seal().await.is_err());
+    let mut oversized = store.begin_write(declaration.clone()).await.unwrap();
+    assert!(oversized
+        .write_chunk(&vec![0; 2 * 1024 * 1024 + 1])
+        .await
+        .is_err());
+    oversized.abandon().await.unwrap();
+    declaration.data_class = DataClass::Public;
+    assert!(store.begin_write(declaration).await.is_err());
+    let mut ordinary = store.begin_write(test_declaration()).await.unwrap();
+    ordinary.write_chunk(b"ciphertext").await.unwrap();
+    assert!(ordinary.seal().await.is_err());
+    drop(dir);
+}
+
+#[tokio::test]
 async fn acceptance_refuses_missing_or_corrupted_content_without_advancing_metadata() {
     for missing in [false, true] {
         let (_dir, store) = create_test_store().await;

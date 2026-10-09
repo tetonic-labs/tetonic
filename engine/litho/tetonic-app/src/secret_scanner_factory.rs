@@ -69,11 +69,22 @@ pub fn install_shared_scanner_from_store(store: &Option<SharedStore>) {
 /// would satisfy the compiler and not the ADR.
 pub fn artifact_scan_policy(store: &Option<SharedStore>) -> tetonic_artifact::ScanPolicy {
     let scanner = scanner_from_shared_store(store);
-    tetonic_artifact::ScanPolicy::Scan(Arc::new(move |text: &str| -> bool {
-        if let Ok(Some((findings, _))) = scanner.scan_and_redact_sync(text, None) {
-            !findings.is_empty()
-        } else {
-            false
-        }
-    }))
+    let checkpoint_scanner = scanner.clone();
+    tetonic_artifact::ScanPolicy::WithCheckpoints {
+        artifact: Arc::new(move |text: &str| -> bool {
+            !matches!(scanner.scan_and_redact_sync(text, None), Ok(None))
+        }),
+        checkpoint: Arc::new(move |text: &str| -> bool {
+            let Ok(checkpoint) = serde_json::from_str::<tetonic_core::WaitCheckpoint>(text) else {
+                return true;
+            };
+            let Ok(content) = checkpoint.disclosure_scan_text() else {
+                return true;
+            };
+            !matches!(
+                checkpoint_scanner.scan_and_redact_sync(&content, None),
+                Ok(None)
+            )
+        }),
+    }
 }

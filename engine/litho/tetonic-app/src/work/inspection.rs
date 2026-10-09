@@ -428,7 +428,7 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
     } else if reason == "execution deadline exceeded" {
         "The run reached its time limit. Narrow the request or review the agent's available run limits before trying again."
     } else if reason.contains("secret") || reason.contains("disclosure policy") {
-        "The engine blocked this prompt's disclosure. Remove sensitive credentials before trying again."
+        "The engine stopped this request before sending it to the model because its content check flagged possible sensitive data. The flagged content may be in the conversation or tool context; it does not necessarily mean your message contained a credential."
     } else if reason.contains("credential unavailable") {
         "The provider key is unavailable. Save it again in agent setup."
     } else {

@@ -4,8 +4,8 @@ use sha2::{Digest, Sha256};
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tetonic_domain::artifact::{
-    ArtifactDeclaration, ArtifactError, ArtifactLocation, ArtifactMetadata, ArtifactReader,
-    ArtifactState, ArtifactStore, ArtifactWriter, VerificationState,
+    ArtifactDeclaration, ArtifactError, ArtifactKind, ArtifactLocation, ArtifactMetadata,
+    ArtifactReader, ArtifactState, ArtifactStore, ArtifactWriter, VerificationState,
 };
 use tetonic_domain::ids::ArtifactId;
 use tetonic_domain::workspace::ContentDigest;
@@ -36,6 +36,13 @@ pub type ArtifactTextScanner = Arc<dyn Fn(&str) -> bool + Send + Sync>;
 pub enum ScanPolicy {
     /// Scan every artifact with this hook as it is written.
     Scan(ArtifactTextScanner),
+    /// Checkpoints require a bounded, complete structured scan so provider
+    /// ciphertext can be distinguished from newly supplied content. Other
+    /// artifacts retain the ordinary streaming scanner.
+    WithCheckpoints {
+        artifact: ArtifactTextScanner,
+        checkpoint: ArtifactTextScanner,
+    },
     /// No scanner is available, so `seal` refuses.
     ///
     /// Correct for a store that never seals. A store that does seal and is built
@@ -358,6 +365,14 @@ impl ArtifactStore for LocalArtifactStore {
         &self,
         declaration: ArtifactDeclaration,
     ) -> Result<Box<dyn ArtifactWriter>, ArtifactError> {
+        if declaration.kind == ArtifactKind::ExecutionCheckpoint
+            && (declaration.data_class != tetonic_domain::DataClass::Secret
+                || declaration.worker_id.is_some())
+        {
+            return Err(ArtifactError::Internal(
+                "execution checkpoints must be private local state".into(),
+            ));
+        }
         let _lock = self.mutation_lock_async().await?;
         let temp_id = uuid::Uuid::new_v4().to_string();
         let tmp_path = self.tmp_path(&temp_id);
@@ -379,6 +394,7 @@ impl ArtifactStore for LocalArtifactStore {
             declaration,
             scan_carry: String::new(),
             scan_hit: false,
+            checkpoint_bytes: Vec::new(),
         }))
     }
 
@@ -532,6 +548,7 @@ pub struct LocalArtifactWriter {
     /// `write_chunk` calls is still seen (`SCAN_OVERLAP_BYTES`).
     scan_carry: String,
     scan_hit: bool,
+    checkpoint_bytes: Vec<u8>,
 }
 
 impl LocalArtifactWriter {
@@ -541,8 +558,18 @@ impl LocalArtifactWriter {
     /// ASCII credential is still scanned, where the pre-M6 code skipped
     /// anything that was not valid UTF-8 outright.
     fn scan(&mut self, data: &[u8]) {
-        let ScanPolicy::Scan(scanner) = &self.store.scan else {
-            return;
+        let scanner = match &self.store.scan {
+            ScanPolicy::WithCheckpoints { .. }
+                if self.declaration.kind == ArtifactKind::ExecutionCheckpoint =>
+            {
+                self.checkpoint_bytes.extend_from_slice(data);
+                return;
+            }
+            ScanPolicy::Scan(scanner)
+            | ScanPolicy::WithCheckpoints {
+                artifact: scanner, ..
+            } => scanner,
+            ScanPolicy::Refuse => return,
         };
         if self.scan_hit {
             return;
@@ -572,6 +599,11 @@ impl ArtifactWriter for LocalArtifactWriter {
         }
         if self.written_bytes + data.len() as u64 > MAX_ARTIFACT_SIZE_BYTES {
             return Err(ArtifactError::SizeLimitExceeded(MAX_ARTIFACT_SIZE_BYTES));
+        }
+        if self.declaration.kind == ArtifactKind::ExecutionCheckpoint
+            && self.written_bytes + data.len() as u64 > 2 * 1024 * 1024
+        {
+            return Err(ArtifactError::SizeLimitExceeded(2 * 1024 * 1024));
         }
 
         self.hasher.update(data);
@@ -613,6 +645,12 @@ impl ArtifactWriter for LocalArtifactWriter {
         // it was skipped above 1 MiB and skipped again for non-UTF8 input. Both
         // exemptions are gone: there is no size at which scanning stops, and
         // non-UTF8 content is decoded lossily rather than waved through.
+        if let ScanPolicy::WithCheckpoints { checkpoint, .. } = &self.store.scan {
+            if self.declaration.kind == ArtifactKind::ExecutionCheckpoint {
+                self.scan_hit |= std::str::from_utf8(&self.checkpoint_bytes)
+                    .map_or(true, |text| checkpoint(text));
+            }
+        }
         match &self.store.scan {
             ScanPolicy::Refuse => {
                 let _ = std::fs::remove_file(&self.tmp_path);
@@ -620,13 +658,13 @@ impl ArtifactWriter for LocalArtifactWriter {
                     "artifact store was built without a secret scanner; refusing to seal".into(),
                 ));
             }
-            ScanPolicy::Scan(_) if self.scan_hit => {
+            ScanPolicy::Scan(_) | ScanPolicy::WithCheckpoints { .. } if self.scan_hit => {
                 let _ = std::fs::remove_file(&self.tmp_path);
                 return Err(ArtifactError::Internal(
                     "Artifact contains secrets and was rejected".into(),
                 ));
             }
-            ScanPolicy::Scan(_) => {}
+            ScanPolicy::Scan(_) | ScanPolicy::WithCheckpoints { .. } => {}
         }
 
         // Content identity is the digest; ownership identity is a unique occurrence.
