@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use tetonic_core::{ApprovalHook, ApprovalRequest};
-use tetonic_domain::sinks::ActionBroker;
+use tetonic_domain::sinks::{ActionBroker, PolicyEvaluator};
 use tetonic_domain::{
     prepare_proposed_action, ApprovalRequirement, CapabilityError, CapabilityId, IssuedCapability,
     PolicyDecision, ProposedAction,
@@ -25,6 +25,7 @@ pub struct RuntimeActionBroker {
 struct BoundApprovalBroker {
     inner: Arc<RuntimeActionBroker>,
     approval: ApprovalHook,
+    restrictions: Option<Arc<dyn PolicyEvaluator>>,
 }
 
 #[async_trait]
@@ -34,7 +35,7 @@ impl ActionBroker for BoundApprovalBroker {
         action: &ProposedAction,
     ) -> Result<IssuedCapability, CapabilityError> {
         self.inner
-            .evaluate_with_approval(action, Some(&self.approval))
+            .evaluate_with_approval(action, Some(&self.approval), self.restrictions.as_deref())
             .await
     }
 }
@@ -44,6 +45,19 @@ impl RuntimeActionBroker {
         Arc::new(BoundApprovalBroker {
             inner: self.clone(),
             approval,
+            restrictions: None,
+        })
+    }
+    /// Extra restrictions can narrow host authority, never broaden it.
+    pub fn with_restrictions(
+        self: &Arc<Self>,
+        approval: ApprovalHook,
+        restrictions: Arc<dyn PolicyEvaluator>,
+    ) -> Arc<dyn ActionBroker> {
+        Arc::new(BoundApprovalBroker {
+            inner: self.clone(),
+            approval,
+            restrictions: Some(restrictions),
         })
     }
     pub fn new(
@@ -90,7 +104,7 @@ impl ActionBroker for RuntimeActionBroker {
         &self,
         action: &ProposedAction,
     ) -> Result<IssuedCapability, CapabilityError> {
-        self.evaluate_with_approval(action, None).await
+        self.evaluate_with_approval(action, None, None).await
     }
 }
 
@@ -99,9 +113,19 @@ impl RuntimeActionBroker {
         &self,
         action: &ProposedAction,
         approval: Option<&ApprovalHook>,
+        restrictions: Option<&dyn PolicyEvaluator>,
     ) -> Result<IssuedCapability, CapabilityError> {
         let action = prepare_proposed_action(action.clone());
-        let outcome = self.policy_engine.evaluate_action(&action);
+        let mut outcome = self.policy_engine.evaluate_action(&action);
+        if let Some(policy) = restrictions {
+            let extra = policy.evaluate(&action);
+            if outcome.decision.allowed() {
+                outcome.decision = extra.decision;
+            }
+            if extra.approval == ApprovalRequirement::Interactive {
+                outcome.approval = extra.approval;
+            }
+        }
 
         if !outcome.decision.allowed() {
             let reason = match &outcome.decision {
@@ -111,6 +135,7 @@ impl RuntimeActionBroker {
             return Err(CapabilityError::PolicyDenied(reason));
         }
 
+        let mut approved = false;
         if outcome.approval == ApprovalRequirement::Interactive {
             let hook = approval.cloned().or_else(|| {
                 action
@@ -122,12 +147,16 @@ impl RuntimeActionBroker {
                 let req = ApprovalRequest {
                     call_id: action.action_id.to_string(),
                     kind: format!("{:?}", action.kind),
-                    tool: broker_tool_name(&action.kind),
+                    tool: action
+                        .parameters
+                        .tool_name
+                        .clone()
+                        .unwrap_or_else(|| broker_tool_name(&action.kind)),
                     args: serde_json::to_value(&action.parameters).unwrap_or_default(),
                     attempt_id: action.attempt_id.as_ref().map(|a| a.to_string()),
                     ..Default::default()
                 };
-                let approved = hook(req).await;
+                approved = hook(req).await;
                 if !approved {
                     return Err(CapabilityError::ApprovalRequired);
                 }
@@ -136,6 +165,16 @@ impl RuntimeActionBroker {
             }
         }
 
+        // A person may tighten permissions while this action awaits approval.
+        if let Some(policy) = restrictions {
+            let current = policy.evaluate(&action);
+            if let PolicyDecision::Deny { reason } = current.decision {
+                return Err(CapabilityError::PolicyDenied(reason));
+            }
+            if current.approval == ApprovalRequirement::Interactive && !approved {
+                return Err(CapabilityError::ApprovalRequired);
+            }
+        }
         let capability_id = CapabilityId::new(format!("cap_{}", uuid::Uuid::new_v4().simple()));
         let now = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -174,5 +213,83 @@ fn broker_tool_name(kind: &tetonic_domain::ActionKind) -> String {
         tetonic_domain::ActionKind::ExecuteProcess => "verify".into(),
         tetonic_domain::ActionKind::StartInternalService => "lsp".into(),
         other => format!("{other:?}"),
+    }
+}
+
+#[cfg(test)]
+mod capability_policy_tests {
+    use super::*;
+    use tetonic_domain::{ActionKind, ActionPolicyOutcome};
+    use tetonic_policy::capabilities::{capability_outcome, AutonomyTier, CapabilityPolicy};
+    struct Restriction(AutonomyTier);
+    impl PolicyEvaluator for Restriction {
+        fn evaluate(&self, action: &ProposedAction) -> ActionPolicyOutcome {
+            capability_outcome(
+                &[CapabilityPolicy {
+                    tier: self.0,
+                    ..Default::default()
+                }],
+                &action.kind,
+            )
+        }
+    }
+    fn action(kind: ActionKind) -> ProposedAction {
+        ProposedAction {
+            action_id: tetonic_domain::ActionId::new("action"), session_id: tetonic_domain::SessionId::new("session"),
+            run_id:None,task_id:None,attempt_id:None,agent_id:None,workspace_version:None,
+            data_class:tetonic_domain::DataClass::RepositorySource,kind,
+            parameters:serde_json::from_value(serde_json::json!({"digest":"","arguments":[],"schema_version":1,"tool_arguments":{"path":"receipt.txt"}})).unwrap(),
+            requested_capabilities:Default::default(),trace_context:Default::default(),
+        }
+    }
+    #[tokio::test]
+    async fn automatic_cannot_relax_host_denials_or_mandatory_shell_review() {
+        let host = Arc::new(PolicyEngine::default());
+        host.set_mutations_allowed(false);
+        let broker = Arc::new(RuntimeActionBroker::new(
+            host,
+            Arc::new(InMemoryCapabilityStore::new()),
+        ));
+        let deny: ApprovalHook = Arc::new(|_| Box::pin(async { false }));
+        let scoped = broker.with_restrictions(deny, Arc::new(Restriction(AutonomyTier::Automatic)));
+        assert!(matches!(
+            scoped
+                .evaluate_and_issue(&action(ActionKind::WriteFile))
+                .await,
+            Err(CapabilityError::PolicyDenied(_))
+        ));
+        let mut shell = action(ActionKind::ExecuteShell);
+        shell.parameters.script_bytes = Some(b"echo test".to_vec());
+        assert!(matches!(
+            scoped.evaluate_and_issue(&shell).await,
+            Err(CapabilityError::ApprovalRequired)
+        ));
+    }
+    #[tokio::test]
+    async fn ask_requires_approval_and_deny_never_calls_an_approval_hook() {
+        let broker = Arc::new(RuntimeActionBroker::new(
+            Arc::new(PolicyEngine::default()),
+            Arc::new(InMemoryCapabilityStore::new()),
+        ));
+        assert!(matches!(
+            broker
+                .evaluate_with_approval(
+                    &action(ActionKind::WriteFile),
+                    None,
+                    Some(&Restriction(AutonomyTier::ReviewChanges))
+                )
+                .await,
+            Err(CapabilityError::ApprovalRequired)
+        ));
+        let unexpected: ApprovalHook = Arc::new(|_| {
+            Box::pin(async { panic!("denied capabilities must not be offered for approval") })
+        });
+        assert!(matches!(
+            broker
+                .with_restrictions(unexpected, Arc::new(Restriction(AutonomyTier::ReadOnly)))
+                .evaluate_and_issue(&action(ActionKind::WriteFile))
+                .await,
+            Err(CapabilityError::PolicyDenied(_))
+        ));
     }
 }

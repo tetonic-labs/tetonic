@@ -267,6 +267,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             .approvals()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path == "/api/local/capability-policies" {
+        state
+            .workspace
+            .capability_policies()
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path == "/api/local/work-teams" {
         state
             .workspace
@@ -290,6 +296,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             path.as_str(),
             "/api/local/tasks"
                 | "/api/local/work-teams"
+                | "/api/local/capability-policies"
                 | "/api/local/agents"
                 | "/api/local/agents/update"
                 | "/api/local/skills"
@@ -332,6 +339,17 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             state
                 .workspace
                 .save_mcp_connection(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/capability-policies" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::local_workspace::SaveCapabilityPolicy>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid capability permissions.");
+            };
+            state
+                .workspace
+                .save_capability_policy(payload)
                 .await
                 .map(|v| serde_json::to_value(v).unwrap_or_default())
         } else if path == "/api/local/work-teams" {

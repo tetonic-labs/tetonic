@@ -101,6 +101,9 @@ fn canonical_payload(kind: &ActionKind, params: &CanonicalActionParameters) -> S
             serde_json::to_string(tool).unwrap_or_default()
         ));
     }
+    if let Some(name) = &params.tool_name {
+        parts.push(format!("tool_name={name}"));
+    }
     canonical_parts(&parts)
 }
 
@@ -189,6 +192,7 @@ mod tests {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: None,
         };
         let d1 = compute_canonical_digest(&ActionKind::ExecuteProcess, &base);
@@ -218,6 +222,7 @@ mod tests {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: None,
         };
         let d1 = compute_canonical_digest(&ActionKind::ExecuteShell, &p);
@@ -256,6 +261,7 @@ mod tests {
                 sandbox_profile: None,
                 expected_output_limits: None,
                 schema_version: 1,
+                tool_name: None,
                 tool_arguments: None,
             },
             requested_capabilities: Default::default(),
@@ -289,11 +295,27 @@ mod tests {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: None,
         };
         let d1 = compute_canonical_digest(&ActionKind::ExecuteProcess, &base);
         base.arguments = vec!["first".into(), "second".into()];
         let d2 = compute_canonical_digest(&ActionKind::ExecuteProcess, &base);
         assert_ne!(d1, d2);
+        // Tool identity is additive: absent names preserve historical digests,
+        // while different methods with identical endpoint/arguments cannot share one.
+        let legacy = compute_canonical_digest(&ActionKind::NetworkRequest, &base);
+        base.tool_name = Some("mcp_calendar_search".into());
+        let search = compute_canonical_digest(&ActionKind::NetworkRequest, &base);
+        base.tool_name = Some("mcp_calendar_delete".into());
+        assert_ne!(
+            search,
+            compute_canonical_digest(&ActionKind::NetworkRequest, &base)
+        );
+        base.tool_name = None;
+        assert_eq!(
+            legacy,
+            compute_canonical_digest(&ActionKind::NetworkRequest, &base)
+        );
     }
 }

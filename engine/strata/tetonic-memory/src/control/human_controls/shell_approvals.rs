@@ -6,6 +6,9 @@ use sha2::{Digest, Sha256};
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct ShellApprovalProposal {
+    // Missing for legacy shell proposals: preserve their signed digest exactly.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool: Option<String>,
     pub command: String,
     pub working_directory: String,
     pub shell: String,

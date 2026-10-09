@@ -74,6 +74,7 @@ fn shell_action(
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: None,
         },
         requested_capabilities: Default::default(),

@@ -136,6 +136,9 @@ pub struct CanonicalActionParameters {
     pub expected_output_limits: Option<usize>,
     pub schema_version: u32,
     pub tool_arguments: Option<serde_json::Value>,
+    /// Host-selected tool identity, bound alongside its exact arguments.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_name: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]

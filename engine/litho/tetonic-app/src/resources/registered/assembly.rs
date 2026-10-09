@@ -205,6 +205,12 @@ impl crate::Application {
             root.clone(),
             approved_environment,
         );
+        let restrictions = Arc::new(super::super::capability_policies::WorkCapabilityPolicy {
+            store: kind_store.clone(),
+            scope: prepared.authorization.scope.clone(),
+            work: work.clone(),
+            agent: prepared.command.identity.id.0.clone(),
+        });
         let provider: Arc<dyn tetonic_inference::InferenceProvider> = match work {
             Some((team, work)) => Arc::new(super::super::work_usage::WorkUsageProvider {
                 inner: provider,
@@ -297,7 +303,11 @@ impl crate::Application {
                 },
             )
             .map_err(|_| AppError::InvalidRequest("registered runtime assembly failed".into()))?
-            .with_action_broker(runtime.action_broker().with_approval(approval));
+            .with_action_broker(
+                runtime
+                    .action_broker()
+                    .with_restrictions(approval, restrictions),
+            );
         // Only an explicitly configured root host or matching reconstruction opts in.
         // The managed owner verifies the sealed checkpoint against this exact harness.
         let agent = if restoring

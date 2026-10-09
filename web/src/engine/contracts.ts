@@ -372,8 +372,27 @@ export interface LocalWorkItem {
   agent_ids?: string[];
 }
 
+export type Capability = 'file_read' | 'file_write' | 'shell' | 'connections';
+export type CapabilityDecision = 'allow' | 'ask' | 'deny';
+export type AutonomyTier = 'automatic' | 'review_changes' | 'read_only';
+export interface CapabilityPolicy {
+  tier: AutonomyTier;
+  overrides: Partial<Record<Capability, CapabilityDecision>>;
+}
+export interface ScopedCapabilityPolicy {
+  scope: 'workspace' | 'team' | 'agent';
+  scope_id: string;
+  revision: number;
+  policy: CapabilityPolicy | null;
+}
+export interface SaveCapabilityPolicy extends Omit<ScopedCapabilityPolicy, 'revision'> {
+  expected_revision: number;
+  request_id: string;
+}
+
 export interface LocalApproval {
   proposal?: {
+    tool?: string;
     command: string;
     working_directory: string;
     shell: string;

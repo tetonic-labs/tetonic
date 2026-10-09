@@ -1,6 +1,7 @@
 import { Monitor, Radio, ShieldCheck, CircleStop } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import './workspace-settings.css';
+import { CapabilityPolicyEditor } from '../views/CapabilityPolicyEditor';
 
 export function WorkspaceSettings({
   dark,
@@ -39,6 +40,11 @@ export function WorkspaceSettings({
           Dark
         </label>
       </section>
+      <CapabilityPolicyEditor
+        scope="workspace"
+        client={engine.client}
+        isConnected={engine.isConnected}
+      />
       <section className="workspace-connection">
         <div className="workspace-setting-row">
           <Radio size={19} aria-hidden="true" />

@@ -1,5 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
 import { AgentSkills } from './AgentSkills';
+import { CapabilityPolicyEditor } from './CapabilityPolicyEditor';
+import type { LocalEngine } from '../../engine/client';
 import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database, UserRound } from 'lucide-react';
 import { Portrait } from '../ui/Portrait';
 import { engineAgentToUI } from '../../engine/projections/agents';
@@ -48,6 +50,7 @@ export function AgentCreateForm({
   agent?: EngineAgent;
   guide?: boolean;
   connected?: {
+    permissionsClient?: LocalEngine;
     catalog: AgentCatalog;
     library?: ReactNode;
     saving: boolean;
@@ -730,6 +733,22 @@ export function AgentCreateForm({
           )}
         </fieldset>
       )}
+      {connected &&
+        !guide &&
+        (agent && connected.permissionsClient ? (
+          <CapabilityPolicyEditor
+            scope="agent"
+            scopeId={agent.id}
+            client={connected.permissionsClient}
+          />
+        ) : (
+          !agent && (
+            <p className="agent-field-note">
+              Your agent inherits workspace permissions. After creating it, use Edit agent to set
+              its autonomy and capability limits.
+            </p>
+          )
+        ))}
       <AgentAdvancedSettings
         guide={guide}
         value={configuration}

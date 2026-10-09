@@ -38,6 +38,7 @@ fn authorized(dir: &std::path::Path) -> tetonic_domain::AuthorizedAction {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: Some(serde_json::json!({ "command": "approved script" })),
         },
         requested_capabilities: Default::default(),

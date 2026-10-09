@@ -697,6 +697,7 @@ impl Agent {
                 sandbox_profile: None,
                 expected_output_limits: None,
                 schema_version: tetonic_domain::CANONICAL_SCHEMA_VERSION,
+                tool_name: Some(name.to_string()),
                 tool_arguments: Some(args.clone()),
             },
         );

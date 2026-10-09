@@ -1,0 +1,121 @@
+.capability-policy {
+  border-block: 1px solid var(--brand-rule);
+  padding: 22px 0;
+  margin-block: 14px;
+  min-width: 0;
+}
+.capability-policy-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+}
+.capability-policy-heading h3 {
+  font-size: 15px;
+  margin: 0;
+}
+.capability-policy-heading > span {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.capability-policy p {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: 65ch;
+}
+.capability-policy .capability-tier {
+  display: block;
+  font-size: 12px;
+  margin: 18px 0 7px;
+}
+.capability-policy select {
+  font: inherit;
+  font-size: 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--control-border);
+  background: var(--bg-surface, transparent);
+  color: var(--text-primary);
+  border-radius: 5px;
+  max-width: 100%;
+}
+.capability-policy > select {
+  width: 100%;
+}
+.capability-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px 22px;
+  margin: 18px 0;
+}
+.capability-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+}
+.capability-summary strong {
+  font-weight: 500;
+  font-size: 11px;
+}
+.capability-summary [data-permission='allow'] {
+  color: var(--signal-working, #346350);
+}
+.capability-summary [data-permission='ask'] {
+  color: var(--signal-waiting, #996018);
+}
+.capability-summary [data-permission='deny'] {
+  color: var(--signal-blocked, #b1493e);
+}
+.capability-text-button {
+  font-size: 12px;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+.capability-rules {
+  margin-top: 12px;
+}
+.capability-rules label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 12px 0;
+  border-top: 1px solid var(--brand-rule);
+}
+.capability-rules label > span {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+}
+.capability-rules small {
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-weight: 400;
+  line-height: 1.5;
+}
+.capability-rules select {
+  flex-shrink: 0;
+}
+.capability-policy-actions {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.capability-policy-actions small {
+  font-size: 11px;
+  color: var(--text-secondary);
+}
+.capability-policy button:disabled,
+.capability-policy select:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+@media (max-width: 420px) {
+  .capability-rules label {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

@@ -14,7 +14,7 @@ pub(super) fn for_work(
     Arc::new(move |request| {
         let (store, scope, work, root) = (store.clone(), scope.clone(), work.clone(), root.clone());
         Box::pin(async move {
-            let (Some((team, work)), Some(root)) = (work, root) else {
+            let Some((team, work)) = work else {
                 return false;
             };
             // Do not publish private-context command content into a team's inbox.
@@ -42,23 +42,43 @@ async fn approve(
     scope: ExecutionScope,
     team: String,
     work: String,
-    root: PathBuf,
+    root: Option<PathBuf>,
     mut request: ApprovalRequest,
 ) -> Option<bool> {
-    if request.tool != "run_shell" {
-        return None;
-    }
     let params: CanonicalActionParameters = serde_json::from_value(request.args.clone()).ok()?;
-    let command = String::from_utf8(params.script_bytes?).ok()?;
-    let cwd = params.working_directory?;
-    if std::path::Path::new(&cwd) != root || params.digest.is_empty() {
+    if params.digest.is_empty() {
         return None;
     }
-    crate::approval::attach_shell_confinement(&mut request, &root);
+    let is_shell = request.tool == "run_shell";
+    let (command, cwd, shell) = if is_shell {
+        let root = root?;
+        let cwd = params.working_directory.clone()?;
+        if std::path::Path::new(&cwd) != root {
+            return None;
+        }
+        crate::approval::attach_shell_confinement(&mut request, &root);
+        (
+            String::from_utf8(params.script_bytes.clone()?).ok()?,
+            cwd,
+            params.shell_identity.clone()?,
+        )
+    } else {
+        // The same receipt binds exact canonical arguments and the live attempt.
+        (
+            serde_json::to_string_pretty(&params.tool_arguments).ok()?,
+            if request.tool.starts_with("mcp_") {
+                params.resolved_path.clone().unwrap_or_default()
+            } else {
+                params.working_directory.clone().unwrap_or_default()
+            },
+            String::new(),
+        )
+    };
     let proposal = ShellApprovalProposal {
+        tool: (!is_shell).then_some(request.tool.clone()),
         command,
         working_directory: cwd,
-        shell: params.shell_identity?,
+        shell,
         attempt_id: request.attempt_id?,
         call_id: request.call_id,
         parameter_digest: params.digest,

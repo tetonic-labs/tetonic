@@ -27,6 +27,8 @@ import type {
   WorkTeamSelection,
   WorkTeam,
   SaveWorkTeam,
+  ScopedCapabilityPolicy,
+  SaveCapabilityPolicy,
   LocalTeamInfo,
   LocalDigestResponse,
 } from './contracts';
@@ -162,6 +164,12 @@ export class LocalEngine {
   }
   saveWorkTeam(request: SaveWorkTeam) {
     return this.request<WorkTeam>('/work-teams', request);
+  }
+  capabilityPolicies(signal?: AbortSignal) {
+    return this.request<ScopedCapabilityPolicy[]>('/capability-policies', undefined, signal);
+  }
+  saveCapabilityPolicy(request: SaveCapabilityPolicy) {
+    return this.request<ScopedCapabilityPolicy>('/capability-policies', request);
   }
   briefs(id: string, signal?: AbortSignal) {
     return this.request<WorkBrief[]>(`/briefs/${encodeURIComponent(id)}`, undefined, signal);

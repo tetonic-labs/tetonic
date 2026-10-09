@@ -138,6 +138,7 @@ export function LocalAgentSetup({
       onBack={saving ? undefined : onBack}
       backLabel="Back to agents"
       connected={{
+        permissionsClient: client,
         catalog,
         library: (
           <WorkspaceCapabilityLibrary

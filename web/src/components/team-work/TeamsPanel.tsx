@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Search, Users, Pencil } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
+import { CapabilityPolicyEditor } from '../views/CapabilityPolicyEditor';
 import { engineAgentToUI } from '../../engine/projections/agents';
 import { EngineRequestError } from '../../engine/failure';
 import { type WorkTeam, type SaveWorkTeam } from '../../engine/contracts';
@@ -321,6 +322,14 @@ function TeamEditor({
           ? 'Changes apply to new discussions. Existing work keeps the roster it started with.'
           : 'Agents keep their saved models, skills, tools and permissions. Joining a team does not share private conversations.'}
       </p>
+      {team && (
+        <CapabilityPolicyEditor
+          scope="team"
+          scopeId={team.id}
+          client={engine.client}
+          isConnected={engine.isConnected}
+        />
+      )}
       {error && (
         <p role="alert">
           {error} {pending && 'Retry checks the same save.'}

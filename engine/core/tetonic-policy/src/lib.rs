@@ -3,6 +3,7 @@
 //! Homelab uses [`PolicyMode::EstateStub`]: owner estate workers OK; circle jobs
 //! denied until [`PolicyMode::Full`] ships with Circle (N2).
 
+pub mod capabilities;
 mod classify;
 mod dispatch;
 mod engine;

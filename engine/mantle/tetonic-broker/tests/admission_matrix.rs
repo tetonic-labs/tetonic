@@ -658,6 +658,7 @@ async fn local_sandboxed_test_shard_via_broker() {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
+            tool_name: None,
             tool_arguments: None,
         },
         requested_capabilities: Default::default(),

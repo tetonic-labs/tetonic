@@ -151,3 +151,55 @@ coordinator names remain product conventions. This is groundwork for explicit
 scope, not a general multi-user server, distributed work service or new public
 scope-switching interface. Local-owner compatibility methods are not a complete
 remote permission model. There are no UI changes in this step.
+
+## Capability permissions (October 9, 2026)
+
+The local workspace now exposes additional permission ceilings in workspace
+settings and the saved agent/team editors. They use the existing authenticated
+resource service, registered harness, action broker, and human approval records.
+There is no alternate tool executor or model-only permission check.
+
+`GET/POST /api/local/capability-policies` reads or versions workspace, work-team,
+and stable agent-identity policies within the current application scope. Only
+the security team's owner can save them. Saves require a request UUID and the
+previous revision; exact retries return the original receipt and stale edits
+conflict. Schema 73 stores immutable revisions in `capability_policy_versions`.
+Removing a local override creates a null-policy revision rather than deleting
+history. Existing databases start with no additional restrictions.
+
+Presets are Automatic, Ask before changes, and Read files only. File reading,
+file changes, command execution, and MCP connection calls can each override the
+preset with automatic/ask/blocked. Each explicit level is a ceiling: the most
+restrictive applicable decision wins. These are **not** unlocked defaults that
+a child can override. Resource access continues to come from existing working
+folder, selected tool, connection, disclosure, and host grants. An Automatic
+choice never widens those grants or overrides mandatory shell approval.
+
+`WorkCapabilityPolicy` resolves the workspace and stable agent identity from the
+host-authorized execution, and the work team from persisted roster bindings.
+Dispatched plan work resolves its source conversation's roster. Joining a team
+does not rewrite an agent's settings, share private context, or grant tools.
+The policy is read for each brokered action; lookup failures deny execution.
+Limits tightened during an approval wait are checked again before issuing a
+one-use action capability. This is not cancellation of already-running effects.
+
+The existing exact shell-approval record now also carries file and connection
+proposals. Its optional `tool` field preserves old shell receipt digests when
+absent. Human review includes the exact tool arguments, working folder or pinned
+MCP endpoint, and action identity; approval remains bound to a live work attempt
+and is consumed once. Canonical parameters also carry an optional tool name in
+the digest. MCP's existing endpoint/manifest binding remains enforced, alongside
+the explicit tool identity. File and MCP requests appear in the existing decision
+UI with action wording; shell confinement disclosures remain unchanged.
+
+This slice does not add arbitrary per-path/domain grants, full-machine access,
+approval-based widening of working folders, or an organization-wide policy
+administration service. Agent policies here are scoped to the local application
+workspace. New agents and teams inherit workspace limits; their individual
+overrides are available after creation. The four capability groups cover the
+brokered external file, command and MCP actions; they are not a policy language
+for inference, budgets, scoped recall, planning or every internal engine service.
+
+Behavioral coverage lives in the capability-policy tests in `tetonic-policy`,
+`tetonic-runtime`, `tetonic-memory`, and the application's provider tests, plus
+`web/tests/capability-policy.test.tsx` and the decision experience tests.

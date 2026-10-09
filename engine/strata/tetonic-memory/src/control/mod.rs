@@ -1,6 +1,9 @@
 //! Control records and work intent. Transactional permission and revision checks stay here.
 
 pub(crate) mod capability;
+pub(crate) mod capability_policies;
+#[cfg(test)]
+mod capability_policies_tests;
 pub(crate) mod control_bootstrap;
 pub(crate) mod control_credentials;
 pub(crate) mod control_requests;

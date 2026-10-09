@@ -136,6 +136,34 @@ it('keeps the receipt after polling removes the resolved request and never claim
   expect(screen.queryByRole('button', { name: 'Allow once' })).toBeNull();
 });
 
+it('presents a file permission as an action with its exact content, without shell labels', async () => {
+  engine.approvals.pending_approvals = [
+    {
+      ...approval,
+      proposal: {
+        ...approval.proposal!,
+        tool: 'write_file',
+        shell: '',
+        command: JSON.stringify({ path: 'website/index.html', content: '<h1>Hello</h1>' }),
+        confinement_warnings: [],
+      },
+    },
+  ];
+  render(<ApprovalRequests />);
+  expect(screen.getByRole('heading', { name: 'Allow this action?' })).toBeTruthy();
+  expect(screen.getByText('write_file')).toBeTruthy();
+  expect(screen.getByLabelText('Exact action to review').textContent).toContain(
+    'website/index.html',
+  );
+  expect(screen.queryByText('Shell')).toBeNull();
+  engine.resolveApproval.mockResolvedValueOnce({
+    ...engine.approvals.pending_approvals[0],
+    status: 'approved',
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Allow once' }));
+  await screen.findByText('Action approved once');
+});
+
 it('rejects mismatched receipts instead of presenting a successful decision', async () => {
   engine.resolveApproval.mockResolvedValueOnce({
     ...approval,

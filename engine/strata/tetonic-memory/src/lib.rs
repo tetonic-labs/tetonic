@@ -22,6 +22,9 @@ mod blob;
 mod durability_tests;
 pub use context::context_access::{team_participation_context_id, ContextOwner};
 pub use context::context_publication::ContextPublication;
+pub use control::capability_policies::{
+    CapabilityScope, SaveCapabilityPolicy, ScopedCapabilityPolicy,
+};
 pub use control::control_requests::{
     ActivateWorkCursor, AmendPlanAssignment, AnswerWorkHuman, AskWorkHuman, BeginHuddleExecution,
     BeginWorkInference, ClaimWorkerAssignment, CreateTeamWorkItem, CreateWorkDelegation,

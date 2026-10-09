@@ -15,7 +15,7 @@ export function Decision({
   workTitle?: string;
   onResolved?: (receipt: LocalApproval) => void;
 }) {
-  const { resolveApproval, isConnected, readErrors } = useLocalEngine();
+  const { resolveApproval, isConnected, readErrors, catalog } = useLocalEngine();
   const locked = useRef(false);
   const [busy, setBusy] = useState<'allow' | 'decline' | null>(null);
   const [error, setError] = useState('');
@@ -36,6 +36,13 @@ export function Decision({
     return () => clearInterval(timer);
   }, []);
   const proposal = approval.proposal;
+  const action = proposal?.tool ? 'action' : 'command';
+  const connection = catalog?.mcp_connections?.find((item) =>
+    item.tools.some((tool) => tool.id === proposal?.tool),
+  );
+  const connectionTool = connection?.tools.find((tool) => tool.id === proposal?.tool);
+  const toolLabel =
+    connection && connectionTool ? `${connection.name} · ${connectionTool.name}` : proposal?.tool;
   const resolved =
     receipt || (['approved', 'rejected'].includes(approval.status) ? approval : null);
   const expired = approval.expires_at * 1000 <= now;
@@ -86,35 +93,46 @@ export function Decision({
       <h3 id={heading} ref={receiptHeading} tabIndex={-1}>
         {resolved
           ? resolved.status === 'approved'
-            ? 'Command approved once'
+            ? `${proposal?.tool ? 'Action' : 'Command'} approved once`
             : 'Request declined'
           : proposal
-            ? 'Allow this command?'
+            ? `Allow this ${action}?`
             : 'Action details are missing'}
       </h3>
       {resolved ? (
         <p role="status">
           {resolved.status === 'approved'
-            ? 'The engine accepted your permission for this attempt. This is not confirmation that the command ran.'
-            : 'The engine confirmed your decision to decline this command.'}
+            ? `The engine accepted your permission for this attempt. This is not confirmation that the ${action} ran.`
+            : `The engine confirmed your decision to decline this ${action}.`}
         </p>
       ) : (
         <>
           {proposal ? (
             <>
-              <p className="tw-request-scope">For this exact command, on this attempt only.</p>
-              <pre className="tw-request-command" tabIndex={0} aria-label="Exact command to review">
+              <p className="tw-request-scope">For this exact {action}, on this attempt only.</p>
+              {proposal.tool && (
+                <p>
+                  Requested tool: <strong>{toolLabel}</strong>
+                </p>
+              )}
+              <pre
+                className="tw-request-command"
+                tabIndex={0}
+                aria-label={`Exact ${action} to review`}
+              >
                 <code>{proposal.command}</code>
               </pre>
               <dl className="tw-request-location">
                 <div>
-                  <dt>Working folder</dt>
-                  <dd>{proposal.working_directory}</dd>
+                  <dt>{proposal.tool ? 'Resource' : 'Working folder'}</dt>
+                  <dd>{proposal.working_directory || 'See the tool arguments above'}</dd>
                 </div>
-                <div>
-                  <dt>Shell</dt>
-                  <dd>{proposal.shell}</dd>
-                </div>
+                {!!proposal.shell && (
+                  <div>
+                    <dt>Shell</dt>
+                    <dd>{proposal.shell}</dd>
+                  </div>
+                )}
               </dl>
               {!!proposal.confinement_warnings.length && (
                 <div role="note" className="tw-request-limits">
@@ -148,7 +166,7 @@ export function Decision({
               disabled={!proposal || !canDecide || !!busy || expired}
               title={
                 proposal
-                  ? 'Allow this exact command once'
+                  ? `Allow this exact ${action} once`
                   : 'The exact action must be available to review'
               }
               onClick={() => void decide(true)}

@@ -11,6 +11,8 @@ use tetonic_domain::{ExecutionScope, RunState, TaskState};
 mod types;
 pub use types::*;
 mod capabilities;
+mod capability_policies;
+pub use capability_policies::{CapabilityScope, SaveCapabilityPolicy, ScopedCapabilityPolicy};
 mod conversations;
 mod director;
 mod inspection;

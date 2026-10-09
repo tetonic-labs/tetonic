@@ -19,6 +19,7 @@ pub use application_scope::ApplicationScope;
 mod local_credentials;
 pub use local_control::LocalControl;
 mod administration;
+mod capability_policies;
 mod huddle_plans;
 mod membership;
 mod team_work;

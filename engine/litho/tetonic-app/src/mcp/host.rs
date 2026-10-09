@@ -87,6 +87,7 @@ impl ToolHost for McpToolHost {
         if cancel.is_canceled()
             || self.validate_tool_args(name, args).is_err()
             || auth.action.kind != ActionKind::NetworkRequest
+            || auth.action.parameters.tool_name.as_deref() != Some(name)
             || auth.action.parameters.resolved_path != self.registry.endpoint(name)
             || auth.action.parameters.tool_arguments.as_ref() != Some(args)
             || self.consumer.authorize(auth).is_err()
