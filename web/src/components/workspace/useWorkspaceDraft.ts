@@ -17,6 +17,8 @@ interface Draft {
   editable?: boolean;
 }
 type Drafts = Record<string, Draft>;
+const draftChanged = 'tetonic:workspace-draft';
+type DraftChange = { storageKey: string; key: string; value: Draft };
 
 function read(key: string): Drafts {
   try {
@@ -61,9 +63,29 @@ export function useWorkspaceDraft(scope: string) {
       mounted.current = false;
     };
   }, []);
+  useEffect(() => {
+    function receive(event: Event) {
+      const change = (event as CustomEvent<DraftChange>).detail;
+      if (change.storageKey !== storageKey) return;
+      const next = { ...data.current, [change.key]: change.value };
+      data.current = next;
+      setDrafts(next);
+    }
+    window.addEventListener(draftChanged, receive);
+    return () => window.removeEventListener(draftChanged, receive);
+  }, [storageKey]);
   const [storageWarning, setStorageWarning] = useState(false);
+  function current(key: string) {
+    return mounted.current ? data.current[key] : (read(storageKey)[key] ?? data.current[key]);
+  }
   function put(key: string, value: Draft) {
-    const next = { ...data.current, [key]: value };
+    // Another composer can mount and write while this one's send is in flight.
+    // Merge the latest saved drafts; this operation owns only its own key.
+    const next = {
+      ...data.current,
+      ...(!mounted.current ? read(storageKey) : {}),
+      [key]: value,
+    };
     data.current = next;
     try {
       sessionStorage.setItem(storageKey, JSON.stringify(next));
@@ -71,6 +93,13 @@ export function useWorkspaceDraft(scope: string) {
       if (mounted.current) setStorageWarning(true);
     }
     if (mounted.current) setDrafts(next);
+    // sessionStorage does not emit storage events within this window. A late
+    // receipt must also reconcile any composer reopened during the request.
+    window.dispatchEvent(
+      new CustomEvent<DraftChange>(draftChanged, {
+        detail: { storageKey, key, value },
+      }),
+    );
   }
   async function send(
     key: string,
@@ -88,7 +117,7 @@ export function useWorkspaceDraft(scope: string) {
     purpose?: 'work' | 'explore',
     workTeam?: WorkTeamSelection,
   ) {
-    const draft = data.current[key] || { text: '' };
+    const draft = current(key) || { text: '' };
     if (inFlight.current || !draft.text.trim() || !agent) return;
     const pending = draft.pending || {
       id: crypto.randomUUID(),
@@ -112,9 +141,14 @@ export function useWorkspaceDraft(scope: string) {
             pending.workTeam,
           )
         : await submit(pending.input, pending.agent, pending.parent, pending.id, pending.purpose);
-      put(key, { text: '' });
+      if (current(key)?.pending?.id === pending.id) {
+        put(key, { text: '' });
+      }
       if (mounted.current) onAccepted(task);
     } catch (error) {
+      // A reconciled retry or a newer draft must not be replaced by an older
+      // response, including an old error arriving after successful acceptance.
+      if (current(key)?.pending?.id !== pending.id) return;
       // A 4xx can follow a saved-but-not-started request. Preserve its identity
       // on unchanged retries; editing after a definite rejection starts a new
       // request. Uncertain sends remain immutable until reconciled.
@@ -138,7 +172,7 @@ export function useWorkspaceDraft(scope: string) {
     storageWarning,
     send,
     edit: (key: string, text: string) => {
-      const draft = data.current[key];
+      const draft = current(key);
       if (!draft?.pending || draft.editable)
         put(key, {
           text,
