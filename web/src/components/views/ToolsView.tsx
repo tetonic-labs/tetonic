@@ -158,7 +158,7 @@ export function ToolsView({
               <summary>Engine configuration</summary>
               <p>
                 Start the approved MCP server separately, then pass a JSON file listing its endpoint
-                and exact allowed read tools.
+                and exact allowed read and action tools.
               </p>
               <pre>
                 {JSON.stringify(
@@ -169,6 +169,7 @@ export function ToolsView({
                         name: 'Knowledge library',
                         endpoint: 'http://127.0.0.1:8765/mcp',
                         read_tools: ['search', 'lookup'],
+                        action_tools: [],
                       },
                     ],
                   },
@@ -177,8 +178,8 @@ export function ToolsView({
                 )}
               </pre>
               <p>
-                This startup profile supports local read tools. Use Connect a service above for
-                public HTTPS and service tokens. MCP write tools are not supported yet.
+                Use read_tools for reviewed reads and action_tools for operations that can change
+                state. Use Connect a service above for public HTTPS and service tokens.
               </p>
             </details>
             <p className="tl-hint">

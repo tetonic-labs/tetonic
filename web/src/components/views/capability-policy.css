@@ -4,6 +4,12 @@
   margin-block: 14px;
   min-width: 0;
 }
+.capability-communication { border-top:1px solid var(--brand-rule); margin:18px 0; padding-top:18px; }
+.capability-communication > label { display:block; margin-bottom:8px; font-size:12px; }
+.capability-communication > select { width:100%; }
+.capability-communication fieldset { border:1px solid var(--brand-rule); border-radius:6px; padding:12px; font-size:12px; }
+.capability-communication fieldset label { display:flex; align-items:center; gap:9px; padding:7px 0; }
+.capability-communication fieldset small { display:block; margin-top:9px; color:var(--text-secondary); }
 .capability-policy-heading {
   display: flex;
   justify-content: space-between;

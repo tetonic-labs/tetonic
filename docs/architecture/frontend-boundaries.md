@@ -3,9 +3,15 @@
 Current implementation: October 8, 2026. The production entry is
 [`main.tsx`](../../web/src/main.tsx) → [`App.tsx`](../../web/src/App.tsx) →
 [`LocalEngineProvider`](../../web/src/context/LocalEngineContext.tsx) →
+[`StartupGate`](../../web/src/components/preload/StartupGate.tsx) →
 [`TeamWorkspace`](../../web/src/components/team-work/TeamWorkspace.tsx).
 There is one connected map workspace. The compatibility URL `/dev/team-work/`
 uses this same entry, not a second product.
+
+The startup gate presents the first connection's loading, failure and arrival
+states using the provider's existing reads. Its flock and transition timers are
+presentation only; they do not report engine progress or start engine work. Once
+entered, connection loss is handled in the workspace without replacing its UI.
 
 ## Data and action flow
 

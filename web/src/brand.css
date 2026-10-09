@@ -58,6 +58,47 @@
   --surface-ink: #151b15;
   --surface-depth: 0 2px 0 #0005, 0 12px 30px #0002;
 }
+/* Shared material for floating surfaces, including menus rendered in portals.
+   Opaque fallbacks keep text readable without backdrop-filter support. */
+:root {
+  --glass-surface: var(--bg-surface);
+  --glass-ink: var(--surface-ink);
+  --glass-inset: var(--bg-surface);
+  --glass-muted: var(--text-secondary);
+  --glass-outline: color-mix(in srgb, var(--text-primary) 15%, transparent);
+  --glass-filter: none;
+  --glass-edge: inset 0 1px 0 #ffffff38;
+  --glass-shadow: var(--glass-edge), 0 4px 12px #00000006, 0 18px 48px #00000014;
+}
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  :root {
+    --glass-surface: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--bg-surface) 94%, transparent),
+      color-mix(in srgb, var(--bg-surface) 86%, transparent)
+    );
+    --glass-ink: linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--surface-ink) 92%, transparent),
+      color-mix(in srgb, var(--surface-ink) 84%, transparent)
+    );
+    --glass-inset: color-mix(in srgb, var(--bg-surface) 64%, transparent);
+    --glass-muted: color-mix(in srgb, var(--text-secondary) 70%, var(--text-primary));
+    --glass-filter: blur(20px) saturate(115%);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  :root {
+    --glass-surface: var(--bg-surface);
+    --glass-ink: var(--surface-ink);
+    --glass-inset: var(--bg-surface);
+    --glass-muted: var(--text-secondary);
+    --glass-filter: none;
+    --glass-edge: none;
+    --glass-shadow: none;
+  }
+}
+
 /* Portal content shares exactly the same tokens as the canvas and rooms. */
 :root {
   --canvas-paper: var(--bg-ground);

@@ -251,6 +251,8 @@ impl Store {
         }
         self.migrate_huddle_dispatch_v71()?;
         self.migrate_capability_policies_v73()?;
+        self.migrate_blackboard_v74()?;
+        self.migrate_guide_proposals_v75()?;
         // Older writers would erase the immutable checkpoint reference when
         // rewriting a receipt. Refuse them even though its JSON column is unchanged.
         self.conn.execute(

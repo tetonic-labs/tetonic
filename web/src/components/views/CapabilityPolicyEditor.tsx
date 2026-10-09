@@ -8,6 +8,7 @@ import type {
   CapabilityPolicy,
   SaveCapabilityPolicy,
   ScopedCapabilityPolicy,
+  EngineAgent,
 } from '../../engine/contracts';
 import './capability-policy.css';
 
@@ -67,6 +68,23 @@ export function CapabilityPolicyEditor({
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [reload, setReload] = useState(0);
+  const [peers, setPeers] = useState<EngineAgent[]>([]);
+  const [peerError, setPeerError] = useState('');
+  useEffect(() => {
+    if (!isConnected || draft?.communication?.mode !== 'selected_agents') return;
+    const controller = new AbortController();
+    setPeerError('');
+    client
+      .snapshot(controller.signal)
+      .then((value) => {
+        if (!controller.signal.aborted) setPeers(value.agents.filter((a) => !a.plan_coordinator));
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setPeerError('Agent list unavailable. Saved selections are retained.');
+      });
+    return () => controller.abort();
+  }, [client, isConnected, draft?.communication?.mode]);
   const saving = useRef(false);
   const current = rows.find((row) => row.scope === scope && row.scope_id === scopeId);
   const workspace =
@@ -170,7 +188,11 @@ export function CapabilityPolicyEditor({
           setDraft(
             e.target.value === 'inherit'
               ? null
-              : { tier: e.target.value as AutonomyTier, overrides: {} },
+              : {
+                  tier: e.target.value as AutonomyTier,
+                  overrides: {},
+                  communication: draft?.communication,
+                },
           );
         }}
       >
@@ -251,6 +273,81 @@ export function CapabilityPolicyEditor({
         availability, working folders and mandatory host approvals are checked separately. Changing
         limits does not stop an action already running.
       </p>
+      <div className="capability-communication">
+        <label htmlFor={`${id}-communication`}>Who can agents talk to?</label>
+        <select
+          id={`${id}-communication`}
+          disabled={locked}
+          value={draft?.communication?.mode || 'inherit'}
+          onChange={(event) => {
+            const mode = event.target.value;
+            setDraft({
+              ...(draft || { tier: 'automatic', overrides: {} }),
+              communication:
+                mode === 'inherit'
+                  ? undefined
+                  : mode === 'selected_agents'
+                    ? { mode, agent_ids: [] }
+                    : { mode: mode as 'blocked' | 'assigned_work' },
+            });
+            setNotice('');
+          }}
+        >
+          <option value="inherit">
+            {draft?.tier === 'read_only'
+              ? 'Blocked by read-only preset'
+              : 'Use inherited communication limits'}
+          </option>
+          <option value="assigned_work">Permitted agents on the same effort</option>
+          <option value="selected_agents">Only selected agents on the same effort</option>
+          <option value="blocked">No agent communication</option>
+        </select>
+        <p className="capability-tier-note">
+          Both agents must have Blackboard access and permit the exchange. This setting controls
+          internal messages separately from file and connection approvals. Private chat history is
+          not shared automatically. Messaging never puts work on hold.
+        </p>
+        {(workspace?.policy?.communication?.mode === 'blocked' ||
+          (workspace?.policy?.tier === 'read_only' && !workspace.policy.communication)) && (
+          <p>Workspace rules currently block agent communication.</p>
+        )}
+        {draft?.communication?.mode === 'selected_agents' && (
+          <fieldset>
+            <legend>Allowed peers</legend>
+            {peers
+              .filter((a) => a.id !== scopeId)
+              .map((agent) => (
+                <label key={agent.id}>
+                  <input
+                    type="checkbox"
+                    disabled={locked}
+                    checked={
+                      draft.communication?.mode === 'selected_agents' &&
+                      draft.communication.agent_ids.includes(agent.id)
+                    }
+                    onChange={(event) => {
+                      if (draft.communication?.mode !== 'selected_agents') return;
+                      const ids = draft.communication.agent_ids;
+                      setDraft({
+                        ...draft,
+                        communication: {
+                          mode: 'selected_agents',
+                          agent_ids: event.target.checked
+                            ? [...ids, agent.id]
+                            : ids.filter((id) => id !== agent.id),
+                        },
+                      });
+                      setNotice('');
+                    }}
+                  />
+                  {agent.name}
+                </label>
+              ))}
+            <small>No selections means communication is blocked.</small>
+            {peerError && <p role="alert">{peerError}</p>}
+          </fieldset>
+        )}
+      </div>
       {!isConnected && <p role="status">Connect to the engine to manage permissions.</p>}
       {isConnected && !loaded && !error && <p role="status">Loading permissions…</p>}
       {error && <p role="alert">{error}</p>}
@@ -286,6 +383,8 @@ export function CapabilityPolicyEditor({
 }
 function samePolicy(a: CapabilityPolicy | null, b: CapabilityPolicy | null) {
   return (
-    a?.tier === b?.tier && capabilities.every(({ id }) => a?.overrides[id] === b?.overrides[id])
+    a?.tier === b?.tier &&
+    capabilities.every(({ id }) => a?.overrides[id] === b?.overrides[id]) &&
+    JSON.stringify(a?.communication ?? null) === JSON.stringify(b?.communication ?? null)
   );
 }

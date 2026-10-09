@@ -21,6 +21,7 @@ import {
 } from '../../lib/workContext';
 import { ProjectMap } from '../workspace/ProjectMap';
 import { PalettePicker } from '../ui/PalettePicker';
+import { readAppearance, saveDarkAppearance } from '../../lib/appearance';
 import { LiveShaping } from './LiveShaping';
 import { WorkShelf } from './WorkShelf';
 import { workJourneys } from '../../lib/workJourneys';
@@ -108,7 +109,7 @@ function ConnectedTeamWorkspace() {
   const firstUse = isConnected && assignments.length === 0 && !workspace?.work_teams?.length;
   const [boardScope, setBoardScope] = useState<string>();
   const [boardHighlight, setBoardHighlight] = useState<string>();
-  const [dark, setDark] = useState(false);
+  const [dark, setDark] = useState(() => readAppearance().dark);
   const origin = useRef<HTMLElement | null>(null);
   const openedTeam = useRef(false);
   const body = useRef<HTMLDivElement>(null);
@@ -283,7 +284,7 @@ function ConnectedTeamWorkspace() {
     if (focusSource) rememberConversation(focusSource);
   }, [focusSource]);
   useEffect(() => {
-    document.documentElement.classList.toggle('dark', dark);
+    saveDarkAppearance(dark);
   }, [dark]);
   useEffect(() => {
     if (body.current) body.current.scrollTop = 0;

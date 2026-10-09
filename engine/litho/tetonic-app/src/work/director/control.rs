@@ -3,7 +3,7 @@ use super::*;
 use crate::resources::{
     plan_dispatch::PlanDispatch,
     work_director::{Call, Command, DirectorBinding},
-    PlanMutation, RegisteredAgentExecution,
+    GuideProposalDraft, RegisteredAgentExecution,
 };
 use std::sync::{Arc, Mutex};
 use tetonic_domain::ToolOutcome;
@@ -31,6 +31,10 @@ fn proposal_receipt(plan: &tetonic_memory::HuddlePlan) -> serde_json::Value {
         "saved": true, "revision": plan.revision, "brief_revision": plan.brief_revision,
         "status": plan.status, "work_id": plan.work_id,
         "title": plan.content.as_ref().map(|p| &p.title),
+        "allowance": plan.content.as_ref().map(|p| {
+            let workers: u64 = p.assignments.iter().map(|a| a.token_budget).sum();
+            serde_json::json!({"total_tokens":p.token_budget,"worker_tokens":workers,"coordination_tokens":p.token_budget.saturating_sub(workers),"reserved":false})
+        }),
         "work_launched": false,
         "next": "The proposal is available inline for review. The owner can use Start this plan; use inspect to check readiness."
     })
@@ -81,8 +85,8 @@ impl WorkService {
         let view = self.plan_view(&source).await?;
         let (sender, receiver) = tokio::sync::mpsc::channel(1);
         let mut plan_schema = plans::response_schema();
-        let agent_keys: Vec<_> = snapshot
-            .agents
+        let agents = self.planning_agents(&source).await?;
+        let agent_keys: Vec<_> = agents
             .iter()
             .filter(|a| a.key != shaping::GUIDE && !a.plan_coordinator)
             .map(|a| &a.key)
@@ -127,8 +131,13 @@ impl WorkService {
                             let _ = call.reply.send(ToolOutcome::fail("The conversation is no longer active", "denied"));
                             continue;
                         }
-                        let outcome = workspace.director_command(&session.binding, call.command).await;
+                        let outcome = workspace.director_command(&session.binding, &call.call_id, call.command).await;
                         let _ = call.reply.send(match outcome {
+                            Ok(value) if value["proposal_state"] == "repair_needed" || value["proposal_state"] == "repair_failed" => {
+                                let mut result = ToolOutcome::fail("The proposal needs correction before review", "work_plan_rejected");
+                                result.content = value.to_string();
+                                result
+                            }
                             Ok(value) => ToolOutcome::ok("Recorded work state", value.to_string()),
                             Err(error) => ToolOutcome::fail(error.employee_message(), "work_plan_rejected"),
                         });
@@ -141,6 +150,7 @@ impl WorkService {
     async fn director_command(
         &self,
         binding: &DirectorBinding,
+        call_id: &str,
         command: Command,
     ) -> Result<serde_json::Value, AppError> {
         let _admission = self.services.admission.lock().await;
@@ -158,21 +168,22 @@ impl WorkService {
             Command::Resources {} => self.director_resources(&binding.source).await,
             Command::Work { work_id } => self.director_work(work_id.as_deref()).await,
             Command::Propose { direction, plan } => {
-                self.director_propose(binding, direction, *plan).await
+                self.director_propose_call(binding, call_id, direction, *plan)
+                    .await
             }
         }
     }
 
-    async fn director_propose(
+    async fn director_propose_call(
         &self,
         binding: &DirectorBinding,
+        call_id: &str,
         direction: String,
         mut content: tetonic_memory::PlanContent,
     ) -> Result<serde_json::Value, AppError> {
         // Human names are accepted only when they resolve uniquely inside this
         // authorized roster. Persist canonical identities, never fuzzy matches.
-        resolve_agents(&mut content, &self.services.agents().await?)?;
-        self.validate_plan_agents(&content).await?;
+        resolve_agents(&mut content, &self.planning_agents(&binding.source).await?)?;
         let view = self.plan_view(&binding.source).await?;
         if view.execution.is_some() {
             return Err(AppError::InvalidRequest("This plan has already started. Inspect its work; use its upcoming-assignment controls to change active work.".into()));
@@ -194,35 +205,54 @@ impl WorkService {
         {
             return Err(AppError::InvalidRequest("The owner changed the plan or direction during this reply. Inspect the current version and explain the conflict; do not overwrite their changes.".into()));
         }
-        let brief = self
-            .save_work_brief(
-                &binding.source,
-                SaveWorkBrief {
-                    request_id: request.clone(),
-                    expected_revision: binding.brief_revision,
-                    body: direction.clone(),
-                },
+        let validation_error = match self.validate_plan_proposal(&binding.source, &content).await {
+            Ok(()) => None,
+            Err(AppError::InvalidRequest(reason)) => Some(reason),
+            Err(error) => return Err(error),
+        };
+        let scope = self.services.authorized_scope().await?;
+        let outcome = self.services.local.resources().submit_guide_proposal(
+            &self.services.host.credential, scope.organization().into(), scope.team().into(),
+            GuideProposalDraft {
+                source: binding.source.clone(), turn: binding.turn.clone(), call: call_id.into(), request,
+                expected_plan: binding.revision, expected_brief: binding.brief_revision,
+                generation_id: operation_id(&binding.turn, "proposal-origin"),
+                generation_input: format!("Guide conversation turn {}. Shared direction is stored in the linked brief revision.", binding.turn),
+                direction, content, validation_error,
+            },
+        ).await.map_err(resource)?;
+        Ok(match outcome {
+            tetonic_memory::GuideProposalOutcome::Saved { plan } => proposal_receipt(&plan),
+            tetonic_memory::GuideProposalOutcome::RepairNeeded { reason } => serde_json::json!({
+                "saved":false,"work_launched":false,"proposal_state":"repair_needed","reason":reason,"repair_attempts_remaining":1
+            }),
+            tetonic_memory::GuideProposalOutcome::RepairFailed { reason } => serde_json::json!({
+                "saved":false,"work_launched":false,"proposal_state":"repair_failed","reason":reason,"repair_attempts_remaining":0
+            }),
+        })
+    }
+
+    #[cfg(test)]
+    async fn director_propose(
+        &self,
+        binding: &DirectorBinding,
+        direction: String,
+        content: tetonic_memory::PlanContent,
+    ) -> Result<serde_json::Value, AppError> {
+        let result = self
+            .director_propose_call(
+                binding,
+                &uuid::Uuid::new_v4().to_string(),
+                direction,
+                content,
             )
             .await?;
-        let saved = self
-            .plan_mutation(
-                &binding.source,
-                PlanMutation::Save {
-                    request,
-                    expected: binding.revision,
-                    brief_revision: brief.revision,
-                    // A proposal produced inside this reply has no separate planning run.
-                    // Keep its provenance locator distinct so it cannot hide a discussion turn.
-                    generation_id: operation_id(&binding.turn, "proposal-origin"),
-                    generation_input: format!(
-                        "Guide conversation turn {}\nShared direction: {}",
-                        binding.turn, direction
-                    ),
-                    content: Some(content),
-                },
-            )
-            .await?;
-        Ok(proposal_receipt(&saved))
+        if result["saved"] == false {
+            return Err(AppError::InvalidRequest(
+                result["reason"].as_str().unwrap().into(),
+            ));
+        }
+        Ok(result)
     }
 
     pub(crate) async fn director_state(&self, source: &str) -> Result<serde_json::Value, AppError> {

@@ -1,6 +1,6 @@
 # First-use repair tickets
 
-All nine tickets are **P0 and required for the additional product-experience release gate**. EXP-001–003 are in progress with implementation and test evidence; EXP-004–009 remain planned. None has passed full product acceptance yet. See [the first implementation slice](implementation-2026-10-08.md) for exact progress and unresolved qualification. See the [sprint plan](plan.md) for the schedule, existing-owner mapping and added scope, and [validation](validation.md) for cross-ticket proof. Reusing existing owners does not erase the new delivery obligation.
+All nine tickets are **P0 and required for the additional product-experience release gate**. EXP-001–004 are in progress with implementation and test evidence; EXP-005–009 remain planned. None has passed full product acceptance yet. See [the first implementation slice](implementation-2026-10-08.md) for exact progress and unresolved qualification. See the [sprint plan](plan.md) for the schedule, existing-owner mapping and added scope, and [validation](validation.md) for cross-ticket proof. Reusing existing owners does not erase the new delivery obligation.
 
 <a id="exp-001"></a>
 ## EXP-001 — One starting point; discussion before unnecessary planning
@@ -68,6 +68,8 @@ All nine tickets are **P0 and required for the additional product-experience rel
 
 <a id="exp-004"></a>
 ## EXP-004 — Proposals the team can actually execute
+
+**Status:** October 9 validation and correction slices implemented. Allocation/roster checks precede proposal writes, with shared launch checks and exact retry preservation. A rejected allocation permits one durable correction in the existing Guide reply; only assignment token allocations may change. Brief and proposal publication is atomic. Actual-model decomposition/synthesis, malformed-argument recovery and the full journey acceptance remain open. See [validation evidence](implementation-2026-10-08.md#october-9-proposal-validation-before-review) and [bounded correction](guide-proposal-correction-2026-10-09.md).
 
 **Problem:** a plan invents a coding objective, assigns every step to one worker, and allocates all tokens to workers before asking the user to repair internal coordination arithmetic.
 

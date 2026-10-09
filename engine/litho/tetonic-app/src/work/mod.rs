@@ -16,9 +16,11 @@ pub use capability_policies::{CapabilityScope, SaveCapabilityPolicy, ScopedCapab
 mod conversations;
 mod director;
 mod inspection;
+pub use tetonic_memory::BlackboardQuery;
 pub(crate) mod plan_execution;
 mod plan_human;
 mod plan_recovery;
+mod plan_validation;
 mod plans;
 mod shaping;
 mod submission;

@@ -59,6 +59,7 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
 
 pub(crate) struct Call {
     pub attempt: String,
+    pub call_id: String,
     pub command: Command,
     pub reply: tokio::sync::oneshot::Sender<ToolOutcome>,
 }
@@ -77,7 +78,7 @@ impl DirectorBinding {
     pub(crate) fn advertisement(&self) -> ToolAdvertisement {
         ToolAdvertisement {
             name: CONTROL.into(),
-            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One proposal per reply; does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
+            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. If the engine returns repair_needed, one correction of assignment token allocations is allowed within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
             parameters: serde_json::json!({"type":"object","additionalProperties":false,
                 "required":["operation","direction","plan","work_id"],"properties":{
                     "operation":{"type":"string","enum":["resources","work","inspect","propose"]},
@@ -100,6 +101,7 @@ impl DirectorBinding {
             .sender
             .send(Call {
                 attempt,
+                call_id: request.call_id,
                 command,
                 reply,
             })

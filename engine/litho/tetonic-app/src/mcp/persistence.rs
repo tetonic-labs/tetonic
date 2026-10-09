@@ -79,6 +79,7 @@ impl McpRegistry {
                 name: r.name.clone(),
                 endpoint,
                 read_tools: vec![],
+                action_tools: vec![],
             },
             stored: Some((scope, r.binding_epoch)),
             guard,
@@ -162,7 +163,7 @@ impl McpRegistry {
         let c = self.connection(id).ok_or("Connection not found")?;
         let view = c.view.read().unwrap_or_else(|e| e.into_inner());
         if ids.len() > 32 || ids.iter().collect::<HashSet<_>>().len() != ids.len() {
-            return Err("Select at most 32 distinct read tools".into());
+            return Err("Select at most 32 distinct tools".into());
         }
         ids.iter()
             .map(|id| {

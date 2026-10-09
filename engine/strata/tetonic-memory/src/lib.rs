@@ -41,6 +41,11 @@ pub use control::work_metadata::WorkMetadataPatch;
 pub use control::work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
 pub use control::workspace_mcp::WorkspaceMcpConnection;
 pub use control::workspace_skills::WorkspaceSkill;
+pub use control::{
+    BlackboardAccess, BlackboardCommand, BlackboardEmoji, BlackboardKind, BlackboardMessage,
+    BlackboardPage, BlackboardPeer, BlackboardQuery, BlackboardReaction, BlackboardThread,
+    GuideProposalOutcome, SubmitGuideProposal,
+};
 #[cfg(test)]
 mod migration_tests;
 pub mod payload_digest;
@@ -69,8 +74,8 @@ pub use backup::{
 pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
-pub use context::recall::RecallHit;
 pub use context::context_access::TranscriptEntry;
+pub use context::recall::RecallHit;
 pub use control::control_credentials::ControlCredentialRow;
 pub use control::human_controls::{
     ControlStop, EffectApproval, ShellApprovalProposal, TeamEffortEntry, TeamWorkInspection,

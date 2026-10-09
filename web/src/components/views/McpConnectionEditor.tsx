@@ -204,10 +204,10 @@ export function McpConnectionEditor({
             </div>
             {saved.enabled !== false && !!saved.tools.length && (
               <fieldset disabled={busy} className="mcp-read-review">
-                <legend>Available read tools</legend>
+                <legend>Available tools</legend>
                 <p>
-                  Enable only tools you trust to read from this service. Agents still need their own
-                  selection.
+                  Review what each tool can do before enabling it. Action tools can change the
+                  service. Agents still need their own selection.
                 </p>
                 {saved.tools.map((tool) => (
                   <label
@@ -228,6 +228,14 @@ export function McpConnectionEditor({
                     />
                     <span>
                       <strong>{tool.name}</strong>
+                      <small>
+                        {tool.read_only === true
+                          ? 'Read-only (reported by service)'
+                          : 'Action · can change state'}
+                        {tool.read_only !== true && tool.destructive !== false
+                          ? ' · may be destructive'
+                          : ''}
+                      </small>
                       <small>{tool.description}</small>
                     </span>
                   </label>
@@ -260,8 +268,8 @@ export function McpConnectionEditor({
             )}
             {saved.status === 'discovered' && !saved.tools.length && (
               <p>
-                No compatible read tools were advertised. Write tools and background tasks are not
-                available in this profile.
+                No compatible tools were advertised. Tools that require background tasks are not
+                supported yet.
               </p>
             )}
             {saved.enabled !== false && (

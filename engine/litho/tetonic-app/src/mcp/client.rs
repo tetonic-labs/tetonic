@@ -96,12 +96,19 @@ impl<'a> Session<'a> {
                 if !names.insert(name.to_string()) || names.len() > 128 {
                     return Err("MCP list has duplicate tools or exceeds 128 tools".into());
                 }
-                if self.connection.config.read_tools.iter().any(|n| n == name)
-                    || (self.connection.stored.is_some()
-                        && manifest.pointer("/annotations/readOnlyHint")
-                            == Some(&Value::Bool(true)))
+                let read_grant = self.connection.config.read_tools.iter().any(|n| n == name);
+                if read_grant
+                    || self
+                        .connection
+                        .config
+                        .action_tools
+                        .iter()
+                        .any(|n| n == name)
+                    || self.connection.stored.is_some()
                 {
-                    if manifest.pointer("/annotations/readOnlyHint") != Some(&Value::Bool(true)) {
+                    if read_grant
+                        && manifest.pointer("/annotations/readOnlyHint") != Some(&Value::Bool(true))
+                    {
                         return Err("An operator-approved read tool does not advertise read-only behavior. Check the server configuration.".into());
                     }
                     if manifest
@@ -109,7 +116,8 @@ impl<'a> Session<'a> {
                         .and_then(Value::as_str)
                         == Some("required")
                     {
-                        return Err("MCP background tasks are not supported".into());
+                        // One task-only tool must not hide usable foreground tools.
+                        continue;
                     }
                     tools.push(pinned_tool(self.connection, manifest.clone())?);
                 }
@@ -165,6 +173,7 @@ pub(super) async fn call(
         Ok(s) => s,
         Err(e) => return ToolOutcome::fail(e, "unavailable"),
     };
+    let dispatched = std::sync::atomic::AtomicBool::new(false);
     let operation = async {
         let current = session.tools().await?;
         if !current
@@ -176,6 +185,7 @@ pub(super) async fn call(
         if cancel.is_canceled() || !c.allowed(&tool) {
             return Err("MCP call canceled or access removed before dispatch".into());
         }
+        dispatched.store(true, std::sync::atomic::Ordering::SeqCst);
         result(session.post(json!({"jsonrpc":"2.0","id":10,"method":"tools/call","params":{"name":tool.name,"arguments":args}})).await?.ok_or("MCP call returned no response")?)
     };
     tokio::pin!(operation);
@@ -189,42 +199,12 @@ pub(super) async fn call(
     };
     session.close().await;
     match response {
+        Err(e) if dispatched.load(std::sync::atomic::Ordering::SeqCst) && !tool.read_only => ToolOutcome::fail(
+            format!("{e} Remote action outcome is unknown; it may have completed. Inspect the service state before deciding whether to retry. No automatic retry was sent."),
+            "mcp_outcome_unknown",
+        ),
         Err(e) => ToolOutcome::fail(e, "mcp_error"),
-        Ok(value) => {
-            if value.get("isError") == Some(&Value::Bool(true)) {
-                return ToolOutcome::fail(
-                    "The MCP tool reported an error. Check the tool arguments and service access.",
-                    "mcp_tool_error",
-                );
-            }
-            let Some(content) = value.get("content").and_then(Value::as_array) else {
-                return ToolOutcome::fail("MCP result has no content", "unsupported_result");
-            };
-            if content.iter().any(|v| {
-                v.get("type").and_then(Value::as_str) != Some("text")
-                    || v.get("text").and_then(Value::as_str).is_none()
-            }) {
-                return ToolOutcome::fail(
-                    "This MCP profile supports text and structured results only",
-                    "unsupported_result",
-                );
-            }
-            let mut text = content
-                .iter()
-                .filter_map(|v| v.get("text").and_then(Value::as_str))
-                .collect::<Vec<_>>()
-                .join("\n");
-            if let Some(structured) = value.get("structuredContent") {
-                text.push_str(&format!("\n{}", structured));
-            }
-            if text.len() > 32_768 {
-                return ToolOutcome::fail(
-                    "MCP result exceeds 32 KiB; narrow the request",
-                    "result_too_large",
-                );
-            }
-            ToolOutcome::ok(format!("{} returned a result", tool.name), text)
-        }
+        Ok(value) => super::results::tool_result(&tool.name, &value),
     }
 }
 

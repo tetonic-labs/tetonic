@@ -167,7 +167,7 @@ pub(super) fn reply(scenario: u8, count: usize) -> (&'static str, Value) {
     }
 }
 
-async fn terminal(workspace: &LocalWorkspace, source: &str) -> PlanExecutionView {
+pub(super) async fn terminal(workspace: &LocalWorkspace, source: &str) -> PlanExecutionView {
     tokio::time::timeout(std::time::Duration::from_secs(20), async {
         loop {
             let view = workspace.execution_view(source).await.unwrap().unwrap();

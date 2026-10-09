@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use tetonic_domain::work_scope::CancellationSignal;
 use tetonic_domain::{AuthorizedAction, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal};
 
+pub(crate) mod blackboard;
 mod group;
 
 pub(crate) const DISPATCH: &str = "dispatch_assignment";
@@ -139,6 +140,9 @@ impl PlanDispatch {
             let dispatch = dispatch.clone();
             let manager = manager.clone();
             Box::pin(async move {
+                if request.tool_name == blackboard::TOOL {
+                    return blackboard::call(dispatch.human.clone(), &manager, request).await;
+                }
                 if request.tool_name == super::work_director::CONTROL {
                     return match &dispatch.director {
                         Some(director) => director.call(request).await,
@@ -206,6 +210,9 @@ impl ToolHost for RegisteredToolHost {
     }
     fn advertisements(&self) -> Vec<ToolAdvertisement> {
         let mut ads = self.tools.advertisements();
+        if self.tools.is_tool_allowed(blackboard::TOOL) {
+            ads.push(blackboard::advertisement());
+        }
         if let Some(director) = self.dispatch.as_ref().and_then(|d| d.director.as_ref()) {
             ads.push(director.advertisement());
         }
@@ -231,6 +238,15 @@ impl ToolHost for RegisteredToolHost {
         ads
     }
     fn validate_tool_args(&self, name: &str, args: &serde_json::Value) -> Result<(), String> {
+        if name == blackboard::TOOL {
+            if !self.is_tool_allowed(name) {
+                return Err("Blackboard access was not granted".into());
+            }
+            return serde_json::from_value::<tetonic_memory::BlackboardCommand>(args.clone())
+                .map_err(|_| "Invalid Blackboard command".to_string())?
+                .validate()
+                .map_err(|e| e.to_string());
+        }
         if name == super::work_director::CONTROL {
             if !self.is_tool_allowed(name) {
                 return Err("Conversation planning unavailable".into());
@@ -275,7 +291,11 @@ impl ToolHost for RegisteredToolHost {
         auth: Option<&AuthorizedAction>,
         cancel: &CancellationSignal,
     ) -> ToolOutcome {
-        if name == DISPATCH || name == ASK_HUMAN || name == super::work_director::CONTROL {
+        if name == blackboard::TOOL
+            || name == DISPATCH
+            || name == ASK_HUMAN
+            || name == super::work_director::CONTROL
+        {
             return ToolOutcome::fail("Dispatch requires a managed asynchronous parent", "denied");
         }
         ToolHost::execute_authorized(&self.tools, name, args, auth, cancel)

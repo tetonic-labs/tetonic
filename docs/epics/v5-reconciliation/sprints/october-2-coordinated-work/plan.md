@@ -34,6 +34,11 @@ Acceptance: two children racing for one remaining allocation cannot both obtain 
 
 ## OCT-202 Connect real huddles collaboration and combined results
 
+October 9: [Blackboard collaboration](blackboard-collaboration-2026-10-09.md)
+adds scoped, nonblocking agent conversations and a threaded operator inspector.
+It reuses managed execution and existing grants/policies. Scripted integration
+coverage is not acceptance of real-model usefulness or the entire OCT-202 ticket.
+
 October 8 prerequisite: [configurable execution limits](execution-limits-2026-10-08.md)
 removes the fixed worker time/step ceilings and coordinator allowance from the
 local workspace host. Defaults remain compatible; operators can select a larger

@@ -306,6 +306,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 | "/api/local/provider-key"
                 | "/api/local/provider-key/remove"
                 | "/api/local/budget-settings"
+                | "/api/local/blackboard/query"
         )
     {
         if request
@@ -330,7 +331,18 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/mcp-connections" {
+        if path == "/api/local/blackboard/query" {
+            let Ok(query) =
+                serde_json::from_slice::<tetonic_app::local_workspace::BlackboardQuery>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid Blackboard query.");
+            };
+            state
+                .workspace
+                .blackboard(query)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/mcp-connections" {
             let Ok(payload) =
                 serde_json::from_slice::<tetonic_app::local_workspace::SaveMcpConnection>(&body)
             else {
@@ -837,6 +849,21 @@ mod tests {
             invalid[field] = serde_json::json!("untrusted");
             assert!(serde_json::from_value::<CreateLocalAgent>(invalid).is_err());
         }
+    }
+    #[test]
+    fn blackboard_inspection_query_accepts_scope_but_not_caller_authority() {
+        use tetonic_app::local_workspace::BlackboardQuery;
+        let value = serde_json::json!({"offset":20,"work_ids":["work"]});
+        let query = serde_json::from_value::<BlackboardQuery>(value.clone()).unwrap();
+        assert!(query.validate().is_ok());
+        for field in ["actor", "org", "team", "agent_id", "audience"] {
+            let mut invalid = value.clone();
+            invalid[field] = serde_json::json!("untrusted");
+            assert!(serde_json::from_value::<BlackboardQuery>(invalid).is_err());
+        }
+        let query = serde_json::from_value::<BlackboardQuery>(serde_json::json!({"offset":100001}))
+            .unwrap();
+        assert!(query.validate().is_err());
     }
     #[test]
     fn only_loopback_origins_are_accepted() {

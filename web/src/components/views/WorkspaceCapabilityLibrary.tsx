@@ -314,9 +314,9 @@ export function WorkspaceCapabilityLibrary({
         <details className="capability-help">
           <summary>What can I add?</summary>
           <p>
-            Connect a public HTTPS or local HTTP MCP endpoint, review its read tools, then select
-            them for agents. Service tokens are supported; browser OAuth and service changes are not
-            yet available.
+            Connect a public HTTPS or local HTTP MCP endpoint, review its read and action tools,
+            then select them for agents. Service tokens are supported; browser OAuth is not yet
+            available.
           </p>
           <p>
             Core file and terminal tools are supplied by your engine. Choose them in the agent

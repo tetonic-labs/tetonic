@@ -154,7 +154,14 @@ async fn hosted_agent_round_trip(with_folder: bool) {
             assert!(catalog.models.is_empty());
             assert!(catalog.local_error.is_some());
             assert_eq!(catalog.providers.len(), 3);
-            assert_eq!(!catalog.tools.is_empty(), with_folder);
+            assert_eq!(
+                catalog.tools.iter().any(|tool| tool != "blackboard"),
+                with_folder
+            );
+            assert!(
+                catalog.tools.contains(&"blackboard".into()),
+                "internal collaboration does not need filesystem access"
+            );
             for (provider, model) in [
                 ("openai", "openai-test-text-model"),
                 ("anthropic", "anthropic-test-text-model"),

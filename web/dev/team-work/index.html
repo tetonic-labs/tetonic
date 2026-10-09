@@ -4,9 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Tetonic · Team workspace</title>
+    <style>
+      html {
+        background: var(--bg-ground, #f3e6e5);
+      }
+      html.dark:not([data-palette='custom']) {
+        --bg-ground: #1d211c;
+        --text-primary: #efefe3;
+      }
+      .preload-boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-content: center;
+        gap: 20px;
+        background: var(--bg-ground, #f3e6e5);
+        color: var(--text-primary, #30352c);
+        text-align: center;
+      }
+      .preload-boot span {
+        font:
+          600 20px system-ui,
+          sans-serif;
+        letter-spacing: -0.8px;
+      }
+      .preload-boot p {
+        margin: 0;
+        font:
+          32px Georgia,
+          serif;
+        letter-spacing: -1px;
+      }
+      .preload-boot noscript {
+        max-width: 300px;
+        margin: auto;
+        font:
+          14px/1.6 system-ui,
+          sans-serif;
+      }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="preload-boot" role="status">
+        <span>tetonic</span>
+        <p>Gathering the threads.</p>
+        <noscript>Please turn on JavaScript to open your workspace.</noscript>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

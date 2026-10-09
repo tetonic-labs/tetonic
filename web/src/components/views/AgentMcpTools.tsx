@@ -20,7 +20,7 @@ export function McpConnections({
           <h4>{connection.name}</h4>
           <p>
             {connection.status === 'discovered'
-              ? `${connection.tools.length} read tools discovered`
+              ? `${connection.tools.length} tools discovered`
               : connection.status === 'unchecked'
                 ? 'Not checked yet'
                 : 'Connection needs attention'}
@@ -53,7 +53,7 @@ export function McpConnections({
             <p>{connection.endpoint}</p>
             {connection.status !== 'unavailable' && <p>{connection.message}</p>}
             <p>
-              Only reviewed read tools can be selected. Connecting a service does not give an agent
+              Only reviewed tools can be selected. Connecting a service does not give an agent
               access.
             </p>
           </details>
@@ -124,6 +124,13 @@ export function AgentMcpTools({
               <span>
                 <strong>{tool?.name || 'Unavailable MCP tool'}</strong>
                 <small>{tool?.connection}</small>
+                {tool && (
+                  <small>
+                    {tool.read_only === true
+                      ? 'Read-only (reported by service)'
+                      : 'Action · can change state'}
+                  </small>
+                )}
                 <small>
                   {available
                     ? tool?.description

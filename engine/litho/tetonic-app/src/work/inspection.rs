@@ -1,5 +1,36 @@
 use super::*;
 impl WorkService {
+    pub async fn blackboard(
+        &self,
+        query: BlackboardQuery,
+    ) -> Result<tetonic_memory::BlackboardPage, AppError> {
+        query
+            .validate()
+            .map_err(|_| AppError::InvalidRequest("Invalid Blackboard scope or page".into()))?;
+        let scope = self.services.authorized_scope().await?;
+        self.services
+            .local
+            .store()
+            .read(move |db| {
+                db.inspect_blackboard(
+                    scope.principal(),
+                    scope.organization(),
+                    scope.team(),
+                    &query,
+                )
+            })
+            .await
+            .map_err(|_| AppError::InvalidRequest("Blackboard unavailable".into()))?
+            .map_err(|error| {
+                if matches!(error, tetonic_memory::StoreError::ControlAccessDenied) {
+                    AppError::PolicyDenied("Blackboard is not available in this workspace".into())
+                } else {
+                    AppError::InvalidRequest(
+                        "Blackboard conversations could not be loaded. Try again.".into(),
+                    )
+                }
+            })
+    }
     pub async fn snapshot(&self) -> Result<LocalWorkspaceSnapshot, AppError> {
         let app_scope = self.services.authorized_scope().await?;
         let resources = self.services.local.resources();

@@ -78,7 +78,7 @@ impl Store {
         self.require_team_participant(actor, org, team)?;
         if self
             .get_team(org, team)?
-            .is_none_or(|t| t.owner_principal_id != actor)
+            .map_or(true, |t| t.owner_principal_id != actor)
         {
             return Err(StoreError::ControlAccessDenied);
         }
@@ -95,6 +95,15 @@ impl Store {
         };
         if !valid {
             return Err(StoreError::ControlAccessDenied);
+        }
+        if let Some(tetonic_policy::capabilities::CommunicationScope::SelectedAgents { agent_ids }) = input.policy.as_ref().and_then(|p|p.communication.as_ref()) {
+            if agent_ids.len()>128 || agent_ids.iter().collect::<std::collections::HashSet<_>>().len()!=agent_ids.len() {
+                return Err(StoreError::InvalidControlResource("Select at most 128 distinct agents".into()));
+            }
+            for id in agent_ids {
+                let exists:bool=self.conn.query_row("SELECT EXISTS(SELECT 1 FROM organization_agents WHERE org_id=?1 AND identity_id=?2)",params![org,id],|r|r.get(0))?;
+                if !exists {return Err(StoreError::ControlAccessDenied);}
+            }
         }
         let row = ScopedCapabilityPolicy {
             scope: input.scope,

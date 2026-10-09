@@ -36,9 +36,15 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
                     continue;
                 };
                 pending.push_back(Some(result.len()));
+                let repairing = operation == "propose"
+                    && result
+                        .iter()
+                        .rev()
+                        .find(|a| a.operation == "propose" || a.operation == "repair")
+                        .is_some_and(|a| a.state == "repair_needed");
                 result.push(GuideActivity {
                     id: format!("{}:{index}", entry.sequence),
-                    operation: operation.into(),
+                    operation: if repairing { "repair" } else { operation }.into(),
                     state: "requested".into(),
                 });
             }
@@ -48,8 +54,19 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
             // The managed hook executes in call order, including providers
             // without call IDs. Never settle a call from an older batch.
             if let Some(Some(index)) = pending.pop_front() {
+                // Only the actual tool receipt can establish repair state. Assistant
+                // prose about fixing or saving a proposal is not an operation result.
+                let proposal_state = serde_json::from_str::<serde_json::Value>(&entry.content)
+                    .ok()
+                    .and_then(|value| value["proposal_state"].as_str().map(str::to_owned));
                 result[index].state = match entry.tool_status.as_deref() {
                     Some("ok") => "completed",
+                    Some(_) if proposal_state.as_deref() == Some("repair_needed") => {
+                        "repair_needed"
+                    }
+                    Some(_) if proposal_state.as_deref() == Some("repair_failed") => {
+                        "repair_failed"
+                    }
                     Some(_) => "failed",
                     None => "unconfirmed",
                 }

@@ -29,6 +29,9 @@ pub struct LoopDiscipline {
     pub spawn_tool: Option<String>,
     /// An additional host-bound asynchronous control tool, such as a human handoff.
     pub handoff_tool: Option<String>,
+    /// Additional asynchronous host tools. These do not suspend execution.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub host_tools: Vec<String>,
     pub expand_tool: Option<String>,
     pub whole_file_tools: Vec<String>,
     pub search_tools: Vec<String>,
@@ -63,6 +66,11 @@ pub struct LoopDisciplineLimits {
 }
 
 impl LoopDiscipline {
+    pub fn is_host_tool(&self, name: &str) -> bool {
+        self.spawn_tool.as_deref() == Some(name)
+            || self.handoff_tool.as_deref() == Some(name)
+            || self.host_tools.iter().any(|tool| tool == name)
+    }
     pub fn is_whole_file_tool(&self, name: &str) -> bool {
         self.whole_file_tools.iter().any(|t| t == name)
     }

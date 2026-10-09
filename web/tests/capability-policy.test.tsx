@@ -21,7 +21,7 @@ function setup(rows: ScopedCapabilityPolicy[] = []) {
       policy: r.policy,
     }));
   render(<CapabilityPolicyEditor client={client} scope="agent" scopeId="robin" />);
-  return { save, read };
+  return { save, read, client };
 }
 it('shows workspace ceilings while retaining agent choices and sends stable identity', async () => {
   const { save } = setup([
@@ -96,4 +96,17 @@ it('resetting to inherited limits writes a durable null at the current revision'
       expect.objectContaining({ expected_revision: 4, policy: null }),
     ),
   );
+});
+
+it('saves selected peer identities separately from tool grants and retains them when changing autonomy', async () => {
+  const { save, client } = setup();
+  vi.spyOn(client, 'snapshot').mockResolvedValue({ agents: [{ id: 'stable-sam', name: 'Sam' }] } as never);
+  await waitFor(() => expect((screen.getByLabelText('Who can agents talk to?') as HTMLSelectElement).disabled).toBe(false));
+  fireEvent.change(screen.getByLabelText('Who can agents talk to?'), { target: { value: 'selected_agents' } });
+  fireEvent.click(await screen.findByRole('checkbox', { name: 'Sam' }));
+  fireEvent.change(screen.getByLabelText('How much freedom?'), { target: { value: 'review_changes' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save permissions' }));
+  await waitFor(() => expect(save).toHaveBeenCalledWith(expect.objectContaining({
+    policy: { tier: 'review_changes', overrides: {}, communication: { mode: 'selected_agents', agent_ids: ['stable-sam'] } },
+  })));
 });

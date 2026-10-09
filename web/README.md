@@ -6,6 +6,37 @@ The connected product is the map workspace in
 shaping links open that interface. Do not restore retired shells or substitute
 example data when the engine is unavailable.
 
+Both entries show a pink first-paint screen, then the full-screen murmuration in
+`src/components/preload/StartupGate.tsx` while the initial engine reads settle.
+It follows the existing connection state, exposes retry/details on failure, and
+settles into a circular orbit after its first successful connection, then disperses
+outward as the workspace is revealed. Loading uses a flowing swell, a longer wait
+uses a slower swell, and a failed connection uses a stationary, buzzing zigzag.
+Shape changes blend without recreating the flock. Later connection
+loss stays in the workspace. The flock pauses in hidden tabs and becomes still
+when reduced motion is requested.
+For visual review while Vite is running, `/dev/preload/` keeps the same screen
+open with a small state selector and a Play sequence control. Its reveal uses an
+empty map background; the product reveals the actual connected workspace. This
+isolated design preview does not connect
+to the engine and is not imported by the product entry.
+The preview also has an experimental **Stipple + boids** renderer with weighted
+point sampling and local separation, alignment and cohesion. Use **Original
+strokes** to compare. The experiment is confined to `dev/preload/`; the app keeps
+its original renderer.
+The separate **5D stipple + boids** experiment uses a continuous 2D state map over
+the boid volume. Joint pointer coordinates blend complete states: a central
+swell, an upper-left ripple, an upper-right bloom, lower-left interwoven ribbons,
+and a compact lower-right shoal. Local radial fields provide smooth transitions;
+neither axis has a fixed effect. Each state has its own evolving folds, depth,
+and volume footprint. The bloom can spread across almost the whole page while
+the dots retain their normal scale and dark ink.
+Pointer movement uses damped spring momentum: the section trails quick motions,
+carries through reversals, and settles with a small overshoot. Focus the flock
+and use arrow keys (Home to recenter), or move a finger over the flock.
+The extra projection settles away for the ready circle and outward departure.
+Reduced motion shows a still view. Both earlier renderers remain in the selector.
+
 ## Run locally
 
 From this directory:

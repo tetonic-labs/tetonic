@@ -238,6 +238,7 @@ fn supported_registered_tool(tool: &str) -> bool {
             | "run_shell"
             | "dispatch_assignment"
             | "ask_human"
+            | "blackboard"
             | "work_plan"
             | "recall"
             | "read_file"

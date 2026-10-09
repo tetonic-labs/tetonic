@@ -5,8 +5,11 @@ export const agentToolGroups: Record<string, readonly string[]> = {
   read_file: ['read_file', 'list_dir', 'grep', 'glob'],
   write_file: ['write_file', 'edit_file'],
   run_shell: ['run_shell'],
+  blackboard: ['blackboard'],
 };
+export const isFolderTool = (id: string) => id !== 'blackboard' && Object.values(agentToolGroups).some(group => group.includes(id));
 const toolDescriptions: Record<string, string> = {
+  blackboard: 'Share messages with permitted agents in the same effort',
   read_file: 'Read file contents',
   list_dir: 'Browse folders',
   grep: 'Search file contents',
@@ -120,7 +123,7 @@ export function agentSetup(
     );
   if (
     provider !== 'ollama' &&
-    selected.some((tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_')) &&
+    selected.some(isFolderTool) &&
     (!agent.hosted_workspace ||
       (catalog.workspace_folders
         ? !catalog.workspace_folders.includes(agent.hosted_workspace) ||

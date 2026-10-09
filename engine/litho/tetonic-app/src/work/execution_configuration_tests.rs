@@ -30,7 +30,11 @@ async fn configured_limits_reach_catalog_and_admission_without_rewriting_agents(
                 (catalog.max_steps, catalog.max_seconds, catalog.max_tokens),
                 (32, 900, 32000)
             );
-            assert!(catalog.tools.is_empty(), "raising ceilings grants no tools");
+            assert_eq!(
+                catalog.tools,
+                vec!["blackboard"],
+                "only the opt-in internal collaboration tool is available without a folder"
+            );
             let input = CreateLocalAgent {
                 workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
@@ -94,6 +98,10 @@ async fn configured_limits_reach_catalog_and_admission_without_rewriting_agents(
                 .await
                 .unwrap();
             assert_eq!(prepared.invocation().max_steps, 20);
+            assert!(
+                prepared.requested_tools().is_empty(),
+                "raising ceilings grants no tools to the agent"
+            );
             drop(workspace);
 
             let mut raised = configuration();

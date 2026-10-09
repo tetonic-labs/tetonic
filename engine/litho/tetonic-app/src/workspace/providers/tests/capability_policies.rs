@@ -250,7 +250,10 @@ async fn capability_policy_mcp_approval_binds_the_tool_and_endpoint_without_a_fo
                     .remove(0);
                 let proposal = approval.proposal.as_ref().unwrap();
                 assert_eq!(proposal.tool.as_deref(), Some(tool.as_str()));
-                assert_eq!(proposal.working_directory, format!("{}#{}", connection.endpoint, tool));
+                assert_eq!(
+                    proposal.working_directory,
+                    format!("{}#{}", connection.endpoint, tool)
+                );
                 assert!(proposal.command.contains("Tuesday"));
                 assert_eq!(count(), 0);
                 workspace

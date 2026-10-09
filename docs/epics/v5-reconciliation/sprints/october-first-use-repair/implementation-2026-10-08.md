@@ -206,3 +206,58 @@ qualified first-use latency target. Do not mark EXP-001 accepted from these runs
    acceptance. Desktop review is only part of this evidence.
 5. EXP-004–009, including planning allocation, visible team participation,
    comprehension, archive/restore and the complete fresh-user journey, remain open.
+
+### October 9: proposal validation before review
+
+EXP-004 now has a first implementation slice. Previously a structurally valid
+proposal could allocate its entire total to workers, be saved by the Guide, and
+only then fail execution readiness. Proposal writes now share the coordination,
+workspace-total and per-worker allowance checks with launch readiness. Capture,
+manual revision and new agreement use the same checks. Original planning replies
+and older saved proposals remain inspectable; no history is rewritten.
+
+The Guide receives actionable allocation errors through the existing managed
+`work_plan` result, before either its shared brief or proposal is saved. The
+proposal schema and name resolution use the selected roster. A valid saved
+receipt states the total, worker allocation and coordination allocation without
+claiming a reservation. Structured generation also receives the actual workspace
+ceiling in its prompt. The host never raises a total or changes a deliverable to
+make a proposal fit.
+
+Exact revision/agreement retries retain their original receipts after limits
+change, while Start still enforces current readiness. Storage retains authority
+over request fingerprints and agreement versions. No new inference run, ledger,
+scheduler, schema migration or permission grant was introduced.
+
+Validation: 50 work/resource behavior tests passed; three explicit live-scenario
+tests remained ignored. Four new regressions cover allocation boundaries and
+same-total correction, the managed Guide receiving rejection without writes or
+dispatch, repeated capture of an invalid generation without new inference, and
+selected-roster schema/name enforcement without a partial brief write. Existing
+tests exercise parallel workers, one-time dispatch, cancellation, continuation,
+human waits and old invalid proposals. The hosted Guide fixture passed across
+OpenAI, Anthropic and Google. These are deterministic fixtures, not live-provider
+qualification.
+
+The package gate passed formatting, workspace/all-target Clippy, architecture and
+static quality checks. Completing it also fixed existing formatting issues, two
+test-only redundant clones and a capability-policy check using an API newer than
+the memory crate's declared Rust minimum. The compatible expression preserves the
+same owner check; four existing policy/memory regressions passed. `git diff --check`
+passed. The four new proposal regressions were rerun after the final retry assertion.
+
+Still open: a durable **at most one** budgeted repair attempt with enforced
+unchanged-total/roster/deliverable constraints, useful real-model decomposition
+and synthesis, and the fresh-owner acceptance journey. The current Guide can
+receive an error and respond within its existing finite run limits; this slice
+does not add the separate one-repair policy. The running preview engine was not
+restarted and no real-model inference was submitted for these checks.
+
+## October 9 bounded correction follow-up
+
+The subsequent [Guide proposal correction slice](guide-proposal-correction-2026-10-09.md)
+adds the durable one-correction policy for allocation failures, unchanged proposal
+scope/total enforcement, atomic brief/proposal publication, and receipt-based
+correction status in the existing Guide UI. This supersedes the one-repair gap
+listed immediately above. Real-model decomposition/synthesis, malformed-argument
+recovery and fresh-owner journey acceptance remain open.

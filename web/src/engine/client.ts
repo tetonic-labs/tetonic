@@ -1,4 +1,5 @@
 import type {
+  BlackboardPage,
   WorkBrief,
   HuddlePlan,
   PlanExecutionView,
@@ -83,6 +84,9 @@ export class LocalEngine {
   }
   snapshot(signal?: AbortSignal) {
     return this.request<EngineWorkspace>('/workspace', undefined, signal);
+  }
+  blackboard(thread?: string, offset = 0, signal?: AbortSignal, workIds?: string[]) {
+    return this.request<BlackboardPage>('/blackboard/query', { thread_id: thread, offset, work_ids: workIds }, signal);
   }
   setBudgetSetting(input: {
     request_id: string;

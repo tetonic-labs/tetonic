@@ -14,6 +14,7 @@ use tetonic_egress::EgressGuard;
 mod client;
 mod host;
 mod persistence;
+mod results;
 pub(crate) use persistence::McpAuthority;
 pub(crate) use persistence::McpScope;
 #[cfg(test)]
@@ -27,7 +28,12 @@ pub struct McpConnectionConfig {
     pub name: String,
     pub endpoint: String,
     /// Operator-vetted read operations. Server annotations never confer access.
+    #[serde(default)]
     pub read_tools: Vec<String>,
+    /// Explicitly vetted operations that may change remote state. Never inferred
+    /// from read_tools, even if a server changes its annotations.
+    #[serde(default)]
+    pub action_tools: Vec<String>,
 }
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -42,6 +48,10 @@ pub struct McpTool {
     pub description: String,
     pub input_schema: Value,
     pub approved: bool,
+    /// Server-reported hints, pinned with the manifest; not permission grants.
+    pub read_only: bool,
+    pub destructive: bool,
+    pub idempotent: bool,
     #[serde(skip)]
     manifest: Value,
 }
@@ -82,6 +92,11 @@ impl McpRegistry {
         let mut ids = HashSet::new();
         let mut connections = Vec::new();
         for mut c in config.connections {
+            let names = c
+                .read_tools
+                .iter()
+                .chain(&c.action_tools)
+                .collect::<Vec<_>>();
             if c.id.is_empty()
                 || c.id.len() > 20
                 || !c.id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_')
@@ -89,13 +104,13 @@ impl McpRegistry {
                 || c.name.trim().is_empty()
                 || c.name.len() > 80
                 || c.name.chars().any(char::is_control)
-                || c.read_tools.is_empty()
-                || c.read_tools.len() > 32
-                || c.read_tools.iter().any(|n| !tool_name(n))
-                || c.read_tools.iter().collect::<HashSet<_>>().len() != c.read_tools.len()
+                || names.is_empty()
+                || names.len() > 32
+                || names.iter().any(|n| !tool_name(n))
+                || names.iter().collect::<HashSet<_>>().len() != names.len()
             {
                 return Err(
-                    "MCP connections need unique IDs, a name and exact vetted read tool names"
+                    "MCP connections need unique IDs, a name and distinct vetted read_tools/action_tools names"
                         .into(),
                 );
             }
@@ -142,6 +157,9 @@ impl McpRegistry {
     pub fn contains(&self, name: &str) -> bool {
         self.binding(name).is_some()
     }
+    pub(crate) fn is_read_only(&self, name: &str) -> bool {
+        self.binding(name).is_some_and(|(_, tool)| tool.read_only)
+    }
     pub async fn refresh(&self, id: &str) -> Result<McpConnectionView, String> {
         let c = self
             .connection(id)
@@ -159,7 +177,7 @@ impl McpRegistry {
             Ok(tools) => {
                 view.tools = tools;
                 view.status = "discovered".into();
-                view.message = "Connection checked. Select the read tools to make available, then assign them to agents.".into();
+                view.message = "Connection checked. Review read and action tools, then assign approved tools to agents.".into();
             }
             Err(error) => {
                 view.tools.clear();
@@ -267,6 +285,10 @@ fn pinned_tool(c: &Connection, manifest: Value) -> Result<McpTool, String> {
                 r.enabled && r.binding_epoch == *epoch && r.approved_manifests.contains(&manifest)
             })
         }),
+        read_only: manifest.pointer("/annotations/readOnlyHint") == Some(&Value::Bool(true)),
+        destructive: manifest.pointer("/annotations/readOnlyHint") != Some(&Value::Bool(true))
+            && manifest.pointer("/annotations/destructiveHint") != Some(&Value::Bool(false)),
+        idempotent: manifest.pointer("/annotations/idempotentHint") == Some(&Value::Bool(true)),
         manifest,
     })
 }

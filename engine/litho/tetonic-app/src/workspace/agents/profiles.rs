@@ -22,7 +22,7 @@ impl WorkspaceServices {
             .cloned()
             .collect();
         tools.sort();
-        tools.retain(|tool| crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str()));
+        tools.retain(|tool| tool == "blackboard" || crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str()));
         tools.extend(
             self.host
                 .settings

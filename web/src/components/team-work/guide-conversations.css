@@ -16,10 +16,12 @@
   overflow: auto;
   padding: 14px;
   color: var(--on-ink);
-  background: var(--surface-ink);
+  background: var(--glass-ink);
   border: 1px solid color-mix(in srgb, var(--on-ink) 20%, transparent);
   border-radius: 4px 4px 16px 4px;
-  box-shadow: 0 12px 40px #0003;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
   font: 12px var(--font-sans);
 }
 .guide-history header,

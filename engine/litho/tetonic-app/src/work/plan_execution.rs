@@ -67,31 +67,7 @@ impl WorkService {
         &self,
         content: &PlanContent,
     ) -> Result<Vec<String>, AppError> {
-        let app_scope = self.services.authorized_scope().await?;
-        let mut reasons = vec![];
-        let used: u64 = content.assignments.iter().map(|a| a.token_budget).sum();
-        let own = content.token_budget.saturating_sub(used);
-        let ceiling = self.services.execution.coordination_tokens();
-        if own < 256 || own > ceiling {
-            reasons.push(format!("Leave 256–{ceiling} tokens within the plan total for coordination and the combined result. Currently {own} remain after assignments."));
-        }
-        let setting = self
-            .services
-            .local
-            .resources()
-            .team_budget_setting(
-                &self.services.host.credential,
-                app_scope.organization().into(),
-                app_scope.team().into(),
-            )
-            .await
-            .map_err(resource)?;
-        if setting
-            .token_limit
-            .is_some_and(|limit| content.token_budget > limit as u64)
-        {
-            reasons.push("The plan total exceeds your workspace allowance. Adjust the plan or your Usage settings.".into());
-        }
+        let mut reasons = self.plan_allowance_issues(content).await?;
         for assignment in &content.assignments {
             if assignment.agent_key == shaping::GUIDE || assignment.agent_key == COORDINATOR {
                 reasons.push(format!("{} needs a working agent.", assignment.title));
@@ -108,12 +84,6 @@ impl WorkService {
                         .any(|tool| tool != "finish" && !agent.tools.contains(tool))
                     {
                         reasons.push(format!("{} requests tools not granted to its agent. Edit the agent or the plan.", assignment.title));
-                    }
-                    if assignment.token_budget > agent.max_tokens {
-                        reasons.push(format!(
-                            "{} exceeds its agent's token allowance.",
-                            assignment.title
-                        ));
                     }
                 }
                 Err(_) => reasons.push(format!(

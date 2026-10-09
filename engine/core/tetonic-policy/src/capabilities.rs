@@ -34,8 +34,35 @@ pub struct CapabilityPolicy {
     pub tier: AutonomyTier,
     #[serde(default)]
     pub overrides: BTreeMap<Capability, CapabilityDecision>,
+    /// A communication ceiling, never a grant or an expansion of work scope.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub communication: Option<CommunicationScope>,
+}
+
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(tag = "mode", rename_all = "snake_case", deny_unknown_fields)]
+pub enum CommunicationScope {
+    AssignedWork,
+    Blocked,
+    SelectedAgents { agent_ids: Vec<String> },
+}
+
+impl CommunicationScope {
+    pub fn allows(&self, peer: &str) -> bool {
+        match self {
+            Self::AssignedWork => true,
+            Self::Blocked => false,
+            Self::SelectedAgents { agent_ids } => agent_ids.iter().any(|id| id == peer),
+        }
+    }
 }
 impl CapabilityPolicy {
+    pub fn allows_communication(&self, peer: &str) -> bool {
+        self.communication
+            .as_ref()
+            .map(|scope| scope.allows(peer))
+            .unwrap_or(self.tier != AutonomyTier::ReadOnly)
+    }
     pub fn decision(&self, capability: Capability) -> CapabilityDecision {
         use CapabilityDecision::*;
         *self
@@ -90,6 +117,20 @@ pub fn capability_outcome(policies: &[CapabilityPolicy], kind: &ActionKind) -> A
 mod tests {
     use super::*;
     #[test]
+    fn communication_defaults_to_assigned_work_except_readonly_and_requires_selected_identity() {
+        let mut policy = CapabilityPolicy::default();
+        assert!(policy.allows_communication("sam"));
+        policy.tier = AutonomyTier::ReadOnly;
+        assert!(!policy.allows_communication("sam"));
+        policy.communication = Some(CommunicationScope::SelectedAgents {
+            agent_ids: vec!["sam".into()],
+        });
+        assert!(policy.allows_communication("sam"));
+        assert!(!policy.allows_communication("other"));
+        policy.communication = Some(CommunicationScope::Blocked);
+        assert!(!policy.allows_communication("sam"));
+    }
+    #[test]
     fn scoped_tiers_and_exceptions_never_relax_another_levels_limit() {
         let mut workspace = CapabilityPolicy::default();
         workspace
@@ -127,15 +168,19 @@ mod tests {
             tier: AutonomyTier::ReadOnly,
             ..Default::default()
         };
-        assert!(capability_outcome(&[p.clone()], &ActionKind::ReadFile)
-            .decision
-            .allowed());
+        assert!(
+            capability_outcome(std::slice::from_ref(&p), &ActionKind::ReadFile)
+                .decision
+                .allowed()
+        );
         for kind in [
             ActionKind::WriteFile,
             ActionKind::ExecuteShell,
             ActionKind::NetworkRequest,
         ] {
-            assert!(!capability_outcome(&[p.clone()], &kind).decision.allowed());
+            assert!(!capability_outcome(std::slice::from_ref(&p), &kind)
+                .decision
+                .allowed());
         }
     }
 }

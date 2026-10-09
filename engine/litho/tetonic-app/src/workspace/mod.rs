@@ -54,6 +54,8 @@ impl WorkspaceServices {
             org: scope.organization().into(),
             team: scope.team().into(),
         }));
+        // Available to select, never automatically granted to an agent.
+        host.settings.allowed_tools.insert("blackboard".into());
         host.settings.mcp = Some(
             crate::mcp::McpRegistry::load(crate::mcp::McpScope {
                 store: local.store().clone(),

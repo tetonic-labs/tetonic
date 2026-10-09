@@ -1,6 +1,9 @@
 use super::*;
 use serde_json::json;
 
+#[path = "proposal_validation_tests.rs"]
+mod proposal_validation;
+
 fn plan(title: &str) -> tetonic_memory::PlanContent {
     serde_json::from_value(json!({"title":title,"summary":"Compare the supplied options.","token_budget":3000,"open_questions":[],"assignments":[
         {"key":"compare","title":"Compare formats","instructions":"Use only the supplied workshop information.","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"A short comparison","token_budget":1000}
@@ -41,7 +44,11 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
             .into_iter()
             .enumerate()
             {
-                let expected = plan(title);
+                let mut expected = plan(title);
+                if index == 1 {
+                    expected.token_budget = 1024;
+                    expected.assignments[0].token_budget = 512;
+                }
                 let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
                     index == 0,
                     crate::resources::work_director::CONTROL,
@@ -188,7 +195,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                 let (_, session) = workspace.bind_director(&turn).await.unwrap();
                 assert!(
                     workspace
-                        .director_command(&session.binding, Command::Inspect {})
+                        .director_command(&session.binding, "inspect", Command::Inspect {})
                         .await
                         .is_err(),
                     "A completed reply cannot issue a late control operation"

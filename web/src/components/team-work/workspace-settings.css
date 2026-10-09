@@ -1,4 +1,17 @@
+@media (min-width: 761px) {
+  .tw-live .px-inspector:has(.tw-settings) {
+    width: min(620px, calc(100% - 36px));
+  }
+}
+
+.tw-live .px-inspector .px-inspector-body:has(> .tw-settings) {
+  direction: rtl;
+  padding-left: 28px;
+  padding-right: 0;
+}
+
 .tw-settings {
+  direction: ltr;
   max-width: 660px;
   margin: 4px 0 24px;
 }

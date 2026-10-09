@@ -1,0 +1,113 @@
+/* Design controls are isolated from the product entry and its production bundle. */
+.preload-preview-map {
+  position: fixed;
+  inset: 0;
+  background-color: var(--bg-ground);
+  background-image: radial-gradient(
+    color-mix(in srgb, var(--control-border) 43%, transparent) 1px,
+    transparent 1px
+  );
+  background-size: 28px 28px;
+}
+
+.preload-preview-map p {
+  margin: 32px;
+  color: var(--text-secondary);
+  font: 11px var(--font-mono);
+}
+
+.preload-preview-controls {
+  position: fixed;
+  right: 20px;
+  bottom: 15px;
+  z-index: 1001;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  max-width: calc(100% - 40px);
+  padding: 7px 10px;
+  border: 1px solid #583c4926;
+  border-radius: 6px;
+  background: #faeff0e8;
+  color: #80636f;
+  font:
+    10px 'Inter Variable',
+    sans-serif;
+}
+
+.preload-preview-controls select {
+  max-width: 130px;
+  background: transparent;
+  color: #583c49;
+  font: inherit;
+}
+
+.preload-preview-controls button {
+  border: 0;
+  border-left: 1px solid #583c4926;
+  padding-left: 8px;
+  background: transparent;
+  color: #583c49;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.preload-preview .preload-footer {
+  padding-bottom: 70px;
+}
+
+.dimensional-flock {
+  position: relative;
+  touch-action: none;
+  user-select: none;
+  outline: none;
+}
+
+.dimensional-flock:focus-visible {
+  outline: 1px dashed #80636f80;
+  outline-offset: 4px;
+  border-radius: 12px;
+}
+
+.dimensional-hint {
+  position: absolute;
+  bottom: 4px;
+  left: 0;
+  right: 0;
+  margin: 0;
+  color: #887975;
+  font: 9px / 1.6 var(--font-mono);
+  pointer-events: none;
+  transition: opacity 300ms;
+}
+
+.dimensional-key-hint,
+.dimensional-still-hint {
+  display: none;
+}
+
+.dimensional-flock:focus-visible .dimensional-key-hint {
+  display: block;
+}
+
+.preload-screen[data-phase='ready'] .dimensional-hint,
+.preload-screen[data-phase='departing'] .dimensional-hint {
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dimensional-motion-hint,
+  .dimensional-flock:focus-visible .dimensional-key-hint {
+    display: none;
+  }
+  .dimensional-still-hint {
+    display: inline;
+  }
+}
+
+@media (max-width: 650px) {
+  .preload-preview .preload-footer {
+    padding-bottom: 86px;
+  }
+}

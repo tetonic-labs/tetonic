@@ -6,6 +6,7 @@ import { LocalEngine } from '../src/engine/client';
 import { takeConnectionToken } from '../src/engine/connection';
 const base = { tasks: [] };
 afterEach(() => {
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   sessionStorage.clear();
   history.replaceState(null, '', '/');
@@ -75,6 +76,7 @@ it('handles legacy, malformed and unsupported-version failures without trusting 
 });
 
 it('rotates the current UI connection without retaining another workspace’s work', async () => {
+  vi.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
   sessionStorage.setItem('tetonic_local_session', 'a'.repeat(64));
   const fetch = vi.fn().mockImplementation(async (url: string, options: RequestInit) => {
     const current =
@@ -112,7 +114,7 @@ it('rotates the current UI connection without retaining another workspace’s wo
   });
   vi.stubGlobal('fetch', fetch);
   render(<App />);
-  await screen.findByRole('button', { name: 'Open Old workspace request' });
+  await screen.findByRole('button', { name: 'Open Old workspace request' }, { timeout: 4000 });
   history.replaceState(null, '', `/#connect=${'b'.repeat(64)}`);
   fireEvent(window, new HashChangeEvent('hashchange'));
   await screen.findByRole('button', { name: 'Open New workspace request' });

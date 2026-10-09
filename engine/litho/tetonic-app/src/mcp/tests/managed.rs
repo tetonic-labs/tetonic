@@ -3,13 +3,30 @@ use crate::local_workspace::{CreateLocalAgent, LocalWorkspace};
 
 #[tokio::test]
 async fn created_agents_use_only_selected_mcp_tools_through_managed_execution() {
+    managed_tool_execution("search").await;
+}
+
+#[tokio::test]
+async fn created_agents_execute_selected_action_tools_and_cannot_use_unselected_actions() {
+    managed_tool_execution("delete_event").await;
+}
+
+async fn managed_tool_execution(tool_name: &str) {
+    let feedback = if tool_name == "search" {
+        "Tuesday 10:00 is available"
+    } else {
+        "Event deleted"
+    };
     for (selected, with_files, stop) in [
         (true, false, false),
         (false, false, false),
         (true, true, false),
         (true, false, true),
     ] {
-        let fixture = Fixture::new().await;
+        let mut fixture = Fixture::new().await;
+        let mut config: Value = serde_json::from_slice(&fixture.config).unwrap();
+        config["connections"][0]["action_tools"] = json!(["delete_event"]);
+        fixture.config = serde_json::to_vec(&config).unwrap();
         let catalog = McpRegistry::from_json(&fixture.config)
             .unwrap()
             .refresh("calendar")
@@ -18,7 +35,7 @@ async fn created_agents_use_only_selected_mcp_tools_through_managed_execution() 
         let search = catalog
             .tools
             .iter()
-            .find(|t| t.name == "search")
+            .find(|t| t.name == tool_name)
             .unwrap()
             .id
             .clone();
@@ -50,8 +67,8 @@ async fn created_agents_use_only_selected_mcp_tools_through_managed_execution() 
                         hosted_tools_consent: false,
                         expected_workspace_root: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
-                        name: "Scheduling researcher".into(),
-                        purpose: "Research calendar availability; never change events".into(),
+                        name: "Calendar agent".into(),
+                        purpose: "Use only granted calendar tools".into(),
                         model: "qwen3.5:latest".into(),
                         harness: "general".into(),
                         max_steps: 4,
@@ -72,7 +89,7 @@ async fn created_agents_use_only_selected_mcp_tools_through_managed_execution() 
                 workspace
                     .submit_for_agent(
                         id.clone(),
-                        "Check Tuesday availability".into(),
+                        format!("Use the selected {tool_name} tool"),
                         agent.key.clone(),
                     )
                     .await
@@ -130,19 +147,14 @@ async fn created_agents_use_only_selected_mcp_tools_through_managed_execution() 
                     usize::from(selected)
                 );
                 assert_eq!(
-                    serde_json::to_string(&calls)
-                        .unwrap()
-                        .contains("Tuesday 10:00 is available"),
+                    serde_json::to_string(&calls).unwrap().contains(feedback),
                     selected && !stop
                 );
                 if selected && !stop {
-                    assert!(task
-                        .messages
-                        .iter()
-                        .any(|m| m.content.contains("Tuesday 10:00")));
+                    assert!(task.messages.iter().any(|m| m.content.contains(feedback)));
                 }
                 workspace
-                    .submit_for_agent(id, "Check Tuesday availability".into(), agent.key)
+                    .submit_for_agent(id, format!("Use the selected {tool_name} tool"), agent.key)
                     .await
                     .unwrap();
                 assert_eq!(

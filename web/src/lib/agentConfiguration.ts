@@ -1,6 +1,6 @@
 import type { WorkspaceResource } from './toolLibrary';
 
-export type AgentToolId = 'read_file' | 'write_file' | 'run_shell' | 'recall';
+export type AgentToolId = 'read_file' | 'write_file' | 'run_shell' | 'recall' | 'blackboard';
 export type PermissionRule = 'ask' | 'deny' | 'scoped';
 export interface AgentConfiguration {
   harness: 'general' | 'coding';
@@ -27,6 +27,7 @@ export interface AgentDraft {
 
 // Requested preview configuration, never an execution grant or an installed-tool inventory.
 export const agentTools: { id: AgentToolId; name: string; description: string }[] = [
+  { id: 'blackboard', name: 'Blackboard', description: 'Collaborate with permitted agents on shared work' },
   { id: 'read_file', name: 'Read files', description: 'Read within a working folder' },
   { id: 'write_file', name: 'Write files', description: 'Create and change files' },
   { id: 'run_shell', name: 'Terminal', description: 'Run workspace commands' },

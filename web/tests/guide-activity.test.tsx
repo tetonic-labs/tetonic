@@ -72,3 +72,39 @@ it('never reports a failed, interrupted or disconnected operation as successful 
   expect(screen.getByText('Saving the team proposal · not confirmed')).toBeTruthy();
   expect(view.container.querySelector('.guide-activity-dots')).toBeNull();
 });
+
+it('shows bounded correction in the conversation without presenting failed drafts as saved', () => {
+  const first = { id: '1', operation: 'propose', state: 'repair_needed' } as const;
+  const view = render(<GuideActivity activities={[first]} active connected />);
+  expect(screen.getByText('The proposal needs an allowance adjustment')).toBeTruthy();
+  expect(screen.queryByText('Saved a team proposal for review')).toBeNull();
+  view.rerender(
+    <GuideActivity
+      activities={[first, { id: '2', operation: 'repair', state: 'requested' }]}
+      active
+      connected
+    />,
+  );
+  expect(screen.getByText('Adjusting the proposal within your limits…')).toBeTruthy();
+  view.rerender(
+    <GuideActivity
+      activities={[first, { id: '2', operation: 'repair', state: 'completed' }]}
+      active={false}
+      connected
+    />,
+  );
+  expect(screen.getByText('Corrected the proposal for review')).toBeTruthy();
+  expect(screen.queryByRole('button', { name: /not confirmed/ })).toBeNull();
+  view.rerender(
+    <GuideActivity
+      activities={[first, { id: '2', operation: 'repair', state: 'repair_failed' }]}
+      active={false}
+      connected
+    />,
+  );
+  expect(
+    screen.getByText('No new proposal saved. Continue here to adjust the approach.'),
+  ).toBeTruthy();
+  expect(view.container.querySelector('.guide-activity-dots')).toBeNull();
+  expect(screen.queryByText('Corrected the proposal for review')).toBeNull();
+});

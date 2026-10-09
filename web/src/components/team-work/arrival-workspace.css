@@ -31,6 +31,10 @@
   min-height: 62px;
   padding: 7px 28px;
   border-bottom-width: 2px;
+  background: var(--glass-ink);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-edge);
 }
 .tw-live[data-design='arrival'] .px-brand {
   gap: 9px;
@@ -140,10 +144,11 @@
   left: 28px;
   flex-direction: column;
   padding: 5px;
-  border: 1px solid color-mix(in srgb, var(--brand-rule) 70%, transparent);
-  background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
-  backdrop-filter: blur(12px);
-  box-shadow: var(--surface-depth);
+  border: 1px solid var(--glass-outline);
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
 }
 .tw-live[data-design='arrival'] .px-composer {
   width: min(780px, calc(100% - 64px));
@@ -153,10 +158,11 @@
 .tw-live[data-design='arrival'] .tw-collapsed-conversation {
   border-radius: 22px;
   border: 1px solid color-mix(in srgb, var(--on-ink) 16%, transparent);
-  background: color-mix(in srgb, var(--surface-ink) 96%, transparent);
-  box-shadow: 0 12px 45px #2b302523;
+  background: var(--glass-ink);
+  box-shadow: var(--glass-shadow);
   padding: 17px 23px;
-  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
 }
 .tw-live[data-design='arrival'] .px-composer textarea {
   font-size: 15px;
@@ -181,14 +187,17 @@
   margin-bottom: 12px;
 }
 .tw-live[data-design='arrival'] .tw-work-shelf > button {
+  --text-secondary: var(--glass-muted);
   display: flex;
   align-items: center;
   gap: 10px;
   border-radius: 13px;
   border-left: 1px solid var(--brand-rule);
   border: 1px solid color-mix(in srgb, var(--work-signal) 25%, var(--brand-rule));
-  background: color-mix(in srgb, var(--bg-surface) 86%, transparent);
-  backdrop-filter: blur(12px);
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-edge);
   padding-block: 10px;
 }
 .tw-live[data-design='arrival'] .tw-work-shelf > button > strong {
@@ -204,12 +213,18 @@
   bottom: 18px;
   border-radius: 24px;
   padding: 22px 28px;
-  box-shadow: 0 16px 80px #3531261c;
-  background: color-mix(in srgb, var(--bg-surface) 97%, transparent);
-  backdrop-filter: blur(18px);
+  border-color: var(--glass-outline);
+  box-shadow: var(--glass-shadow);
+  background: var(--glass-surface);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
 }
 .tw-live[data-design='arrival'] .px-inspector > header {
   margin-bottom: 24px;
+}
+.tw-live[data-design='arrival'] .px-inspector:not([data-shaping='true']) {
+  --text-secondary: var(--glass-muted);
+  --text-muted: var(--glass-muted);
 }
 .tw-live[data-design='arrival'] .px-inspector-label {
   text-transform: uppercase;
@@ -238,12 +253,12 @@
   --conversation-height: min(710px, calc(100% - 100px));
   border: 1px solid color-mix(in srgb, var(--on-ink) 16%, transparent);
   border-radius: 24px;
-  background: color-mix(in srgb, var(--surface-ink) 96%, transparent);
+  background: var(--glass-ink);
   padding: 0;
   top: auto;
   bottom: 26px;
   right: auto;
-  box-shadow: 0 18px 70px #272b2638;
+  box-shadow: var(--glass-shadow);
   animation: arrival-conversation 250ms var(--arrival-ease);
 }
 .tw-live[data-design='arrival'] main[data-conversation='true'] .px-shaping-guide {
@@ -277,8 +292,9 @@
   border-radius: 16px;
   margin-block: 8px;
   padding: 17px;
-  border: 1px solid var(--brand-rule);
-  background: var(--bg-surface);
+  border: 1px solid var(--glass-outline);
+  background: var(--glass-inset);
+  box-shadow: var(--glass-edge);
   transition: background 150ms ease;
 }
 .tw-live[data-design='arrival'] .agent-roster-row:hover,
@@ -295,8 +311,28 @@
   max-width: calc(100% - 72px);
   padding: 10px 16px;
   border-radius: 12px;
-  background: var(--bg-surface);
-  border: 1px solid var(--brand-rule);
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-outline);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
+  box-shadow: var(--glass-shadow);
+}
+/* Nested controls use a light material tint; blur belongs to the outer panel,
+   so long agent lists and a busy map do not create hundreds of blur layers. */
+.tw-live[data-design='arrival'] :is(.operator-search, .tw-usage-setting, .attention-problem) {
+  background: var(--glass-inset);
+  box-shadow: var(--glass-edge);
+}
+.tw-live[data-design='arrival'] :is(.pm-place > span, .pm-project) {
+  --text-secondary: var(--glass-muted);
+  background: var(--glass-surface);
+  box-shadow: var(--glass-shadow);
+}
+.tw-live[data-design='arrival'] .px-inspector-body {
+  scrollbar-color: var(--control-border) transparent;
+}
+.tw-live[data-design='arrival'] .px-inspector-body::-webkit-scrollbar-track {
+  background: transparent;
 }
 .arrival-welcome {
   position: absolute;

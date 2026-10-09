@@ -13,6 +13,7 @@ const read = {
   description: 'Read available times',
   input_schema: { type: 'object' },
   approved: false,
+  read_only: true,
 };
 const initial: McpConnection = {
   id: 'service',
@@ -52,6 +53,43 @@ function service() {
   });
   return { client, save, discover, current: () => record };
 }
+it('reviews action tools and unannotated tools explicitly without automatically enabling them', async () => {
+  const { client, save } = service();
+  const action = {
+    ...read,
+    id: 'mcp_service_move',
+    name: 'Move villager',
+    read_only: false,
+    destructive: false,
+  };
+  const unknown = {
+    ...read,
+    id: 'mcp_service_unknown',
+    name: 'Unknown operation',
+    read_only: undefined,
+  };
+  render(
+    <McpConnectionEditor
+      client={client}
+      connection={{ ...initial, status: 'discovered', tools: [read, action, unknown] }}
+      onChanged={async () => {}}
+    />,
+  );
+  expect(screen.getByText('Available tools')).toBeTruthy();
+  expect(screen.getByText('Read-only (reported by service)')).toBeTruthy();
+  expect(screen.getByText('Action · can change state')).toBeTruthy();
+  expect(screen.getByText('Action · can change state · may be destructive')).toBeTruthy();
+  const move = screen.getByRole('checkbox', { name: /Move villager/ });
+  expect(move).toHaveProperty('checked', false);
+  expect(screen.getByRole('checkbox', { name: /Unknown operation/ })).toHaveProperty(
+    'checked',
+    false,
+  );
+  fireEvent.click(move);
+  fireEvent.click(screen.getByRole('button', { name: 'Save tool access' }));
+  await waitFor(() => expect(save).toHaveBeenCalledOnce());
+  expect(save.mock.calls[0][0].approved_tools).toEqual([action.id]);
+});
 it('connects, reviews access separately, and disconnects without silently selecting an agent tool', async () => {
   const { client, save, discover } = service();
   render(<McpConnectionEditor client={client} onChanged={async () => {}} />);

@@ -21,6 +21,45 @@ pub(crate) enum PlanMutation {
     },
 }
 impl ResourceService {
+    pub(crate) async fn submit_guide_proposal(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        draft: GuideProposalDraft,
+    ) -> Result<tetonic_memory::GuideProposalOutcome, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ManageTeam {
+                    org_id: org.clone(),
+                    team_id: team.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.submit_guide_proposal(tetonic_memory::SubmitGuideProposal {
+                    actor: &actor.principal_id,
+                    org: &org,
+                    team: &team,
+                    source: &draft.source,
+                    turn: &draft.turn,
+                    call: &draft.call,
+                    request: &draft.request,
+                    expected_plan: draft.expected_plan,
+                    expected_brief: draft.expected_brief,
+                    direction: &draft.direction,
+                    content: &draft.content,
+                    generation_id: &draft.generation_id,
+                    generation_input: &draft.generation_input,
+                    validation_error: draft.validation_error.as_deref(),
+                })
+            })
+            .await??)
+    }
     pub(crate) async fn plan_continuation_links(
         &self,
         credential: &str,
@@ -177,4 +216,18 @@ pub(crate) struct ContinuationDraft {
     pub guide_key: String,
     pub brief: String,
     pub content: PlanContent,
+}
+
+pub(crate) struct GuideProposalDraft {
+    pub source: String,
+    pub turn: String,
+    pub call: String,
+    pub request: String,
+    pub expected_plan: i64,
+    pub expected_brief: i64,
+    pub direction: String,
+    pub content: PlanContent,
+    pub generation_id: String,
+    pub generation_input: String,
+    pub validation_error: Option<String>,
 }

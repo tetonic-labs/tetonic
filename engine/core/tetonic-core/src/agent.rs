@@ -1521,8 +1521,7 @@ impl Agent {
                         || (self.config.attempt_id.is_some()
                             && self.context_compiler.is_none()
                             && self.turn_instructions.is_none()
-                            && invocation.discipline.spawn_tool.as_deref()
-                                == Some(tc.function.name.as_str()))
+                            && invocation.discipline.is_host_tool(tc.function.name.as_str()))
                 })
             {
                 for (ordinal, call) in tool_calls.iter().enumerate() {
@@ -1717,9 +1716,7 @@ Fix the JSON to match the tool schema and call the tool again."
                     };
                 }
 
-                if invocation.discipline.spawn_tool.as_deref() == Some(name.as_str())
-                    || invocation.discipline.handoff_tool.as_deref() == Some(name.as_str())
-                {
+                if invocation.discipline.is_host_tool(name.as_str()) {
                     if let Some(hook) = &self.spawn {
                         let role = args
                             .get("role")

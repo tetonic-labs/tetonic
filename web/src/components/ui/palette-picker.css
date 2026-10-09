@@ -1,46 +1,5 @@
-/* Shared palette controls retained from the earlier workspace experiment. */
-html[data-palette='shrigley'] {
-  --brand-field: #f4ce28;
-  --brand-ink: #25231c;
-  --color-accent: #2546af;
-  --color-accent-hover: #19327e;
-  --bg-ground: #f7f4e4;
-  --bg-surface: #fffdf5;
-  --surface-ink: #25231c;
-}
-html[data-palette='warhol'] {
-  --brand-field: #ef6aad;
-  --brand-ink: #262039;
-  --color-accent: #006d7a;
-  --color-accent-hover: #004c56;
-  --bg-ground: #eaf2ec;
-  --bg-surface: #f7fbf6;
-  --surface-ink: #19393b;
-}
-html[data-palette='electric'] {
-  --brand-field: #ffd166;
-  --brand-ink: #261e38;
-  --color-accent: #b53565;
-  --color-accent-hover: #88234b;
-  --bg-ground: #f5eff7;
-  --bg-surface: #fdf9ff;
-  --surface-ink: #291e3b;
-}
-html[data-palette='coral'] {
-  --brand-field: #f26444;
-  --brand-ink: #282821;
-  --color-accent: #2546af;
-  --color-accent-hover: #19327e;
-  --bg-ground: #f7efe2;
-  --bg-surface: #fffaf1;
-  --surface-ink: #303043;
-}
-html.dark[data-palette]:not([data-palette='custom']) {
-  --bg-ground: #1d211c;
-  --bg-surface: #282d25;
-  --color-accent: var(--brand-field);
-  --color-accent-hover: var(--on-ink);
-}
+@import '../../palette-tokens.css';
+
 .palette-utility-btn {
   position: relative;
 }
@@ -54,16 +13,19 @@ html.dark[data-palette]:not([data-palette='custom']) {
   background: var(--brand-field);
 }
 .palette-popover-content {
+  --text-secondary: var(--glass-muted);
   z-index: 100;
   width: min(340px, calc(100vw - 24px));
   max-height: min(720px, var(--radix-popover-content-available-height));
   overflow-y: auto;
   padding: 16px;
   color: var(--text-primary);
-  background: var(--bg-surface);
-  border: 1px solid var(--color-border);
+  background: var(--glass-surface);
+  border: 1px solid var(--glass-outline);
   border-radius: 12px;
-  box-shadow: 0 12px 40px #0003;
+  box-shadow: var(--glass-shadow);
+  -webkit-backdrop-filter: var(--glass-filter);
+  backdrop-filter: var(--glass-filter);
   font: 13px/1.5 var(--font-sans);
 }
 .palette-popover-content button {

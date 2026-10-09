@@ -23,6 +23,11 @@ const labels: Record<Activity['operation'], { pending: string; done: string; fai
     done: 'Saved a team proposal for review',
     failed: 'Could not save the team proposal',
   },
+  repair: {
+    pending: 'Adjusting the proposal within your limits',
+    done: 'Corrected the proposal for review',
+    failed: 'The proposal still needs attention',
+  },
 };
 
 export function GuideActivity({
@@ -40,7 +45,7 @@ export function GuideActivity({
   const current = activities.find((item) => item.state === 'requested') || activities.at(-1);
   const visible = expanded ? activities : current ? [current] : [];
   const issues = activities.filter((item) =>
-    ['failed', 'interrupted', 'unconfirmed'].includes(item.state),
+    ['failed', 'interrupted', 'unconfirmed', 'repair_failed'].includes(item.state),
   ).length;
   return (
     <div className="guide-activity" aria-label="Guide activity">
@@ -53,13 +58,17 @@ export function GuideActivity({
             const complete = item.state === 'completed';
             const text = complete
               ? label.done
-              : working
-                ? `${label.pending}…`
-                : item.state === 'failed'
-                  ? label.failed
-                  : item.state === 'requested' && !connected
-                    ? 'Connection lost · check not confirmed'
-                    : `${label.pending} · not confirmed`;
+              : item.state === 'repair_needed'
+                ? 'The proposal needs an allowance adjustment'
+                : item.state === 'repair_failed'
+                  ? 'No new proposal saved. Continue here to adjust the approach.'
+                  : working
+                    ? `${label.pending}…`
+                    : item.state === 'failed'
+                      ? label.failed
+                      : item.state === 'requested' && !connected
+                        ? 'Connection lost · check not confirmed'
+                        : `${label.pending} · not confirmed`;
             return (
               <li
                 key={item.id}

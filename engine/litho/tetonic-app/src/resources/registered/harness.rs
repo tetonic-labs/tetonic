@@ -292,6 +292,12 @@ fn prepare(
             empty_tool_nudge: false,
             completion_tool: "finish".into(),
             discipline: tetonic_domain::LoopDiscipline {
+                host_tools: config
+                    .requested_tools
+                    .iter()
+                    .filter(|tool| tool.as_str() == "blackboard")
+                    .cloned()
+                    .collect(),
                 handoff_tool: limits
                     .human_handoff
                     .then(|| super::plan_dispatch::ASK_HUMAN.into()),

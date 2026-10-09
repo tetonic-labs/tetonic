@@ -61,6 +61,15 @@ fn vault(workspace: &mut LocalWorkspace, vault: Arc<Vault>) {
 
 #[tokio::test]
 async fn connection_review_restart_real_tool_execution_and_revocation_use_existing_managed_path() {
+    connection_lifecycle("search").await;
+}
+
+#[tokio::test]
+async fn action_tools_require_review_and_survive_restart_with_managed_execution_and_revocation() {
+    connection_lifecycle("delete_event").await;
+}
+
+async fn connection_lifecycle(tool_name: &str) {
     let fixture = crate::mcp::tests::fixture::Fixture::new().await;
     fixture.mode.store(8, std::sync::atomic::Ordering::SeqCst);
     let config: serde_json::Value = serde_json::from_slice(&fixture.config).unwrap();
@@ -93,7 +102,7 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
                 "stale saves cannot leak vault entries"
             );
             let discovered = workspace.discover_mcp(&saved.id).await.unwrap();
-            assert_eq!(discovered.tools.len(), 2);
+            assert_eq!(discovered.tools.len(), 4);
             assert!(discovered.tools.iter().all(|t| !t.approved));
             assert!(workspace
                 .services
@@ -104,10 +113,24 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
             let tool = discovered
                 .tools
                 .iter()
-                .find(|t| t.name == "search")
+                .find(|t| t.name == tool_name)
                 .unwrap()
                 .id
                 .clone();
+            assert!(
+                !workspace
+                    .services
+                    .mcp_registry()
+                    .unwrap()
+                    .call(
+                        &tool,
+                        &json!({}),
+                        &tetonic_domain::work_scope::CancellationSignal::default()
+                    )
+                    .await
+                    .ok,
+                "discovery alone never grants execution"
+            );
             let mut review = edit(&saved);
             review.approved_tools = Some(vec![tool.clone()]);
             let approved = workspace.save_mcp_connection(review).await.unwrap();
@@ -144,8 +167,8 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
                     hosted_tools_consent: false,
                     expected_workspace_root: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
-                    name: "Calendar researcher".into(),
-                    purpose: "Read availability".into(),
+                    name: "Calendar agent".into(),
+                    purpose: "Use only the selected calendar tool".into(),
                     model: "qwen3.5:latest".into(),
                     harness: "general".into(),
                     max_steps: 4,
@@ -157,7 +180,11 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
                 .unwrap();
             let work = uuid::Uuid::new_v4().to_string();
             workspace
-                .submit_for_agent(work.clone(), "Check availability".into(), agent.key.clone())
+                .submit_for_agent(
+                    work.clone(),
+                    format!("Use the selected {tool_name} tool"),
+                    agent.key.clone(),
+                )
                 .await
                 .unwrap();
             let task = tokio::time::timeout(std::time::Duration::from_secs(15), async {
@@ -176,7 +203,11 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
                 .lock()
                 .unwrap()
                 .iter()
-                .any(|call| call.to_string().contains("Tuesday 10:00")));
+                .any(|call| call.to_string().contains(if tool_name == "search" {
+                    "Tuesday 10:00"
+                } else {
+                    "Event deleted"
+                })));
             let mut disconnect = edit(&approved);
             disconnect.enabled = false;
             fixture.mode.store(3, std::sync::atomic::Ordering::SeqCst);

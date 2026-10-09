@@ -12,7 +12,7 @@ pub(crate) struct McpToolHost {
 }
 impl ToolHost for McpToolHost {
     fn checkpoint_ready(&self) -> bool {
-        // This adapter opens and closes a session for each read invocation.
+        // This adapter opens and closes a session for each invocation.
         // WorkScope proves quiescence; no remote session is carried across calls.
         // Endpoint and full manifest are pinned in each selected tool ID.
         self.inner.checkpoint_ready()
@@ -44,7 +44,7 @@ impl ToolHost for McpToolHost {
     }
     fn is_read_only(&self, name: &str) -> bool {
         if name.starts_with("mcp_") {
-            self.is_tool_allowed(name)
+            self.is_tool_allowed(name) && self.registry.is_read_only(name)
         } else {
             self.inner.is_read_only(name)
         }

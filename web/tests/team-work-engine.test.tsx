@@ -92,6 +92,7 @@ it('groups an executed plan and draws only its recorded assignment dependencies'
 });
 function fixture(tasks: EngineTask[] = []) {
   const client = new LocalEngine('test');
+  vi.spyOn(client, 'blackboard').mockResolvedValue({ threads: [], has_more: false });
   let data: EngineWorkspace = {
     organization: 'Our workspace',
     team_id: 'our-team',
@@ -463,6 +464,7 @@ describe('one connected team workspace', () => {
     f.view();
     await screen.findByRole('button', { name: `Open ${saved.input}` });
     fireEvent.click(screen.getByRole('button', { name: 'Blackboard', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Execution records' }));
     const board = screen.getByRole('log', { name: 'Recorded team output' });
     expect(within(board).getByText('Observed file content.')).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Tools & MCPs', exact: true }));
@@ -490,6 +492,7 @@ describe('one connected team workspace', () => {
       const board = await screen.findByRole('button', { name: 'Blackboard', exact: true });
       expect(getComputedStyle(board.closest('.px-overview')!).pointerEvents).toBe('none');
       await user.click(board);
+      await user.click(screen.getByRole('button', { name: 'Execution records' }));
       expect(
         within(screen.getByRole('log', { name: 'Recorded team output' })).getByText(
           'The first approach needs less time.',

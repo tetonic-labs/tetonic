@@ -24,6 +24,11 @@ These are ownership boundaries inside the application, not new network services.
 Runtime tool mediation, provider transport, inference brokering, egress and
 finalization follow the [existing execution path](README.md#current-execution-path).
 
+Assigned-agent collaboration uses the same managed host calls, stable identities,
+pinned plan roster, current capability policies and `SharedStore`. Blackboard
+topics are deliberate messages, not copies of execution transcripts or implicit
+task dependencies. See [the Blackboard boundary and validation record](../epics/v5-reconciliation/sprints/october-2-coordinated-work/blackboard-collaboration-2026-10-09.md).
+
 ## Where a change belongs
 
 | Concern | Owner |
@@ -69,6 +74,29 @@ assignments still run concurrently subject to dependencies, budget and capacity;
 the shared application mutex covers admission/configuration changes, not model
 execution. The existing controller owns scheduling, and managed execution owns
 leases, cancellation and results.
+
+## Proposal allowance checks
+
+The application validates proposals before saving a Guide proposal, capturing a
+structured planning reply, saving an edited revision, or accepting a new agreement.
+[`work/plan_validation.rs`](../../engine/litho/tetonic-app/src/work/plan_validation.rs)
+shares the coordination, workspace-total and per-agent allowance checks with
+execution readiness. Coordination is the existing plan total minus its worker
+allocations; it must stay within the configured coordination range. No additional
+budget field, reservation, automatic allocation rewrite or execution path is added.
+
+The Guide's proposal schema and name resolution use the discussion's saved roster.
+Invalid allocation or roster choices are rejected before the Guide writes its
+shared brief. The existing managed tool result returns the problem within the
+current reply's budget. Saved proposal receipts expose total, worker and
+coordination tokens and explicitly say they are not reserved. Missing access and
+provider setup remain separate readiness issues in the existing review flow.
+
+Exact retries preserve the saved revision/agreement and the storage request
+fingerprint checks after limits change. Current readiness and Start still check
+the current limits, including for proposals saved before these checks existed.
+This is validation, not the separately planned, durable one-attempt planner repair
+policy; it does not guarantee a model will correct an invalid proposal.
 
 ## Durable coordinator dispatch
 
@@ -151,6 +179,14 @@ coordinator names remain product conventions. This is groundwork for explicit
 scope, not a general multi-user server, distributed work service or new public
 scope-switching interface. Local-owner compatibility methods are not a complete
 remote permission model. There are no UI changes in this step.
+
+## Guide proposal correction (October 9, 2026)
+
+Guide proposal writes now compose the existing brief and huddle stores in one
+transaction. Schema 75 retains at most one correction after an invalid allocation
+per Guide turn, with exact retries and unchanged scope/total enforced in storage.
+The same managed Guide reply performs the correction; it does not start another
+inference run or dispatch work. See [proposal correction](../epics/v5-reconciliation/sprints/october-first-use-repair/guide-proposal-correction-2026-10-09.md).
 
 ## Capability permissions (October 9, 2026)
 

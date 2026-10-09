@@ -318,6 +318,7 @@ impl crate::Application {
                         .as_ref()
                         .is_some_and(|skills| skills.contains(tool))
                     && tool != "recall"
+                    && tool != "blackboard"
                     && tool != super::super::plan_dispatch::DISPATCH
                     && tool != super::super::plan_dispatch::ASK_HUMAN
                     && tool != super::super::work_director::CONTROL

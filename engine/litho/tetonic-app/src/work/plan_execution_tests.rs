@@ -17,6 +17,9 @@ mod recovery;
 #[path = "execution_configuration_tests.rs"]
 mod execution_configuration;
 
+#[path = "plan_blackboard_tests.rs"]
+mod blackboard;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;
@@ -97,7 +100,9 @@ pub(crate) async fn scripted_server(
                     let (tool, args) = {
                         let mut calls = captured.lock().unwrap();
                         calls.push(request.clone());
-                        if matches!(scenario, 10..=12) {
+                        if matches!(scenario, 14..=16) {
+                            blackboard::reply(scenario, child, &request)
+                        } else if matches!(scenario, 10..=12) {
                             recovery::reply(scenario, child, &request)
                         } else if matches!(scenario, 2..=4) {
                             if child {
@@ -224,7 +229,39 @@ pub(crate) async fn scripted_server(
                         .await
                         .expect("independent agents must overlap at inference");
                     }
-                    if child && matches!(scenario, 1 | 7 | 9) {
+                    if child
+                        && matches!(scenario, 14 | 16)
+                        && request["messages"].to_string().contains("CHECK_CANARY")
+                        && !request["messages"].to_string().contains("WRAP_CANARY")
+                        && !request["messages"]
+                            .as_array()
+                            .unwrap()
+                            .iter()
+                            .any(|m| m["role"] == "tool")
+                    {
+                        // Hold the recipient's first model response until its peer has
+                        // posted and reached finish. Posting must never wait for a reply.
+                        tokio::time::timeout(std::time::Duration::from_secs(10), async {
+                            loop {
+                                if captured.lock().unwrap().iter().any(|r| {
+                                    r["messages"].to_string().contains("COMPARE_CANARY")
+                                        && r["messages"]
+                                            .as_array()
+                                            .unwrap()
+                                            .iter()
+                                            .filter(|m| m["role"] == "tool")
+                                            .count()
+                                            >= 2
+                                }) {
+                                    break;
+                                }
+                                tokio::time::sleep(std::time::Duration::from_millis(10)).await;
+                            }
+                        })
+                        .await
+                        .expect("sender must proceed without receiving a reply");
+                    }
+                    if child && matches!(scenario, 1 | 7 | 9 | 15) {
                         let _ = stream.read(&mut [0; 1]).await;
                         return;
                     }
@@ -584,16 +621,50 @@ async fn stale_brief_and_no_coordination_budget_block_start_without_inference() 
                     request_id: uuid::Uuid::new_v4().to_string(),
                     expected_revision: 1,
                     brief_revision: 1,
-                    content,
+                    content: content.clone(),
+                },
+            )
+            .await
+            .unwrap_err();
+        assert_eq!(workspace.plan_view(&source).await.unwrap().plans.len(), 1);
+        // Simulate a proposal saved before the new proposal checks. Launch must
+        // still reject it; persisted history is not retroactively rewritten.
+        let resources = workspace.services.local.resources();
+        resources
+            .mutate_huddle_plan(
+                &workspace.services.host.credential,
+                ORG.into(),
+                TEAM.into(),
+                source.clone(),
+                crate::resources::PlanMutation::Save {
+                    request: uuid::Uuid::new_v4().to_string(),
+                    expected: 1,
+                    brief_revision: 1,
+                    generation_id: uuid::Uuid::new_v4().to_string(),
+                    generation_input: "Legacy proposal".into(),
+                    content: Some(content),
                 },
             )
             .await
             .unwrap();
-        workspace
+        assert!(workspace
             .update_plan(
                 &source,
                 PlanCommand::Agree {
                     request_id: uuid::Uuid::new_v4().to_string(),
+                    revision: 2,
+                }
+            )
+            .await
+            .is_err());
+        resources
+            .mutate_huddle_plan(
+                &workspace.services.host.credential,
+                ORG.into(),
+                TEAM.into(),
+                source.clone(),
+                crate::resources::PlanMutation::Agree {
+                    request: uuid::Uuid::new_v4().to_string(),
                     revision: 2,
                 },
             )

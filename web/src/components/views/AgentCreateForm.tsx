@@ -24,7 +24,7 @@ import {
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
 import { AgentMcpTools } from './AgentMcpTools';
-import { agentToolGroups, supportedAgentTools, toolDescription } from '../../lib/agentCapabilities';
+import { agentToolGroups, isFolderTool, supportedAgentTools, toolDescription } from '../../lib/agentCapabilities';
 
 export function AgentCreateForm({
   teams,
@@ -84,9 +84,7 @@ export function AgentCreateForm({
     agent?.workspace_root || undefined,
   );
   const workingFolder = folderChoice ?? connected?.catalog.workspace_root ?? '';
-  const usesFolder = selectedTools.some((id) =>
-    Object.values(agentToolGroups).some((group) => group.includes(id)),
-  );
+  const usesFolder = selectedTools.some(isFolderTool);
   const [hostedConsent, setHostedConsent] = useState(!!agent?.hosted_consent);
   const scopeKey = JSON.stringify([
     provider,
@@ -97,9 +95,7 @@ export function AgentCreateForm({
   ]);
   const [approvedScope, setApprovedScope] = useState<string | null>(() => {
     const disclosure = agent?.tool_disclosure;
-    const hasWorkspaceTools = selectedTools.some(
-      (id) => !id.startsWith('mcp_') && !id.startsWith('skill_'),
-    );
+    const hasWorkspaceTools = selectedTools.some(isFolderTool);
     return disclosure?.version === 1 &&
       disclosure.provider === provider &&
       JSON.stringify([...disclosure.tools].sort()) === JSON.stringify([...selectedTools].sort()) &&
@@ -640,7 +636,7 @@ export function AgentCreateForm({
               <span>
                 Allow selected tool inputs and results to be sent to {lab?.name}.
                 {selectedTools.some(
-                  (tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_'),
+                  isFolderTool,
                 ) && ` Working folder: ${workingFolder || 'the engine’s configured folder'}.`}{' '}
                 Only the selected tools are included in this approval.
               </span>

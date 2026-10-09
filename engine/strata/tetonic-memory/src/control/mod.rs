@@ -1,7 +1,9 @@
 //! Control records and work intent. Transactional permission and revision checks stay here.
 
+mod blackboard;
 pub(crate) mod capability;
 pub(crate) mod capability_policies;
+pub use blackboard::*;
 #[cfg(test)]
 mod capability_policies_tests;
 pub(crate) mod control_bootstrap;
@@ -11,8 +13,10 @@ pub(crate) mod delegated_grants;
 pub(crate) mod delegated_lifetime;
 pub(crate) mod estate;
 pub(crate) mod execution_grants;
+mod guide_proposals;
 pub(crate) mod huddle_execution;
 pub(crate) mod huddle_plans;
+pub use guide_proposals::*;
 pub(crate) mod human_controls;
 pub(crate) mod identity_store;
 pub(crate) mod local_provider_keys;

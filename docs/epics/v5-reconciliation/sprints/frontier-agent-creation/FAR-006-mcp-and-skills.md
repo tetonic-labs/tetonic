@@ -1,6 +1,8 @@
 # FAR-006 — Real MCP connections, tool attachments and skills
 
-Status: **in progress — persistent service connections, local/remote HTTP reads and standalone workspace skills implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+Status: **in progress — persistent service connections, local/remote HTTP read and action tools, and standalone workspace skills implemented**. Size: L. Parent: [frontier agent sprint](plan.md).
+
+October 9 update: [MCP action tools](mcp-actions-2026-10-09.md) supersedes the read-only tool restriction below. Reviewed mutations use the existing managed capability path, preserve actionable feedback, and report unknown outcomes after interrupted dispatch. The older dated sections describe their original scope.
 
 October 8 connection follow-up: [persistent connection implementation](persistent-mcp-connections-2026-10-08.md). This supersedes the older startup-only transport/state limitations below: the local owner can save public HTTPS connections with service tokens, review read tools, attach them to agents, and disconnect them. OAuth, MCP writes and native vendor harness integration remain open.
 

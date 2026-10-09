@@ -96,20 +96,29 @@ impl Store {
         if !self.control_access(actor, ControlPermission::ReadOrganization, org, "")? {
             return Err(StoreError::ControlAccessDenied);
         }
-        let row: Option<(String,String)> = self.conn.query_row("SELECT a.identity_id,d.definition_json FROM organization_agents a JOIN agent_definition_revisions d ON d.identity_id=a.identity_id WHERE a.org_id=?1 AND a.agent_key=?2 AND d.definition_digest=?3",params![org,key,digest],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
-        let result = row
-            .map(|(id, definition_json)| {
-                let identity = self
-                    .get_agent_identity_revision(&id, digest)?
-                    .ok_or(StoreError::ControlResourceConflict)?;
-                Ok(RegisteredAgent {
-                    identity,
-                    definition_json,
-                })
-            })
-            .transpose();
+        let result = self.registered_agent_revision_unchecked(org, key, digest)?;
         tx.commit()?;
-        result
+        Ok(result)
+    }
+
+    /// Caller owns the transaction and has checked organization read authority.
+    pub(crate) fn registered_agent_revision_unchecked(
+        &self,
+        org: &str,
+        key: &str,
+        digest: &str,
+    ) -> Result<Option<RegisteredAgent>> {
+        let row: Option<(String,String)> = self.conn.query_row("SELECT a.identity_id,d.definition_json FROM organization_agents a JOIN agent_definition_revisions d ON d.identity_id=a.identity_id WHERE a.org_id=?1 AND a.agent_key=?2 AND d.definition_digest=?3",params![org,key,digest],|r|Ok((r.get(0)?,r.get(1)?))).optional()?;
+        row.map(|(id, definition_json)| {
+            let identity = self
+                .get_agent_identity_revision(&id, digest)?
+                .ok_or(StoreError::ControlResourceConflict)?;
+            Ok(RegisteredAgent {
+                identity,
+                definition_json,
+            })
+        })
+        .transpose()
     }
 }
 

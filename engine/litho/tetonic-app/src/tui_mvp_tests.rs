@@ -76,6 +76,10 @@ pub(crate) async fn inference_server_with_usage(
                 requests.push(request);
                 let message = if tool == "structured" {
                     json!({"role":"assistant","content":arguments["summary"]})
+                } else if tool == "sequence"
+                    && requests.len() <= arguments.as_array().unwrap().len()
+                {
+                    json!({"role":"assistant","content":"","tool_calls":[{"function":arguments[requests.len()-1]}]})
                 } else if requests.len() == 1 {
                     json!({"role":"assistant", "content":"", "tool_calls":[{"function":{"name":tool,"arguments":arguments.clone()}}]})
                 } else if finish_tool {

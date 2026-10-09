@@ -64,7 +64,12 @@ async fn discovery_and_invocation_pin_tools_and_expose_truthful_failures() {
     fixture.mode.store(2, Ordering::SeqCst);
     let failure = registry.call(&search.id, &json!({}), &cancel).await;
     assert_eq!(failure.error_kind.as_deref(), Some("mcp_tool_error"));
-    assert!(!failure.content.contains("PRIVATE_SERVER_ERROR"));
+    assert!(failure.content.contains("Target is not adjacent"));
+    assert!(failure.content.contains("not_adjacent"));
+    fixture.mode.store(12, Ordering::SeqCst);
+    let protocol_failure = registry.call(&search.id, &json!({}), &cancel).await;
+    assert!(!protocol_failure.ok);
+    assert!(!protocol_failure.content.contains("PRIVATE_SERVER_ERROR"));
     fixture.mode.store(4, Ordering::SeqCst);
     assert!(registry.refresh("calendar").await.unwrap().tools.len() == 2);
     assert!(registry.call(&search.id, &json!({}), &cancel).await.ok);
@@ -125,7 +130,10 @@ async fn stopping_an_inflight_mcp_read_requests_cancellation_without_retrying() 
         .any(|r| r["method"] == "notifications/cancelled"));
 }
 
+mod actions;
 mod managed;
+mod results;
+mod village;
 
 #[tokio::test]
 async fn checkpoint_readiness_requires_the_selected_manifest_and_a_rebuildable_inner_host() {

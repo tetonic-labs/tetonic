@@ -1,0 +1,43 @@
+/* Shared palette controls retained from the earlier workspace experiment. */
+html[data-palette='shrigley'] {
+  --brand-field: #f4ce28;
+  --brand-ink: #25231c;
+  --color-accent: #2546af;
+  --color-accent-hover: #19327e;
+  --bg-ground: #f7f4e4;
+  --bg-surface: #fffdf5;
+  --surface-ink: #25231c;
+}
+html[data-palette='warhol'] {
+  --brand-field: #ef6aad;
+  --brand-ink: #262039;
+  --color-accent: #006d7a;
+  --color-accent-hover: #004c56;
+  --bg-ground: #eaf2ec;
+  --bg-surface: #f7fbf6;
+  --surface-ink: #19393b;
+}
+html[data-palette='electric'] {
+  --brand-field: #ffd166;
+  --brand-ink: #261e38;
+  --color-accent: #b53565;
+  --color-accent-hover: #88234b;
+  --bg-ground: #f5eff7;
+  --bg-surface: #fdf9ff;
+  --surface-ink: #291e3b;
+}
+html[data-palette='coral'] {
+  --brand-field: #f26444;
+  --brand-ink: #282821;
+  --color-accent: #2546af;
+  --color-accent-hover: #19327e;
+  --bg-ground: #f7efe2;
+  --bg-surface: #fffaf1;
+  --surface-ink: #303043;
+}
+html.dark[data-palette]:not([data-palette='custom']) {
+  --bg-ground: #1d211c;
+  --bg-surface: #282d25;
+  --color-accent: var(--brand-field);
+  --color-accent-hover: var(--on-ink);
+}

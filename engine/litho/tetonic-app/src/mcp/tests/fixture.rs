@@ -96,17 +96,26 @@ async fn serve(
     if mode == 3 && method == "tools/call" {
         tokio::time::sleep(std::time::Duration::from_secs(2)).await;
     }
+    if mode == 11 && method == "tools/call" {
+        // The remote action may already have happened; drop its response.
+        return;
+    }
     let result = match method {
         "initialize" => {
             json!({"protocolVersion":VERSION,"capabilities":{"tools":{}},"serverInfo":{"name":"fixture","version":"1"}})
         }
         "tools/list" => json!({"tools":[
-            {"name":"search","description":if mode==1 {"changed"} else {"Search calendar availability"},"inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]},"annotations":{"readOnlyHint":true}},
+            {"name":"search","description":if mode==1 {"changed"} else {"Search calendar availability"},"inputSchema":{"type":"object","properties":{"query":{"type":"string"}},"required":["query"]},"annotations":{"readOnlyHint":mode!=9}},
             {"name":"lookup","description":"Read a named calendar","inputSchema":{"type":"object"},"annotations":{"readOnlyHint":true}},
-            {"name":"delete_event","inputSchema":{"type":"object"},"annotations":{"readOnlyHint":false}}
+            {"name":"delete_event","description":if mode==10 {"Changed delete"} else {"Delete event"},"inputSchema":{"type":"object"},"annotations":{"readOnlyHint":false}},
+            {"name":"unannotated","inputSchema":{"type":"object"}},
+            {"name":"background_only","inputSchema":{"type":"object"},"execution":{"taskSupport":"required"}}
         ]}),
         "tools/call" if mode == 2 => {
-            json!({"isError":true,"content":[{"type":"text","text":"PRIVATE_SERVER_ERROR"}]})
+            json!({"isError":true,"content":[{"type":"text","text":"Target is not adjacent; navigate to it before interacting."}],"structuredContent":{"success":false,"reason":"not_adjacent"}})
+        }
+        "tools/call" if body["params"]["name"] == "delete_event" => {
+            json!({"content":[{"type":"text","text":"Event deleted"}],"structuredContent":{"deleted":true}})
         }
         "tools/call" => {
             json!({"content":[{"type":"text","text":"Tuesday 10:00 is available"}],"structuredContent":{"available":true}})
@@ -116,7 +125,11 @@ async fn serve(
     let (status, mime, text) = if method.starts_with("notifications/") {
         (202, "application/json", String::new())
     } else {
-        let response = json!({"jsonrpc":"2.0","id":if mode==5 {json!(999)} else {body["id"].clone()},"result":result});
+        let response = if mode == 12 && method == "tools/call" {
+            json!({"jsonrpc":"2.0","id":body["id"],"error":{"code":-32603,"message":"PRIVATE_SERVER_ERROR"}})
+        } else {
+            json!({"jsonrpc":"2.0","id":if mode==5 {json!(999)} else {body["id"].clone()},"result":result})
+        };
         if mode == 4 {
             (
                 200,

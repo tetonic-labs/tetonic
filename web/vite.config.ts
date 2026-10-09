@@ -1,4 +1,5 @@
-import { defineConfig } from 'vite';
+import { defineConfig, transformWithEsbuild } from 'vite';
+import { readFileSync } from 'node:fs';
 import react from '@vitejs/plugin-react';
 import path from 'path';
 import { checkArchitecture, formatFindings } from './architecture.mjs';
@@ -6,6 +7,32 @@ import { checkArchitecture, formatFindings } from './architecture.mjs';
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
+    {
+      name: 'saved-appearance-before-paint',
+      async transformIndexHtml() {
+        // Compile the same small, import-free module used by the picker. A normal
+        // head script runs before the static boot screen, React or engine requests.
+        const source = readFileSync(path.resolve(__dirname, 'src/lib/appearance.ts'), 'utf8');
+        const { code } = await transformWithEsbuild(
+          `${source}\nrestoreSavedAppearance();`,
+          'appearance.ts',
+          { format: 'iife', minify: true },
+        );
+        return [
+          {
+            tag: 'style',
+            children: readFileSync(path.resolve(__dirname, 'src/palette-tokens.css'), 'utf8'),
+            injectTo: 'head-prepend' as const,
+          },
+          {
+            tag: 'script',
+            attrs: { 'data-tetonic-appearance': '' },
+            children: code,
+            injectTo: 'head-prepend' as const,
+          },
+        ];
+      },
+    },
     react(),
     {
       name: 'workspace-production-boundary',

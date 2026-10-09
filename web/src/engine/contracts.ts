@@ -178,8 +178,8 @@ export interface EngineTask {
 
 export interface GuideActivity {
   id: string;
-  operation: 'resources' | 'work' | 'inspect' | 'propose';
-  state: 'requested' | 'completed' | 'failed' | 'unconfirmed' | 'interrupted';
+  operation: 'resources' | 'work' | 'inspect' | 'propose' | 'repair';
+  state: 'requested' | 'completed' | 'failed' | 'unconfirmed' | 'interrupted' | 'repair_needed' | 'repair_failed';
 }
 
 export interface EngineWorkspace {
@@ -283,6 +283,9 @@ export interface AgentCatalog {
 
 export interface McpTool {
   approved?: boolean;
+  read_only?: boolean;
+  destructive?: boolean;
+  idempotent?: boolean;
   id: string;
   name: string;
   description: string;
@@ -385,7 +388,17 @@ export type AutonomyTier = 'automatic' | 'review_changes' | 'read_only';
 export interface CapabilityPolicy {
   tier: AutonomyTier;
   overrides: Partial<Record<Capability, CapabilityDecision>>;
+  communication?: { mode: 'assigned_work' | 'blocked' } | { mode: 'selected_agents'; agent_ids: string[] };
 }
+export interface BlackboardPeer { agent_id: string; name: string; work_id: string }
+export interface BlackboardReaction { emoji: '👍' | '❤️' | '👀' | '🎉' | '💡' | '🙏' | '🤔' | '✅'; agents: BlackboardPeer[] }
+export interface BlackboardMessage { id: string; author: BlackboardPeer; body: string; created_at: string; reply_to: string | null; reactions?: BlackboardReaction[] }
+export interface BlackboardThread {
+  id: string; source_work_id: string; root_work_id: string; title: string;
+  kind: 'finding' | 'question' | 'handoff'; audience: BlackboardPeer[];
+  resolved: boolean; messages: BlackboardMessage[]; reply_count: number; updated_at: string;
+}
+export interface BlackboardPage { threads: BlackboardThread[]; has_more: boolean }
 export interface ScopedCapabilityPolicy {
   scope: 'workspace' | 'team' | 'agent';
   scope_id: string;
