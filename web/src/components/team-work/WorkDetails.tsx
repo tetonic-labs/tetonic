@@ -1,7 +1,7 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { taskIsActive } from '../../lib/localEngine';
-import { stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
+import { taskIsActive } from '../../engine/projections/taskState';
+import { stateLabel, type WorkRecord } from '../../engine/projections/records';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { WorkComposer } from './WorkComposer';
 import { WorkUsageSummary } from './UsagePanel';

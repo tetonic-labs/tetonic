@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { LocalEngine, type EngineWorkspace, type WorkUsage } from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type EngineWorkspace, type WorkUsage } from '../src/engine/contracts';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { UsagePanel } from '../src/components/team-work/UsagePanel';
 

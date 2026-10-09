@@ -3,12 +3,8 @@ import { fireEvent, render, screen, waitFor, within } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { McpConnectionEditor } from '../src/components/views/McpConnectionEditor';
 import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
-import {
-  LocalEngine,
-  type AgentCatalog,
-  type EngineAgent,
-  type McpConnection,
-} from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type AgentCatalog, type EngineAgent, type McpConnection } from '../src/engine/contracts';
 
 afterEach(() => vi.restoreAllMocks());
 const read = {

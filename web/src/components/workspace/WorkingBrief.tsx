@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { connectionDraftScope, EngineRequestError, type WorkBrief } from '../../lib/localEngine';
+import { connectionDraftScope } from '../../engine/connection';
+import { EngineRequestError } from '../../engine/failure';
+import { type WorkBrief } from '../../engine/contracts';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 
 type Save = { request_id: string; expected_revision: number; body: string };

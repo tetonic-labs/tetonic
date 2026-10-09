@@ -1,71 +1,70 @@
 # Tetonic Engine
 
-Rust workspace powering the Tetonic platform, the Lokai coding assistant, and the Mantle fleet orchestrator: universal execution loop, modular capabilities, durable run supervision, local and remote compute, and developer coding tools.
+The Rust workspace behind Tetonic's connected team workspace. It has 28 packages,
+one current `tetonic` CLI, application services, managed execution, provider and
+tool integration, and durable local state. Start with the
+[current architecture](../docs/architecture/README.md) and
+[ownership map](../docs/architecture/ownership.md) before adding a subsystem.
 
----
+## Entry points and execution
 
-## The Five Earth Layers Architecture
+[`tetonic-cli`](litho/tetonic-cli/src/main.rs) exposes `ui`, `job`, `control` and
+`estate`. `ui` hosts the authenticated local API; `job` runs registered work;
+`control` operates control resources; `estate` handles worker enrollment and
+capacity. Retired daemon, TUI, fleet API and editor RPC entry points are not the
+product interface. See the [retirement record](../docs/epics/v5-reconciliation/retirement.md).
 
-The engine is organized into 5 strict architectural layers plus verification tooling:
-
-```text
-engine/
-├── Cargo.toml          # Workspace root
-├── litho/              # Human workbenches, CLI, TUI, daemon, and coding tools
-├── mantle/             # Fleet orchestration, run supervision, broker, and node coordination
-├── core/               # Systems kernel, sandbox, transactional staging, secrets, and policy
-├── strata/             # Durable memory, artifacts, knowledge index, and context recall
-├── atmos/              # Inference providers, network egress guard, RPC, and fabric networking
-└── tooling/            # Architecture gates, benchmarks, and behavioral evaluations
+```mermaid
+flowchart LR
+    Entry["tetonic ui / job / control"] --> App["tetonic-app: scoped services and composition"]
+    App --> Run["tetonic-run: managed admission, attempts and outcomes"]
+    Run --> Loop["runtime + core: authorized model/action loop"]
+    Loop --> Effects["Granted tools, MCP, sandbox and transactions"]
+    Loop --> Infer["Broker, provider adapters and controlled egress"]
+    App --> Store["tetonic-memory: authoritative durable records"]
+    Run --> Store
 ```
 
----
+Application work coordination and registered agent composition reuse the managed
+run path. The inference broker places model requests; it does not decide project
+assignments. A configured harness and saved agent preferences still require
+current grants and host limits. Telemetry and UI projections are not execution
+authorities. Read [execution boundaries](../docs/architecture/execution-boundaries.md)
+for the lower-level owners and enforcement points.
 
-## Layer Packages
+## Package groups
 
-| Layer | Packages | Primary Responsibility |
-|---|---|---|
-| **Litho** (`litho/`) | `tetonic-cli`, `lokai-app`, `tetonicd`, `lokai-lsp`, `lokai-tools` | Terminal user interface, REPL, application service host, JSON-RPC daemon, LSP client, and coding tool execution. |
-| **Mantle** (`mantle/`) | `lokai-run`, `lokai-orchestrator`, `lokai-broker`, `lokai-node`, `lokai-enroll`, `lokai-capacity` | Attempt lifecycle state machines, multi-agent coordination, compute scheduling, remote worker fabric, and hardware capacity detection. |
-| **Core** (`core/`) | `lokai-core`, `lokai-runtime`, `lokai-sandbox`, `lokai-transaction`, `lokai-secrets`, `lokai-domain`, `lokai-policy`, `lokai-telemetry` | Neutral agent execution loop, OS process sandboxing, atomic file staging and rollback, secret scanning, domain primitives, and audit telemetry. |
-| **Strata** (`strata/`) | `lokai-memory`, `lokai-artifact`, `lokai-context`, `lokai-index` | Durable SQLite storage, content-addressed artifact repository, token-budgeted context assembly, and AST code indexing. |
-| **Atmos** (`atmos/`) | `lokai-inference`, `lokai-egress`, `lokai-rpc`, `lokai-fabric-client`, `lokai-fabric-protocol` | LLM client adapters (Anthropic, OpenAI, Ollama), network egress default-deny enforcement, stdio JSON-RPC framing, and fabric protocol wire types. |
-| **Tooling** (`tooling/`) | `lokai-arch-gate`, `lokai-bench`, `lokai-eval` | Mechanical architecture invariant enforcement, performance benchmarks, and behavioral evaluation suites. |
+The Earth-themed directories are navigation groups, not a strict descending
+stack. Cargo manifests describe dependencies; retained libraries do not imply a
+supported standalone product.
 
----
+| Directory | Responsibility |
+|---|---|
+| [litho](litho/README.md) | Product entry points, application services and concrete tools |
+| [mantle](mantle/README.md) | Managed execution, compute scheduling and inference worker machinery |
+| [core](core/README.md) | Contracts, agent loop, runtime policy and effect foundations |
+| [strata](strata/README.md) | Durable records, scoped context, artifacts and retained indexing |
+| [atmos](atmos/README.md) | Provider and guarded network/fabric transport |
+| [tooling](tooling/README.md) | Architecture/quality checks and benchmarking support |
 
-## End-to-End Execution Flow
+The [complete package inventory](../docs/architecture/ownership.md#package-inventory)
+records all 28 packages. Update it when ownership changes.
 
-The lifecycle of an autonomous turn flows across layers through explicit contracts:
+## Run and verify
 
-1. **Submit**: The user interaction enters via `litho/tetonic-cli` or editor RPC into `litho/lokai-app`.
-2. **Admit**: The run supervisor (`mantle/lokai-run`) admits the attempt, registers an attempt ID, and manages lifecycle tracking.
-3. **Assemble**: The runtime builder (`core/lokai-runtime`) constructs the agent execution bundle with the required tools, system prompts, and policies.
-4. **Loop**: The agent kernel (`core/lokai-core`) executes the turn step-by-step, streaming thoughts and evaluating tool proposals.
-5. **Compute**: Model completions are processed through `atmos/lokai-inference` under egress validation (`atmos/lokai-egress`).
-6. **Execute**: File modifications and command executions pass through `core/lokai-transaction` and `core/lokai-sandbox`.
-7. **Persist**: Memory, events, and artifacts are committed to `strata/lokai-memory` and `strata/lokai-artifact`.
-8. **Finalize**: The attempt transitions to completed, events are dispatched back to the UI in `litho`, and transaction changes are committed or rolled back.
+Follow the [local product setup](../README.md#try-the-local-preview).
+[Host configuration](../docs/architecture/host-configuration.md) documents storage,
+logging and diagnostics. The local product uses one execution owner per SQLite
+database; inference worker support is not replicated agent execution or Keeper.
 
----
+From this directory:
 
-## Common Verification Commands
-
-From `engine/`:
-
-```bash
-# Package verification gate (formatting, clippy, and architectural invariants)
-cargo run -p lokai-arch-gate -- verify package
-
-# Fast check on a specific package
-cargo run -p lokai-arch-gate -- verify fast --crate lokai-core
-
-# Full architecture gate (includes workspace unit tests)
-cargo run -p lokai-arch-gate -- verify full
-
-# Run workspace unit tests
-cargo test --workspace
-
-# Non-coding consumer proof
-python scripts/verify_layout_consumer.py
+```sh
+cargo test -p tetonic-app --lib
+cargo run -p tetonic-arch-gate -- verify package
 ```
+
+For focused iteration use `verify fast --crate tetonic-app`. For a broader check,
+`verify full` adds workspace tests. See [contributing](../CONTRIBUTING.md) for
+behavior-test selection and [quality policy](../docs/engineering/QUALITY-GATE.md)
+for what a passing gate does and does not establish.

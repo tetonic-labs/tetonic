@@ -1,11 +1,19 @@
-# Atmos Layer (`engine/atmos/`)
+# Atmos
 
-## Purpose
-The **Atmos** layer serves as the external gateway and distributed network mesh. It mediates all outbound and inbound communication, including multi-provider inference gateways, peer-to-peer fabric networking, RPC wire protocols, and security egress guardrails.
+Provider adapters, authorized egress and inference fabric transport.
 
-## Packages
-- [`lokai-inference`](./lokai-inference): Unified inference adapter supporting local backends (Ollama, vLLM) and cloud APIs (OpenAI, Anthropic).
-- [`lokai-egress`](./lokai-egress): Strict network proxy and egress policy firewall preventing unauthorized network traffic.
-- [`lokai-rpc`](./lokai-rpc): Transport schemas, message serialization, and RPC client/server bindings.
-- [`lokai-fabric-client`](./lokai-fabric-client): Coordinator and client logic for participating in the distributed fabric compute network.
-- [`lokai-fabric-protocol`](./lokai-fabric-protocol): Transport-neutral wire specifications, envelope schemas, and signed result protocols.
+| Package | Current responsibility |
+|---|---|
+| [tetonic-inference](tetonic-inference/) | Provider adapters, model transport and pooling |
+| [tetonic-egress](tetonic-egress/) | Outbound transport authorization and guard |
+| [tetonic-fabric-client](tetonic-fabric-client/) | Client transport for enrolled compute targets |
+| [tetonic-fabric-protocol](tetonic-fabric-protocol/) | Fabric messages and delivery contracts |
+
+This is a package group, not an independently deployable service or a strict
+layering rule. Use the [current ownership map](../../docs/architecture/ownership.md)
+and Cargo manifests for dependencies and change routing. A retained library is
+not automatically exposed in the connected product.
+
+Provider selection does not grant tool or network access. Retain controlled
+egress and secret handling when adding transport. The retired editor RPC package
+is not part of this group or a supported product entry point.

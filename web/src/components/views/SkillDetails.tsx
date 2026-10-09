@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { LocalEngine, WorkspaceSkill } from '../../lib/localEngine';
+import { type LocalEngine } from '../../engine/client';
+import { type WorkspaceSkill } from '../../engine/contracts';
 
 export function SkillDetails({
   skill,

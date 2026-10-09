@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import type { EngineTask, LocalApproval } from '../../lib/localEngine';
+import { type EngineTask, type LocalApproval } from '../../engine/contracts';
 import { Decision } from './Decision';
 
 /** Same engine requests in the inbox and work. Receipts here are presentation only. */

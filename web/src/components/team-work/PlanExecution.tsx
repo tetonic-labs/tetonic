@@ -1,13 +1,10 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import {
-  connectionDraftScope,
-  waitingAfterAnswer,
-  EngineRequestError,
-  type PlanView,
-  type StartPlanRequest,
-} from '../../lib/localEngine';
-import { stateLabels } from '../../lib/workspaceRecords';
+import { connectionDraftScope } from '../../engine/connection';
+import { waitingAfterAnswer } from '../../engine/projections/taskState';
+import { EngineRequestError } from '../../engine/failure';
+import { type PlanView, type StartPlanRequest } from '../../engine/contracts';
+import { stateLabels } from '../../engine/projections/records';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { HumanQuestion } from './HumanQuestion';
 import { PlanDirectionEditor } from './PlanDirectionEditor';

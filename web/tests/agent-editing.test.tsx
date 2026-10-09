@@ -1,7 +1,8 @@
 import { afterEach, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
-import { LocalEngine, type EngineAgent } from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type EngineAgent } from '../src/engine/contracts';
 
 const existing: EngineAgent = {
   key: 'researcher',

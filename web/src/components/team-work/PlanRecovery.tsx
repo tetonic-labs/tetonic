@@ -1,11 +1,8 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import {
-  connectionDraftScope,
-  EngineRequestError,
-  type ContinuePlanRequest,
-  type PlanView,
-} from '../../lib/localEngine';
+import { connectionDraftScope } from '../../engine/connection';
+import { EngineRequestError } from '../../engine/failure';
+import { type ContinuePlanRequest, type PlanView } from '../../engine/contracts';
 
 /** Preparing a continuation saves a proposal; only the existing start control runs it. */
 export function PlanRecovery({ workId, view }: { workId: string; view: PlanView }) {

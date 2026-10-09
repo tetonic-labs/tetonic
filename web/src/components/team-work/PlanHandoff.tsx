@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { toolDescription } from '../../lib/agentCapabilities';
-import type { PlanContent, PlanView } from '../../lib/localEngine';
+import { type PlanContent, type PlanView } from '../../engine/contracts';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 
 /** Presents the agent's saved proposal. It never chooses work or grants access. */

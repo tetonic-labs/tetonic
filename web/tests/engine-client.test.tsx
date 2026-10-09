@@ -1,7 +1,9 @@
 import { afterEach, it, expect, vi } from 'vitest';
 import { waitFor, render, fireEvent, screen } from '@testing-library/react';
 import { App } from '../src/App';
-import { EngineRequestError, LocalEngine, takeConnectionToken } from '../src/lib/localEngine';
+import { EngineRequestError } from '../src/engine/failure';
+import { LocalEngine } from '../src/engine/client';
+import { takeConnectionToken } from '../src/engine/connection';
 const base = { tasks: [] };
 afterEach(() => {
   vi.unstubAllGlobals();

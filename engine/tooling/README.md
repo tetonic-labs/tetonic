@@ -1,9 +1,18 @@
-# Tooling Layer (`engine/tooling/`)
+# Tooling
 
-## Purpose
-The **Tooling** layer provides developer tooling, architecture enforcement gates, quality linters, benchmark suites, and model evaluation harnesses.
+Development checks and retained benchmark support.
 
-## Packages
-- [`lokai-arch-gate`](./lokai-arch-gate): Automated architecture invariant verification, size limit audits (`ARCH-SIZE-001`), and formatting gates.
-- [`lokai-eval`](./lokai-eval): Automated evaluation suite testing model capabilities, tool usage, and security defenses.
-- [`lokai-bench`](./lokai-bench): Micro-benchmarks for CPU-intensive runtime paths.
+| Package | Current responsibility |
+|---|---|
+| [tetonic-arch-gate](tetonic-arch-gate/) | Engineering gate and static architecture/quality checks |
+| [tetonic-bench](tetonic-bench/) | Retained benchmarking support |
+
+This is a package group, not an independently deployable service or a strict
+layering rule. Use the [current ownership map](../../docs/architecture/ownership.md)
+and Cargo manifests for dependencies and change routing. A retained library is
+not automatically exposed in the connected product.
+
+Use `cargo run -p tetonic-arch-gate -- verify package` from `engine/` and choose
+behavior tests for the affected owner. The retired eval binary is not a current
+verification command. Read [quality policy](../../docs/engineering/QUALITY-GATE.md)
+for check scope and known limits.

@@ -1,5 +1,9 @@
 # MVP Specification: Tetonic Live Agent Engine for "The Village"
 
+> **Historical experiment specification.** This is the earlier Village scope,
+> not the current Tetonic product MVP. Use the [current architecture](README.md)
+> and [retirement record](../epics/v5-reconciliation/retirement.md) for supported paths.
+
 > Scoping, integration contracts, and architecture for the Minimum Viable Product (MVP) powering *The Village* sandbox application.
 
 ---

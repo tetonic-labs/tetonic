@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, ChevronRight, Layers, Settings2, X } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { connectionDraftScope } from '../../lib/localEngine';
-import { teamWorkspace } from '../../lib/teamWorkspace';
+import { connectionDraftScope } from '../../engine/connection';
+import { teamWorkspace } from '../../engine/projections/workspace';
 import { attentionItems } from '../../lib/attentionItems';
 import {
   projectWorkContext,

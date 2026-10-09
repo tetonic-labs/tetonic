@@ -1,4 +1,5 @@
-import { readEngineFailure } from './engineFailure';
+// Local API v1 wire declarations. Server authority lives in tetonic-app; these
+// types describe responses and requests, not runtime validation or UI state.
 
 export interface WorkBrief {
   work_id: string;
@@ -7,6 +8,7 @@ export interface WorkBrief {
   request_id: string;
   created_by: string;
 }
+
 export interface PlanAssignment {
   key: string;
   title: string;
@@ -17,6 +19,7 @@ export interface PlanAssignment {
   deliverable: string;
   token_budget: number;
 }
+
 export interface PlanContent {
   title: string;
   summary: string;
@@ -24,6 +27,7 @@ export interface PlanContent {
   open_questions: string[];
   assignments: PlanAssignment[];
 }
+
 export interface HuddlePlan {
   work_id: string;
   revision: number;
@@ -36,6 +40,7 @@ export interface HuddlePlan {
   agreed_by: string | null;
   agreement_id: string | null;
 }
+
 export interface PlanExecutionView {
   coordinator?: CoordinationModel | null;
   directions?: PlanDirection[];
@@ -59,6 +64,7 @@ export interface PlanExecutionView {
   assignments: EngineTask[];
   error: string | null;
 }
+
 export interface PlanTaskLink {
   source_work_id: string;
   root_work_id: string;
@@ -66,6 +72,7 @@ export interface PlanTaskLink {
   title: string;
   depends_on: string[];
 }
+
 export interface PlanView {
   continuation_from?: PlanContinuation | null;
   continuation_to?: PlanContinuation | null;
@@ -85,10 +92,12 @@ export interface PlanView {
   readiness: string[];
   execution_available: boolean;
 }
+
 export interface CoordinationModel {
   provider: string;
   model: string;
 }
+
 export interface StartPlanRequest {
   request_id: string;
   revision: number;
@@ -96,10 +105,12 @@ export interface StartPlanRequest {
   hosted_coordination_consent?: boolean;
   reviewed_previous_actions?: boolean;
 }
+
 export interface ContinuePlanRequest {
   request_id: string;
   expected_root_work_id: string;
 }
+
 export interface PlanContinuation {
   source_work_id: string;
   root_work_id: string;
@@ -109,6 +120,7 @@ export interface PlanContinuation {
   review_before_repeat: { work_id: string; title: string }[];
   created_by: string;
 }
+
 export type PlanCommand =
   | {
       action: 'prepare';
@@ -127,11 +139,13 @@ export type PlanCommand =
       content: PlanContent;
     }
   | { action: 'agree'; request_id: string; revision: number };
+
 export interface EngineMessage {
   id: number;
   role: 'assistant' | 'tool';
   content: string;
 }
+
 export type EngineTaskState =
   | 'waiting_human'
   | 'not_started'
@@ -142,6 +156,7 @@ export type EngineTaskState =
   | 'failed'
   | 'completed'
   | 'recovery_required';
+
 export interface EngineTask {
   work_team?: WorkTeam | null;
   human_questions?: WorkHumanQuestion[];
@@ -159,6 +174,7 @@ export interface EngineTask {
   sequence: number;
   messages: EngineMessage[];
 }
+
 export interface EngineWorkspace {
   work_teams?: WorkTeam[];
   usage?: WorkUsage[];
@@ -176,10 +192,12 @@ export interface EngineWorkspace {
   agents: EngineAgent[];
   tasks: EngineTask[];
 }
+
 export interface BudgetSetting {
   revision: number;
   token_limit: number | null;
 }
+
 export interface WorkUsage {
   work_id: string;
   title: string;
@@ -200,6 +218,7 @@ export interface WorkUsage {
   released_tokens: number;
   over_limit: boolean;
 }
+
 export interface EngineAgent {
   definition_digest?: string;
   editable?: boolean;
@@ -225,6 +244,7 @@ export interface EngineAgent {
   max_tokens: number;
   tools?: string[];
 }
+
 export interface WorkspaceSkill {
   id: string;
   name: string;
@@ -233,6 +253,7 @@ export interface WorkspaceSkill {
   enabled: boolean;
   created_at: string;
 }
+
 export interface AgentCatalog {
   mcp_management?: boolean;
   skills?: WorkspaceSkill[];
@@ -248,6 +269,7 @@ export interface AgentCatalog {
   max_seconds: number;
   max_tokens: number;
 }
+
 export interface McpTool {
   approved?: boolean;
   id: string;
@@ -255,6 +277,7 @@ export interface McpTool {
   description: string;
   input_schema: Record<string, unknown>;
 }
+
 export interface McpConnection {
   id: string;
   name: string;
@@ -267,6 +290,7 @@ export interface McpConnection {
   message: string;
   tools: McpTool[];
 }
+
 export interface AgentRuntimeProfile {
   requires_tool_consent?: boolean;
   provider: string;
@@ -274,11 +298,13 @@ export interface AgentRuntimeProfile {
   tools: string[];
   tool_restriction: string | null;
 }
+
 export interface EngineProvider {
   id: string;
   name: string;
   key_saved: boolean;
 }
+
 export interface ProviderModelCatalog {
   provider: string;
   models: string[];
@@ -286,32 +312,13 @@ export interface ProviderModelCatalog {
   fetched_at?: string;
   capabilities_verified: boolean;
 }
+
 export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key'> & {
   request_id: string;
   tools?: string[];
   hosted_tools_consent?: boolean;
   expected_workspace_root?: string;
 };
-export const engineStates: Record<EngineTaskState, string> = {
-  waiting_human: 'Needs your input',
-  not_started: 'Not started',
-  starting: 'Starting',
-  running: 'Working',
-  canceling: 'Stopping',
-  canceled: 'Stopped',
-  failed: 'Failed',
-  completed: 'Completed',
-  recovery_required: 'Interrupted · needs review',
-};
-export const taskIsActive = (task: EngineTask) =>
-  ['starting', 'running', 'waiting_human', 'canceling'].includes(task.state);
-
-// A saved answer and resumed execution can arrive in separate snapshots.
-// This is a presentation distinction, never permission to restart the work.
-export const waitingAfterAnswer = (task: EngineTask) =>
-  task.state === 'waiting_human' &&
-  !!task.human_questions?.length &&
-  task.human_questions.every((question) => question.answer !== null);
 
 export interface WorkHumanQuestion {
   id: string;
@@ -323,17 +330,20 @@ export interface WorkHumanQuestion {
   answer: string | null;
   response_id: string | null;
 }
+
 export interface AnswerPlanQuestion {
   request_id: string;
   question_id: string;
   answer: string;
 }
+
 export interface AmendPlanAssignment {
   request_id: string;
   expected_revision: number;
   assignment_key: string;
   instructions: string;
 }
+
 export interface PlanDirection {
   revision: number;
   request_id: string;
@@ -342,254 +352,6 @@ export interface PlanDirection {
   affected_work_ids: string[];
   retained_work_ids: string[];
   actor: string;
-}
-
-const tokenKey = 'tetonic_local_session';
-const scopeKey = 'tetonic_draft_session';
-export function connectionDraftScope() {
-  try {
-    let scope = sessionStorage.getItem(scopeKey);
-    if (!scope) {
-      scope = crypto.randomUUID();
-      sessionStorage.setItem(scopeKey, scope);
-    }
-    return scope;
-  } catch {
-    return 'this-tab';
-  }
-}
-export function takeConnectionToken() {
-  const fragment = new URLSearchParams(window.location.hash.slice(1));
-  const supplied = fragment.get('connect');
-  if (supplied) {
-    // Remove the credential from the visible URL before issuing requests.
-    window.history.replaceState(null, '', window.location.pathname + window.location.search);
-    if (!/^[a-f0-9]{64}$/.test(supplied)) return '';
-    try {
-      if (sessionStorage.getItem(tokenKey) !== supplied)
-        sessionStorage.setItem(scopeKey, crypto.randomUUID());
-      sessionStorage.setItem(tokenKey, supplied);
-    } catch {
-      /* This tab can still connect. */
-    }
-    return supplied;
-  }
-  try {
-    return sessionStorage.getItem(tokenKey) || '';
-  } catch {
-    return '';
-  }
-}
-
-export class EngineRequestError extends Error {
-  constructor(
-    message: string,
-    public status: number,
-    public code?: string,
-    public recovery?: string,
-    public recoveryHint?: string,
-  ) {
-    super(message);
-  }
-}
-
-export class LocalEngine {
-  constructor(private token: string) {}
-  async request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-    if (!this.token) throw new Error('Open the connection link printed by the local engine.');
-    const deadline = new AbortController();
-    const abort = () => deadline.abort();
-    signal?.addEventListener('abort', abort, { once: true });
-    if (signal?.aborted) abort();
-    const timer = setTimeout(abort, body === undefined ? 10000 : 30000);
-    try {
-      const response = await fetch(`/api/local${path}`, {
-        method: body === undefined ? 'GET' : 'POST',
-        headers: {
-          Authorization: `Bearer ${this.token}`,
-          'X-Tetonic-Api-Version': '1',
-          ...(body === undefined ? {} : { 'Content-Type': 'application/json' }),
-        },
-        body: body === undefined ? undefined : JSON.stringify(body),
-        signal: deadline.signal,
-      });
-      let value: unknown;
-      try {
-        value = await response.json();
-      } catch {
-        throw new Error('The local engine is unavailable. Start it and reconnect.');
-      }
-      const version = response.headers?.get('x-tetonic-api-version');
-      if (version && version !== '1')
-        throw new Error(
-          'The engine and this app use different API versions. Update the app and reconnect.',
-        );
-      if (!response.ok) {
-        const failure = readEngineFailure(value);
-        throw new EngineRequestError(
-          failure.message,
-          response.status,
-          failure.code,
-          failure.recovery,
-          failure.recoveryHint,
-        );
-      }
-      return value as T;
-    } finally {
-      clearTimeout(timer);
-      signal?.removeEventListener('abort', abort);
-    }
-  }
-  snapshot(signal?: AbortSignal) {
-    return this.request<EngineWorkspace>('/workspace', undefined, signal);
-  }
-  setBudgetSetting(input: {
-    request_id: string;
-    expected_revision: number;
-    token_limit: number | null;
-  }) {
-    return this.request<BudgetSetting>('/budget-settings', input);
-  }
-  agentCatalog(signal?: AbortSignal) {
-    return this.request<AgentCatalog>('/agent-catalog', undefined, signal);
-  }
-  importSkill(input: { content: string; source: string }) {
-    return this.request<WorkspaceSkill>('/skills', input);
-  }
-  revokeSkill(id: string) {
-    return this.request<WorkspaceSkill[]>('/skills/revoke', { id });
-  }
-  skillContent(id: string, signal?: AbortSignal) {
-    return this.request<{ content: string }>(
-      `/skills/${encodeURIComponent(id)}`,
-      undefined,
-      signal,
-    );
-  }
-  discoverMcp(id: string) {
-    return this.request<McpConnection>(`/mcp-discover/${encodeURIComponent(id)}`, {});
-  }
-  saveMcpConnection(input: {
-    id: string;
-    expected_revision: number;
-    name: string;
-    endpoint: string;
-    auth: 'none' | 'bearer';
-    token?: string;
-    enabled: boolean;
-    approved_tools?: string[];
-  }) {
-    return this.request<McpConnection>('/mcp-connections', input);
-  }
-  providerModels(provider: string, signal?: AbortSignal) {
-    return this.request<ProviderModelCatalog>(
-      `/provider-models/${encodeURIComponent(provider)}`,
-      undefined,
-      signal,
-    );
-  }
-  createAgent(input: CreateEngineAgent) {
-    return this.request<EngineAgent>('/agents', input);
-  }
-  updateAgent(agent: EngineAgent, configuration: CreateEngineAgent) {
-    return this.request<EngineAgent>('/agents/update', {
-      agent_key: agent.key,
-      expected_definition_digest: agent.definition_digest,
-      configuration,
-    });
-  }
-  saveProviderKey(provider: string, api_key: string) {
-    return this.request<EngineProvider>('/provider-key', { provider, api_key });
-  }
-  removeProviderKey(provider: string) {
-    return this.request<EngineProvider>('/provider-key/remove', { provider });
-  }
-  submit(
-    request_id: string,
-    input: string,
-    agent_key: string,
-    parent_id?: string,
-    purpose?: 'work' | 'explore',
-    work_team?: WorkTeamSelection,
-  ) {
-    return this.request<EngineTask>('/tasks', {
-      request_id,
-      input,
-      agent_key,
-      ...(parent_id ? { parent_id } : {}),
-      ...(purpose ? { purpose } : {}),
-      ...(work_team ? { work_team } : {}),
-    });
-  }
-  saveWorkTeam(request: SaveWorkTeam) {
-    return this.request<WorkTeam>('/work-teams', request);
-  }
-  briefs(id: string, signal?: AbortSignal) {
-    return this.request<WorkBrief[]>(`/briefs/${encodeURIComponent(id)}`, undefined, signal);
-  }
-  startPlan(id: string, request: StartPlanRequest) {
-    return this.request<PlanExecutionView>(`/plans/${encodeURIComponent(id)}/start`, request);
-  }
-  continuePlan(id: string, request: ContinuePlanRequest) {
-    return this.request<PlanContinuation>(`/plans/${encodeURIComponent(id)}/continue`, request);
-  }
-  answerPlanQuestion(id: string, request: AnswerPlanQuestion) {
-    return this.request<WorkHumanQuestion>(`/tasks/${encodeURIComponent(id)}/answer`, request);
-  }
-  amendPlanAssignment(id: string, request: AmendPlanAssignment) {
-    return this.request<PlanDirection>(`/plans/${encodeURIComponent(id)}/direction`, request);
-  }
-  plan(id: string, signal?: AbortSignal) {
-    return this.request<PlanView>(`/plans/${encodeURIComponent(id)}`, undefined, signal);
-  }
-  updatePlan(id: string, command: PlanCommand) {
-    return this.request<HuddlePlan>(`/plans/${encodeURIComponent(id)}`, command);
-  }
-  saveBrief(id: string, request: { request_id: string; expected_revision: number; body: string }) {
-    return this.request<WorkBrief>(`/briefs/${encodeURIComponent(id)}`, request);
-  }
-  cancel(id: string) {
-    return this.request<EngineTask>(`/tasks/${encodeURIComponent(id)}/cancel`, {});
-  }
-  workItems(signal?: AbortSignal) {
-    return this.request<LocalWorkItem[]>('/work-items', undefined, signal);
-  }
-  createWorkItem(item: {
-    id: string;
-    title: string;
-    goal_id?: string;
-    agent_key?: string;
-    lead_id?: string;
-    agent_ids?: string[];
-  }) {
-    return this.request<LocalWorkItem>('/work-items', item);
-  }
-  patchWorkItem(
-    id: string,
-    patch: {
-      notes?: string[];
-      status?: string;
-      lead_id?: string;
-      agent_ids?: string[];
-    },
-  ) {
-    return this.request<{ ok: boolean }>(`/work-items/${encodeURIComponent(id)}`, patch);
-  }
-  approvals(signal?: AbortSignal) {
-    return this.request<LocalApprovalsInspection>('/approvals', undefined, signal);
-  }
-  resolveApproval(approval_id: string, allow: boolean, proposal_digest: string) {
-    return this.request<LocalApproval>(`/approvals/${encodeURIComponent(approval_id)}/resolve`, {
-      allow,
-      proposal_digest,
-    });
-  }
-  teams(signal?: AbortSignal) {
-    return this.request<LocalTeamInfo[]>('/teams', undefined, signal);
-  }
-  digest(signal?: AbortSignal) {
-    return this.request<LocalDigestResponse>('/digest', {}, signal);
-  }
 }
 
 export interface LocalWorkItem {
@@ -646,11 +408,13 @@ export interface WorkTeamSelection {
   id: string;
   revision: number;
 }
+
 export interface WorkTeam extends WorkTeamSelection {
   name: string;
   purpose: string;
   agent_keys: string[];
 }
+
 export interface SaveWorkTeam {
   id: string;
   request_id: string;

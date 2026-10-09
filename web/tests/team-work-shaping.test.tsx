@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
-import { LocalEngine, type EngineTask, type EngineWorkspace } from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type EngineTask, type EngineWorkspace } from '../src/engine/contracts';
 
 const guide = {
   key: 'configured-guide',

@@ -1,4 +1,4 @@
-import type { WorkspaceSkill } from '../../lib/localEngine';
+import { type WorkspaceSkill } from '../../engine/contracts';
 
 export function AgentSkills({
   skills,

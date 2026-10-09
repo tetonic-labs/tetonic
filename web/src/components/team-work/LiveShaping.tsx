@@ -1,13 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { ArrowUp, Square } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import {
-  connectionDraftScope,
-  taskIsActive,
-  type EngineTask,
-  type PlanView,
-} from '../../lib/localEngine';
-import { workRecords, stateLabel, stateLabels } from '../../lib/workspaceRecords';
+import { connectionDraftScope } from '../../engine/connection';
+import { taskIsActive } from '../../engine/projections/taskState';
+import { type EngineTask, type PlanView } from '../../engine/contracts';
+import { workRecords, stateLabel, stateLabels } from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { WorkingBrief } from '../workspace/WorkingBrief';
 import { PlanReview } from './PlanReview';

@@ -2,7 +2,7 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LocalEngineProvider, useLocalEngine } from '../src/context/LocalEngineContext';
-import { LocalEngine } from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
 
 afterEach(() => vi.restoreAllMocks());
 

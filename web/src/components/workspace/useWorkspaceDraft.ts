@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { EngineRequestError, type EngineTask, type WorkTeamSelection } from '../../lib/localEngine';
+import { EngineRequestError } from '../../engine/failure';
+import { type EngineTask, type WorkTeamSelection } from '../../engine/contracts';
 
 interface PendingSend {
   id: string;

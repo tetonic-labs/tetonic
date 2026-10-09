@@ -5,12 +5,8 @@ import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
 import { SkillDetails } from '../src/components/views/SkillDetails';
 import { WorkspaceCapabilityLibrary } from '../src/components/views/WorkspaceCapabilityLibrary';
 import { agentSetup } from '../src/lib/agentCapabilities';
-import {
-  LocalEngine,
-  type AgentCatalog,
-  type EngineAgent,
-  type WorkspaceSkill,
-} from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type AgentCatalog, type EngineAgent, type WorkspaceSkill } from '../src/engine/contracts';
 
 afterEach(() => vi.restoreAllMocks());
 const skill: WorkspaceSkill = {

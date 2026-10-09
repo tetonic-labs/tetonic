@@ -5,6 +5,7 @@ pub use checks::*;
 mod freeze;
 mod ids;
 mod p0;
+mod product_boundaries;
 pub mod quality;
 pub mod report;
 pub mod v4_corpus;
@@ -548,17 +549,20 @@ pub fn check_workspace_mutations(root: &Path) -> Vec<Violation> {
         "core/tetonic-transaction/",
         "litho/lokai-tools/src/workspace.rs",
         "litho/lokai-tools/src/mutation.rs",
+        "litho/tetonic-tools/src/workspace.rs",
+        "litho/tetonic-tools/src/mutation.rs",
         "/tests/",
         "_tests.rs",
         "/benches/",
     ];
     let mut out = Vec::new();
-    for path in collect_rs_files(&root.join("litho/lokai-tools/src")) {
+    let tools = resolve_path(root, &["litho/tetonic-tools/src", "litho/lokai-tools/src"]);
+    for path in collect_rs_files(&tools) {
         let rel_path = rel(root, &path);
         if allow.iter().any(|a| rel_path.contains(a)) {
             continue;
         }
-        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let text = freeze::production_text(&std::fs::read_to_string(&path).unwrap_or_default());
         for pat in forbidden {
             if text.contains(pat) {
                 out.push(Violation {
@@ -596,6 +600,7 @@ pub fn check_workspace_mutations(root: &Path) -> Vec<Violation> {
 
 pub fn run_all(root: &Path) -> Vec<Violation> {
     let mut v = Vec::new();
+    v.extend(product_boundaries::check(root));
     v.extend(check_subprocess_spawn(root));
     v.extend(check_reqwest(root));
     v.extend(check_production_runtime(root));

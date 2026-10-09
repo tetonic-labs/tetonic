@@ -118,8 +118,8 @@ pub fn verify(tier: VerifyTier, opts: &VerifyOpts) -> VerifyReport {
                 "QG-TEST-001",
                 &engine,
                 msg,
-                "FULL/CONVERGE requires workspace tests. Eval subsets remain CI jobs (lokai-eval), not this command, unless you run them separately.",
-                "Fix failing tests. For eval: `cargo run -p lokai-eval -- run --subset quality --corpus corpus`.",
+                "Full verification requires workspace tests. Ignored and environment-specific suites need separate execution and evidence.",
+                "Fix the failing package tests, then rerun `cargo test --workspace`. The retired eval binary is not part of this command.",
             ));
         }
     }

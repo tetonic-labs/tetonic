@@ -1,5 +1,9 @@
 # Live Agent & Autonomous Organization Architecture
 
+> **Historical proposal.** This document preserves an earlier standing-agent
+> design; it is not the current implementation contract. Start with the
+> [current architecture](README.md) and [retirement record](../epics/v5-reconciliation/retirement.md).
+
 > Architectural design specification for continuous cognition, dual-process brains, institutional coordination (Mantle), and distributed compute scaling in Tetonic.
 
 ---

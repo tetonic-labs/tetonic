@@ -1,5 +1,9 @@
 # Tetonic World Protocol (TWP) Wire Specification (VIL-101)
 
+> **Historical integration contract.** The standing-agent integration described
+> below is not a supported current entry point. See the
+> [current architecture](README.md) and [retirement record](../epics/v5-reconciliation/retirement.md).
+
 > The official, domain-neutral wire contract for connecting external game engines, physical simulations, robotic systems, and virtual environments to the Tetonic Standing Agent Engine.
 
 ---

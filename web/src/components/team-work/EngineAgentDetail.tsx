@@ -1,8 +1,8 @@
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { engineAgentToUI } from '../../lib/engineAdapters';
+import { engineAgentToUI } from '../../engine/projections/agents';
 import { agentSetup, toolDescription } from '../../lib/agentCapabilities';
-import type { EngineAgent } from '../../lib/localEngine';
-import { stateLabel, type WorkRecord } from '../../lib/workspaceRecords';
+import { type EngineAgent } from '../../engine/contracts';
+import { stateLabel, type WorkRecord } from '../../engine/projections/records';
 import { parentEffortTitle, workSignal } from '../../lib/workSignals';
 import { WorkStatus } from './WorkStatus';
 import { Portrait } from '../ui/Portrait';

@@ -5,14 +5,10 @@ import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
 import { WorkComposer } from '../src/components/team-work/WorkComposer';
 import { EngineAgentDetail } from '../src/components/team-work/EngineAgentDetail';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
-import {
-  LocalEngine,
-  EngineRequestError,
-  type EngineTask,
-  type EngineWorkspace,
-  type PlanView,
-} from '../src/lib/localEngine';
-import { teamWorkspace } from '../src/lib/teamWorkspace';
+import { LocalEngine } from '../src/engine/client';
+import { EngineRequestError } from '../src/engine/failure';
+import { type EngineTask, type EngineWorkspace, type PlanView } from '../src/engine/contracts';
+import { teamWorkspace } from '../src/engine/projections/workspace';
 import { layoutProject } from '../src/lib/projectLayout';
 
 const agent = {

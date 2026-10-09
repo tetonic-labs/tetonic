@@ -4,15 +4,9 @@ import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { PlanReview } from '../src/components/team-work/PlanReview';
 import { PlanExecution } from '../src/components/team-work/PlanExecution';
 import { PlanReadiness } from '../src/components/team-work/PlanHandoff';
-import {
-  LocalEngine,
-  EngineRequestError,
-  type HuddlePlan,
-  type PlanView,
-  type PlanExecutionView,
-  type WorkUsage,
-  type PlanContinuation,
-} from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { EngineRequestError } from '../src/engine/failure';
+import { type HuddlePlan, type PlanView, type PlanExecutionView, type WorkUsage, type PlanContinuation } from '../src/engine/contracts';
 
 const content = {
   title: 'Compare options',

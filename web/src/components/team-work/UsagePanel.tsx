@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import type { WorkUsage } from '../../lib/localEngine';
+import { type WorkUsage } from '../../engine/contracts';
 import './usage.css';
 
 const number = (value: number) => value.toLocaleString();

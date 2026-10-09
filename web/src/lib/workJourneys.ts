@@ -1,4 +1,4 @@
-import type { WorkRecord } from './workspaceRecords';
+import { type WorkRecord } from '../engine/projections/records';
 
 // A launched plan is one human undertaking, with inspectable contributions.
 // Keep the source discussion and children in the underlying records.

@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { Plus, Search } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { agentSetup } from '../../lib/agentCapabilities';
-import { engineAgentToUI } from '../../lib/engineAdapters';
-import type { WorkRecord } from '../../lib/workspaceRecords';
+import { engineAgentToUI } from '../../engine/projections/agents';
+import { type WorkRecord } from '../../engine/projections/records';
 import { Portrait } from '../ui/Portrait';
 import { WorkStatus } from './WorkStatus';
 

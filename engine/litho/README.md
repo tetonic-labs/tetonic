@@ -1,11 +1,19 @@
-# Litho Layer (`engine/litho/`)
+# Litho
 
-## Purpose
-The **Litho** layer contains human workbenches, interfaces, and developer coding tools. It provides user-facing desktop and CLI frontends, the background service host daemon, language server protocol integrations, and execution tool implementations.
+Product interfaces, scoped application services and concrete tool integrations.
 
-## Packages
-- [`tetonic-cli`](./tetonic-cli): Interactive terminal user interface, REPL, and developer command center.
-- [`lokai-app`](./lokai-app): Unified application service layer, workflow orchestrator, and service host.
-- [`tetonicd`](./tetonicd): Headless background daemon serving JSON-RPC APIs for editor extensions and GUI clients.
-- [`lokai-lsp`](./lokai-lsp): Language Server Protocol client communicating with external language servers.
-- [`lokai-tools`](./lokai-tools): Standard tool implementations (file viewing, diffing, patch application, shell execution) bound to sandboxed executors.
+| Package | Current responsibility |
+|---|---|
+| [tetonic-cli](tetonic-cli/) | `tetonic` commands and local HTTP adapter |
+| [tetonic-app](tetonic-app/) | Host composition, authorized services, work coordination and projections |
+| [tetonic-tools](tetonic-tools/) | Concrete local tool effects and tool-host integration |
+| [tetonic-lsp](tetonic-lsp/) | Retained language-server client integration |
+
+This is a package group, not an independently deployable service or a strict
+layering rule. Use the [current ownership map](../../docs/architecture/ownership.md)
+and Cargo manifests for dependencies and change routing. A retained library is
+not automatically exposed in the connected product.
+
+`tetonic` exposes `ui`, `job`, `control` and `estate`. The local HTTP adapter
+calls existing scoped application services; it does not own execution lifecycle.
+Agent construction belongs to the registered assembly owner in `tetonic-app`.

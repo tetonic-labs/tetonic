@@ -2,7 +2,7 @@ import { useId, useState, type ReactNode } from 'react';
 import { AgentSkills } from './AgentSkills';
 import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database, UserRound } from 'lucide-react';
 import { Portrait } from '../ui/Portrait';
-import { engineAgentToUI } from '../../lib/engineAdapters';
+import { engineAgentToUI } from '../../engine/projections/agents';
 import type { Team } from '../../types';
 import type { WorkspaceResource } from '../../lib/toolLibrary';
 import {
@@ -14,7 +14,11 @@ import {
   type AgentDraft,
 } from '../../lib/agentConfiguration';
 import { AgentAdvancedSettings } from './AgentAdvancedSettings';
-import type { AgentCatalog, EngineAgent, ProviderModelCatalog } from '../../lib/localEngine';
+import {
+  type AgentCatalog,
+  type EngineAgent,
+  type ProviderModelCatalog,
+} from '../../engine/contracts';
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
 import { AgentMcpTools } from './AgentMcpTools';

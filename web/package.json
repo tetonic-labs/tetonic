@@ -4,7 +4,8 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "test": "vitest run",
+    "test": "node --test architecture.test.mjs && vitest run",
+    "architecture:check": "node architecture.mjs",
     "typecheck": "tsc --noEmit",
     "format:check": "prettier --check src tests *.ts *.mjs *.json index.html",
     "dev": "vite",

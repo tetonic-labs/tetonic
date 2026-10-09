@@ -1,9 +1,5 @@
-import {
-  waitingAfterAnswer,
-  type EngineTask,
-  type EngineWorkspace,
-  type LocalWorkItem,
-} from './localEngine';
+import { waitingAfterAnswer } from './taskState';
+import { type EngineTask, type EngineWorkspace, type LocalWorkItem } from '../contracts';
 
 export interface WorkRecord {
   id: string;
@@ -102,11 +98,3 @@ export const canReply = (work?: WorkRecord) =>
   !!work?.latest &&
   !work.latest.plan &&
   ['completed', 'failed', 'canceled'].includes(work.latest.state);
-
-export function selectedWorkId() {
-  return new URLSearchParams(window.location.hash.slice(1)).get('work');
-}
-export function selectWorkUrl(id: string | null) {
-  const hash = id ? `#work=${encodeURIComponent(id)}` : '#main-content';
-  window.history.pushState(null, '', window.location.pathname + window.location.search + hash);
-}

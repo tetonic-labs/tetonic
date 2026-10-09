@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react';
 import { ArrowUp } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { connectionDraftScope } from '../../lib/localEngine';
-import { canReply, type WorkRecord } from '../../lib/workspaceRecords';
+import { connectionDraftScope } from '../../engine/connection';
+import { canReply, type WorkRecord } from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { agentSetup } from '../../lib/agentCapabilities';
 

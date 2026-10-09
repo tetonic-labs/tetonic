@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import type { McpConnection, McpTool } from '../../lib/localEngine';
+import { type McpConnection, type McpTool } from '../../engine/contracts';
 
 export function McpConnections({
   connections,

@@ -2,14 +2,10 @@ import { PlanExecution } from './PlanExecution';
 import { PlanHandoff } from './PlanHandoff';
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import {
-  connectionDraftScope,
-  EngineRequestError,
-  taskIsActive,
-  type PlanCommand,
-  type PlanContent,
-  type PlanView,
-} from '../../lib/localEngine';
+import { connectionDraftScope } from '../../engine/connection';
+import { EngineRequestError } from '../../engine/failure';
+import { taskIsActive } from '../../engine/projections/taskState';
+import { type PlanCommand, type PlanContent, type PlanView } from '../../engine/contracts';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 
 type Edit = { base: number; brief: number; content: PlanContent };

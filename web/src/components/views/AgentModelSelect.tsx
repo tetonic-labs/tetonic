@@ -1,5 +1,5 @@
 import { useEffect, useId, useState } from 'react';
-import type { ProviderModelCatalog } from '../../lib/localEngine';
+import { type ProviderModelCatalog } from '../../engine/contracts';
 
 const providerCatalogs: Record<string, { name: string; url: string }> = {
   openai: { name: 'OpenAI', url: 'https://developers.openai.com/api/docs/models' },

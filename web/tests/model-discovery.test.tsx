@@ -2,7 +2,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { useState } from 'react';
 import { describe, expect, it, vi } from 'vitest';
 import { AgentModelSelect } from '../src/components/views/AgentModelSelect';
-import type { ProviderModelCatalog } from '../src/lib/localEngine';
+import { type ProviderModelCatalog } from '../src/engine/contracts';
 
 function Form({
   discover,

@@ -1,6 +1,7 @@
-import { waitingAfterAnswer, type EngineTask, type LocalApproval } from './localEngine';
+import { waitingAfterAnswer } from '../engine/projections/taskState';
+import { type EngineTask, type LocalApproval } from '../engine/contracts';
 import { journeyMembers } from './workJourneys';
-import type { WorkRecord } from './workspaceRecords';
+import { type WorkRecord } from '../engine/projections/records';
 
 export type WorkSignal =
   | 'working'

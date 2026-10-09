@@ -207,6 +207,17 @@ fn workspace_mutations_catches_cli_raw_write() {
 }
 
 #[test]
+fn workspace_mutations_scans_current_tool_helpers_and_excludes_inline_fixtures() {
+    let dir = tempfile::tempdir().unwrap();
+    let helper = dir.path().join("litho/tetonic-tools/src/new_tool.rs");
+    std::fs::create_dir_all(helper.parent().unwrap()).unwrap();
+    std::fs::write(&helper, "fn bad() { std::fs::write(path, data); }").unwrap();
+    assert_eq!(check_workspace_mutations(dir.path()).len(), 1);
+    std::fs::write(&helper, "fn tool() { transaction.stage_write(path, data); }\n#[cfg(test)]\nmod tests { fn fixture() { std::fs::write(path, data); } }\n").unwrap();
+    assert!(check_workspace_mutations(dir.path()).is_empty());
+}
+
+#[test]
 fn workspace_mutations_allows_cli_jailed_write() {
     let dir = tempfile::tempdir().unwrap();
     let offline = dir.path().join("litho/tetonic-cli/src/offline.rs");

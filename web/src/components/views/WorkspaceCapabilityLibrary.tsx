@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { ArrowLeft, ArrowUpRight, BookOpen, Plug, Upload, Terminal } from 'lucide-react';
-import type { LocalEngine } from '../../lib/localEngine';
+import { type LocalEngine } from '../../engine/client';
 import '../../tools.css';
 import { McpConnectionEditor } from './McpConnectionEditor';
 

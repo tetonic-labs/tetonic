@@ -152,7 +152,7 @@ capacity 429, unavailable inference/workspace 503 and storage/internal failures
 The local adapter returns `X-Tetonic-Api-Version: 1` and accepts an absent request
 version for existing clients. An explicitly unsupported or duplicate version
 header is rejected after authentication and before any mutation. The
-[web client](../../web/src/lib/localEngine.ts) sends v1, retains typed error
+[web client](../../web/src/engine/client.ts) sends v1, retains typed error
 metadata and handles legacy/error bodies defensively. Recovery guidance is not
 permission to automatically repeat a mutation with an unknown outcome. Raw
 storage, tool and internal failure bodies never enter this public envelope.

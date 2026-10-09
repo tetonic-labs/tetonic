@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { WorkspaceSettings } from './WorkspaceSettings';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import type { EngineAgent } from '../../lib/localEngine';
-import type { WorkRecord } from '../../lib/workspaceRecords';
+import { type EngineAgent } from '../../engine/contracts';
+import { type WorkRecord } from '../../engine/projections/records';
 import { LocalAgentSetup } from '../work/LocalAgentSetup';
 import { EngineAgentDetail } from './EngineAgentDetail';
 import { AgentRoster } from './AgentRoster';

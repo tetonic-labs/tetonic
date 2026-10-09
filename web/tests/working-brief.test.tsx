@@ -3,13 +3,10 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import userEvent from '@testing-library/user-event';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
-import {
-  EngineRequestError,
-  LocalEngine,
-  type EngineTask,
-  type EngineWorkspace,
-} from '../src/lib/localEngine';
-import { mergeWorkspace, workRecords } from '../src/lib/workspaceRecords';
+import { EngineRequestError } from '../src/engine/failure';
+import { LocalEngine } from '../src/engine/client';
+import { type EngineTask, type EngineWorkspace } from '../src/engine/contracts';
+import { mergeWorkspace, workRecords } from '../src/engine/projections/records';
 
 const agent = {
   key: 'assistant-key',

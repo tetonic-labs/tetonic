@@ -1,4 +1,4 @@
-import type { AgentCatalog, EngineAgent } from './localEngine';
+import { type AgentCatalog, type EngineAgent } from '../engine/contracts';
 
 // Product groupings describe a selection; they never expand a saved grant.
 export const agentToolGroups: Record<string, readonly string[]> = {

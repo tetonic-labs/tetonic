@@ -1,10 +1,6 @@
-import {
-  waitingAfterAnswer,
-  type LocalApproval,
-  type EngineTask,
-  type EngineAgent,
-} from './localEngine';
-import type { Agent, ApprovalRequest } from '../types';
+import { waitingAfterAnswer } from './taskState';
+import { type LocalApproval, type EngineTask, type EngineAgent } from '../contracts';
+import type { Agent, ApprovalRequest } from '../../types';
 
 export function engineApprovalToUI(
   approval: LocalApproval,

@@ -43,9 +43,9 @@ zstd = "0.13"
 tokenizers = { version = "0.20", default-features = false, features = ["onig"] }
 
 # Lean release profile: small, fast, static-friendly binary.
-# `panic = "abort"` is paired with `tetonicd --supervise` (H3-3): abort kills
-# in-flight Infer/shell; the supervisor restarts and rehydrates from lokai.db.
-# Do not switch to unwind to "save" live sessions in-process.
+# `panic = "abort"` terminates the host process. There is no bundled daemon
+# supervisor that automatically restarts it. Managed recovery on the next
+# startup identifies interrupted work; it does not promise safe effect replay.
 [profile.release]
 opt-level = "z"
 lto = true

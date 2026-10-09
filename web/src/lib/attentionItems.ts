@@ -1,6 +1,6 @@
-import type { LocalApproval } from './localEngine';
+import { type LocalApproval } from '../engine/contracts';
 import { approvalFor } from './workSignals';
-import { needsHelp, type WorkRecord } from './workspaceRecords';
+import { needsHelp, type WorkRecord } from '../engine/projections/records';
 
 export function attentionItems(records: WorkRecord[], approvals: LocalApproval[]) {
   const permissions = approvals.filter((a) => a.status === 'pending');

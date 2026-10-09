@@ -1,11 +1,8 @@
 import { useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import {
-  connectionDraftScope,
-  EngineRequestError,
-  type AmendPlanAssignment,
-  type PlanExecutionView,
-} from '../../lib/localEngine';
+import { connectionDraftScope } from '../../engine/connection';
+import { EngineRequestError } from '../../engine/failure';
+import { type AmendPlanAssignment, type PlanExecutionView } from '../../engine/contracts';
 
 export function affectedAssignments(execution: PlanExecutionView, key: string) {
   const affected = new Set([key]);

@@ -1,12 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
+import { connectionDraftScope } from '../../engine/connection';
+import { EngineRequestError } from '../../engine/failure';
 import {
-  connectionDraftScope,
-  EngineRequestError,
   type AnswerPlanQuestion,
   type EngineTask,
   type WorkHumanQuestion,
-} from '../../lib/localEngine';
+} from '../../engine/contracts';
 
 export function HumanQuestion({
   task,

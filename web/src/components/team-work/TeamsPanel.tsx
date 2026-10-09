@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Plus, Search, Users, Pencil } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import { engineAgentToUI } from '../../lib/engineAdapters';
-import { EngineRequestError, type WorkTeam, type SaveWorkTeam } from '../../lib/localEngine';
+import { engineAgentToUI } from '../../engine/projections/agents';
+import { EngineRequestError } from '../../engine/failure';
+import { type WorkTeam, type SaveWorkTeam } from '../../engine/contracts';
 import { Portrait } from '../ui/Portrait';
 
 export function TeamsPanel({

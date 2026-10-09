@@ -3,7 +3,7 @@ import { Search } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { workJourneys } from '../../lib/workJourneys';
 import { journeySummary, type WorkSignal } from '../../lib/workSignals';
-import type { WorkRecord } from '../../lib/workspaceRecords';
+import { type WorkRecord } from '../../engine/projections/records';
 import { WorkStatus } from './WorkStatus';
 
 const groups = [

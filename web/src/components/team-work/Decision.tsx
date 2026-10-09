@@ -1,6 +1,6 @@
 import { useEffect, useId, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
-import type { LocalApproval } from '../../lib/localEngine';
+import { type LocalApproval } from '../../engine/contracts';
 
 export function Decision({
   approval,

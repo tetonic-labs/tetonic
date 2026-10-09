@@ -1,8 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { attentionItems } from '../src/lib/attentionItems';
 import { combinedSignal, journeySummary, workSignal } from '../src/lib/workSignals';
-import { stateLabel, type WorkRecord } from '../src/lib/workspaceRecords';
-import type { EngineTask, LocalApproval, WorkHumanQuestion } from '../src/lib/localEngine';
+import { stateLabel, type WorkRecord } from '../src/engine/projections/records';
+import {
+  type EngineTask,
+  type LocalApproval,
+  type WorkHumanQuestion,
+} from '../src/engine/contracts';
 
 function record(id: string, state: EngineTask['state'], root?: string): WorkRecord {
   const task: EngineTask = {

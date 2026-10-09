@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import { checkArchitecture, formatFindings } from './architecture.mjs';
 
 // https://vitejs.dev/config/
 export default defineConfig({
@@ -9,6 +10,10 @@ export default defineConfig({
     {
       name: 'workspace-production-boundary',
       apply: 'build',
+      buildStart() {
+        const findings = checkArchitecture();
+        if (findings.length) this.error(formatFindings(findings));
+      },
       generateBundle(_options, bundle) {
         const excluded =
           /\/dev\/|\/tests\/|\/store\/(mockData|graphMockData|workloadPresets|sampleLineageMissions|largeWorkspaces|workroomExamples)\.|\/components\/work\/(MissionDeck|DirectorExperimentView|Workroom|LocalWorkspace)\.|\/components\/workspace\/(Workspace|WorkspaceMap|WorkspacePanels|WorkFocus)\./;

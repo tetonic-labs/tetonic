@@ -3,7 +3,7 @@ import { workJourneys } from '../../lib/workJourneys';
 import { journeySummary, type WorkSignal } from '../../lib/workSignals';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { WorkStatus } from './WorkStatus';
-import type { WorkRecord } from '../../lib/workspaceRecords';
+import { type WorkRecord } from '../../engine/projections/records';
 
 export function WorkShelf({
   records,

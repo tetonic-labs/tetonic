@@ -1,10 +1,10 @@
-import type { EngineWorkspace, LocalWorkItem, LocalApproval } from './localEngine';
-import { taskIsActive, waitingAfterAnswer } from './localEngine';
-import { engineAgentToUI } from './engineAdapters';
-import { workRecords, stateLabel, needsHelp, type WorkRecord } from './workspaceRecords';
-import type { ProjectView, ProjectTask } from './projectView';
-import type { SharedWorkEntry } from './workContext';
-import { workSignal } from './workSignals';
+import { type EngineWorkspace, type LocalWorkItem, type LocalApproval } from '../contracts';
+import { taskIsActive, waitingAfterAnswer } from './taskState';
+import { engineAgentToUI } from './agents';
+import { workRecords, stateLabel, needsHelp, type WorkRecord } from './records';
+import type { ProjectView, ProjectTask } from '../../lib/projectView';
+import type { SharedWorkEntry } from '../../lib/workContext';
+import { workSignal } from '../../lib/workSignals';
 
 // Projection of authorized local-owner records. Replies are conversation
 // lineage, not dependencies. Proposed rosters and tool grants are not activity.

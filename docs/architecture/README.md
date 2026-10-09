@@ -8,6 +8,7 @@ inference workers. Distributed inference is not the same as distributed agent
 execution.
 
 This is the current architecture entry point, updated with the October 8, 2026
+[frontend boundaries and contributor checks](frontend-boundaries.md),
 [durable-state and contract organization](durable-state-and-contracts.md),
 [execution-boundary refactor](execution-boundaries.md),
 [scoped work-service extraction](work-services.md) and
@@ -105,7 +106,9 @@ effects are not automatically safe to replay. See the
 - [Scoped workspace services and work lifecycle](work-services.md)
 - [Execution, harness and inference boundaries](execution-boundaries.md)
 - [Durable state, budgets and public contracts](durable-state-and-contracts.md)
+- [Frontend integration and state ownership](frontend-boundaries.md)
 - [Contribution workflow](../../CONTRIBUTING.md)
+- [Seven-step architecture tidy-up delivery record](../epics/v5-reconciliation/sprints/architecture-baseline/README.md)
 - [Local HTTP contract](../implementation/contracts/local-ui-v1.md)
 - [Retirement record](../epics/v5-reconciliation/retirement.md)
 - [September 24 audit](audits/2026-09-24/README.md) — dated findings and proposals

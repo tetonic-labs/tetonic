@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react';
 import { CheckCircle2, Plug, RefreshCw } from 'lucide-react';
-import type { LocalEngine, McpConnection } from '../../lib/localEngine';
+import { type LocalEngine } from '../../engine/client';
+import { type McpConnection } from '../../engine/contracts';
 import { endpointError } from '../../lib/toolLibrary';
 
 /** One setup surface, shared by the library and the agent editor. No agent grants. */

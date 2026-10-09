@@ -5,15 +5,15 @@ import {
   PlanDirectionEditor,
   affectedAssignments,
 } from '../src/components/team-work/PlanDirectionEditor';
+import { EngineRequestError } from '../src/engine/failure';
+import { LocalEngine } from '../src/engine/client';
 import {
-  EngineRequestError,
-  LocalEngine,
   type EngineTask,
   type PlanExecutionView,
   type WorkHumanQuestion,
-} from '../src/lib/localEngine';
-import { engineAgentToUI } from '../src/lib/engineAdapters';
-import { needsHelp } from '../src/lib/workspaceRecords';
+} from '../src/engine/contracts';
+import { engineAgentToUI } from '../src/engine/projections/agents';
+import { needsHelp } from '../src/engine/projections/records';
 
 const client = new LocalEngine('test');
 const refresh = vi.fn(async () => {});

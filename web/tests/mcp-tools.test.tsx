@@ -2,7 +2,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
-import { LocalEngine, type AgentCatalog, type McpConnection } from '../src/lib/localEngine';
+import { LocalEngine } from '../src/engine/client';
+import { type AgentCatalog, type McpConnection } from '../src/engine/contracts';
 
 const search = {
   id: 'mcp_calendar_pinned_search',

@@ -5,12 +5,12 @@ import { AttentionPanel } from '../src/components/team-work/AttentionPanel';
 import { WorkDetails } from '../src/components/team-work/WorkDetails';
 import { PlanExecution } from '../src/components/team-work/PlanExecution';
 import { HumanQuestion } from '../src/components/team-work/HumanQuestion';
-import type {
-  EngineTask,
-  LocalApproval,
-  PlanExecutionView,
-  WorkHumanQuestion,
-} from '../src/lib/localEngine';
+import {
+  type EngineTask,
+  type LocalApproval,
+  type PlanExecutionView,
+  type WorkHumanQuestion,
+} from '../src/engine/contracts';
 
 const approval: LocalApproval = {
   org_id: 'org',

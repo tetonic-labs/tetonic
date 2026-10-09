@@ -4,6 +4,8 @@
 pub fn arch_id(rule: &str) -> &'static str {
     match rule {
         "subprocess_spawn" => "ARCH-PROC-001",
+        "current_owner_missing" => "ARCH-OWNER-001",
+        "product_lifecycle_bypass" => "ARCH-OWNER-002",
         "git_via_process_broker" => "ARCH-PROC-002",
         "lsp_via_process_broker" => "ARCH-PROC-003",
         "production_tools_sandboxed" => "ARCH-PROC-004",
@@ -52,6 +54,12 @@ pub fn arch_id(rule: &str) -> &'static str {
 
 pub fn arch_why(rule: &str) -> &'static str {
     match rule {
+        "current_owner_missing" => {
+            "A moved or deleted owner must not silently disable checks of the current product path."
+        }
+        "product_lifecycle_bypass" => {
+            "Transports and product use cases must not become competing agent or attempt owners."
+        }
         "subprocess_spawn" | "git_via_process_broker" | "lsp_via_process_broker"
         | "production_tools_sandboxed" => {
             "Process spawn must go through the sandbox/process executor, not ad-hoc Command::new."
@@ -98,6 +106,12 @@ pub fn arch_why(rule: &str) -> &'static str {
 
 pub fn arch_how(rule: &str) -> &'static str {
     match rule {
+        "current_owner_missing" => {
+            "Restore the owner, or update its callers, product_boundaries.rs and docs/architecture/ownership.md together for an intentional move."
+        }
+        "product_lifecycle_bypass" => {
+            "Submit through the registered execution boundary. Keep attempt transitions in tetonic-run and agent construction in the registered assembly owner."
+        }
         "file_size" => {
             "Extract a focused submodule. If this file is already on the documented allowlist, do not add new oversized files; split instead of expanding the allowlist."
         }

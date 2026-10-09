@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { agentSetup } from '../src/lib/agentCapabilities';
-import type { AgentCatalog, EngineAgent } from '../src/lib/localEngine';
+import { type AgentCatalog, type EngineAgent } from '../src/engine/contracts';
 
 const agent: EngineAgent = {
   key: 'reader',

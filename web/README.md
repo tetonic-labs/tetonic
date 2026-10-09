@@ -1,80 +1,85 @@
 # Tetonic team workspace
 
-There is one product UI: `src/components/team-work/TeamWorkspace.tsx`.
-Both `/` and the compatibility address `/dev/team-work/` load `src/main.tsx`.
-Connection links and saved `#work=` / `#shape=` links open this same interface.
-The older workspace, workroom, mission deck, director experiment and preview
-shells have been removed. Do not add a second UI or restore an example fallback.
+The connected product is the map workspace in
+[`TeamWorkspace.tsx`](src/components/team-work/TeamWorkspace.tsx). Both `/` and
+`/dev/team-work/` load the same `src/main.tsx` entry. Saved work, project and
+shaping links open that interface. Do not restore retired shells or substitute
+example data when the engine is unavailable.
 
 ## Run locally
 
+From this directory:
+
 ```sh
 npm ci
-npm run dev -- --host 127.0.0.1
+npm run dev -- --host 127.0.0.1 --strictPort
 ```
 
-From `engine`:
+From `engine/`, using an installed Ollama model for the default agents:
 
 ```sh
-cargo run -p tetonic-cli -- ui --database ../.lokai/ui/workspace.db --model <installed-ollama-model>
+cargo run -p tetonic-cli -- ui --database ../.lokai/ui/workspace.db --model YOUR_INSTALLED_MODEL
 ```
 
 Open the connection URL printed by the engine. Its credential is removed from
 the address and held in tab session storage. A server restart requires its new
-connection link. `--ui-origin` can select another Vite origin. File access needs
-an explicit host `--workspace-root`; opening the UI does not grant it.
+connection link. `--ui-origin` selects another Vite origin. Host file access needs
+an explicit `--workspace-root` and the relevant saved agent grants; opening the UI
+does not grant it. Hosted provider configuration is available in agent setup.
+See the [repository setup](../README.md#try-the-local-preview) and
+[host configuration](../docs/architecture/host-configuration.md).
 
-## Connected experience
+## What the workspace represents
 
-- The map projects authorized engine work, conversation lineage and registered
-  agent identities. An existing `goal_id` groups work; replies are not dependency
-  edges. Without a goal reference, work belongs to the connected team.
-- The floating composer submits actual work to the chosen registered agent.
-  The inspector exposes responses, recorded tool output, run identifiers,
-  follow-ups and acknowledged cancellation. Unknown sends retry their original ID.
-- Shape work opens the registered Guide and durable revisioned working briefs.
-  Saving a brief does not authorize execution or dispatch assignments.
-  Its Work plan tab generates a real proposal from the saved brief, shows tasks,
-  proposed agents, dependencies and effort, and supports revision and agreement.
-  Proposals use existing huddle records. Agreement does not start team execution.
-- Agents supports actual model discovery, registration and profile inspection.
-  Teams reads the connected team. Needs you reads approvals and failed/interrupted
-  work. Requests without inspectable proposed effects cannot be approved.
-- Blackboard renders the returned owner-workspace transcript in conversation/turn
-  order. The current reader returns up to 100 records per run; this is neither an
-  unlimited audit export nor a shared human room. Find work searches these same
-  records with links back to the source; it is not a generated status answer.
-- Tools & MCPs shows the host tool catalog and recorded per-agent tool profiles.
-  No sample MCP connector or local setup draft is presented as a connected service.
-- Disconnection preserves last-seen records, marks the loss, and disables sends.
-  It never substitutes sample agents or activity.
+- Agents have persisted identities, configuration revisions, model selections,
+  limits and selected capabilities. Editors use engine catalogs and resource
+  services; browser selections cannot override host policy.
+- Teams reuse registered agents. Shape work collects intent in a conversation
+  and revisioned brief, then supports proposing, revising and agreeing a plan.
+  Agreement and starting execution are separate actions.
+- Bounded team execution uses selected registered agents, their configured
+  providers and granted tools. Independent assignments can run concurrently;
+  dependencies and limits constrain dispatch. This is not an always-running
+  autonomous team service.
+- The map, work inspector, Needs you and usage views project actual engine
+  records. A completed execution is not an independent correctness verdict.
+- Tools & MCPs and workspace skills expose the current capability catalog,
+  connection/skill management and agent grants. A listed capability is not
+  automatically granted, connected or available under every host policy.
+- Blackboard displays recorded conversations. It is a bounded reader, not an
+  unlimited audit export or a shared multiplayer chat room.
+- Connection loss retains last-seen records with a visible failure and disables
+  work submission. Partial read failures remain distinguishable from fresh data.
 
-## Engine gaps kept explicit
+The local host still bootstraps an owner and defaults. Multi-user organizations,
+replicated deployment, native vendor harness management and automatic ongoing
+responsibilities remain separate work. See the
+[local API contract](../docs/implementation/contracts/local-ui-v1.md) for details.
 
-This connection does not yet expose team creation/membership editing, MCP
-connection management, skills, or structured live tool destinations. Agreed plans
-can dispatch bounded local contributors using supplied context and written results;
-file tools, hosted models, and MCP tools are unavailable on this team path. The map does not invent dependency graphs, external-service
-activity, or agent collaboration to fill those gaps. A completed run means the
-execution finished, not that the result was independently verified.
+## Code navigation
 
-See [the local UI contract](../docs/implementation/contracts/local-ui-v1.md) and
-[cutover evidence](../docs/epics/v5-reconciliation/sprints/october-1-coherent-workspace/team-view-cutover-2026-10-05.md).
+| Area | Owner |
+|---|---|
+| Wire types / HTTP / connection state / failures | `src/engine/{contracts,client,connection,failure}.ts` |
+| Pure agent, record, task-state and map projections | `src/engine/projections/` |
+| Cached reads, polling and freshness | `src/context/LocalEngineContext.tsx` |
+| Map, inspector, composer and work interaction | `src/components/team-work/` |
+| Existing agent, tool and workspace editors | `src/components/views/`, `src/components/work/`, `src/components/workspace/` |
+| Presentation helpers and URL selection | `src/lib/` |
+| Brand and map styling | `src/brand.css`, `src/components/team-work/team-work.css` |
 
-## Verify and maintain
+Read [frontend boundaries](../docs/architecture/frontend-boundaries.md) before
+changing integration or state ownership. `engine/contracts.ts` is handwritten
+and must be kept aligned with Rust and contract tests.
+
+## Verify
 
 ```sh
 npm test
-npm run typecheck
 npm run build
 ```
 
-`team-work.css` preserves the agreed map/inspector/composer design and `brand.css`
-provides common tokens. `teamWorkspace.ts` projects authorized engine state.
-`LocalEngineContext`, `localEngine`, `workspaceRecords`, `WorkingBrief`,
-`useWorkspaceDraft`, `LocalAgentSetup`, `ProjectMap`, `useMapCamera` and `Portrait`
-reuse existing integration and interaction code.
-
-The production build rejects imports from `dev`, tests, sample stores and retired
-shell names. Authenticated `/api/local` remains the engine boundary. Do not use
-the legacy unauthenticated fleet API as a shortcut.
+`npm test` runs the architecture regression tests and Vitest suites. Build runs
+TypeScript and Vite, including import-graph and bundle boundary checks. Use
+`npm run architecture:check` or `npm run typecheck` for narrower feedback.
+These checks cannot replace visual inspection of changed interactions.

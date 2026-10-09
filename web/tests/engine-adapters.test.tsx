@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { engineApprovalToUI } from '../src/lib/engineAdapters';
+import { engineApprovalToUI } from '../src/engine/projections/agents';
 
 describe('engine approval projection', () => {
   it('preserves the proposal identity without inventing an effect or an agent', () => {

@@ -2,13 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
 import { AgentCreateForm } from '../views/AgentCreateForm';
 import type { AgentDraft } from '../../lib/agentConfiguration';
-import type {
-  AgentCatalog,
-  CreateEngineAgent,
-  EngineAgent,
-  EngineWorkspace,
-  LocalEngine,
-} from '../../lib/localEngine';
+import {
+  type AgentCatalog,
+  type CreateEngineAgent,
+  type EngineAgent,
+  type EngineWorkspace,
+} from '../../engine/contracts';
+import { type LocalEngine } from '../../engine/client';
 
 export function LocalAgentSetup({
   client,

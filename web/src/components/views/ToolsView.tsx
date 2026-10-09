@@ -10,7 +10,7 @@ import {
   Terminal,
   X,
 } from 'lucide-react';
-import type { McpConnection } from '../../lib/localEngine';
+import { type McpConnection } from '../../engine/contracts';
 import '../../tools.css';
 
 export interface ToolkitResource {

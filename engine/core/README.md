@@ -1,14 +1,23 @@
-# Core Layer (`engine/core/`)
+# Core
 
-## Purpose
-The **Core** layer serves as the systems kernel for Lokai. It provides the neutral agent loop, hardware/OS sandboxing, transactional workspace operations, domain traits, dynamic policy evaluation, secret sanitization, and structured telemetry.
+Shared contracts, the agent loop, runtime integration and policy/effect foundations.
 
-## Packages
-- [`lokai-core`](./lokai-core): Pure agent execution loop, model turn driving, and tokenizer abstraction.
-- [`lokai-runtime`](./lokai-runtime): Host agent assembly, execution context management, and runtime isolation.
-- [`lokai-sandbox`](./lokai-sandbox): Platform-specific OS sandboxing (Windows AppContainer, Linux Landlock/seccomp, macOS sandbox-exec).
-- [`lokai-transaction`](./lokai-transaction): Atomic filesystem staging, transactional edits, rollback mechanisms, and version journaling.
-- [`lokai-secrets`](./lokai-secrets): Secret scanning, redaction, and local secure keyring integration.
-- [`lokai-domain`](./lokai-domain): Domain traits, action models, tool host interfaces, and core identifier primitives.
-- [`lokai-policy`](./lokai-policy): Policy enforcement engine, capability verification, and tool permissions.
-- [`lokai-telemetry`](./lokai-telemetry): Structured tracing spans, metrics recording, and audit trail emission.
+| Package | Current responsibility |
+|---|---|
+| [tetonic-domain](tetonic-domain/) | Shared types, IDs, commands and interface contracts |
+| [tetonic-core](tetonic-core/) | Agent model/action loop and conversation/checkpoint mechanics |
+| [tetonic-runtime](tetonic-runtime/) | Agent assembly, action broker, capability and policy integration |
+| [tetonic-policy](tetonic-policy/) | Policy evaluation and dispatch guard |
+| [tetonic-sandbox](tetonic-sandbox/) | Platform-specific process isolation and effect executors |
+| [tetonic-transaction](tetonic-transaction/) | Staged file operations and transaction support |
+| [tetonic-secrets](tetonic-secrets/) | Secret detection, redaction and scanner contracts |
+| [tetonic-telemetry](tetonic-telemetry/) | Structured execution observations and telemetry sinks |
+
+This is a package group, not an independently deployable service or a strict
+layering rule. Use the [current ownership map](../../docs/architecture/ownership.md)
+and Cargo manifests for dependencies and change routing. A retained library is
+not automatically exposed in the connected product.
+
+Saved configuration requests behavior; current authority is checked at runtime.
+Do not bypass managed execution by directly constructing an agent in a product
+transport. Effect guarantees depend on host, platform and executor.

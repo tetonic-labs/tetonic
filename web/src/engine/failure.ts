@@ -26,3 +26,15 @@ export function readEngineFailure(value: unknown): EngineFailure {
       : {}),
   };
 }
+
+export class EngineRequestError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public code?: string,
+    public recovery?: string,
+    public recoveryHint?: string,
+  ) {
+    super(message);
+  }
+}

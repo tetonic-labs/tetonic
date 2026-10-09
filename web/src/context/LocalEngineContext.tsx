@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
+import { LocalEngine } from '../engine/client';
+import { takeConnectionToken } from '../engine/connection';
 import {
-  LocalEngine,
-  takeConnectionToken,
   type EngineWorkspace,
   type AgentCatalog,
   type LocalWorkItem,
@@ -11,10 +11,10 @@ import {
   type WorkTeamSelection,
   type EngineTask,
   type LocalApproval,
-} from '../lib/localEngine';
+} from '../engine/contracts';
 import type { Agent } from '../types';
-import { engineAgentToUI } from '../lib/engineAdapters';
-import { mergeTasks, mergeWorkspace } from '../lib/workspaceRecords';
+import { engineAgentToUI } from '../engine/projections/agents';
+import { mergeTasks, mergeWorkspace } from '../engine/projections/records';
 
 interface LocalEngineContextType {
   isConnected: boolean;

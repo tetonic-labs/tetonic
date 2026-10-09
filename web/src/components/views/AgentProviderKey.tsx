@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { EngineProvider } from '../../lib/localEngine';
+import { type EngineProvider } from '../../engine/contracts';
 
 export function AgentProviderKey({
   provider,

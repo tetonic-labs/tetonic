@@ -343,11 +343,13 @@ activity without becoming authoritative state.
   → checked store transactions → projections → web adapters/components. Keep
   domain invariants already enforced in storage when moving application code.
   Do not place product orchestration in storage or SQL in the UI/transport.
-- **Presentation:** [`LocalEngine`](../../web/src/lib/localEngine.ts) handles the
-  HTTP boundary; [`engineAdapters`](../../web/src/lib/engineAdapters.ts) maps
+- **Presentation:** [`LocalEngine`](../../web/src/engine/client.ts) handles the
+  HTTP boundary; [`agent projections`](../../web/src/engine/projections/agents.ts) map
   engine records; [`TeamWorkspace`](../../web/src/components/team-work/TeamWorkspace.tsx)
   renders the product. Polling caches can be stale; local animation, optimistic
   edits and sample traces must not manufacture execution success or authority.
+  See [frontend boundaries](frontend-boundaries.md) for contracts, projections,
+  connection state and browser interaction ownership.
 - **Boundary evidence:** [durability tests](../../engine/strata/tetonic-memory/src/durability_tests.rs),
   [migration tests](../../engine/strata/tetonic-memory/src/migration_tests.rs),
   [engine client](../../web/tests/engine-client.test.tsx),
