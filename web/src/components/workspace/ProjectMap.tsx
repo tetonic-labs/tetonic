@@ -417,7 +417,7 @@ export function ProjectMap({
           {project?.kind === 'plan'
             ? 'Contributions · dependency links · coordination'
             : project
-              ? 'Requests and explorations · open any card to see the work'
+              ? 'Assignments · open any card to see the work'
               : 'Efforts grouped by team · open a card to see the work inside'}
         </div>
       )}

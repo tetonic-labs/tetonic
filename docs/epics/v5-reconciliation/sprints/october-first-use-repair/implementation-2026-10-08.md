@@ -118,6 +118,33 @@ qualified first-use latency target. Do not mark EXP-001 accepted from these runs
 
 ## Still required
 
+### October 9 follow-up: conversations are not dispatched work
+
+- The workspace projection now separates durable `purpose: explore` conversations
+  from assignments. Guide discussions and unstarted proposals stay out of the map,
+  work counts, work shelf, and work attention list. Failed replies remain visible
+  in the conversation and its picker. Existing records are preserved.
+- Conversations are available beside the floating composer and in the Guide
+  header. The selected conversation and its draft survive navigation and reload
+  in the same tab; the transcript remains stored by the engine.
+- Proposals follow the discussion inline without collapsing it. Starting a reviewed
+  plan uses the existing agreement/admission/dispatch path; only its execution
+  records populate the map. A direct action opens that team's map.
+- Private Guide transcripts do not become shared blackboard entries after launch.
+  The execution's agreed direction, contributions and tool output remain visible.
+- No new conversation store, scheduler, planner, or dispatch authority was added.
+  This does not change the existing one-execution-per-plan-source restriction.
+- Validation: 219 web tests, 8 architecture tests, frontend boundary check,
+  production build, and 5 engine Director tests passed. UI integration covers
+  proposal → explicit start → coordination/assignment map → return to the Guide.
+  Browser review used existing conversations without submitting new inference.
+- UI changes are live on 5180. The engine's updated navigation description is a
+  source change for the next engine restart; the running preview was kept alive
+  while the owner was configuring and testing it. No new real-model qualification
+  or frontier inference trial was performed for this UI follow-up.
+
+### Remaining acceptance work
+
 1. Accurate, timely orientation and a follow-up through a qualified reference
    model/profile; preserve discussion without invented capabilities or plans.
 2. Real-model missing-folder recovery and useful selected-folder work. Finish the

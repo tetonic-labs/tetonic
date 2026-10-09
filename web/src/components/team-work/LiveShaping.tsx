@@ -4,13 +4,19 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { taskIsActive } from '../../engine/projections/taskState';
 import { type EngineTask, type PlanView } from '../../engine/contracts';
-import { workRecords, stateLabel, stateLabels } from '../../engine/projections/records';
+import {
+  workRecords,
+  isGuideConversation,
+  stateLabel,
+  stateLabels,
+} from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { WorkingBrief } from '../workspace/WorkingBrief';
 import { PlanReview } from './PlanReview';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { Portrait } from '../ui/Portrait';
 import { agentSetup } from '../../lib/agentCapabilities';
+import { GuideConversations } from './GuideConversations';
 import './shaping.css';
 
 type ShapingProps = {
@@ -21,6 +27,8 @@ type ShapingProps = {
   onAgentSettings?: (key: string) => void;
   onTools?: () => void;
   onMinimize?: () => void;
+  onConversation?: (id?: string) => void;
+  onTeamMap?: (rootId: string) => void;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
@@ -35,18 +43,17 @@ function ConnectedShaping({
   onAgentSettings,
   onTools,
   onMinimize,
+  onConversation,
+  onTeamMap,
 }: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
-  const records = workRecords(workspace?.tasks || [], engine.workItems).filter(
-    (work) => work.latest?.purpose === 'explore',
-  );
+  const records = workRecords(workspace?.tasks || [], engine.workItems).filter(isGuideConversation);
   const [selectedId, setSelectedId] = useState(
     () => workId || new URLSearchParams(location.hash.slice(1)).get('shape') || '',
   );
   const [planView, setPlanView] = useState<PlanView>();
   const viewChanged = useCallback((value: PlanView) => setPlanView(value), []);
-  const [conversationOpen, setConversationOpen] = useState(false);
   const [briefOpen, setBriefOpen] = useState(false);
   const [briefVersion, setBriefVersion] = useState(0);
   const [stopError, setStopError] = useState('');
@@ -94,25 +101,16 @@ function ConnectedShaping({
       : undefined;
 
   useEffect(() => {
-    if (thread.current && following.current && (!hasHandoff || conversationOpen))
-      thread.current.scrollTop = thread.current.scrollHeight;
-  }, [latest?.sequence, latest?.id, selectedId, hasHandoff, conversationOpen]);
-  useEffect(() => {
-    if (hasHandoff && thread.current && !conversationOpen) thread.current.scrollTop = 0;
-  }, [hasHandoff, conversationOpen]);
-  useEffect(() => {
-    if (active) setConversationOpen(true);
-  }, [active]);
+    if (thread.current && following.current) thread.current.scrollTop = thread.current.scrollHeight;
+  }, [latest?.sequence, latest?.id, selectedId, planView?.plans[0]?.revision]);
 
   function discuss(text: string) {
     if (writer.busyKey || (draft.pending && !draft.editable)) return;
     writer.edit(draftKey, draft.text.trim() ? `${draft.text}\n\n${text}` : text);
-    setConversationOpen(true);
     composer.current?.focus();
   }
   async function send() {
     if (!canSend) return;
-    setConversationOpen(true);
     const submittedKey = draftKey;
     await writer.send(
       draftKey,
@@ -233,10 +231,19 @@ function ConnectedShaping({
                       ? planView.readiness.length
                         ? 'A few things to resolve'
                         : 'Proposal ready for review'
-                      : stateLabel(selected)
+                      : latest?.state === 'completed'
+                        ? 'Ready when you are'
+                        : stateLabel(selected)
                 : 'Think it through. Put your team to work.'}
           </small>
         </span>
+        {onConversation && (
+          <GuideConversations
+            conversations={records}
+            selectedId={selectedId}
+            onSelect={onConversation}
+          />
+        )}
         {onGuideSettings && guideProfile && (
           <button
             type="button"
@@ -282,7 +289,17 @@ function ConnectedShaping({
       >
         {selected ? (
           <>
+            {selected.turns.map(renderTurn)}
             <div className="tw-conversation-plan" data-handoff={hasHandoff}>
+              {planView?.execution && onTeamMap && (
+                <button
+                  className="tw-guide-map-link"
+                  type="button"
+                  onClick={() => onTeamMap(planView.execution!.receipt.root_work_id)}
+                >
+                  View team on map
+                </button>
+              )}
               <PlanReview
                 key={`${selected.id}:${briefVersion}`}
                 workId={selected.id}
@@ -318,28 +335,13 @@ function ConnectedShaping({
                 </details>
               )}
             </div>
-            {hasHandoff ? (
-              <details
-                className="tw-handoff-conversation"
-                open={conversationOpen}
-                onToggle={(event) => setConversationOpen(event.currentTarget.open)}
-              >
-                <summary>
-                  Conversation · {selected.turns.length}{' '}
-                  {selected.turns.length === 1 ? 'exchange' : 'exchanges'}
-                </summary>
-                {selected.turns.map(renderTurn)}
-              </details>
-            ) : (
-              selected.turns.map(renderTurn)
-            )}
           </>
         ) : (
           <div className="px-shaping-empty">
             {missing && <h3>This discussion is unavailable.</h3>}
             <p>
               {missing
-                ? 'Open Work to choose a saved discussion, or start something new.'
+                ? 'Choose a saved discussion from Conversations, or start something new.'
                 : 'Bring a question, a rough idea, or a clear goal. We’ll work out the next step together.'}
             </p>
           </div>

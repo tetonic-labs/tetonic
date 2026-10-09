@@ -1,0 +1,86 @@
+.guide-history-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  color: inherit;
+  border: 0;
+  padding: 7px 0;
+  font-size: 11px;
+  cursor: pointer;
+}
+.guide-history {
+  z-index: 12;
+  width: min(360px, calc(100vw - 32px));
+  max-height: min(400px, var(--radix-popover-content-available-height));
+  overflow: auto;
+  padding: 14px;
+  color: var(--on-ink);
+  background: var(--surface-ink);
+  border: 1px solid color-mix(in srgb, var(--on-ink) 20%, transparent);
+  border-radius: 4px 4px 16px 4px;
+  box-shadow: 0 12px 40px #0003;
+  font: 12px var(--font-sans);
+}
+.guide-history header,
+.guide-history-search {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+.guide-history button {
+  color: inherit;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+}
+.guide-history header button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px;
+  font-size: 11px;
+}
+.guide-history-list > button {
+  display: block;
+  width: 100%;
+  text-align: left;
+  padding: 12px 10px;
+  border-top: 1px solid color-mix(in srgb, var(--on-ink) 12%, transparent);
+}
+.guide-history-list > button:hover,
+.guide-history-list > button[aria-current='true'] {
+  background: color-mix(in srgb, var(--on-ink) 8%, transparent);
+}
+.guide-history-list strong,
+.guide-history-list span {
+  display: block;
+}
+.guide-history-list strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 550;
+}
+.guide-history-list span,
+.guide-history-list p {
+  color: var(--muted-on-ink);
+  font-size: 11px;
+  margin-top: 5px;
+}
+.guide-history-search input {
+  min-width: 0;
+  flex: 1;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 8px 0;
+  font: inherit;
+}
+.guide-history :is(button, input):focus-visible {
+  outline: 2px solid var(--brand-field);
+  outline-offset: 1px;
+}

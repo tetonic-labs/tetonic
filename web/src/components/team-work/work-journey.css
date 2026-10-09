@@ -456,6 +456,24 @@
   flex: 1;
   min-width: 0;
 }
+.tw-live .tw-collapsed-conversation > .guide-history-trigger {
+  display: inline-flex;
+}
+.tw-live .tw-guide-map-link {
+  margin-bottom: 16px;
+}
+@media (max-width: 600px) {
+  .tw-live .tw-collapsed-conversation {
+    flex-wrap: wrap;
+    gap: 8px 16px;
+  }
+  .tw-live .tw-collapsed-conversation > button:first-child {
+    flex-basis: 100%;
+  }
+  .tw-live .px-shaping-guide {
+    flex-wrap: wrap;
+  }
+}
 .tw-collapsed-conversation strong,
 .tw-collapsed-conversation span {
   display: block;

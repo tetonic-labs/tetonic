@@ -267,7 +267,7 @@ describe('one connected team workspace', () => {
     expect(create).not.toHaveBeenCalled();
     expect(JSON.stringify(sessionStorage)).not.toContain('fixture-key-only');
   });
-  it('shows real planning activity at its source work without inventing a second outcome', () => {
+  it('retains planning in its conversation without presenting it as dispatched work', () => {
     const f = fixture([{ ...saved, purpose: 'explore' }]);
     const data = f.getData();
     data.planning_tasks = [
@@ -281,11 +281,10 @@ describe('one connected team workspace', () => {
     ];
     const result = teamWorkspace(data, []);
     expect(result.records).toHaveLength(1);
-    expect(result.projects[0].streams).toHaveLength(1);
-    expect(result.projects[0].streams[0].stateLabel).toBe('Preparing a work plan');
-    expect(result.projects[0].people[0].doing).toBe('Preparing a work plan');
-    expect(result.entries.some((e) => e.content === 'Actual proposed assignments')).toBe(true);
-    expect(result.projects[0].streams[0].dependencies).toEqual([]);
+    expect(result.conversations).toHaveLength(1);
+    expect(result.projects[0].streams).toHaveLength(0);
+    expect(result.projects[0].people[0].doing).toBe('No active request');
+    expect(result.entries).toHaveLength(0);
   });
   it('makes the root and former team-work URL use the same production entry and retires old shells', () => {
     for (const file of ['index.html', 'dev/team-work/index.html'])
@@ -807,7 +806,8 @@ it('keeps launched work together without discarding its discussion or inventing 
   expect(model.projects[0].streams.map((s) => s.id)).toEqual(['team-result', 'contribution']);
   expect(model.projects[0].decision).toBeUndefined();
   expect(model.records).toHaveLength(3);
-  expect(model.entries.find((e) => e.id === 'source:input')?.projectId).toBe('plan:team-result');
+  expect(model.conversations.map((c) => c.id)).toEqual(['source']);
+  expect(model.entries.some((e) => e.id === 'source:input')).toBe(false);
 });
 
 it('opens the team result in one click and reads contributions without navigating away', async () => {
@@ -831,6 +831,61 @@ it('opens the team result in one click and reads contributions without navigatin
   fireEvent.click(screen.getByRole('button', { name: 'Back to previous view' }));
   await screen.findByRole('heading', { name: 'Your team’s result' });
   expect(location.hash).toBe(url);
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('keeps a Guide proposal off the map until explicit dispatch, then shows its coordination and assignments', async () => {
+  const f = journeyFixture();
+  const source = { ...f.source, state: 'completed' as const };
+  f.setData({ ...f.getData(), tasks: [source] });
+  let plan: PlanView = {
+    ...f.planView,
+    execution: null,
+    execution_available: true,
+    plans: [{ ...f.planView.plans[0], status: 'draft', agreed_by: null, agreement_id: null }],
+  };
+  vi.mocked(f.client.plan).mockImplementation(async () => plan);
+  vi.spyOn(f.client, 'updatePlan').mockImplementation(async (_id, command) => {
+    if (command.action !== 'agree') throw new Error('Unexpected command');
+    plan = {
+      ...plan,
+      plans: [{ ...plan.plans[0], status: 'agreed', agreement_id: command.request_id }],
+    };
+    return plan.plans[0];
+  });
+  const start = vi.spyOn(f.client, 'startPlan').mockImplementation(async (_id, request) => {
+    const execution = {
+      ...f.planView.execution!,
+      receipt: { ...f.planView.execution!.receipt, request_id: request.request_id },
+    };
+    plan = { ...plan, execution };
+    f.setData({ ...f.getData(), tasks: [source, f.root, f.child] });
+    return execution;
+  });
+  history.replaceState(null, '', '/#shape=source');
+  f.view();
+  const dispatch = await screen.findByRole('button', { name: 'Start this plan' });
+  expect(
+    within(screen.getByRole('region', { name: 'All projects map' })).queryByRole('button', {
+      name: /^Open /,
+    }),
+  ).toBeNull();
+  expect(start).not.toHaveBeenCalled();
+  await waitFor(() => expect(dispatch).toHaveProperty('disabled', false));
+  fireEvent.click(dispatch);
+  const mapLink = await screen.findByRole('button', { name: 'View team on map' });
+  expect(start).toHaveBeenCalledOnce();
+  fireEvent.click(mapLink);
+  const map = await screen.findByRole('region', { name: 'Workshop options project map' });
+  expect(
+    within(map).getByRole('button', { name: 'Open team coordination for Workshop options' }),
+  ).toBeTruthy();
+  expect(within(map).getByRole('button', { name: 'Open Compare formats' })).toBeTruthy();
+  expect(within(map).queryByRole('button', { name: 'Open Explore workshops' })).toBeNull();
+  expect(location.hash).toBe('#project=plan%3Ateam-result');
+  fireEvent.click(screen.getByRole('button', { name: /Continue with the Guide/ }));
+  expect(await screen.findByRole('textbox', { name: 'Continue the conversation' })).toBeTruthy();
+  expect(location.hash).toBe('#shape=source');
   expect(f.submit).not.toHaveBeenCalled();
 });
 
@@ -883,6 +938,7 @@ it('starts a new shaping discussion even when earlier team work already exists',
   const f = journeyFixture();
   f.view();
   await screen.findByRole('button', { name: 'Done Workshop options' });
+  fireEvent.click(screen.getByRole('button', { name: 'New idea' }));
   fireEvent.click(screen.getByRole('button', { name: 'Shape work together →' }));
   expect(screen.getByRole('textbox', { name: 'What are you working through?' })).toBeTruthy();
   expect(screen.queryByRole('heading', { name: 'Your team’s result' })).toBeNull();

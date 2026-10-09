@@ -9,6 +9,11 @@ export interface WorkRecord {
   item?: LocalWorkItem;
 }
 
+// Guide replies use the same durable run machinery as workers, but a discussion
+// is not a dispatched assignment. Keep that boundary consistent across the UI.
+export const isGuideConversation = (record: WorkRecord) =>
+  record.latest?.purpose === 'explore' && !record.latest.plan;
+
 // A compact presentation label, not a rewritten instruction. Full text stays
 // in the recorded turns and is displayed in the work view.
 function displayTitle(text: string) {

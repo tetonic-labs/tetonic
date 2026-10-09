@@ -118,9 +118,7 @@ export function WorkOverview({
                   <span>
                     {members.length > 1
                       ? `${done}/${members.length} contributions done`
-                      : work.latest?.purpose === 'explore'
-                        ? 'Exploration'
-                        : 'Assignment'}
+                      : 'Assignment'}
                   </span>
                 </span>
                 {(active > 0 || attention > 0) && (

@@ -3,6 +3,7 @@ import { ArrowLeft, ChevronRight, Layers, Settings2, X } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { teamWorkspace } from '../../engine/projections/workspace';
+import { isGuideConversation } from '../../engine/projections/records';
 import { attentionItems } from '../../lib/attentionItems';
 import {
   projectWorkContext,
@@ -15,6 +16,7 @@ import { LiveShaping } from './LiveShaping';
 import { WorkShelf } from './WorkShelf';
 import { workJourneys } from '../../lib/workJourneys';
 import { WorkComposer } from './WorkComposer';
+import { GuideConversations } from './GuideConversations';
 import { WorkDetails } from './WorkDetails';
 import { TeamPanels } from './TeamPanels';
 import { EngineTools } from './EngineTools';
@@ -62,7 +64,7 @@ export function TeamWorkspace() {
 function ConnectedTeamWorkspace() {
   const engine = useLocalEngine();
   const { workspace, workItems, isConnected, isConnecting, readErrors, lastUpdated } = engine;
-  const { records, projects, entries } = useMemo(
+  const { records, conversations, projects, entries } = useMemo(
     () => teamWorkspace(workspace, workItems, engine.approvals?.pending_approvals),
     [workspace, workItems, engine.approvals],
   );
@@ -70,9 +72,29 @@ function ConnectedTeamWorkspace() {
   const [panel, setPanel] = useState<Panel>(route().panel);
   const [trail, setTrail] = useState<NonNullable<Panel>[]>([]);
   const [recipient, setRecipient] = useState<string>();
-  const [collapsedConversation, setCollapsedConversation] = useState<string>();
+  const conversationKey = `tetonic_guide_selection:${connectionDraftScope()}`;
+  const [guideSelection, setGuideSelection] = useState<string | undefined>(() => {
+    try {
+      return sessionStorage.getItem(conversationKey) ?? undefined;
+    } catch {
+      return undefined;
+    }
+  });
+  const collapsedConversation =
+    guideSelection === undefined
+      ? conversations.at(-1)?.id
+      : conversations.find((conversation) => conversation.id === guideSelection)?.id;
+  function rememberConversation(id?: string) {
+    setGuideSelection(id || '');
+    try {
+      sessionStorage.setItem(conversationKey, id || '');
+    } catch {
+      // The transcript is engine-owned; only the preferred open conversation is local.
+    }
+  }
   const [query, setQuery] = useState<WorkContextQuery>({});
-  const firstUse = isConnected && records.length === 0 && !workspace?.work_teams?.length;
+  const assignments = records.filter((record) => !isGuideConversation(record));
+  const firstUse = isConnected && assignments.length === 0 && !workspace?.work_teams?.length;
   const [boardScope, setBoardScope] = useState<string>();
   const [boardHighlight, setBoardHighlight] = useState<string>();
   const [dark, setDark] = useState(false);
@@ -87,7 +109,7 @@ function ConnectedTeamWorkspace() {
   const launchedSources = new Set(
     records.flatMap((r) => (r.latest?.plan ? [r.latest.plan.source_work_id] : [])),
   );
-  const attentionRecords = records.filter((r) => !launchedSources.has(r.id));
+  const attentionRecords = assignments.filter((r) => !launchedSources.has(r.id));
   const focusSource =
     panel?.kind === 'shaping'
       ? panel.id
@@ -110,7 +132,7 @@ function ConnectedTeamWorkspace() {
   ).total;
   const visibleRecords = project
     ? records.filter((record) => project.streams.some((stream) => stream.id === record.id))
-    : records;
+    : assignments;
   const contributionCount = project?.streams.filter((s) => s.role !== 'coordination').length || 0;
   const workScope =
     project?.kind === 'plan'
@@ -199,9 +221,14 @@ function ConnectedTeamWorkspace() {
     }
   }
   function shape(id?: string) {
-    setCollapsedConversation(undefined);
+    setRecipient(undefined);
+    rememberConversation(id);
     url(id ? `#shape=${encodeURIComponent(id)}` : '');
     open({ kind: 'shaping', id });
+  }
+  function showTeamMap(rootId: string) {
+    if (focusSource) rememberConversation(focusSource);
+    choose(`plan:${rootId}`);
   }
   function readSource(source: WorkContextSource) {
     setProjectId(source.projectId);
@@ -241,6 +268,9 @@ function ConnectedTeamWorkspace() {
     else if (projectId && !projects.some((p) => p.id === projectId) && projects.length)
       setProjectId(projects.length === 1 ? projects[0].id : undefined);
   }, [projects, focusRoot?.id, focusSource, selected?.id, projectId]);
+  useEffect(() => {
+    if (focusSource) rememberConversation(focusSource);
+  }, [focusSource]);
   useEffect(() => {
     document.documentElement.classList.toggle('dark', dark);
   }, [dark]);
@@ -396,6 +426,11 @@ function ConnectedTeamWorkspace() {
         )}
         {!panel && (
           <div className="px-composer">
+            <WorkShelf
+              records={visibleRecords}
+              onWork={showWork}
+              onAll={() => open({ kind: 'work' })}
+            />
             {collapsedConversation ? (
               <div className="tw-collapsed-conversation">
                 <button onClick={() => shape(collapsedConversation)}>
@@ -405,20 +440,21 @@ function ConnectedTeamWorkspace() {
                       'Your discussion is saved'}
                   </span>
                 </button>
-                <button onClick={() => setCollapsedConversation(undefined)}>New idea</button>
+                <GuideConversations
+                  conversations={conversations}
+                  selectedId={collapsedConversation}
+                  onSelect={shape}
+                />
+                <button onClick={() => rememberConversation()}>New idea</button>
               </div>
             ) : (
               <>
-                <WorkShelf
-                  records={visibleRecords}
-                  onWork={showWork}
-                  onAll={() => open({ kind: 'work' })}
-                />
                 <WorkComposer
                   key={recipient || 'default'}
                   recipient={recipient}
                   onAccepted={showWork}
                   onShape={shape}
+                  conversations={conversations}
                   onGuideSettings={() =>
                     open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
                   }
@@ -488,8 +524,10 @@ function ConnectedTeamWorkspace() {
                   onAgentSettings={(key) => open({ kind: 'agents', id: key, edit: true })}
                   onTools={() => open({ kind: 'tools' })}
                   onWork={showWork}
+                  onTeamMap={showTeamMap}
+                  onConversation={shape}
                   onMinimize={() => {
-                    setCollapsedConversation(focusSource);
+                    rememberConversation(focusSource);
                     close();
                   }}
                   onGuideSettings={() =>
@@ -530,8 +568,9 @@ function ConnectedTeamWorkspace() {
                   }
                   onWork={showWork}
                   onAgent={(key) => {
-                    if (key === workspace?.shaping_agent_key) shape();
+                    if (key === workspace?.shaping_agent_key) shape(collapsedConversation);
                     else {
+                      rememberConversation();
                       setRecipient(key);
                       close();
                     }
@@ -539,6 +578,7 @@ function ConnectedTeamWorkspace() {
                   dark={dark}
                   setDark={setDark}
                   onTeam={(id) => {
+                    rememberConversation();
                     setRecipient(`team:${id}`);
                     choose();
                   }}

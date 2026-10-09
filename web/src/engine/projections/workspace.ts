@@ -1,7 +1,13 @@
 import { type EngineWorkspace, type LocalWorkItem, type LocalApproval } from '../contracts';
 import { taskIsActive, waitingAfterAnswer } from './taskState';
 import { engineAgentToUI } from './agents';
-import { workRecords, stateLabel, needsHelp, type WorkRecord } from './records';
+import {
+  workRecords,
+  isGuideConversation,
+  stateLabel,
+  needsHelp,
+  type WorkRecord,
+} from './records';
 import type { ProjectView, ProjectTask } from '../../lib/projectView';
 import type { SharedWorkEntry } from '../../lib/workContext';
 import { workSignal } from '../../lib/workSignals';
@@ -14,15 +20,22 @@ export function teamWorkspace(
   approvals: LocalApproval[] = [],
 ) {
   const records = workRecords(workspace?.tasks || [], items);
+  const conversations = records.filter(isGuideConversation);
+  const assignments = records.filter((record) => !isGuideConversation(record));
   if (!workspace)
-    return { records, projects: [] as ProjectView[], entries: [] as SharedWorkEntry[] };
+    return {
+      records,
+      conversations,
+      projects: [] as ProjectView[],
+      entries: [] as SharedWorkEntry[],
+    };
   const groups = new Map<string, WorkRecord[]>();
   const launched = new Map(
     records.flatMap((r) =>
       r.latest?.plan ? [[r.latest.plan.source_work_id, r.latest.plan.root_work_id] as const] : [],
     ),
   );
-  for (const work of records) {
+  for (const work of assignments) {
     const group = work.latest?.plan
       ? `plan:${work.latest.plan.root_work_id}`
       : launched.has(work.id)
@@ -37,9 +50,14 @@ export function teamWorkspace(
   // A new connected team has a real place on the map even before its first run.
   if (!groups.size) groups.set(`team:${workspace.team_id}`, []);
   const planning = workspace.planning_tasks || [];
-  const agents = workspace.agents.map((agent) =>
-    engineAgentToUI(agent, [...workspace.tasks, ...planning]),
-  );
+  const agents = workspace.agents
+    .filter((agent) => agent.key !== workspace.shaping_agent_key)
+    .map((agent) =>
+      engineAgentToUI(
+        agent,
+        assignments.flatMap((record) => record.turns),
+      ),
+    );
   const projects: ProjectView[] = [...groups].map(([id, work]) => {
     const isTeam = id.startsWith('team:') || id.startsWith('roster:');
     const roster = work.find((r) => r.latest?.work_team)?.latest?.work_team;
@@ -103,7 +121,7 @@ export function teamWorkspace(
       title: planRoot?.title || (isTeam ? teamName : `Goal ${id.slice(5)}`),
       team: teamName,
       aim: isTeam
-        ? 'Work and explorations in your connected team.'
+        ? 'Dispatched work in your connected team.'
         : 'Work grouped by its recorded goal reference.',
       area: {
         id: roster ? `roster:${roster.id}` : workspace.team_id,
@@ -136,11 +154,9 @@ export function teamWorkspace(
               ? record.latest.plan.assignment_key
                 ? 'contribution'
                 : 'coordination'
-              : record.latest?.purpose === 'explore'
-                ? 'exploration'
-                : 'request',
+              : 'request',
             name: record.title,
-            summary: `${record.latest?.purpose === 'explore' ? 'Exploration' : 'Assignment'} · ${label}`,
+            summary: `Assignment · ${label}`,
             stateLabel: pending ? 'Needs your permission' : label,
             agents: people
               .filter(({ agent }) => home.get(agent.id) === record.id)
@@ -174,7 +190,9 @@ export function teamWorkspace(
     launched.has(id)
       ? `plan:${launched.get(id)}`
       : projects.find((p) => p.streams.some((s) => s.id === id))!.id;
-  const entries: SharedWorkEntry[] = records.flatMap((record) =>
+  // The shared board receives execution and its agreed direction, not the
+  // private discussion that led to it (even after that discussion launches work).
+  const entries: SharedWorkEntry[] = assignments.flatMap((record) =>
     record.turns.flatMap((turn, index) => [
       {
         id: `${turn.id}:input`,
@@ -210,5 +228,5 @@ export function teamWorkspace(
       })),
     );
   }
-  return { records, projects, entries };
+  return { records, conversations, projects, entries };
 }

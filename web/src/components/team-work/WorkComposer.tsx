@@ -5,6 +5,7 @@ import { connectionDraftScope } from '../../engine/connection';
 import { canReply, type WorkRecord } from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { agentSetup } from '../../lib/agentCapabilities';
+import { GuideConversations } from './GuideConversations';
 
 export function WorkComposer({
   work,
@@ -12,12 +13,14 @@ export function WorkComposer({
   onAccepted,
   onShape,
   onGuideSettings,
+  conversations = [],
 }: {
   work?: WorkRecord;
   recipient?: string;
   onAccepted: (id: string) => void;
   onShape?: (id?: string) => void;
   onGuideSettings?: () => void;
+  conversations?: WorkRecord[];
 }) {
   const engine = useLocalEngine();
   const [choice, setChoice] = useState(recipient || '');
@@ -94,6 +97,9 @@ export function WorkComposer({
         <label htmlFor={`request-${key}`}>
           {work ? 'Follow up on this work' : 'What would you like to work on?'}
         </label>
+        {!work && directing && onShape && conversations.length > 0 && (
+          <GuideConversations conversations={conversations} onSelect={onShape} />
+        )}
         {!work && !choosing && directing && (
           <button type="button" className="px-text-button" onClick={() => setChoosing(true)}>
             With the Guide · change

@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { LocalEngine } from '../src/engine/client';
@@ -94,6 +94,96 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('keeps discussions and failed Guide replies out of work while retaining searchable conversations', async () => {
+    const interrupted = {
+      ...saved,
+      id: 'interrupted',
+      input: 'Another idea',
+      state: 'failed' as const,
+      error: 'Provider unavailable',
+    };
+    const f = fixture([saved, interrupted]);
+    const start = vi.spyOn(f.client, 'startPlan');
+    f.view();
+    await screen.findByRole('button', { name: /Continue with the Guide/ });
+    expect(screen.queryByRole('button', { name: /Needs you/ })).toBeNull();
+    expect(
+      within(screen.getByRole('region', { name: 'All projects map' })).queryByRole('button', {
+        name: /^Open /,
+      }),
+    ).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Work', exact: true }));
+    expect(screen.queryByText(saved.input)).toBeNull();
+    expect(screen.queryByText('Another idea')).toBeNull();
+    expect(screen.getByRole('button', { name: 'All 0' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Close', exact: true }));
+    fireEvent.click(screen.getByRole('button', { name: 'Conversations' }));
+    const history = screen.getByRole('dialog', { name: 'Guide conversations' });
+    fireEvent.click(
+      within(history).getByRole('button', { name: /Help me compare two approaches/ }),
+    );
+    await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    expect(location.hash).toBe(`#shape=${saved.id}`);
+    expect(screen.getByText(saved.messages[0].content)).toBeTruthy();
+    expect(f.submit).not.toHaveBeenCalled();
+    expect(start).not.toHaveBeenCalled();
+  });
+
+  it('remembers the chosen conversation after returning to the map and reloading, with its draft and parent', async () => {
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([saved, { ...saved, id: 'newer', input: 'A different idea' }]);
+    const page = f.view();
+    const message = await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(message, { target: { value: 'Let’s examine the first option.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize conversation' }));
+    page.unmount();
+    f.view();
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Continue with the Guide Help me compare/ }),
+    );
+    expect(
+      await screen.findByRole('textbox', { name: 'Continue the conversation' }),
+    ).toHaveProperty('value', 'Let’s examine the first option.');
+    fireEvent.click(screen.getByRole('button', { name: 'Send exploration reply' }));
+    await waitFor(() =>
+      expect(f.submit).toHaveBeenCalledExactlyOnceWith(
+        expect.any(String),
+        'Let’s examine the first option.',
+        guide.key,
+        saved.id,
+        'explore',
+      ),
+    );
+    expect(screen.queryByRole('button', { name: /Open Help me compare/ })).toBeNull();
+  });
+
+  it('starts a separate topic from Guide history without dispatching agents or losing the old discussion', async () => {
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([saved]);
+    const start = vi.spyOn(f.client, 'startPlan');
+    f.view();
+    await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.click(screen.getByRole('button', { name: 'Conversations' }));
+    fireEvent.click(screen.getByRole('button', { name: 'New conversation' }));
+    fireEvent.change(screen.getByRole('textbox', { name: 'What are you working through?' }), {
+      target: { value: 'How should I think about this next idea?' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Start exploring with the Guide' }));
+    await waitFor(() =>
+      expect(f.submit).toHaveBeenCalledExactlyOnceWith(
+        expect.any(String),
+        'How should I think about this next idea?',
+        guide.key,
+        undefined,
+        'explore',
+      ),
+    );
+    expect(start).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Conversations' }));
+    fireEvent.click(screen.getByRole('button', { name: /Help me compare two approaches/ }));
+    expect(screen.getByText(saved.messages[0].content)).toBeTruthy();
+  });
+
   it('minimizes a conversation on the map and resumes the same unsent thought', async () => {
     history.replaceState(null, '', '/#shape=saved-exploration');
     const f = fixture([saved]);
@@ -130,7 +220,7 @@ describe('shaping in the team-work map', () => {
     );
     expect(screen.queryByRole('button', { name: 'Prepare a plan' })).toBeNull();
   });
-  it('keeps the saved proposal first and resolves questions in the same unsent conversation', async () => {
+  it('presents a proposal after the open discussion and resolves questions in the same composer', async () => {
     const f = fixture([saved]);
     vi.mocked(f.client.plan).mockResolvedValue({
       plans: [
@@ -176,10 +266,10 @@ describe('shaping in the team-work map', () => {
       name: 'A decision we can use',
       level: 3,
     });
-    const historySummary = await screen.findByText('Conversation · 1 exchange');
-    expect(historySummary.closest('details')).toHaveProperty('open', false);
+    const reply = screen.getByText('What would a useful outcome look like?');
+    expect(reply.closest('details')).toBeNull();
     expect(
-      planHeading.compareDocumentPosition(historySummary) & Node.DOCUMENT_POSITION_FOLLOWING,
+      reply.compareDocumentPosition(planHeading) & Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
     const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
     fireEvent.change(composer, { target: { value: 'Keep this thought.' } });
@@ -308,7 +398,7 @@ describe('shaping in the team-work map', () => {
       request_id: request.request_id,
     }));
     f.view();
-    fireEvent.click(await screen.findByRole('button', { name: `Open ${saved.input}` }));
+    fireEvent.click(await screen.findByRole('button', { name: /Continue with the Guide/ }));
     fireEvent.click(await screen.findByText('Saved direction & history'));
     const editor = await screen.findByRole('textbox', { name: 'Current understanding' });
     await waitFor(() => expect(editor).toHaveProperty('value', original.body));

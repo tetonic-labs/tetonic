@@ -1,4 +1,4 @@
-import { type WorkRecord } from '../engine/projections/records';
+import { isGuideConversation, type WorkRecord } from '../engine/projections/records';
 
 // A launched plan is one human undertaking, with inspectable contributions.
 // Keep the source discussion and children in the underlying records.
@@ -6,7 +6,9 @@ export function workJourneys(records: WorkRecord[]) {
   const sources = new Set(
     records.flatMap((r) => (r.latest?.plan ? [r.latest.plan.source_work_id] : [])),
   );
-  return records.filter((r) => !r.latest?.plan?.assignment_key && !sources.has(r.id));
+  return records.filter(
+    (r) => !isGuideConversation(r) && !r.latest?.plan?.assignment_key && !sources.has(r.id),
+  );
 }
 
 export function journeyMembers(work: WorkRecord, records: WorkRecord[]) {

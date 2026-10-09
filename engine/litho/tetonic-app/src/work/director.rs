@@ -31,7 +31,7 @@ impl WorkService {
         context["product"] = serde_json::json!({
             "purpose":"Tetonic lets the owner shape work and delegate it to saved agents or teams, then follow concurrent efforts on the map.",
             "starting_point":"This conversation is enough to begin. Answer questions, explore uncertainty and compare approaches here. A team or plan is optional, not an intake requirement.",
-            "navigation":{"Agents":"Create/edit agents, choose models, tools and per-run limits.","Teams":"Save a group of existing agents.","Tools":"Add connections and skills to the workspace before assigning them to agents.","Work":"Read saved discussions, proposals and execution results.","Needs you":"Respond to recorded requests for human help."},
+            "navigation":{"Agents":"Create/edit agents, choose models, tools and per-run limits.","Teams":"Save a group of existing agents.","Tools":"Add connections and skills to the workspace before assigning them to agents.","Conversations":"Return to saved Guide discussions from the conversation picker beside the composer or in the Guide header. Discussions and unstarted proposals stay here, outside the work map.","Work":"Read dispatched assignments and team execution results. Starting a reviewed plan puts its coordination and assignments on the map.","Needs you":"Respond to recorded requests for human help from dispatched work."},
             "authority":"You may inspect or propose a plan using work_plan. You cannot launch workers, grant access, configure providers or search the owner's machine. Describe setup actions accurately; never claim you performed them."
         });
         context["local_access"] = serde_json::json!({
