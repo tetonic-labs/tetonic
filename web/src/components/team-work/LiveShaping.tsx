@@ -4,12 +4,7 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { taskIsActive } from '../../engine/projections/taskState';
 import { type EngineTask, type PlanView } from '../../engine/contracts';
-import {
-  workRecords,
-  isGuideConversation,
-  stateLabel,
-  stateLabels,
-} from '../../engine/projections/records';
+import { workRecords, isGuideConversation, stateLabel } from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { WorkingBrief } from '../workspace/WorkingBrief';
 import { PlanReview } from './PlanReview';
@@ -258,15 +253,9 @@ function ConnectedShaping({
                   ? 'Thinking it through…'
                   : unstarted
                     ? 'Reply hasn’t started'
-                    : planView?.execution
-                      ? `Team · ${planView.execution.state === 'completed' && !planView.execution.root?.messages.some((message) => message.role === 'assistant' && message.content.trim()) ? 'Execution finished' : stateLabels[planView.execution.state] || planView.execution.state}`
-                      : planView?.plans[0]?.content
-                        ? planView.readiness.length
-                          ? 'A few things to resolve'
-                          : 'Proposal ready for review'
-                        : latest?.state === 'completed'
-                          ? 'Ready when you are'
-                          : stateLabel(selected)
+                    : latest?.state === 'completed'
+                      ? 'Ready when you are'
+                      : stateLabel(selected)
                 : 'Think it through. Put your team to work.'}
           </small>
         </span>
@@ -340,15 +329,6 @@ function ConnectedShaping({
               </div>
             )}
             <div className="tw-conversation-plan" data-handoff={hasHandoff}>
-              {planView?.execution && onTeamMap && (
-                <button
-                  className="tw-guide-map-link"
-                  type="button"
-                  onClick={() => onTeamMap(planView.execution!.receipt.root_work_id)}
-                >
-                  View team on map
-                </button>
-              )}
               <PlanReview
                 key={`${selected.id}:${briefVersion}`}
                 workId={selected.id}
@@ -361,27 +341,25 @@ function ConnectedShaping({
                 onWork={onWork}
                 suggestion={suggestion}
                 conversationActive={active}
+                inConversation
+                onTeamMap={onTeamMap}
                 onBrief={() => setBriefOpen(true)}
               />
-              {!!planView?.brief_revision && (
-                <details
-                  className="tw-saved-direction"
-                  open={briefOpen}
-                  onToggle={(event) => setBriefOpen(event.currentTarget.open)}
-                >
-                  <summary>Saved direction & history</summary>
-                  {briefOpen && (
-                    <WorkingBrief
-                      key={selected.id}
-                      workId={selected.id}
-                      suggestion={suggestion}
-                      onContinue={() => {
-                        setBriefOpen(false);
-                        setBriefVersion((v) => v + 1);
-                      }}
-                    />
-                  )}
-                </details>
+              {briefOpen && (
+                <section className="tw-saved-direction" aria-label="Saved direction">
+                  <button type="button" onClick={() => setBriefOpen(false)}>
+                    Close saved direction
+                  </button>
+                  <WorkingBrief
+                    key={selected.id}
+                    workId={selected.id}
+                    suggestion={suggestion}
+                    onContinue={() => {
+                      setBriefOpen(false);
+                      setBriefVersion((v) => v + 1);
+                    }}
+                  />
+                </section>
               )}
             </div>
           </>

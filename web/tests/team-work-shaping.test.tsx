@@ -94,6 +94,72 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('keeps execution issues visible without turning the conversation into a control panel', async () => {
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([saved]);
+    const content = {
+      title: 'Compare our options',
+      summary: 'Evaluate both approaches.',
+      token_budget: 4000,
+      open_questions: [],
+      assignments: [
+        {
+          key: 'compare',
+          title: 'Compare',
+          agent_key: 'worker',
+          instructions: 'Read the supplied notes',
+          deliverable: 'Comparison',
+          tools: [],
+          depends_on: [],
+          token_budget: 2000,
+        },
+      ],
+    };
+    vi.mocked(f.client.plan).mockResolvedValue({
+      plans: [],
+      brief_revision: 1,
+      generation: null,
+      readiness: [],
+      execution_available: false,
+      execution: {
+        state: 'failed',
+        error: 'The provider is unavailable. Your work is saved.',
+        root: null,
+        assignments: [],
+        receipt: {
+          source_work_id: saved.id,
+          request_id: 'start',
+          revision: 1,
+          root_work_id: 'root',
+          content,
+          assignments: [
+            {
+              assignment_key: 'compare',
+              work_id: 'child',
+              agent_key: 'worker',
+              definition_digest: 'pin',
+            },
+          ],
+        },
+      },
+    });
+    const start = vi.spyOn(f.client, 'startPlan');
+    f.view();
+    const summary = await screen.findByRole('region', { name: 'Team work summary' });
+    expect(
+      within(summary).getByText('The provider is unavailable. Your work is saved.'),
+    ).toBeTruthy();
+    expect(screen.queryByRole('region', { name: 'Team execution' })).toBeNull();
+    const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(composer, { target: { value: 'Keep discussing alternatives.' } });
+    fireEvent.click(within(summary).getByRole('button', { name: 'Review issue' }));
+    expect(screen.getByRole('region', { name: 'Team execution' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }));
+    expect(composer).toHaveProperty('value', 'Keep discussing alternatives.');
+    expect(start).not.toHaveBeenCalled();
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+
   it('retries an unstarted saved message without losing the next thought or creating another turn', async () => {
     const unstarted = { ...saved, state: 'not_started' as const, run_id: null, messages: [] };
     history.replaceState(null, '', `/#shape=${saved.id}`);
@@ -302,6 +368,9 @@ describe('shaping in the team-work map', () => {
     ).toBeTruthy();
     const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
     fireEvent.change(composer, { target: { value: 'Keep this thought.' } });
+    expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
+    expect(screen.queryByText('Plan history · 1')?.closest('[hidden]')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Review proposal' }));
     fireEvent.click(screen.getByRole('button', { name: 'Work through this with the Guide' }));
     expect(composer).toHaveProperty('value', expect.stringContaining('Keep this thought.'));
     expect(composer).toHaveProperty(
@@ -309,12 +378,16 @@ describe('shaping in the team-work map', () => {
       expect.stringContaining('Which audience is this for?'),
     );
     expect(document.activeElement).toBe(composer);
+    fireEvent.click(screen.getByRole('button', { name: 'Review proposal' }));
     expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
       'disabled',
       true,
     );
     expect(f.submit).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }));
+    expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
+    expect(composer).toHaveProperty('value', expect.stringContaining('Keep this thought.'));
   });
 
   it('returns from a saved Guide setup change to the same discussion with the draft intact', async () => {

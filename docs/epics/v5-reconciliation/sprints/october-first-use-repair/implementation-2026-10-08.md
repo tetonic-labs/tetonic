@@ -145,6 +145,31 @@ qualified first-use latency target. Do not mark EXP-001 accepted from these runs
 
 ### Remaining acceptance work
 
+#### October 9: Guide planning density and frontier tool continuation
+
+- Keep the Guide conversation as the main surface. A saved proposal or execution
+  appears as one summary with its title, assignments, actual status and next action.
+  Full review, budget details, history and recovery remain available inline on
+  request; review does not start work. Returning to discussion retains the draft.
+  Direction shared for planning is editable immediately instead of behind another
+  disclosure. Work failures and human requests remain visible in the summary.
+- The live toy plan stopped before dispatching its assignments. Recorded tool
+  output reported a checkpoint/dispatch-receipt failure, then hosted continuation
+  failed a secret scan. Responses carries encrypted reasoning and opaque IDs;
+  the generic scanners treated this provider protocol data as local secrets.
+- Hosted disclosure scanning now distinguishes exact private Responses protocol
+  fields from all conversation text, tool arguments/results and schemas. Protected
+  local checkpoints have a distinct artifact kind, require Secret classification,
+  reject remote-worker declarations, enforce a 2 MiB bound and run a complete,
+  validated content scan before sealing. Ordinary artifacts retain their existing
+  scanning path. Invalid checkpoint content and scanner failures fail closed.
+  Existing checkpoint references remain readable; no failed work is auto-replayed.
+- Coverage includes provider ciphertext through parallel hosted coordination,
+  selected tools and human handoff; actual content still blocks disclosure;
+  malformed/checkpoint-size/UTF-8 boundaries; saved review state and chat drafts.
+  These are deterministic integration checks, not a claim that a live provider
+  completed the user's original toy plan.
+
 #### October 9: stuck Guide diagnosis and recovery
 
 - A Guide reply admitted before a preview-engine restart was canceled afterward,

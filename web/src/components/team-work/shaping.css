@@ -575,3 +575,72 @@
   opacity: 0.5;
   cursor: default;
 }
+
+.tw-plan-detail-content {
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.tw-plan-detail-content[hidden] {
+  display: none;
+}
+.tw-guide-plan-card {
+  padding: 18px 20px;
+  border: 1px solid var(--brand-rule);
+  border-left: 3px solid var(--brand-field);
+  border-radius: 3px 10px 10px 3px;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.tw-guide-plan-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 10px;
+}
+.tw-guide-plan-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--brand-field);
+}
+.tw-guide-plan-dot[data-running='true'] {
+  animation: handoff-activity 1.4s ease-in-out infinite alternate;
+}
+.tw-guide-plan-card h3 {
+  font-size: 19px;
+  margin-bottom: 8px;
+}
+.tw-guide-plan-card .tw-guide-plan-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tw-guide-plan-card > p {
+  font-size: 13px;
+}
+.tw-guide-plan-card[data-attention='true'] {
+  border-left-color: var(--status-warning, #d49b4b);
+}
+.tw-guide-plan-card .tw-guide-plan-issue {
+  padding: 8px 0;
+}
+.tw-guide-plan-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 14px 0 6px;
+}
+.tw-live .tw-conversation-plan .tw-plan-detail-content > .px-text-button {
+  justify-self: start;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+@media (prefers-reduced-motion: reduce) {
+  .tw-guide-plan-dot[data-running='true'] {
+    animation: none;
+  }
+}

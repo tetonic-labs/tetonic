@@ -941,7 +941,7 @@ it('carries reviewed direction into planning and agrees and dispatches with one 
     .mockRejectedValueOnce(new Error('Start response lost'));
   const first = f.render('Investigate the supplied options with two independent contributors.');
   fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
-  fireEvent.click(screen.getByText('Direction to share with the team'));
+  expect(screen.getByRole('textbox', { name: 'Direction for the team' })).toBeTruthy();
   fireEvent.change(screen.getByRole('textbox', { name: 'Direction for the team' }), {
     target: {
       value: 'Use only the supplied evidence. Compare options and independently check constraints.',
