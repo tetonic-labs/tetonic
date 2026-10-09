@@ -487,7 +487,7 @@
 @media (max-width: 1000px) {
   .tw-live .px-header {
     flex-wrap: wrap;
-    padding: 12px 18px;
+    padding: 0 18px;
     gap: 8px;
   }
   .tw-live .px-header nav {
