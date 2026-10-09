@@ -86,6 +86,11 @@ settings outside the new `host` object keep their previous interpretation.
 | `logging.directory` | Omitted | Optional daily `tetonic.*.jsonl` files, retaining at most seven files. The command holds the writer's flush guard. |
 | `telemetry.sample_rate` | `1.0` | Sampling probability from 0 through 1 through the existing trace gate. |
 | `telemetry.byte_budget` | `524288000` | Process-lifetime emitted-byte budget. Existing always-retained security outcomes can exceed it; this is not a hard disk quota. |
+| `workspace_execution.max_steps` | Omitted | Worker step ceiling, 1–512. Omitted/null retains eight steps with a tool folder and four without. |
+| `workspace_execution.max_seconds` | `120` | Worker elapsed-time ceiling, 10–86400 seconds. |
+| `workspace_execution.max_tokens` | `12288` | Worker reported input-plus-output token ceiling, 256–1000000 per run. |
+| `workspace_execution.coordination_max_steps` | `16` | Managed plan coordinator step ceiling, 1–512. |
+| `workspace_execution.coordination_max_tokens` | `4096` | Coordination allowance ceiling, 256–1000000, additionally capped by `max_tokens`. Included inside the plan's total allocation. |
 
 Both sinks use the existing safe trace formatter, secret redaction and payload
 suppression. Raw payload logging is not an option here. Diagnostics are best
@@ -97,6 +102,35 @@ pool sizes and out-of-range sampling fail explicitly. An unusable configured log
 destination fails startup. Settings are read at startup, with no live reload.
 Changing the artifact directory does not migrate existing payloads; preserve or
 copy required artifacts before changing an existing deployment's location.
+
+### Configuring longer workspace work
+
+The [workspace execution example](examples/workspace-execution.json) allows agents
+to be configured for up to 32 steps, 15 minutes and 32000 reported tokens per run;
+coordination can use up to 24 steps and 10000 tokens within the agreed plan total.
+Pass its path to `tetonic ui --host-config` along with your usual launch arguments.
+These are explicit operator ceilings, not recommended budgets for every task.
+Omitting this section retains the previous defaults.
+
+The connected agent editor reads these ceilings from its existing catalog.
+Created/edited agents retain their own saved limits; increasing the host ceilings
+does not rewrite them. Decreasing ceilings blocks future admission of agents that
+exceed them until their settings or the host configuration are adjusted. Legacy
+bootstrap agents with no stored preferences continue inheriting host defaults.
+The Guide's engine observation and brief-to-plan generation both report the
+current coordination allowance instead of teaching a fixed 4096-token limit.
+Continuation proposals retain coordination allocations up to the current ceiling.
+
+The coordinator's elapsed deadline still covers the worker ceiling multiplied by
+assignment count plus one, capped at 24 hours. The accepted plan pins its execution
+settings. These settings do not add permissions, raise workspace allowances,
+change model context windows, guarantee model completion or enable durable team
+waiting. Provider/broker capacity and existing grants still apply. Human waiting
+in team work currently consumes the live attempt's deadline; safe team restoration
+after restart remains unfinished. See [the readiness slice](../epics/v5-reconciliation/sprints/october-2-coordinated-work/execution-limits-2026-10-08.md).
+
+`workspace_execution` applies to the local workspace host (`tetonic ui`). It does
+not override explicit per-job execution settings in `tetonic job --host-settings`.
 
 ## Scope and remaining work
 

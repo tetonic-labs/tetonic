@@ -21,6 +21,7 @@ pub(crate) struct WorkspaceServices {
     pub(crate) local: LocalControl,
     pub(crate) host: PreparedLaunch,
     pub(crate) scope: ApplicationScope,
+    pub(crate) execution: crate::host::WorkspaceExecutionConfiguration,
     // Only admission/configuration changes serialize; inference never holds this lock.
     pub(crate) admission: std::sync::Arc<tokio::sync::Mutex<()>>,
     pub(crate) keys: std::sync::Arc<providers::ProviderKeys>,
@@ -35,6 +36,7 @@ impl WorkspaceServices {
         mut host: PreparedLaunch,
         scope: ApplicationScope,
         keys: std::sync::Arc<providers::ProviderKeys>,
+        execution: crate::host::WorkspaceExecutionConfiguration,
     ) -> Result<Self, AppError> {
         local
             .resources()
@@ -62,6 +64,7 @@ impl WorkspaceServices {
             host,
             scope,
             keys,
+            execution,
             admission: std::sync::Arc::new(tokio::sync::Mutex::new(())),
             #[cfg(test)]
             hosted_transport: None,

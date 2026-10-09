@@ -2,6 +2,51 @@ use super::*;
 use std::time::Duration;
 
 #[test]
+fn workspace_execution_defaults_and_partial_overrides_are_bounded() {
+    let default = HostConfiguration::from_json(b"{}")
+        .unwrap()
+        .workspace_execution;
+    assert_eq!(
+        (default.worker_steps(false), default.worker_steps(true)),
+        (4, 8)
+    );
+    assert_eq!((default.max_seconds, default.max_tokens), (120, 12_288));
+    assert_eq!(
+        (
+            default.coordination_max_steps,
+            default.coordination_tokens()
+        ),
+        (16, 4096)
+    );
+    let config = HostConfiguration::from_json(
+        br#"{"workspace_execution":{"max_steps":32,"max_tokens":1024}}"#,
+    )
+    .unwrap();
+    assert_eq!(config.workspace_execution.worker_steps(false), 32);
+    assert_eq!(config.workspace_execution.worker_steps(true), 32);
+    assert_eq!(config.workspace_execution.coordination_tokens(), 1024);
+    for (field, values) in [
+        ("max_steps", [0, 513]),
+        ("max_seconds", [9, 86_401]),
+        ("max_tokens", [255, 1_000_001]),
+        ("coordination_max_steps", [0, 513]),
+        ("coordination_max_tokens", [255, 1_000_001]),
+    ] {
+        for value in values {
+            let config = serde_json::json!({"workspace_execution":{field:value}});
+            assert!(
+                HostConfiguration::from_json(&serde_json::to_vec(&config).unwrap()).is_err(),
+                "{config}"
+            );
+        }
+    }
+    assert!(HostConfiguration::from_json(
+        br#"{"workspace_execution":{"allowed_tools":["run_shell"]}}"#
+    )
+    .is_err());
+}
+
+#[test]
 fn configuration_rejects_unsupported_options_and_authority_fields() {
     for value in [
         serde_json::json!({"storage":{"read_connections":0}}),

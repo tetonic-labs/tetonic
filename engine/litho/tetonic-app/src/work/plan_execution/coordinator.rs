@@ -51,6 +51,7 @@ pub(super) fn configuration(
     guide: &LocalAgent,
     content: &PlanContent,
     seconds: u64,
+    max_steps: usize,
 ) -> serde_json::Value {
     let own = content.token_budget
         - content
@@ -60,7 +61,7 @@ pub(super) fn configuration(
             .sum::<u64>();
     serde_json::json!({
         "instructions": INSTRUCTIONS, "requested_tools":["finish",DISPATCH],
-        "explain_turn":false, "max_steps":16,
+        "explain_turn":false, "max_steps":max_steps,
         "preferences":crate::resources::GeneralAgentPreferences {
             provider: (guide.provider != "ollama").then(|| guide.provider.clone()),
             model: guide.model.clone(), display_name: COORDINATOR.into(),

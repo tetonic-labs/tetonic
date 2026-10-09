@@ -244,7 +244,7 @@ impl WorkService {
                     .map(|a| a.token_budget)
                     .sum(),
             )
-            .clamp(256, DEFAULT_WORK_TOKENS);
+            .clamp(256, self.services.execution.coordination_tokens());
         if remaining.is_empty() {
             // The workers already finished; propose only assembling their results.
             // This is a visible new assignment, not a claim the old run resumed.

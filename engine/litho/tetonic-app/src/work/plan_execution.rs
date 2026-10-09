@@ -71,13 +71,7 @@ impl WorkService {
         let mut reasons = vec![];
         let used: u64 = content.assignments.iter().map(|a| a.token_budget).sum();
         let own = content.token_budget.saturating_sub(used);
-        let ceiling = self
-            .services
-            .host
-            .settings
-            .reported_token_ceiling
-            .unwrap_or(DEFAULT_WORK_TOKENS)
-            .min(DEFAULT_WORK_TOKENS);
+        let ceiling = self.services.execution.coordination_tokens();
         if own < 256 || own > ceiling {
             reasons.push(format!("Leave 256–{ceiling} tokens within the plan total for coordination and the combined result. Currently {own} remain after assignments."));
         }
@@ -195,7 +189,12 @@ impl WorkService {
         self.services.agent_execution_settings(&guide).await?;
         let resources = self.services.local.resources();
         let max_elapsed_seconds = self.plan_deadline(content);
-        let coordinator_config = coordinator::configuration(&guide, content, max_elapsed_seconds);
+        let coordinator_config = coordinator::configuration(
+            &guide,
+            content,
+            max_elapsed_seconds,
+            self.services.execution.coordination_max_steps,
+        );
         let coordinator = match resources
             .register_agent(
                 &self.services.host.credential,

@@ -1,9 +1,7 @@
 //! Scoped work shaping, admission, coordination and projections over existing resources.
 use crate::errors::AppError;
 use crate::resources::TeamWorkLaunch;
-use crate::workspace::{
-    resource, validate_request_id, WorkspaceServices, AGENT, DEFAULT_WORK_TOKENS, INPUT_LIMIT,
-};
+use crate::workspace::{resource, validate_request_id, WorkspaceServices, AGENT, INPUT_LIMIT};
 pub use crate::workspace::{
     CreateLocalAgent, ImportSkill, LocalAgent, LocalAgentCatalog, LocalModelCatalog, LocalProvider,
     RemoveProviderKey, RevokeSkill, SaveMcpConnection, SaveProviderKey, UpdateLocalAgent,
@@ -43,7 +41,7 @@ use inspection::task_failure_message;
 mod tests;
 
 #[cfg(test)]
-use crate::workspace::LOCAL_TOKEN_CEILING;
+use crate::workspace::{DEFAULT_WORK_TOKENS, LOCAL_TOKEN_CEILING};
 
 #[cfg(test)]
 mod scope_tests;

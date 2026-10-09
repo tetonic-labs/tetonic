@@ -34,8 +34,8 @@ for the canonical types, transaction boundaries, accounting trace and limits.
 
 ## Start
 
-The optional `--host-config <file.json>` configures storage, sanitized logging and
-telemetry through the shared application host. See the
+The optional `--host-config <file.json>` configures storage, workspace execution
+ceilings, sanitized logging and telemetry through the shared application host. See the
 [host configuration contract](../../architecture/host-configuration.md).
 Existing command arguments and HTTP/UI behavior remain supported.
 

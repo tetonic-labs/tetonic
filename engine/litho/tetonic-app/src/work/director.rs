@@ -28,6 +28,12 @@ impl WorkService {
         let app_scope = self.services.authorized_scope().await?;
         let source = conversation_root(snapshot, turn);
         let mut context = observation(snapshot, turn, &app_scope);
+        context["coordination_limits"] = serde_json::json!({
+            "minimum_tokens":256,
+            "maximum_tokens":self.services.execution.coordination_tokens(),
+            "maximum_steps":self.services.execution.coordination_max_steps,
+            "budget_rule":"Reserve coordination tokens inside the plan total, in addition to worker allocations. These ceilings do not grant budget or tool access."
+        });
         if let Some(team) = self.work_team(source).await? {
             context["agents"] =
                 serde_json::json!(agent_observations(snapshot, Some(&team.agent_keys)));

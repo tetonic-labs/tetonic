@@ -34,6 +34,13 @@ Acceptance: two children racing for one remaining allocation cannot both obtain 
 
 ## OCT-202 Connect real huddles collaboration and combined results
 
+October 8 prerequisite: [configurable execution limits](execution-limits-2026-10-08.md)
+removes the fixed worker time/step ceilings and coordinator allowance from the
+local workspace host. Defaults remain compatible; operators can select a larger
+bounded profile without rewriting saved agents or replacing managed admission.
+This is execution plumbing, not completion of real-model usefulness or durable
+team waiting acceptance.
+
 **Sequencing:** COORD-B in Sprint 1 proves two real contributors, scoped durable exchange, bounded coordination and a human flag. Reuse its protocol and receipts; do not add a parallel agent-chat coordinator here. The [bounded collaboration contract](../october-1-coherent-workspace/ui-consolidation-sprint.md#bounded-collaboration-and-interruption) covers update/help/urgent/human signals, limits, cycles, deadlines and safe attention boundaries. This sprint adds wider usefulness/failure trials, huddle revision and the repository scenario moved from Sprint 1.
 
 Work: let an agent propose a concise task-specific huddle for larger requests, including intended outcome, contributors, dependencies and limits. Small requests can proceed directly. Dispatch accepted assignments through the same durable work API. Allow permitted exchanges of task context and artifacts; integrate contributions into a result with traceable sources. Support human steering without restarting an unrelated conversation or discarding completed work. Begin with an explicit small team; arbitrary recursive agent creation is unnecessary.

@@ -14,6 +14,9 @@ mod groups;
 #[path = "plan_recovery_tests.rs"]
 mod recovery;
 
+#[path = "execution_configuration_tests.rs"]
+mod execution_configuration;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;

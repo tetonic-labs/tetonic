@@ -9,7 +9,6 @@ use crate::resources::LocalControl;
 use crate::resources::{HarnessPreparationLimits, RegisteredExecutionSettings};
 use crate::workspace::{
     providers, resource, WorkspaceServices, AGENT, GUIDE, GUIDE_INSTRUCTIONS, INPUT_LIMIT,
-    LOCAL_TOKEN_CEILING,
 };
 use tetonic_domain::DataClass;
 
@@ -44,6 +43,7 @@ impl LocalWorkspace {
         configuration: HostConfiguration,
     ) -> Result<Self, AppError> {
         configuration.validate()?;
+        let execution = configuration.workspace_execution.clone();
         let local = LocalControl::open_with_read_connections(
             database.clone(),
             AUDIENCE.into(),
@@ -236,8 +236,8 @@ impl LocalWorkspace {
                     plan_dispatch: None,
                     response_schema: None,
                     hosted: None,
-                    max_elapsed_seconds: 120,
-                    reported_token_ceiling: Some(LOCAL_TOKEN_CEILING),
+                    max_elapsed_seconds: execution.max_seconds,
+                    reported_token_ceiling: Some(execution.max_tokens),
                     workspace_root,
                     model,
                     num_ctx: 8192,
@@ -246,7 +246,7 @@ impl LocalWorkspace {
                     limits: HarnessPreparationLimits {
                         human_handoff: false,
                         work_director: false,
-                        max_steps: if has_workspace { 8 } else { 4 },
+                        max_steps: execution.worker_steps(has_workspace),
                         max_input_bytes: INPUT_LIMIT,
                     },
                 },
@@ -264,7 +264,7 @@ impl LocalWorkspace {
             vault: std::sync::Arc::new(tetonic_secrets::key_storage::PlatformKeyStorage),
         });
         Ok(Self {
-            services: WorkspaceServices::bind(local, host, scope, keys).await?,
+            services: WorkspaceServices::bind(local, host, scope, keys, execution).await?,
         })
     }
 }

@@ -1,0 +1,9 @@
+{
+  "workspace_execution": {
+    "max_steps": 32,
+    "max_seconds": 900,
+    "max_tokens": 32000,
+    "coordination_max_steps": 24,
+    "coordination_max_tokens": 10000
+  }
+}

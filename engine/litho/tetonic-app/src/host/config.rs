@@ -12,6 +12,7 @@ pub struct HostConfiguration {
     pub storage: StorageConfiguration,
     pub logging: LoggingConfig,
     pub telemetry: TraceConfig,
+    pub workspace_execution: super::WorkspaceExecutionConfiguration,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -41,6 +42,7 @@ impl HostConfiguration {
     }
 
     pub fn validate(&self) -> Result<(), AppError> {
+        self.workspace_execution.validate()?;
         if !(1..=16).contains(&self.storage.read_connections) {
             return Err(AppError::InvalidRequest(
                 "storage.read_connections must be between 1 and 16".into(),

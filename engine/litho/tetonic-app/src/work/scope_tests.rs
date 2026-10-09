@@ -142,9 +142,15 @@ async fn scoped(base: &WorkService, principal: &str, team: &str) -> (WorkService
         .unwrap();
     let mut host = base.services.host.clone();
     host.credential = credential.expose_secret().into();
-    let services = WorkspaceServices::bind(local, host, scope, base.services.keys.clone())
-        .await
-        .unwrap();
+    let services = WorkspaceServices::bind(
+        local,
+        host,
+        scope,
+        base.services.keys.clone(),
+        base.services.execution.clone(),
+    )
+    .await
+    .unwrap();
     (WorkService { services }, credential.credential_id)
 }
 

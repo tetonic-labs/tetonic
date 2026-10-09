@@ -5,9 +5,11 @@ mod config;
 pub(crate) mod initialization;
 #[cfg(test)]
 mod tests;
+mod workspace_execution;
 
 pub use bindings::HostServices;
 pub use config::{HostConfiguration, StorageConfiguration};
+pub use workspace_execution::WorkspaceExecutionConfiguration;
 
 use crate::resources::LocalControl;
 use crate::services::InitializationService;
