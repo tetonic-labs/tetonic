@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { readFileSync, existsSync } from 'node:fs';
 import { TeamWorkspace } from '../src/components/team-work/TeamWorkspace';
 import { WorkComposer } from '../src/components/team-work/WorkComposer';
@@ -468,6 +469,51 @@ describe('one connected team workspace', () => {
     expect(screen.getByRole('button', { name: 'Manage Files' })).toBeTruthy();
     expect(screen.getByText('No MCP servers are configured on this engine.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Manage GitHub' })).toBeNull();
+  });
+  it('accepts pointer clicks on all three map utilities through the overlay styles', async () => {
+    // fireEvent ignores pointer-events, so exercise real pointer checks with the shipped CSS.
+    const style = document.createElement('style');
+    style.textContent = ['team-work', 'work-journey', 'arrival-workspace']
+      .map((name) => readFileSync(`src/components/team-work/${name}.css`, 'utf8'))
+      .join('\n');
+    document.head.append(style);
+    try {
+      const user = userEvent.setup();
+      const f = fixture([saved]);
+      f.setData({
+        ...f.getData(),
+        usage: [],
+        budget_setting: { revision: 1, token_limit: 4000 },
+        budget_max_tokens: 4096,
+      });
+      f.view();
+      const board = await screen.findByRole('button', { name: 'Blackboard', exact: true });
+      expect(getComputedStyle(board.closest('.px-overview')!).pointerEvents).toBe('none');
+      await user.click(board);
+      expect(
+        within(screen.getByRole('log', { name: 'Recorded team output' })).getByText(
+          'The first approach needs less time.',
+        ),
+      ).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Close', exact: true }));
+
+      await user.click(screen.getByRole('button', { name: 'Usage', exact: true }));
+      expect(screen.getByRole('heading', { name: 'Usage', exact: true })).toBeTruthy();
+      expect(screen.getByText('Tokens reported')).toBeTruthy();
+      await user.click(screen.getByRole('button', { name: 'Close', exact: true }));
+
+      await user.click(screen.getByRole('button', { name: 'Search activity', exact: true }));
+      const search = screen.getByRole('textbox', { name: 'Search shared work context' });
+      await user.type(search, 'approach');
+      expect(screen.getAllByRole('button', { name: 'Open source' }).length).toBeGreaterThan(0);
+      await user.clear(search);
+      await user.type(search, 'zzzxylophone404');
+      expect(screen.queryByRole('button', { name: 'Open source' })).toBeNull();
+      expect(screen.getByText(/No shared records match this search/)).toBeTruthy();
+      expect(f.submit).not.toHaveBeenCalled();
+    } finally {
+      style.remove();
+    }
   });
   it('filters the live toolkit and opens the exact agent with a saved file grant', async () => {
     const f = fixture();

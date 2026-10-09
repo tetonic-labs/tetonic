@@ -195,6 +195,8 @@
   margin-top: 12px;
 }
 .tw-map-actions button {
+  /* The overview passes gestures through to the map; its controls must receive clicks. */
+  pointer-events: auto;
   border: 0;
   padding: 3px 0;
   background: transparent;
