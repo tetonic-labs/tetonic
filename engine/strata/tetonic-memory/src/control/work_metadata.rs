@@ -174,7 +174,7 @@ mod tests {
             db.conn.execute_batch("CREATE TABLE local_work_notes(work_id TEXT PRIMARY KEY, notes_json TEXT NOT NULL);
                 INSERT INTO local_work_notes VALUES('unique','[\"legacy\"]'),('duplicate','[\"ambiguous\"]'),('orphan','[\"retained\"]');
                 DROP TABLE work_metadata;
-                DELETE FROM schema_versions WHERE version=70;").unwrap();
+                DELETE FROM schema_versions WHERE version>=70;").unwrap();
         }
         {
             let db = Store::open(&path).unwrap();
@@ -212,7 +212,10 @@ mod tests {
                 .notes,
             ["new"]
         );
-        assert_eq!(crate::backup::schema_version(&db.conn).unwrap(), 70);
+        assert_eq!(
+            crate::backup::schema_version(&db.conn).unwrap(),
+            crate::SCHEMA_TARGET_VERSION
+        );
     }
 
     #[test]
@@ -231,7 +234,7 @@ mod tests {
             .unwrap();
             db.conn
                 .execute_batch(
-                    "DROP TABLE work_metadata; DELETE FROM schema_versions WHERE version=70;",
+                    "DROP TABLE work_metadata; DELETE FROM schema_versions WHERE version>=70;",
                 )
                 .unwrap();
         }

@@ -15,7 +15,7 @@ crate enforces transactional integrity. It has no network client.
 | [`usage/`](src/usage/mod.rs) | Work allocations, attempt reservations, provider usage, settlement/resume accounting, execution capacity and inference compute reservations |
 | [`artifacts/`](src/artifacts/mod.rs) | Artifact/context ownership bindings and result dispositions; payloads live in `tetonic-artifact` |
 | [`lib.rs`](src/lib.rs) | `Store`, `SharedStore`, public compatibility exports, base session/audit APIs, file-change and checkpoint records |
-| [`schema.rs`](src/schema.rs), [`backup.rs`](src/backup.rs) | Schema upgrades through v70, migration ownership, verified backups and restore |
+| [`schema.rs`](src/schema.rs), [`backup.rs`](src/backup.rs) | Schema upgrades through v71, migration ownership, verified backups and restore |
 | `blob`, `payload_digest`, `sync_lock`, `util` | Bounded audit blobs, canonical event digests, locking, IDs/timestamps and workspace storage keys |
 
 These are module boundaries within the existing store, not independent services

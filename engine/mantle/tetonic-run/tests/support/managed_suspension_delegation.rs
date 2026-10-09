@@ -101,6 +101,7 @@ async fn suspended_parent_cannot_dispatch_and_old_handle_cannot_borrow_resumed_l
                 lease_epoch: lease.lease_epoch,
                 holder: lease.holder.clone(),
             };
+            assert_eq!(old.authorize_dispatch().await.unwrap(), old_proof);
             assert!(tetonic_run::apply_command(
                 &first,
                 &dispatch(&first, &binding, old_proof.clone())
@@ -109,6 +110,7 @@ async fn suspended_parent_cannot_dispatch_and_old_handle_cannot_borrow_resumed_l
             proceed.notify_one();
             let waiting = parked(&service, &binding).await;
             assert!(old.authorize_child_scope(&scope).await.is_err());
+            assert!(old.authorize_dispatch().await.is_err());
             assert!(service.delegation_parent(&binding.attempt_id).is_err());
             assert!(tetonic_run::apply_command(
                 &waiting,
@@ -147,12 +149,19 @@ async fn suspended_parent_cannot_dispatch_and_old_handle_cannot_borrow_resumed_l
                 "same attempt ID must not lend the new lease to an old handle"
             );
             assert!(
-                tetonic_run::apply_command(&resumed, &dispatch(&resumed, &binding, old_proof))
-                    .is_err(),
+                tetonic_run::apply_command(
+                    &resumed,
+                    &dispatch(&resumed, &binding, old_proof.clone())
+                )
+                .is_err(),
                 "journal rejects stale dispatch even with the latest sequence"
             );
             let current = service.delegation_parent(&binding.attempt_id).unwrap();
             assert!(current.authorize_child_scope(&scope).await.is_ok());
+            assert!(old.authorize_dispatch().await.is_err());
+            assert!(
+                current.authorize_dispatch().await.unwrap().lease_epoch > old_proof.lease_epoch
+            );
             let lease = resumed.attempts[&binding.attempt_id]
                 .lease
                 .as_ref()

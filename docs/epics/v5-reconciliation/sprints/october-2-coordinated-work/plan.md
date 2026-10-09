@@ -53,6 +53,12 @@ Extended acceptance: duplicate/lost exchange replies, unavailable recipients, co
 
 ## OCT-203 Keep independent work moving and conflicts visible
 
+October 8 prerequisite: [durable coordinator dispatch receipts](durable-dispatch-2026-10-08.md)
+now retain accepted tool-call selections and exact responses under the current
+runtime lease and stop generation. The controller uses them before dispatch and
+before advancing its contribution-delivery guard. Team checkpoint restoration and
+bounded durable human waiting remain open; these receipts alone cannot resume work.
+
 October 7 engine prerequisite: [runtime boundaries and durable waiting](runtime-boundaries-and-durable-waits-2026-10-07.md)
 adds checkpoint-backed suspension and exclusive restoration for a scoped root
 through the existing managed lifecycle. Production team waiting is **not enabled**.

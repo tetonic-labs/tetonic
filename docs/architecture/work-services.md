@@ -70,6 +70,31 @@ the shared application mutex covers admission/configuration changes, not model
 execution. The existing controller owns scheduling, and managed execution owns
 leases, cancellation and results.
 
+## Durable coordinator dispatch
+
+The controller records a dispatch tool call before admitting its assignments and
+records the exact response before returning it to the model. Its
+[`receipts.rs`](../../engine/litho/tetonic-app/src/team_work_controller/receipts.rs)
+adapter uses the existing store's
+[`huddle_execution/dispatch.rs`](../../engine/strata/tetonic-memory/src/control/huddle_execution/dispatch.rs).
+Receipts bind the approved execution, coordinator attempt, tool-call ID, ordered
+assignment selection, current executor lease and stop generation. Changed retries
+conflict; completed retries replay their saved response without worker admission
+or rereading a newer contribution.
+
+The managed parent handle rechecks original credential and execution authority;
+the store checks the current journal fence in the receipt transaction. A serialized
+receipt never authorizes execution or restoration. The live finish guard advances
+only after the response is saved and only for contributions contained in it.
+Failed writes keep that guard intact; a retry reconciles existing child state.
+
+Schema **71** adds scoped dispatch receipts through the existing upgrade/backup
+path. Pending requests and completed responses survive database reopen. This does
+not yet restore a team after process loss: coordinator/child checkpoint restoration,
+bounded human response horizons and safe resume accounting still need integration.
+Existing guards against unsupported subtree restoration remain in place. See
+[the implementation evidence](../epics/v5-reconciliation/sprints/october-2-coordinated-work/durable-dispatch-2026-10-08.md).
+
 ## Metadata migration
 
 Previously, `local_work_notes` keyed notes/status/lead/roster data by work ID alone.

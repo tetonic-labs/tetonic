@@ -25,6 +25,14 @@ impl DelegationParent {
         &self.binding
     }
 
+    /// Current parent authority for recording a coordinator dispatch boundary.
+    /// Receipts still validate this fence against the journal in their transaction.
+    pub async fn authorize_dispatch(&self) -> Result<tetonic_domain::LeaseProof, ()> {
+        let scope = self.binding.execution_scope.as_ref().ok_or(())?;
+        self.authorize_child_scope(scope).await?;
+        Ok(self.live_attempt()?.lease_proof)
+    }
+
     pub(super) fn live_attempt(&self) -> Result<ActiveAttempt, ()> {
         let registry = self.active.upgrade().ok_or(())?;
         let active = registry

@@ -124,7 +124,7 @@ impl Store {
     }
 }
 
-fn assignment_state(
+pub(super) fn assignment_state(
     work: &crate::TeamWorkItem,
     run: Option<&RunSnapshot>,
     pin: &PlanAgentPin,

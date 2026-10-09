@@ -45,12 +45,14 @@ Cross-area helpers deliberately use the caller's connection and transaction.
 | [`set_team_budget_setting`](../../engine/strata/tetonic-memory/src/usage/work_usage.rs) | Manager authority, expected revision, exact request/actor/value retry check, setting and receipt. A stale write must not replace a newer setting. |
 | [`edit_organization_agent`](../../engine/strata/tetonic-memory/src/control/organization_agent_edits.rs) | Current authority, expected revision, immutable revision creation, current registration and edit receipt. Agent edits do not rewrite an already pinned execution. |
 | [`begin_huddle_execution`](../../engine/strata/tetonic-memory/src/control/huddle_execution.rs) | Current agreed plan/brief, agent revision pins and one execution receipt. Plan validation cannot be separated from the durable decision to start that revision. |
+| [`accept_huddle_dispatch` / `complete_huddle_dispatch`](../../engine/strata/tetonic-memory/src/control/huddle_execution/dispatch.rs) | Current scoped coordinator binding, lease fence, stop generation, exact call/selection and saved response. Child execution is separate and uses existing managed admission; receipts cannot start or resume it. |
 | [`request_control_stop_with_runs`](../../engine/strata/tetonic-memory/src/control/human_controls.rs) | Stop record, scope and captured affected runs. Runtime cancellation follows outside the transaction; committing a stop is not evidence that every effect has stopped. |
 | [`bind_new_context_artifact`](../../engine/strata/tetonic-memory/src/artifacts/context_artifacts.rs) | Current context access and immutable ownership binding. This does not make the external payload write atomic with SQLite or authorize rebinding an existing foreign artifact. |
 
 The [migration orchestrator](../../engine/strata/tetonic-memory/src/schema.rs)
-still upgrades through schema 70 with its existing backup/ownership machinery.
-There is no schema migration in this step. External filesystem changes, artifact
+upgrades through schema 71 with its existing backup/ownership machinery. Version
+71 adds coordinator dispatch receipts; the ownership refactor itself added no
+migration. External filesystem changes, artifact
 publication and provider effects are not part of a SQLite transaction. Their
 existing managed finalization and recovery rules remain necessary.
 

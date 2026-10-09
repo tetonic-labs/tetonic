@@ -58,6 +58,7 @@ pub(super) async fn dispatch(
     if dispatch
         .sender
         .send(DispatchCall {
+            call_id: request.call_id,
             keys,
             grouped,
             attempt,

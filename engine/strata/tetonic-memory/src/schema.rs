@@ -249,6 +249,7 @@ impl Store {
         if applied < 70 {
             self.migrate_work_metadata_v70()?;
         }
+        self.migrate_huddle_dispatch_v71()?;
         if applied < 66 {
             // Saved human answers bind checkpoints and stop generations. Older
             // writers must not accept them under live-only question semantics.

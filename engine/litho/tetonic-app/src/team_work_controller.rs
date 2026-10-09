@@ -11,6 +11,8 @@ use tetonic_domain::ToolOutcome;
 use tetonic_memory::{AssignmentState, HuddleExecution, HuddleProgress, SharedStore};
 use tetonic_run::managed::DelegationParent;
 
+mod receipts;
+
 #[async_trait::async_trait(?Send)]
 pub(crate) trait TeamWorkHost {
     async fn admit(
@@ -90,7 +92,7 @@ impl TeamWorkController {
                     }
                     let outcome = tokio::select! {
                         _ = &mut completion => break,
-                        result = self.dispatch_group(call.keys, call.grouped) => result,
+                        result = self.dispatch_recorded(&call) => result,
                     };
                     let _ = call.reply.send(outcome);
                 }
@@ -106,7 +108,12 @@ impl TeamWorkController {
         Ok(progress)
     }
 
-    async fn dispatch_group(&self, keys: Vec<String>, grouped: bool) -> ToolOutcome {
+    async fn dispatch_group(
+        &self,
+        keys: Vec<String>,
+        grouped: bool,
+        remaining: &Arc<Mutex<HashSet<String>>>,
+    ) -> ToolOutcome {
         let mut pending = keys.clone();
         let mut running = FuturesUnordered::new();
         let mut results = vec![];
@@ -152,7 +159,7 @@ impl TeamWorkController {
                                 &self.receipt,
                                 &key,
                                 outcome,
-                                &self.remaining,
+                                remaining,
                             )
                             .await
                         }
@@ -204,7 +211,7 @@ impl TeamWorkController {
             all_ok = false;
             results.push(serde_json::json!({"assignment_key":key,"ok":false,"result":null,"message":outcome.summary}));
         }
-        let Ok(outstanding) = self.remaining.lock() else {
+        let Ok(outstanding) = remaining.lock() else {
             return ToolOutcome::fail("Cannot confirm outstanding assignments", "unavailable");
         };
         results.sort_by_key(|r| keys.iter().position(|key| r["assignment_key"] == *key));

@@ -3,7 +3,9 @@
 use crate::{ControlPermission, PlanContent, Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
+mod dispatch;
 mod progress;
+pub use dispatch::{HuddleDispatchCommand, HuddleDispatchReceipt, HuddleDispatchResult};
 pub use progress::{AssignmentProgress, AssignmentState, HuddleProgress};
 
 #[derive(Clone, Debug, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

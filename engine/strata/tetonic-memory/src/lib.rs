@@ -45,7 +45,8 @@ pub use usage::execution_limits::{OrganizationExecutionLimits, TeamExecutionLimi
 mod schema;
 mod sync_lock;
 pub use control::huddle_execution::{
-    AssignmentProgress, AssignmentState, HuddleExecution, HuddleProgress, PlanAgentPin,
+    AssignmentProgress, AssignmentState, HuddleDispatchCommand, HuddleDispatchReceipt,
+    HuddleDispatchResult, HuddleExecution, HuddleProgress, PlanAgentPin,
 };
 pub use control::huddle_plans::{HuddlePlan, PlanAssignment, PlanContent};
 pub use control::plan_continuation::{CreatePlanContinuation, PlanContinuation, RetainedPlanWork};

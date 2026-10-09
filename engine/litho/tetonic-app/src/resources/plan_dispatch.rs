@@ -110,6 +110,7 @@ impl HumanHandoff {
     }
 }
 pub(crate) struct DispatchCall {
+    pub call_id: String,
     pub keys: Vec<String>,
     pub grouped: bool,
     pub attempt: String,
