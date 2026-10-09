@@ -404,10 +404,7 @@ impl EgressGuard {
             .await
             .map_err(|_| failure("hosted HTTP transport failed"))?;
         if !resp.status().is_success() {
-            return Err(failure(&format!(
-                "hosted HTTP status {} (not retried)",
-                resp.status().as_u16()
-            )));
+            return Err(EgressError::HostedHttpStatus(resp.status().as_u16()));
         }
         Ok(resp)
     }

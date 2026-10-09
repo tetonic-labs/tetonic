@@ -43,6 +43,14 @@ impl LocalWorkspace {
         configuration: HostConfiguration,
     ) -> Result<Self, AppError> {
         configuration.validate()?;
+        let agent_folders = configuration.agent_folders.clone();
+        let protected_folders = [
+            configuration.storage.artifact_directory.clone(),
+            configuration.logging.directory.clone(),
+        ]
+        .into_iter()
+        .flatten()
+        .collect();
         let execution = configuration.workspace_execution.clone();
         let local = LocalControl::open_with_read_connections(
             database.clone(),
@@ -113,7 +121,7 @@ impl LocalWorkspace {
         };
 
         let default_instructions = if has_workspace {
-            "You are a local engineering assistant with access to the workspace. Inspect files, search code, list directories, and make bounded modifications to solve the owner's request. Call finish with your complete answer and summary when done."
+            "Help the owner with their request, in any domain. Answer questions directly when tools are unnecessary. Use selected tools only when they contribute to the requested outcome; do not assume every request concerns code or requires filesystem research. File access is confined to the configured working folder. If relevant context is outside that folder or unavailable, ask for the specific missing access instead of repeatedly searching unrelated files. Never claim actions you did not perform. Call finish with your complete answer and summary when done."
         } else {
             "Help the owner think through their request. Answer clearly and concisely. Call finish with your complete answer as the summary. You have no web, filesystem, shell or external tools; do not claim to have performed actions or research."
         };
@@ -264,7 +272,16 @@ impl LocalWorkspace {
             vault: std::sync::Arc::new(tetonic_secrets::key_storage::PlatformKeyStorage),
         });
         Ok(Self {
-            services: WorkspaceServices::bind(local, host, scope, keys, execution).await?,
+            services: WorkspaceServices::bind(
+                local,
+                host,
+                scope,
+                keys,
+                execution,
+                agent_folders,
+                protected_folders,
+            )
+            .await?,
         })
     }
 }

@@ -61,6 +61,7 @@ async fn local_shell_uses_owner_decisions_and_delivers_process_output() {
                 .unwrap();
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        workspace_root: None,
                         provider: "ollama".into(),
                         hosted_consent: false,
                         hosted_tools_consent: false,

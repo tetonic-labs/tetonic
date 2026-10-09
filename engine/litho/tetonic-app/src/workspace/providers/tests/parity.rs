@@ -149,6 +149,7 @@ async fn every_hosted_provider_uses_selected_mcp_and_denies_ungranted_or_changed
                         .await
                         .unwrap();
                     let input = CreateLocalAgent {
+                        workspace_root: None,
                         provider: provider.into(),
                         hosted_consent: true,
                         hosted_tools_consent: false,
@@ -171,6 +172,7 @@ async fn every_hosted_provider_uses_selected_mcp_and_denies_ungranted_or_changed
                     }
                     let agent = workspace
                         .create_agent(CreateLocalAgent {
+                            workspace_root: None,
                             hosted_tools_consent: true,
                             ..input
                         })

@@ -15,6 +15,7 @@ impl WorkspaceServices {
     ) -> Result<crate::resources::RegisteredExecutionSettings, AppError> {
         self.check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
         let mut settings = self.host.settings.clone();
+        settings.workspace_root = self.resolve_folder(agent.workspace_root.as_deref())?;
         settings
             .allowed_tools
             .retain(|tool| agent.tools.contains(tool));

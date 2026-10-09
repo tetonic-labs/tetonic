@@ -63,6 +63,7 @@ pub(super) fn configuration(
         "instructions": INSTRUCTIONS, "requested_tools":["finish",DISPATCH],
         "explain_turn":false, "max_steps":max_steps,
         "preferences":crate::resources::GeneralAgentPreferences {
+            workspace_root: None,
             provider: (guide.provider != "ollama").then(|| guide.provider.clone()),
             model: guide.model.clone(), display_name: COORDINATOR.into(),
             hosted_consent: guide.provider != "ollama", tool_disclosure: None, hosted_workspace: None,

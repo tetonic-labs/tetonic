@@ -13,6 +13,9 @@ pub struct HostConfiguration {
     pub logging: LoggingConfig,
     pub telemetry: TraceConfig,
     pub workspace_execution: super::WorkspaceExecutionConfiguration,
+    /// Additional operator-approved working folders offered in agent setup.
+    /// Selecting one still requires an authenticated agent revision and tool grants.
+    pub agent_folders: Vec<PathBuf>,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]
@@ -43,6 +46,13 @@ impl HostConfiguration {
 
     pub fn validate(&self) -> Result<(), AppError> {
         self.workspace_execution.validate()?;
+        if self.agent_folders.len() > 32
+            || self.agent_folders.iter().any(|p| p.as_os_str().is_empty())
+        {
+            return Err(AppError::InvalidRequest(
+                "agent_folders must contain at most 32 nonempty paths".into(),
+            ));
+        }
         if !(1..=16).contains(&self.storage.read_connections) {
             return Err(AppError::InvalidRequest(
                 "storage.read_connections must be between 1 and 16".into(),
@@ -66,6 +76,11 @@ impl HostConfiguration {
     /// Operator adapters resolve paths once, relative to the config file, so
     /// launch behavior does not depend on the process working directory.
     pub fn resolve_relative_paths(&mut self, base: &Path) {
+        for path in &mut self.agent_folders {
+            if path.is_relative() {
+                *path = base.join(&*path);
+            }
+        }
         for path in [
             &mut self.storage.artifact_directory,
             &mut self.logging.directory,

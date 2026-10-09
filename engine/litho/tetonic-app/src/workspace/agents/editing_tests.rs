@@ -35,6 +35,7 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
                 agent_key: original.key.clone(),
                 expected_definition_digest: original.definition_digest.clone(),
                 configuration: CreateLocalAgent {
+                    workspace_root: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
                     name: "Robin".into(),
                     purpose: "Use the blue-lantern method.".into(),

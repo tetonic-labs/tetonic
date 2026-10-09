@@ -34,6 +34,7 @@ impl WorkspaceServices {
                     .as_ref()
                     .is_some_and(|t| !t.is_empty())
                 || input.configuration.hosted_tools_consent
+                || input.configuration.workspace_root.is_some()
                 || input.configuration.expected_workspace_root.is_some())
         {
             return Err(AppError::InvalidRequest(

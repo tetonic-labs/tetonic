@@ -741,6 +741,43 @@ fn read_and_search_refuse_the_control_database() {
 }
 
 #[test]
+fn ordinary_discovery_excludes_runtime_control_directories() {
+    let (tools, dir) = tmp_ws("control-discovery");
+    std::fs::create_dir_all(dir.join(".lokai")).unwrap();
+    std::fs::write(dir.join(".lokai/control-sentinel.txt"), "CONTROL_CANARY").unwrap();
+    std::fs::write(dir.join("notes.txt"), "visible note").unwrap();
+    for (tool, args) in [
+        ("list_dir", json!({"path":"."})),
+        ("glob", json!({"pattern":"**/*"})),
+        ("grep", json!({"pattern":"CONTROL_CANARY","path":"."})),
+    ] {
+        let result = tools.execute(tool, &args);
+        assert!(
+            !result.content.contains("writer.lock"),
+            "{tool}: {}",
+            result.content
+        );
+        assert!(
+            !result.content.contains(".lokai"),
+            "{tool}: {}",
+            result.content
+        );
+        assert!(
+            !result.content.contains("CONTROL_CANARY"),
+            "{tool}: {}",
+            result.content
+        );
+    }
+    assert!(
+        !tools
+            .execute("read_file", &json!({"path":".lokai/control-sentinel.txt"}))
+            .ok
+    );
+    assert!(tools.execute("read_file", &json!({"path":"notes.txt"})).ok);
+    std::fs::remove_dir_all(dir).unwrap();
+}
+
+#[test]
 fn read_and_search_refuse_a_sqlite_database_by_header() {
     let (tools, dir) = tmp_ws("sqlite-header");
     let mut bytes = b"SQLite format 3\0".to_vec();

@@ -220,6 +220,8 @@ fn credential_store_name(name: &str) -> bool {
     matches!(
         name.to_ascii_lowercase().as_str(),
         ".ssh"
+            | ".lokai"
+            | ".tetonic"
             | ".aws"
             | ".gnupg"
             | ".kube"

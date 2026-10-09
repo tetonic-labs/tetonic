@@ -72,6 +72,7 @@ async fn shell_provider_parity_requires_a_live_exact_once_owner_decision() {
                     }
                     let agent = workspace
                         .create_agent(CreateLocalAgent {
+                            workspace_root: None,
                             provider: provider.into(),
                             hosted_consent: true,
                             hosted_tools_consent: true,

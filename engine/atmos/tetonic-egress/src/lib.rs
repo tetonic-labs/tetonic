@@ -79,6 +79,9 @@ pub enum EgressError {
     Url(String),
     #[error("http error: {0}")]
     Http(#[from] reqwest::Error),
+    /// Status only: never retain a hosted error body, URL or credential.
+    #[error("hosted HTTP status {0} (not retried)")]
+    HostedHttpStatus(u16),
     #[error("stream decode: {0}")]
     StreamDecode(String),
 }

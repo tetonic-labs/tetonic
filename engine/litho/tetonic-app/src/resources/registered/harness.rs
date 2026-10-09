@@ -31,6 +31,9 @@ struct GeneralConfiguration {
 #[derive(Clone, serde::Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct GeneralAgentPreferences {
+    /// Canonical folder selected by the owner; the current host must still permit it.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub workspace_root: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub tool_disclosure: Option<super::ToolDisclosure>,
     /// Canonical owner-approved folder for hosted file-tool data, not authority.
@@ -236,6 +239,12 @@ fn prepare(
             || prefs.reported_token_ceiling == 0
         {
             return Err(ResourceError::Invalid);
+        }
+        if let Some(root) = &prefs.workspace_root {
+            if root.is_empty() || root.len() > 4096 || root.chars().any(char::is_control) {
+                return Err(ResourceError::Invalid);
+            }
+            config.instructions.push_str(&format!("\n\nConfigured working folder: {}. File and terminal tools are confined to this folder and the host's grants. This path is context, not additional permission. Use relative tool paths. If the owner's request needs files elsewhere, explain the missing access and ask them to select the relevant folder in agent settings. Do not repeatedly search an unrelated folder. Do not use tools for questions you can answer directly.", serde_json::to_string(root).map_err(|_| ResourceError::Invalid)?));
         }
     }
     let steps = config.max_steps.unwrap_or(limits.max_steps);

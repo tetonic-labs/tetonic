@@ -160,6 +160,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                 ("google", "google-test-text-model"),
             ] {
                 let input = CreateLocalAgent {
+                    workspace_root: None,
                     provider: provider.into(),
                     hosted_consent: true,
                     hosted_tools_consent: false,
@@ -208,6 +209,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                 );
                 assert!(workspace
                     .create_agent(CreateLocalAgent {
+                        workspace_root: None,
                         hosted_consent: false,
                         ..input.clone()
                     })

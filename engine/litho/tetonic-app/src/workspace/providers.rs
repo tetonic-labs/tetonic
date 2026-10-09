@@ -239,10 +239,7 @@ impl WorkspaceServices {
         let endpoint = inference_endpoint(&agent.provider, &agent.model)?;
         let workspace_disclosure = if let Some(disclosure) = &agent.hosted_workspace {
             let root = self
-                .host
-                .settings
-                .workspace_root
-                .as_ref()
+                .resolve_folder(agent.workspace_root.as_deref())?
                 .ok_or(AppError::WorkspaceUnavailable)?;
             let workspace =
                 tetonic_tools::Workspace::new(root).map_err(|_| AppError::WorkspaceUnavailable)?;

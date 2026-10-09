@@ -32,6 +32,7 @@ async fn configured_limits_reach_catalog_and_admission_without_rewriting_agents(
             );
             assert!(catalog.tools.is_empty(), "raising ceilings grants no tools");
             let input = CreateLocalAgent {
+                workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "Longer work".into(),
                 purpose: "Review the provided evidence.".into(),
@@ -48,14 +49,17 @@ async fn configured_limits_reach_catalog_and_admission_without_rewriting_agents(
             };
             for invalid in [
                 CreateLocalAgent {
+                    workspace_root: None,
                     max_steps: 33,
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    workspace_root: None,
                     max_seconds: 901,
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    workspace_root: None,
                     max_tokens: 32001,
                     ..input.clone()
                 },

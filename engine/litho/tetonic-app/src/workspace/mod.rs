@@ -9,6 +9,7 @@ pub const INPUT_LIMIT: usize = 12_000;
 pub(crate) const DEFAULT_WORK_TOKENS: u64 = 4096;
 pub(crate) const LOCAL_TOKEN_CEILING: u64 = 12_288;
 pub(crate) mod agents;
+mod folders;
 mod mcp;
 pub(crate) mod providers;
 mod skills;
@@ -22,6 +23,8 @@ pub(crate) struct WorkspaceServices {
     pub(crate) host: PreparedLaunch,
     pub(crate) scope: ApplicationScope,
     pub(crate) execution: crate::host::WorkspaceExecutionConfiguration,
+    pub(crate) folders: Vec<std::path::PathBuf>,
+    pub(crate) protected_folders: Vec<std::path::PathBuf>,
     // Only admission/configuration changes serialize; inference never holds this lock.
     pub(crate) admission: std::sync::Arc<tokio::sync::Mutex<()>>,
     pub(crate) keys: std::sync::Arc<providers::ProviderKeys>,
@@ -37,6 +40,8 @@ impl WorkspaceServices {
         scope: ApplicationScope,
         keys: std::sync::Arc<providers::ProviderKeys>,
         execution: crate::host::WorkspaceExecutionConfiguration,
+        folders: Vec<std::path::PathBuf>,
+        protected_folders: Vec<std::path::PathBuf>,
     ) -> Result<Self, AppError> {
         local
             .resources()
@@ -65,6 +70,8 @@ impl WorkspaceServices {
             scope,
             keys,
             execution,
+            folders,
+            protected_folders,
             admission: std::sync::Arc::new(tokio::sync::Mutex::new(())),
             #[cfg(test)]
             hosted_transport: None,

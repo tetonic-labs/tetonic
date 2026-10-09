@@ -178,7 +178,7 @@ impl HostedTransport for EgressHostedTransport {
         self.guard
             .get_hosted_json(endpoint, &query, &credential)
             .await
-            .map_err(|e| error(&format!("model discovery failed: {e}")))
+            .map_err(InferenceError::Egress)
     }
     async fn complete(&self, body: Value) -> Result<Value, InferenceError> {
         let credential = self

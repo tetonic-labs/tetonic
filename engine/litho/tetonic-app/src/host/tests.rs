@@ -8,9 +8,9 @@ fn workspace_execution_defaults_and_partial_overrides_are_bounded() {
         .workspace_execution;
     assert_eq!(
         (default.worker_steps(false), default.worker_steps(true)),
-        (4, 8)
+        (32, 32)
     );
-    assert_eq!((default.max_seconds, default.max_tokens), (120, 12_288));
+    assert_eq!((default.max_seconds, default.max_tokens), (600, 12_288));
     assert_eq!(
         (
             default.coordination_max_steps,

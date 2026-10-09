@@ -6,7 +6,7 @@ use crate::errors::AppError;
 #[derive(Clone, Debug, Deserialize, Serialize)]
 #[serde(default, deny_unknown_fields)]
 pub struct WorkspaceExecutionConfiguration {
-    /// None retains the original default: eight with a folder, four without.
+    /// None uses a finite host ceiling of 32 steps. Saved agent limits remain independent.
     pub max_steps: Option<usize>,
     pub max_seconds: u64,
     /// Reported input plus output tokens per worker run, not a spend allowance.
@@ -20,7 +20,7 @@ impl Default for WorkspaceExecutionConfiguration {
     fn default() -> Self {
         Self {
             max_steps: None,
-            max_seconds: 120,
+            max_seconds: 600,
             max_tokens: 12_288,
             coordination_max_steps: 16,
             coordination_max_tokens: 4096,
@@ -29,8 +29,8 @@ impl Default for WorkspaceExecutionConfiguration {
 }
 
 impl WorkspaceExecutionConfiguration {
-    pub(crate) fn worker_steps(&self, has_workspace: bool) -> usize {
-        self.max_steps.unwrap_or(if has_workspace { 8 } else { 4 })
+    pub(crate) fn worker_steps(&self, _has_workspace: bool) -> usize {
+        self.max_steps.unwrap_or(32)
     }
 
     pub(crate) fn coordination_tokens(&self) -> u64 {

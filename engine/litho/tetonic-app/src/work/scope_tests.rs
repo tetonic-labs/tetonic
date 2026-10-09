@@ -148,6 +148,8 @@ async fn scoped(base: &WorkService, principal: &str, team: &str) -> (WorkService
         scope,
         base.services.keys.clone(),
         base.services.execution.clone(),
+        base.services.folders.clone(),
+        base.services.protected_folders.clone(),
     )
     .await
     .unwrap();

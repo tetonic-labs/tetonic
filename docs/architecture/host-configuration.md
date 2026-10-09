@@ -86,8 +86,8 @@ settings outside the new `host` object keep their previous interpretation.
 | `logging.directory` | Omitted | Optional daily `tetonic.*.jsonl` files, retaining at most seven files. The command holds the writer's flush guard. |
 | `telemetry.sample_rate` | `1.0` | Sampling probability from 0 through 1 through the existing trace gate. |
 | `telemetry.byte_budget` | `524288000` | Process-lifetime emitted-byte budget. Existing always-retained security outcomes can exceed it; this is not a hard disk quota. |
-| `workspace_execution.max_steps` | Omitted | Worker step ceiling, 1–512. Omitted/null retains eight steps with a tool folder and four without. |
-| `workspace_execution.max_seconds` | `120` | Worker elapsed-time ceiling, 10–86400 seconds. |
+| `workspace_execution.max_steps` | Omitted | Worker step ceiling, 1–512. Omitted/null uses 32 steps. |
+| `workspace_execution.max_seconds` | `600` | Worker elapsed-time ceiling, 10–86400 seconds. |
 | `workspace_execution.max_tokens` | `12288` | Worker reported input-plus-output token ceiling, 256–1000000 per run. |
 | `workspace_execution.coordination_max_steps` | `16` | Managed plan coordinator step ceiling, 1–512. |
 | `workspace_execution.coordination_max_tokens` | `4096` | Coordination allowance ceiling, 256–1000000, additionally capped by `max_tokens`. Included inside the plan's total allocation. |
@@ -103,6 +103,42 @@ destination fails startup. Settings are read at startup, with no live reload.
 Changing the artifact directory does not migrate existing payloads; preserve or
 copy required artifacts before changing an existing deployment's location.
 
+### Selecting an agent working folder
+
+`agent_folders` is an optional list of up to 32 additional operator-approved local
+directories. Paths resolve relative to the host configuration file. With a local
+file-tool profile (`--workspace-root`), the connected agent editor offers the base
+folder plus usable additional folders. For example:
+
+```json
+{
+  "agent_folders": ["D:/work/research", "D:/work/website"],
+  "storage": {"artifact_directory": "D:/tetonic-state/artifacts"}
+}
+```
+
+An agent's selection is saved in its existing immutable definition revision.
+Editing requires the current revision; future runs validate the selected canonical
+path against current host configuration. A removed, unavailable or repointed root
+is rejected rather than replaced with another folder. Existing prepared executions
+keep their captured scope; this setting does not rebind running work. Legacy
+agents without a saved selection continue inheriting the original base folder.
+
+New additional folders cannot contain the control database, overlap configured
+artifact/log storage, be whole-drive roots, or be inside recognized credential and
+engine-control directories. The explicitly supplied legacy base folder retains
+its existing startup behavior. Ordinary file tools exclude `.lokai` and `.tetonic`
+control directories, alongside existing credential exclusions. This is not an
+OS-wide sandbox or protection against arbitrary shell commands; process broker
+controls and tool approvals continue to apply.
+
+For hosted models, selecting a folder and consenting to disclose its contents are
+separate decisions. Changing the selected folder clears the disclosure checkbox;
+the engine validates the exact consented folder before hosted tool execution.
+Adding another entry to `agent_folders` currently requires changing the host config
+and restarting. There is no browser path field that grants arbitrary filesystem
+access and no in-app host-folder manager yet.
+
 ### Configuring longer workspace work
 
 The [workspace execution example](examples/workspace-execution.json) allows agents
@@ -110,7 +146,7 @@ to be configured for up to 32 steps, 15 minutes and 32000 reported tokens per ru
 coordination can use up to 24 steps and 10000 tokens within the agreed plan total.
 Pass its path to `tetonic ui --host-config` along with your usual launch arguments.
 These are explicit operator ceilings, not recommended budgets for every task.
-Omitting this section retains the previous defaults.
+Omitting this section uses the defaults listed above. New agents in the connected editor start at 16 steps and 300 seconds, capped by the host ceilings. These are finite initial allowances, not a guarantee that a particular model or machine will complete useful work.
 
 The connected agent editor reads these ceilings from its existing catalog.
 Created/edited agents retain their own saved limits; increasing the host ceilings

@@ -46,10 +46,15 @@ impl WorkspaceServices {
         ));
         #[cfg(test)]
         let transport = self.hosted_transport.clone().unwrap_or(transport);
-        let entries = tokio::time::timeout(std::time::Duration::from_secs(20),
-            discover(transport.as_ref(), endpoint)).await
-            .map_err(|_| AppError::InvalidRequest("Model discovery timed out. Retry or enter a model ID.".into()))?
-            .map_err(|_| AppError::InvalidRequest("Could not discover models. Check the provider key, account access and network, then retry or enter a model ID.".into()))?;
+        let entries = tokio::time::timeout(
+            std::time::Duration::from_secs(20),
+            discover(transport.as_ref(), endpoint),
+        )
+        .await
+        .map_err(|_| {
+            AppError::InvalidRequest("Model discovery timed out. Retry or enter a model ID.".into())
+        })?
+        .map_err(discovery_error)?;
         Ok(LocalModelCatalog {
             provider: provider.into(),
             models: entries.iter().map(|entry| entry.id.clone()).collect(),
@@ -58,6 +63,25 @@ impl WorkspaceServices {
             capabilities_verified: false,
         })
     }
+}
+
+fn discovery_error(error: InferenceError) -> AppError {
+    // Preserve the transport's typed status, never expose provider bodies or key material.
+    let status = match &error {
+        InferenceError::Egress(tetonic_egress::EgressError::HostedHttpStatus(status)) => {
+            Some(*status)
+        }
+        InferenceError::Egress(tetonic_egress::EgressError::Http(error)) => {
+            error.status().map(|status| status.as_u16())
+        }
+        _ => None,
+    };
+    AppError::InvalidRequest(match status {
+        Some(401) => "The provider rejected this API key. Replace it above, then refresh models.",
+        Some(403) => "This account is not allowed to list models. Check provider access, or use Advanced model options if you already know an available model.",
+        Some(429) => "The provider is limiting requests. Wait a moment, then refresh models.",
+        _ => "Model discovery is unavailable. Check the connection and retry. Your agent draft is kept; Advanced model options allows manual entry.",
+    }.into())
 }
 
 async fn discover(
@@ -164,6 +188,23 @@ mod tests {
     use super::*;
     use serde_json::{json, Value};
     use std::sync::Mutex;
+
+    #[test]
+    fn catalog_errors_distinguish_access_from_outage_without_echoing_bodies() {
+        for (status, expected) in [
+            (401, "rejected this API key"),
+            (403, "not allowed"),
+            (429, "limiting requests"),
+            (503, "unavailable"),
+        ] {
+            let error = discovery_error(InferenceError::Egress(
+                tetonic_egress::EgressError::HostedHttpStatus(status),
+            ));
+            assert!(error.employee_message().contains(expected));
+        }
+        let error = discovery_error(InferenceError::Provider("SECRET_PROVIDER_BODY".into()));
+        assert!(!error.employee_message().contains("SECRET_PROVIDER_BODY"));
+    }
 
     struct Catalog {
         pages: Mutex<Vec<Value>>,

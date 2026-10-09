@@ -63,21 +63,35 @@ impl WorkspaceServices {
         {
             return Err(AppError::InvalidRequest("Allow selected tool inputs and results to be sent to this provider, or remove the selected tools.".into()));
         }
+        let workspace_root = if crate::resources::uses_workspace(&requested_tools) {
+            let requested = input.workspace_root.clone().or_else(|| {
+                self.host
+                    .settings
+                    .workspace_root
+                    .as_ref()
+                    .and_then(|p| p.canonicalize().ok())
+                    .map(|p| p.to_string_lossy().into_owned())
+            });
+            Some(
+                self.resolve_folder(requested.as_deref())?
+                    .ok_or(AppError::WorkspaceUnavailable)?
+                    .to_string_lossy()
+                    .into_owned(),
+            )
+        } else {
+            if input.workspace_root.is_some() {
+                return Err(AppError::InvalidRequest(
+                    "Select file or terminal tools before assigning a working folder.".into(),
+                ));
+            }
+            None
+        };
         let hosted_workspace = if input.provider != "ollama"
             && crate::resources::uses_workspace(&requested_tools)
         {
-            let root = self
-                .host
-                .settings
-                .workspace_root
-                .as_ref()
+            let approved_root = workspace_root
+                .clone()
                 .ok_or(AppError::WorkspaceUnavailable)?;
-            let approved_root = tetonic_tools::Workspace::new(root)
-                .map_err(|_| AppError::WorkspaceUnavailable)?
-                .root()
-                .to_str()
-                .ok_or(AppError::WorkspaceUnavailable)?
-                .to_owned();
             if input.expected_workspace_root.as_deref() != Some(approved_root.as_str()) {
                 return Err(AppError::InvalidRequest("The configured folder changed or its approval is missing. Refresh agent setup and approve the displayed folder.".into()));
             }
@@ -102,9 +116,10 @@ impl WorkspaceServices {
             None
         };
         let config = serde_json::json!({
-            "instructions": if input.purpose.is_empty() { "Help the owner think through their request. Inspect the workspace with available tools and call finish with your complete answer as the summary." } else { &input.purpose },
+            "instructions": if input.purpose.is_empty() { "Help the owner with their request, in any domain. Answer directly when tools are unnecessary. Use granted tools only when relevant to the requested outcome. If context or access is missing, ask for it specifically; do not repeatedly search unrelated files or assume the request concerns code. Call finish with your complete answer as the summary." } else { &input.purpose },
             "requested_tools": requested_tools, "max_steps": input.max_steps,
             "preferences": GeneralAgentPreferences {
+                workspace_root,
                 tool_disclosure,
                 hosted_workspace,
                 provider: (input.provider != "ollama").then_some(input.provider.clone()),

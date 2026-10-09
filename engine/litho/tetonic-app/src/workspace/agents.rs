@@ -16,6 +16,7 @@ pub struct LocalAgent {
     pub editable: bool,
     pub tool_disclosure: Option<crate::resources::ToolDisclosure>,
     pub hosted_workspace: Option<String>,
+    pub workspace_root: Option<String>,
     pub plan_coordinator: bool,
     pub provider: String,
     pub hosted_consent: bool,
@@ -37,6 +38,9 @@ pub struct LocalAgentCatalog {
     pub skills: Vec<tetonic_memory::WorkspaceSkill>,
     pub mcp_connections: Vec<crate::mcp::McpConnectionView>,
     pub workspace_root: Option<String>,
+    pub workspace_folders: Vec<String>,
+    pub default_steps: usize,
+    pub default_seconds: u64,
     pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
     pub providers: Vec<LocalProvider>,
     pub local_error: Option<String>,
@@ -61,6 +65,9 @@ pub struct CreateLocalAgent {
     /// The folder displayed when disclosure was approved, not a requested root.
     #[serde(default)]
     pub expected_workspace_root: Option<String>,
+    /// Must match a host-approved folder; never an unvalidated path grant.
+    #[serde(default)]
+    pub workspace_root: Option<String>,
     pub request_id: String,
     pub name: String,
     pub purpose: String,
@@ -103,6 +110,9 @@ impl WorkspaceServices {
         let skills = self.workspace_skills()?;
         tools.extend(skills.iter().filter(|s| s.enabled).map(|s| s.id.clone()));
         Ok(LocalAgentCatalog {
+            workspace_folders: self.available_folders(),
+            default_steps: self.host.settings.limits.max_steps.min(16),
+            default_seconds: self.host.settings.max_elapsed_seconds.min(300),
             mcp_management: true,
             skills,
             mcp_connections: self.mcp_connections(),
@@ -303,6 +313,7 @@ impl WorkspaceServices {
         let prefs: GeneralAgentPreferences = if key == AGENT && config.get("preferences").is_none()
         {
             GeneralAgentPreferences {
+                workspace_root: None,
                 tool_disclosure: None,
                 hosted_workspace: None,
                 provider: None,
@@ -318,6 +329,7 @@ impl WorkspaceServices {
             })?
         } else {
             GeneralAgentPreferences {
+                workspace_root: None,
                 tool_disclosure: None,
                 hosted_workspace: None,
                 provider: None,
@@ -339,6 +351,18 @@ impl WorkspaceServices {
             editable: key != COORDINATOR,
             tool_disclosure: prefs.tool_disclosure,
             hosted_workspace: prefs.hosted_workspace,
+            workspace_root: prefs.workspace_root.or_else(|| {
+                crate::resources::uses_workspace(&tools)
+                    .then(|| {
+                        self.host
+                            .settings
+                            .workspace_root
+                            .as_ref()
+                            .and_then(|p| p.canonicalize().ok())
+                            .map(|p| p.to_string_lossy().into_owned())
+                    })
+                    .flatten()
+            }),
             plan_coordinator: key == COORDINATOR,
             provider: prefs.provider.unwrap_or_else(local_provider),
             hosted_consent: prefs.hosted_consent,

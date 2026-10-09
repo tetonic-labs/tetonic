@@ -497,6 +497,7 @@ async fn set_tools(workspace: &LocalWorkspace, key: &str, tools: Vec<String>) {
             agent_key: key.into(),
             expected_definition_digest: agent.definition_digest,
             configuration: CreateLocalAgent {
+                workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 provider: agent.provider,
                 name: agent.name,

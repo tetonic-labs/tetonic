@@ -590,6 +590,7 @@ async fn unanswered_question_expires_without_a_false_starting_or_retry_state() {
             let source = seed_variant(&workspace, true).await;
             let agent = workspace
                 .create_agent(CreateLocalAgent {
+                    workspace_root: None,
                     provider: "ollama".into(),
                     hosted_consent: false,
                     hosted_tools_consent: false,

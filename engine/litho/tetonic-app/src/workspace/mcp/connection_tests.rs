@@ -138,6 +138,7 @@ async fn connection_review_restart_real_tool_execution_and_revocation_use_existi
             );
             let agent = workspace
                 .create_agent(CreateLocalAgent {
+                    workspace_root: None,
                     provider: "ollama".into(),
                     hosted_consent: false,
                     hosted_tools_consent: false,

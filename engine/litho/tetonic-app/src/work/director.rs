@@ -28,6 +28,17 @@ impl WorkService {
         let app_scope = self.services.authorized_scope().await?;
         let source = conversation_root(snapshot, turn);
         let mut context = observation(snapshot, turn, &app_scope);
+        context["product"] = serde_json::json!({
+            "purpose":"Tetonic lets the owner shape work and delegate it to saved agents or teams, then follow concurrent efforts on the map.",
+            "starting_point":"This conversation is enough to begin. Answer questions, explore uncertainty and compare approaches here. A team or plan is optional, not an intake requirement.",
+            "navigation":{"Agents":"Create/edit agents, choose models, tools and per-run limits.","Teams":"Save a group of existing agents.","Tools":"Add connections and skills to the workspace before assigning them to agents.","Work":"Read saved discussions, proposals and execution results.","Needs you":"Respond to recorded requests for human help."},
+            "authority":"You may inspect or propose a plan using work_plan. You cannot launch workers, grant access, configure providers or search the owner's machine. Describe setup actions accurately; never claim you performed them."
+        });
+        context["local_access"] = serde_json::json!({
+            "configured_folder":self.services.host.settings.workspace_root.as_ref().map(|p|p.to_string_lossy()),
+            "available_folders":self.services.available_folders(),
+            "rule":"File tools are confined to the configured folder and each agent's selected tools. Other folders and external accounts are not implicitly accessible. If relevant context is missing, ask for that specific access or information; do not send workers searching an unrelated folder. No folder is needed just to discuss an idea."
+        });
         context["coordination_limits"] = serde_json::json!({
             "minimum_tokens":256,
             "maximum_tokens":self.services.execution.coordination_tokens(),
@@ -78,6 +89,7 @@ fn agent_observations(
         .map(|a| serde_json::json!({
             "key": a.key, "name": a.name, "purpose": short(&a.purpose, 240),
             "provider": a.provider, "model": a.model, "tools": a.tools,
+            "working_folder": a.workspace_root,
             "max_tokens_per_run": a.max_tokens,
             "workspace_active_assignments": snapshot.tasks.iter().filter(|t| t.agent_key == a.key && active(&t.state)).count(),
         })).collect()

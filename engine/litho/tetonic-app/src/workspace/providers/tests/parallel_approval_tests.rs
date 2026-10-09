@@ -34,6 +34,7 @@ impl HostedTransport for Transport {
 pub(crate) fn agent_request(name: &str, provider: &str, root: Option<String>) -> CreateLocalAgent {
     let hosted = provider != "ollama";
     CreateLocalAgent {
+        workspace_root: None,
         provider: provider.into(),
         hosted_consent: hosted,
         hosted_tools_consent: hosted,

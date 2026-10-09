@@ -108,6 +108,7 @@ async fn set_guide(workspace: &LocalWorkspace, provider: &str, model: &str) -> L
             agent_key: guide.key,
             expected_definition_digest: guide.definition_digest,
             configuration: CreateLocalAgent {
+                workspace_root: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: guide.name,
                 purpose: guide.purpose,
@@ -249,6 +250,7 @@ async fn hosted_coordinators_dispatch_parallel_tool_using_teams_without_ollama()
                     agents.push(
                         workspace
                             .create_agent(CreateLocalAgent {
+                                workspace_root: None,
                                 request_id: uuid::Uuid::new_v4().to_string(),
                                 name: name.into(),
                                 purpose: name.into(),

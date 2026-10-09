@@ -92,6 +92,7 @@ async fn mixed_provider_teams_keep_saved_model_file_and_mcp_grants() {
                 workspace.services.hosted_transport = Some(transport.clone());
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        workspace_root: None,
                         provider: provider.into(),
                         hosted_consent: true,
                         hosted_tools_consent: true,
