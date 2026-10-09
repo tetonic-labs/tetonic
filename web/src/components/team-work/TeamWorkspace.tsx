@@ -389,12 +389,7 @@ function ConnectedTeamWorkspace() {
               )}
             </div>
           )}
-          {!firstUse && (
-            <span className="arrival-eyebrow">
-              {project ? 'A shared direction' : 'Your world of work'}
-            </span>
-          )}
-          {!firstUse && <h1>{project?.title || 'Your team, at work.'}</h1>}
+          {!firstUse && <h1 title={project?.title}>{project?.title || 'Your team, at work.'}</h1>}
           {!firstUse && (
             <p className="arrival-context-line">
               {working > 0 && (

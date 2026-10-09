@@ -75,7 +75,7 @@
   background: radial-gradient(ellipse at 48% 45%, transparent 25%, var(--bg-ground) 92%);
 }
 .tw-live[data-design='arrival'] .px-overview {
-  top: 91px;
+  top: 85px;
   left: 38px;
   right: 38px;
   transition: opacity 180ms ease;
@@ -93,11 +93,15 @@
   color: var(--text-secondary);
 }
 .tw-live[data-design='arrival'] .px-overview h1 {
-  max-width: min(820px, 76vw);
-  font-size: clamp(24px, 2.5vw, 36px);
+  max-width: min(900px, calc(100% - 220px));
+  font-size: clamp(24px, 2.5vw, 32px);
   letter-spacing: -1.35px;
   line-height: 1.25;
   margin: 8px 0 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 .tw-live[data-design='arrival'] .arrival-context-line {
   display: flex;
@@ -112,9 +116,14 @@
   animation: arrival-working 2s ease-in-out infinite;
 }
 .tw-live[data-design='arrival'] .tw-map-actions {
+  position: absolute;
+  right: 0;
+  top: 16px;
   display: flex;
-  gap: 18px;
-  margin-top: 18px;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 0;
 }
 .tw-live[data-design='arrival'] .tw-map-actions button {
   display: inline-flex;
@@ -135,152 +144,6 @@
   background: color-mix(in srgb, var(--bg-surface) 80%, transparent);
   backdrop-filter: blur(12px);
   box-shadow: var(--surface-depth);
-}
-.tw-live[data-design='arrival'] .pm-work-band {
-  border: 0;
-  background: color-mix(in srgb, var(--bg-surface) 22%, transparent);
-  border-radius: 30px;
-  outline: 1px dashed color-mix(in srgb, var(--text-secondary) 21%, transparent);
-  outline-offset: 17px;
-  padding-top: 0;
-}
-.tw-live[data-design='arrival'] .pm-work-band > strong {
-  font-family: var(--font-mono);
-  letter-spacing: 0.035em;
-  font-size: var(--pm-meta-size);
-}
-.tw-live[data-design='arrival'] .pm-work-band > span {
-  display: none;
-}
-.tw-live[data-design='arrival'] .pm-stream,
-.tw-live[data-design='arrival'] .pm-project {
-  border-radius: 26px;
-  border: 1px solid color-mix(in srgb, var(--work-signal) 24%, var(--brand-rule));
-  background: color-mix(in srgb, var(--work-signal) 3%, var(--bg-surface));
-  box-shadow:
-    0 6px 10px #3a302605,
-    0 14px 48px #3a302608;
-  transition:
-    box-shadow 180ms ease,
-    background 180ms ease,
-    border-color 180ms ease;
-}
-.tw-live[data-design='arrival'] .pm-stream {
-  padding: 27px 28px;
-}
-.tw-live[data-design='arrival'] .pm-stream::before {
-  width: 8px;
-  height: 8px;
-  left: auto;
-  right: 26px;
-  top: 25px;
-  border-radius: 50%;
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--work-signal) 10%, transparent);
-}
-.tw-live[data-design='arrival'] .pm-stream-heading > svg {
-  display: none;
-}
-.tw-live[data-design='arrival'] .pm-stream-heading small {
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  margin-bottom: 12px;
-  color: var(--text-secondary);
-  padding-right: 16px;
-}
-.tw-live[data-design='arrival'] .pm-stream-heading strong {
-  padding-right: 5px;
-  letter-spacing: -0.8px;
-}
-.tw-live[data-design='arrival'] .pm-stream-summary {
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  white-space: normal;
-  font-size: 12px;
-  line-height: 1.6;
-  max-height: 40px;
-}
-.tw-live[data-design='arrival'] .pm-map[data-compact='true'] .pm-stream-summary {
-  display: none;
-}
-.tw-live[data-design='arrival'] .pm-stream-foot {
-  padding-top: 13px;
-  border-top: 1px solid color-mix(in srgb, var(--work-signal) 12%, var(--brand-rule));
-  bottom: 20px;
-}
-.tw-live[data-design='arrival'] .pm-stream-foot .work-status {
-  color: var(--work-signal);
-}
-.tw-live[data-design='arrival'] .pm-stream-secondary button {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 0;
-  font-size: inherit;
-  color: inherit;
-  background: none;
-  border: 0;
-}
-.tw-live[data-design='arrival'] .pm-stream:hover,
-.tw-live[data-design='arrival'] .pm-project:hover {
-  border-color: var(--work-signal);
-  box-shadow: 0 9px 28px #3a302618;
-}
-.tw-live[data-design='arrival'] .pm-dependency {
-  stroke-width: 1.5;
-  stroke: color-mix(in srgb, var(--text-secondary) 45%, transparent);
-}
-.tw-live[data-design='arrival'] .pm-portrait {
-  padding: 6px;
-  border: 1px solid color-mix(in srgb, var(--text-secondary) 25%, transparent);
-  background: var(--bg-surface);
-  box-shadow: 0 0 0 5px color-mix(in srgb, var(--text-secondary) 4%, transparent);
-}
-.tw-live[data-design='arrival'] .pm-person {
-  gap: 7px;
-  width: 150px;
-}
-.tw-live[data-design='arrival'] .pm-person > strong {
-  max-width: 150px;
-  overflow: hidden;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  font-size: var(--pm-meta-size);
-  line-height: 1.3;
-}
-.tw-live[data-design='arrival'] .pm-person > small {
-  line-height: 1.4;
-}
-.tw-live[data-design='arrival'] .pm-map[data-compact='true'] .pm-person > small {
-  display: none;
-}
-.tw-live[data-design='arrival'] .pm-person[data-working='true'] .pm-portrait::after {
-  content: '';
-  position: absolute;
-  inset: -7px;
-  border: 1px dashed var(--signal-working);
-  border-radius: 50%;
-  animation: arrival-orbit 12s linear infinite;
-}
-.tw-live[data-design='arrival'] .pm-area {
-  border-radius: 38px;
-  background: color-mix(in srgb, var(--area-color) 4%, transparent);
-  border: 1px dashed color-mix(in srgb, var(--area-color) 30%, var(--brand-rule));
-}
-.tw-live[data-design='arrival'] .pm-area::before {
-  display: none;
-}
-.tw-live[data-design='arrival'] .pm-area .pm-project {
-  border-left-width: 1px;
-  border-radius: 22px;
-}
-.tw-live[data-design='arrival'] .pm-area-heading strong {
-  letter-spacing: -0.8px;
-}
-.tw-live[data-design='arrival'] .pm-destination {
-  border: 1px dashed var(--control-border);
-  border-radius: 40px;
-  background: color-mix(in srgb, var(--bg-surface) 35%, transparent);
 }
 .tw-live[data-design='arrival'] .px-composer {
   width: min(780px, calc(100% - 64px));
@@ -553,6 +416,12 @@
   .tw-live[data-design='arrival'] .px-overview h1 {
     font-size: 24px;
     max-width: 100%;
+  }
+  .tw-live[data-design='arrival'] .tw-map-actions {
+    position: static;
+    flex-direction: row;
+    gap: 14px;
+    margin-top: 10px;
   }
   .tw-live[data-design='arrival'] .arrival-context-line {
     font-size: 10px;

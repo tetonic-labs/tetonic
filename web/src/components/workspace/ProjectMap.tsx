@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { motion, useReducedMotion } from 'motion/react';
 import {
   ArrowUpRight,
-  Flag,
   FileText,
   GitBranch,
   Maximize2,
@@ -15,11 +14,10 @@ import {
 } from 'lucide-react';
 import { Portrait } from '../ui/Portrait';
 import { useMapCamera } from '../graph/useMapCamera';
-import { layoutProject, layoutPortfolio, edgePath } from '../../lib/projectLayout';
+import { layoutProject, layoutPortfolio, workAnchorPath } from '../../lib/projectLayout';
 import { type ProjectView } from '../../lib/projectView';
-import { combinedSignal } from '../../lib/workSignals';
-import { WorkStatus } from '../team-work/WorkStatus';
-import { MapActivity } from './MapActivity';
+import { WorkConstellation } from './WorkConstellation';
+import './constellation-map.css';
 import { ProjectMapPortfolio } from './ProjectMapPortfolio';
 export { projectCounts, projectTasks } from '../../lib/projectView';
 export type {
@@ -73,7 +71,7 @@ export function ProjectMap({
     { width: world.width, height: world.height },
     { x: 0, y: -15, width: world.width, height: world.height + 30 },
     // Framing keeps the initial view clear of overlays without clipping the canvas.
-    { top: 245, bottom: 190 },
+    { top: 220, bottom: 175 },
   );
   useEffect(() => {
     const scope = project?.id || 'all';
@@ -89,7 +87,7 @@ export function ProjectMap({
     const box = graph
       ? Object.values(graph.streams)[0]
       : area
-        ? { x: area.x + 25, y: area.y + 95, width: 470, height: 215 }
+        ? { x: area.x + 25, y: area.y + 80, width: 440, height: 320 }
         : undefined;
     if (box)
       camera.focus(
@@ -165,7 +163,7 @@ export function ProjectMap({
               )}
               {graph.bands.map((band) => (
                 <div
-                  className="pm-work-band"
+                  className="constellation-band"
                   key={band.id}
                   style={{ left: band.x, top: band.y, width: band.width, height: band.height }}
                 >
@@ -202,102 +200,18 @@ export function ProjectMap({
                       className="pm-dependency"
                       data-highlighted={selectedStream === edge.to || selectedStream === edge.from}
                       markerEnd="url(#pm-arrow)"
-                      d={edgePath(edge.points)}
+                      d={workAnchorPath(edge, graph.streams)}
                     />
                   </g>
                 ))}
               </svg>
-              {project.streams.map((stream) => {
-                const box = graph.streams[stream.id];
-                const done = stream.tasks.filter((t) => t.status === 'done').length;
-                const away = project.people.filter(
-                  (p) => stream.agents.includes(p.agent.id) && p.destination,
-                );
-                return (
-                  <div
-                    className="pm-stream"
-                    data-signal={combinedSignal(stream.tasks.map((t) => t.status))}
-                    data-active={stream.tasks.some((t) => t.status === 'working')}
-                    data-role={stream.role}
-                    data-selected={selectedStream === stream.id}
-                    key={stream.id}
-                    style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
-                  >
-                    <button
-                      className="pm-stream-heading"
-                      onClick={() => onStream(stream.id)}
-                      aria-label={`Open ${stream.role === 'coordination' ? 'team coordination for ' : ''}${stream.name}`}
-                      title={stream.name}
-                    >
-                      <span>
-                        <small>
-                          {stream.stateLabel
-                            ? project.people.find((p) => p.agent.id === stream.tasks[0]?.owner)
-                                ?.agent.name || 'Unassigned'
-                            : `${stream.tasks.length} assignments · ${stream.agents.length} agents`}
-                        </small>
-                        <strong>
-                          {stream.role === 'coordination' ? 'Team coordination' : stream.name}
-                        </strong>
-                      </span>
-                      <ArrowUpRight size={20} />
-                    </button>
-                    {(!stream.stateLabel || stream.role === 'coordination') && (
-                      <p className="pm-stream-summary">
-                        {stream.role === 'coordination'
-                          ? 'Keeps assignments moving and brings the results together.'
-                          : stream.summary}
-                      </p>
-                    )}
-                    {away.map((p) => {
-                      const pos = graph.people.find((a) => a.person.agent.id === p.agent.id)!.home;
-                      return (
-                        <button
-                          className="pm-away"
-                          key={p.agent.id}
-                          style={{ left: pos.x - box.x - 63, top: pos.y - box.y - 18 }}
-                          onClick={() => onAgent(p.agent.id)}
-                        >
-                          <ArrowUpRight size={16} />
-                          <strong>{p.agent.name}</strong>
-                          <span>At {project.places.find((s) => s.id === p.destination)?.name}</span>
-                        </button>
-                      );
-                    })}
-                    <div className="pm-stream-foot">
-                      <WorkStatus
-                        signal={combinedSignal(stream.tasks.map((t) => t.status))}
-                        label={
-                          camera.scale < 0.7
-                            ? undefined
-                            : stream.stateLabel ||
-                              `${done} ready · ${stream.tasks.length - done} remaining`
-                        }
-                      />
-                      <span className="pm-stream-secondary">
-                        {stream.tasks.some((t) => t.status === 'needs_you') ? (
-                          <>
-                            <Flag size={12} />
-                            Needs you
-                          </>
-                        ) : stream.tasks.some((t) => t.status === 'working') ? (
-                          <MapActivity
-                            count={stream.tasks.filter((t) => t.status === 'working').length}
-                          />
-                        ) : (
-                          <button
-                            type="button"
-                            onClick={() => onStream(stream.id)}
-                            aria-label={`Inspect work: ${stream.name}`}
-                          >
-                            Open work <ArrowUpRight size={12} />
-                          </button>
-                        )}
-                      </span>
-                    </div>
-                  </div>
-                );
-              })}
+              <WorkConstellation
+                project={project}
+                graph={graph}
+                selectedStream={selectedStream}
+                onStream={onStream}
+                onAgent={onAgent}
+              />
               {project.places.map((place, i) => {
                 const box = graph.places[place.id];
                 const Icon =
@@ -305,7 +219,7 @@ export function ProjectMap({
                 const occupants = graph.people.filter((p) => p.person.destination === place.id);
                 return (
                   <div
-                    className="pm-destination"
+                    className="constellation-destination"
                     key={place.id}
                     style={{ left: box.x, top: box.y, width: box.width, height: box.height }}
                   >
@@ -427,10 +341,10 @@ export function ProjectMap({
       {projects.length > 0 && (
         <div className="pm-reading-key">
           {project?.kind === 'plan'
-            ? 'Contributions · dependency links · coordination'
+            ? 'Assignments connected by their dependencies'
             : project
-              ? 'Assignments · open any card to see the work'
-              : 'Efforts grouped by team · open a card to see the work inside'}
+              ? 'Assignments · select one to see the work'
+              : 'Each cluster is an effort · select one to explore'}
         </div>
       )}
     </div>

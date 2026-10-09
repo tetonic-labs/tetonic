@@ -47,8 +47,8 @@ export function layoutProject(project: ProjectView) {
   const gutter = 40 + validEdges.length * 8;
   const width = 380;
   const height = Math.max(
-    340,
-    ...project.streams.map((s) => 225 + Math.ceil(s.agents.length / 2) * 115),
+    420,
+    ...project.streams.map((s) => 315 + Math.ceil(s.agents.length / 2) * 115),
   );
   const streams: Record<string, Rect> = {};
   // Terminal coordination is visually separate, but its real incoming links remain.
@@ -138,10 +138,11 @@ export function layoutProject(project: ProjectView) {
       const fromLane = fromBand.x - 20 - index * 8;
       const toLane = toBand.x - 20 - index * 8;
       const laneY = 20 + index * 8;
-      const outY = bottom(a) + 20 + (index % 7) * 2;
+      // Enter/leave through the glyph's empty top corridor, never the title or portrait.
+      const outY = a.y - 20 - (index % 7) * 2;
       const inY = b.y - 20 - (index % 7) * 2;
       points = [
-        { x: a.x + width / 2, y: bottom(a) },
+        { x: a.x + width / 2, y: a.y },
         { x: a.x + width / 2, y: outY },
         { x: fromLane, y: outY },
         { x: fromLane, y: laneY },
@@ -181,11 +182,17 @@ export function layoutProject(project: ProjectView) {
     placeY += h + 25;
   });
   const people = project.people.map((person) => {
-    const stream = project.streams.find((s) => s.agents.includes(person.agent.id));
+    const assigned = project.streams.filter((s) => s.agents.includes(person.agent.id));
+    // A shared agent belongs at its observed active assignment, not whichever
+    // assignment happened to arrive first in the API response.
+    const stream =
+      assigned.find((s) =>
+        s.tasks.some((task) => task.owner === person.agent.id && task.status === 'working'),
+      ) || assigned[0];
     const homeRect = stream ? streams[stream.id] : undefined;
     const slot = stream?.agents.indexOf(person.agent.id) ?? 0;
     const home = homeRect
-      ? { x: homeRect.x + 100 + (slot % 2) * 180, y: homeRect.y + 210 + Math.floor(slot / 2) * 115 }
+      ? { x: homeRect.x + 100 + (slot % 2) * 180, y: homeRect.y + 335 + Math.floor(slot / 2) * 115 }
       : {
           x: (order.length ? participantX : gutter) + 90 + (unplaced.indexOf(person) % 2) * 180,
           y: (order.length ? nodeTop + 145 : 80) + Math.floor(unplaced.indexOf(person) / 2) * 130,
@@ -233,7 +240,7 @@ export function layoutPortfolio(projects: ProjectView[]) {
       items,
       columns,
       width: 25 + columns * 495,
-      height: 110 + Math.ceil(items.length / columns) * 240,
+      height: 110 + Math.ceil(items.length / columns) * 340,
     };
   });
   const rows: number[] = [];
@@ -275,4 +282,21 @@ export function edgePath(points: Point[]) {
   }
   const last = points.at(-1)!;
   return `${path} L${last.x} ${last.y}`;
+}
+
+/** Bridge reserved routing corridors to each glyph without crossing its label. */
+export function workAnchorPath(edge: ProjectEdge, streams: Record<string, Rect>) {
+  const a = streams[edge.from],
+    b = streams[edge.to];
+  const first = edge.points[0],
+    last = edge.points.at(-1)!;
+  const start =
+    first.y === a.y
+      ? { x: a.x + a.width / 2, y: a.y + 17 }
+      : { x: a.x + a.width / 2 + 39, y: a.y + 55 };
+  const end =
+    last.y === b.y
+      ? { x: b.x + b.width / 2, y: b.y + 17 }
+      : { x: b.x + b.width / 2 - 39, y: b.y + 55 };
+  return edgePath([start, ...edge.points, end]);
 }
