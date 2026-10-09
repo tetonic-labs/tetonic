@@ -131,6 +131,7 @@ async fn stopping_an_inflight_mcp_read_requests_cancellation_without_retrying() 
 }
 
 mod actions;
+mod connection_errors;
 mod managed;
 mod results;
 mod village;

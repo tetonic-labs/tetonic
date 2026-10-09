@@ -118,16 +118,39 @@ export function resourcesFromGraph(
       };
     });
 }
+/** Normalize only the local alias; do not guess a remote destination or MCP path. */
+export function normalizeMcpEndpoint(value: string) {
+  let address = value.trim();
+  if (/^(localhost|127\.0\.0\.1|\[::1\])(?::\d+)?(?:\/|$)/i.test(address)) {
+    address = `http://${address}`;
+  }
+  try {
+    const url = new URL(address);
+    if (url.protocol === 'http:' && url.hostname === 'localhost') url.hostname = '127.0.0.1';
+    return url.toString();
+  } catch {
+    return address;
+  }
+}
+export function mcpConnectionName(value: string) {
+  try {
+    return new URL(normalizeMcpEndpoint(value)).host.slice(0, 80);
+  } catch {
+    return '';
+  }
+}
 export function endpointError(value: string) {
   try {
-    const url = new URL(value.trim());
+    const url = new URL(normalizeMcpEndpoint(value));
     if (url.username || url.password || url.search || url.hash)
       return 'Use a server URL without credentials, query parameters, or a fragment.';
     if (
       url.protocol !== 'https:' &&
-      !(url.protocol === 'http:' && ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname))
+      !(url.protocol === 'http:' && ['127.0.0.1', '[::1]'].includes(url.hostname))
     )
       return 'Use HTTPS, or HTTP for a local server.';
+    if (url.port === '0')
+      return 'Use the port number provided by the service; port 0 cannot be connected to.';
     return '';
   } catch {
     return 'Enter a complete server URL, such as https://mcp.example.com/mcp.';

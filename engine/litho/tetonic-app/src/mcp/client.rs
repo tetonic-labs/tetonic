@@ -25,7 +25,7 @@ impl<'a> Session<'a> {
     }
     async fn open(c: &'a Connection) -> Result<Self, String> {
         let credential = c.credential().await?;
-        let response = c.guard.post_mcp(&c.config.endpoint, &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":VERSION,"capabilities":{},"clientInfo":{"name":"tetonic","version":"0.1"}}}), None, VERSION, credential.as_ref()).await.map_err(connection_error)?;
+        let response = c.guard.post_mcp(&c.config.endpoint, &json!({"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":VERSION,"capabilities":{},"clientInfo":{"name":"tetonic","version":"0.1"}}}), None, VERSION, credential.as_ref()).await.map_err(|error| connection_error(error, c, credential.is_some()))?;
         let result = result(
             response
                 .message
@@ -65,7 +65,7 @@ impl<'a> Session<'a> {
             )
             .await
             .map(|r| r.message)
-            .map_err(connection_error)
+            .map_err(|error| connection_error(error, self.connection, credential.is_some()))
     }
     async fn tools(&self) -> Result<Vec<McpTool>, String> {
         let mut cursor: Option<String> = None;
@@ -214,10 +214,25 @@ async fn canceled(cancel: &CancellationSignal) {
     }
 }
 
-fn connection_error(error: tetonic_egress::EgressError) -> String {
+fn connection_error(error: tetonic_egress::EgressError, c: &Connection, has_token: bool) -> String {
+    use tetonic_egress::EgressError;
+    // Use only our transport's classification, never a remote body, URL, or credential.
+    // A 401 alone cannot establish that this address belongs to an MCP service.
     match error {
-        tetonic_egress::EgressError::StreamDecode(ref message) if message == "MCP HTTP 401" => "Service rejected authentication. Update its token; browser OAuth is not supported in this profile.".into(),
-        tetonic_egress::EgressError::StreamDecode(ref message) if message == "MCP HTTP 403" => "Service denied access. Check the token permissions.".into(),
-        _ => "Could not reach this MCP service, or it returned an unsupported response. Check its endpoint and access.".into(),
-    }
+        EgressError::StreamDecode(ref message) => match message.as_str() {
+            "MCP HTTP 401" if !has_token => "This address requires sign-in. Check that it is the service’s MCP address. If the service gave you a token, add it in connection settings.",
+            "MCP HTTP 401" => "This address did not accept the saved token. Check the MCP address and replace the token in connection settings if needed.",
+            "MCP HTTP 403" => "Access was denied. Check the service address and whether your account or token can use it.",
+            "MCP HTTP 404" | "MCP HTTP 405" | "unsupported MCP response type" | "invalid MCP response" | "MCP response does not match request" => "This address did not respond as an MCP service. Copy the MCP address from the service’s setup instructions; its website or app address may be different.",
+            "MCP HTTP 301" | "MCP HTTP 302" | "MCP HTTP 303" | "MCP HTTP 307" | "MCP HTTP 308" => "This address redirects elsewhere. Use the direct MCP address provided by the service.",
+            "MCP HTTP 429" => "The service is receiving too many requests. Wait a moment, then check the connection again.",
+            "MCP HTTP 500" | "MCP HTTP 502" | "MCP HTTP 503" | "MCP HTTP 504" => "The service is having trouble responding. Try checking the connection again later.",
+            _ => "The service returned an unsupported MCP response. Check its MCP address and supported connection options.",
+        },
+        EgressError::Http(ref error) if error.is_timeout() => "The service took too long to respond. Check that it is running, then try again.",
+        EgressError::Http(ref error) if error.is_connect() && c.config.endpoint.starts_with("http:") => "Could not connect to the service on this computer. Open or start the service, then check that the port in its MCP address matches this connection.",
+        EgressError::Http(ref error) if error.is_connect() => "Could not connect to the service. Check the address, your internet connection, and the service’s availability.",
+        EgressError::Resolve(_) => "Could not find the service’s address. Check the address and your internet connection.",
+        _ => "Could not connect to this MCP service. Check its address and connection settings.",
+    }.into()
 }

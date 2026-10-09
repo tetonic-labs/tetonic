@@ -35,6 +35,8 @@ function service() {
       ...record,
       id: input.id,
       name: input.name,
+      endpoint: input.endpoint,
+      auth: input.auth,
       enabled: input.enabled,
       revision: input.expected_revision + 1,
       status: input.enabled ? 'unchecked' : 'disconnected',
@@ -53,6 +55,64 @@ function service() {
   });
   return { client, save, discover, current: () => record };
 }
+it.each([
+  ['localhost:3102/mcp', 'http://127.0.0.1:3102/mcp', '127.0.0.1:3102'],
+  ['http://localhost:3102/mcp', 'http://127.0.0.1:3102/mcp', '127.0.0.1:3102'],
+  ['[::1]:3102/mcp', 'http://[::1]:3102/mcp', '[::1]:3102'],
+  ['https://calendar.example/mcp', 'https://calendar.example/mcp', 'calendar.example'],
+])(
+  'connects from just an address (%s) without credentials or tool grants',
+  async (address, endpoint, name) => {
+    const { client, save, discover } = service();
+    render(<McpConnectionEditor client={client} onChanged={async () => {}} />);
+    expect(screen.queryByLabelText('Service token')).toBeNull();
+    fireEvent.change(screen.getByLabelText('Service address'), { target: { value: address } });
+    fireEvent.click(screen.getByRole('button', { name: 'Connect', exact: true }));
+    await screen.findByText('Connected', { exact: true });
+    expect(save).toHaveBeenCalledOnce();
+    expect(save.mock.calls[0][0]).toMatchObject({ endpoint, name, auth: 'none', enabled: true });
+    expect(save.mock.calls[0][0].token).toBeUndefined();
+    expect(save.mock.calls[0][0].approved_tools).toBeUndefined();
+    expect(discover).toHaveBeenCalledOnce();
+    expect(screen.getByRole('checkbox', { name: /Find availability/ })).toHaveProperty(
+      'checked',
+      false,
+    );
+  },
+);
+
+it.each([
+  'http://remote.example/mcp',
+  'http://localhost.evil.example/mcp',
+  'https://user:secret@calendar.example/mcp',
+  'localhost:3102/mcp?token=secret',
+  'localhost:0/mcp',
+])('does not save or discover an invalid address (%s)', async (address) => {
+  const { client, save, discover } = service();
+  render(<McpConnectionEditor client={client} onChanged={async () => {}} />);
+  fireEvent.change(screen.getByLabelText('Service address'), { target: { value: address } });
+  fireEvent.click(screen.getByRole('button', { name: 'Connect', exact: true }));
+  expect(await screen.findByRole('alert')).toBeTruthy();
+  expect(save).not.toHaveBeenCalled();
+  expect(discover).not.toHaveBeenCalled();
+});
+
+it('discards canceled sign-in changes instead of disabling saved authentication on a later edit', () => {
+  const { client, save } = service();
+  render(<McpConnectionEditor client={client} connection={initial} onChanged={async () => {}} />);
+  fireEvent.click(screen.getByRole('button', { name: 'Edit connection' }));
+  fireEvent.change(screen.getByLabelText('Sign-in method'), { target: { value: 'none' } });
+  fireEvent.change(screen.getByLabelText('Name (optional)'), {
+    target: { value: 'Canceled name' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit connection' }));
+  expect(screen.getByLabelText('Sign-in method')).toHaveProperty('value', 'bearer');
+  expect(screen.getByLabelText('Name (optional)')).toHaveProperty('value', initial.name);
+  expect(screen.getByLabelText('Replacement token (optional)')).toHaveProperty('value', '');
+  expect(save).not.toHaveBeenCalled();
+});
+
 it('reviews action tools and unannotated tools explicitly without automatically enabling them', async () => {
   const { client, save } = service();
   const action = {
@@ -93,10 +153,14 @@ it('reviews action tools and unannotated tools explicitly without automatically 
 it('connects, reviews access separately, and disconnects without silently selecting an agent tool', async () => {
   const { client, save, discover } = service();
   render(<McpConnectionEditor client={client} onChanged={async () => {}} />);
-  fireEvent.change(screen.getByLabelText('Name'), { target: { value: 'Calendar' } });
-  fireEvent.change(screen.getByLabelText('MCP endpoint'), { target: { value: initial.endpoint } });
+  fireEvent.click(screen.getByText('Name and sign-in options'));
+  fireEvent.change(screen.getByLabelText('Name (optional)'), { target: { value: 'Calendar' } });
+  fireEvent.change(screen.getByLabelText('Service address'), {
+    target: { value: initial.endpoint },
+  });
+  fireEvent.change(screen.getByLabelText('Sign-in method'), { target: { value: 'bearer' } });
   fireEvent.change(screen.getByLabelText('Service token'), { target: { value: 'test-token' } });
-  fireEvent.click(screen.getByRole('button', { name: 'Connect & review tools' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Connect', exact: true }));
   expect(await screen.findByText('Connected', { exact: true })).toBeTruthy();
   expect(discover).toHaveBeenCalledOnce();
   expect(save.mock.calls[0][0].approved_tools).toBeUndefined();
@@ -112,7 +176,7 @@ it('connects, reviews access separately, and disconnects without silently select
   expect((screen.getByLabelText('Replacement token (optional)') as HTMLInputElement).value).toBe(
     '',
   );
-  expect((screen.getByLabelText('MCP endpoint') as HTMLInputElement).readOnly).toBe(true);
+  expect((screen.getByLabelText('Service address') as HTMLInputElement).readOnly).toBe(true);
   fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
   fireEvent.click(screen.getByRole('button', { name: 'Disconnect…' }));
   expect(save).toHaveBeenCalledTimes(2);
@@ -141,6 +205,41 @@ it('keeps a saved connection visible when discovery fails and surfaces an action
   expect((await screen.findByRole('alert')).textContent).toContain('Connection changed');
   expect((screen.getByLabelText('Replacement token (optional)') as HTMLInputElement).value).toBe(
     '',
+  );
+});
+
+it('lets a service request a token after the first connection check without granting tools', async () => {
+  const { client, save, discover, current } = service();
+  discover.mockImplementationOnce(async () => ({
+    ...current(),
+    status: 'unavailable',
+    message: 'This address requires sign-in. Check that it is the service’s MCP address.',
+  }));
+  render(<McpConnectionEditor client={client} onChanged={async () => {}} />);
+  fireEvent.change(screen.getByLabelText('Service address'), {
+    target: { value: initial.endpoint },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Connect', exact: true }));
+  await screen.findByText(/This address requires sign-in/);
+  expect(save.mock.calls[0][0].auth).toBe('none');
+  fireEvent.click(screen.getByRole('button', { name: 'Edit connection' }));
+  fireEvent.change(screen.getByLabelText('Sign-in method'), { target: { value: 'bearer' } });
+  expect(screen.getByRole('button', { name: 'Save & check connection' })).toHaveProperty(
+    'disabled',
+    true,
+  );
+  fireEvent.change(screen.getByLabelText('Service token'), { target: { value: 'test-token' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save & check connection' }));
+  await screen.findByText('Connected', { exact: true });
+  expect(save.mock.calls[1][0]).toMatchObject({
+    auth: 'bearer',
+    token: 'test-token',
+    expected_revision: 1,
+  });
+  expect(save.mock.calls[1][0].approved_tools).toBeUndefined();
+  expect(screen.getByRole('checkbox', { name: /Find availability/ })).toHaveProperty(
+    'checked',
+    false,
   );
 });
 
@@ -206,11 +305,15 @@ it('adds a connection inside agent editing without submitting or losing the agen
   fireEvent.click(screen.getByText('Add tools, MCPs or skills to the workspace'));
   fireEvent.click(screen.getByRole('button', { name: /Connect a service/ }));
   const editor = within(screen.getByRole('region', { name: 'Connect a service' }));
-  await userEvent.type(editor.getByLabelText('Name'), 'Calendar{Enter}');
-  fireEvent.change(editor.getByLabelText('MCP endpoint'), { target: { value: initial.endpoint } });
+  fireEvent.click(editor.getByText('Name and sign-in options'));
+  await userEvent.type(editor.getByLabelText('Name (optional)'), 'Calendar{Enter}');
+  fireEvent.change(editor.getByLabelText('Service address'), {
+    target: { value: initial.endpoint },
+  });
+  fireEvent.change(editor.getByLabelText('Sign-in method'), { target: { value: 'bearer' } });
   fireEvent.change(editor.getByLabelText('Service token'), { target: { value: 'test-token' } });
   expect(update).not.toHaveBeenCalled();
-  fireEvent.click(editor.getByRole('button', { name: 'Connect & review tools' }));
+  fireEvent.click(editor.getByRole('button', { name: 'Connect', exact: true }));
   await screen.findByText('Connected', { exact: true });
   fireEvent.click(screen.getByRole('checkbox', { name: /Find availability/ }));
   fireEvent.click(screen.getByRole('button', { name: 'Save tool access' }));

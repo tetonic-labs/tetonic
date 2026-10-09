@@ -2,7 +2,7 @@ import { useRef, useState } from 'react';
 import { CheckCircle2, Plug, RefreshCw } from 'lucide-react';
 import { type LocalEngine } from '../../engine/client';
 import { type McpConnection } from '../../engine/contracts';
-import { endpointError } from '../../lib/toolLibrary';
+import { endpointError, mcpConnectionName, normalizeMcpEndpoint } from '../../lib/toolLibrary';
 
 /** One setup surface, shared by the library and the agent editor. No agent grants. */
 export function McpConnectionEditor({
@@ -20,7 +20,7 @@ export function McpConnectionEditor({
   );
   const [name, setName] = useState(connection?.name || '');
   const [endpoint, setEndpoint] = useState(connection?.endpoint || '');
-  const [auth, setAuth] = useState<'none' | 'bearer'>(connection?.auth || 'bearer');
+  const [auth, setAuth] = useState<'none' | 'bearer'>(connection?.auth || 'none');
   const [token, setToken] = useState('');
   const [editing, setEditing] = useState(!connection);
   const [chosen, setChosen] = useState(
@@ -48,6 +48,9 @@ export function McpConnectionEditor({
   }
   function adopt(next: McpConnection) {
     setSaved(next);
+    setName(next.name);
+    setEndpoint(next.endpoint);
+    setAuth(next.auth || 'none');
     setChosen(next.tools.filter((t) => t.approved !== false).map((t) => t.id));
   }
   async function discover(record: McpConnection) {
@@ -66,8 +69,8 @@ export function McpConnectionEditor({
         const record = await client.saveMcpConnection({
           id,
           expected_revision: saved?.revision || 0,
-          name: name.trim(),
-          endpoint: endpoint.trim(),
+          name: name.trim() || mcpConnectionName(endpoint),
+          endpoint: normalizeMcpEndpoint(endpoint),
           auth,
           enabled: true,
           ...(auth === 'bearer' && token ? { token } : {}),
@@ -92,71 +95,79 @@ export function McpConnectionEditor({
       {editing ? (
         <fieldset disabled={busy} className="capability-editor">
           <legend>{saved ? 'Connection settings' : 'Connect a service'}</legend>
-          <p>Connect once, then choose which agents can use its tools.</p>
+          <p>Paste the MCP address provided by your service. We’ll check it and find its tools.</p>
           <label>
-            Name
+            Service address
             <input
               autoFocus
-              value={name}
-              maxLength={80}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="My research service"
-            />
-          </label>
-          <label>
-            MCP endpoint
-            <input
               value={endpoint}
               readOnly={!!saved}
               onChange={(e) => setEndpoint(e.target.value)}
               placeholder="https://service.example/mcp"
               autoComplete="off"
+              spellCheck={false}
             />
           </label>
-          <label>
-            Authentication
-            <select value={auth} onChange={(e) => setAuth(e.target.value as 'none' | 'bearer')}>
-              <option value="bearer">Service token</option>
-              <option value="none">No authentication</option>
-            </select>
-          </label>
-          {auth === 'bearer' && (
-            <label>
-              {saved?.auth === 'bearer' && saved.enabled
-                ? 'Replacement token (optional)'
-                : 'Service token'}
-              <input
-                type="password"
-                value={token}
-                onChange={(e) => setToken(e.target.value)}
-                autoComplete="off"
-                spellCheck={false}
-                maxLength={8192}
-              />
-            </label>
-          )}
-          <p className="capability-scope-note">
-            Tokens stay in your computer’s credential store. Use a token issued for this service.
-            Browser sign-in (OAuth) is not supported yet.
-          </p>
-          {saved && (
+          {normalizeMcpEndpoint(endpoint).startsWith('http://') && !endpointError(endpoint) && (
             <p className="capability-scope-note">
-              Replacing credentials clears the tool review. Agents keep their old selections until
-              you update them.
+              On this computer. The service needs to be running before you connect.
             </p>
           )}
+          <details className="capability-source" open={!!saved}>
+            <summary>Name and sign-in options</summary>
+            <label>
+              Name (optional)
+              <input
+                value={name}
+                maxLength={80}
+                onChange={(e) => setName(e.target.value)}
+                placeholder={mcpConnectionName(endpoint) || 'My research service'}
+              />
+            </label>
+            <label>
+              Sign-in method
+              <select value={auth} onChange={(e) => setAuth(e.target.value as 'none' | 'bearer')}>
+                <option value="none">No sign-in</option>
+                <option value="bearer">Service token</option>
+              </select>
+            </label>
+            {auth === 'bearer' && (
+              <label>
+                {saved?.auth === 'bearer' && saved.enabled
+                  ? 'Replacement token (optional)'
+                  : 'Service token'}
+                <input
+                  type="password"
+                  value={token}
+                  onChange={(e) => setToken(e.target.value)}
+                  autoComplete="off"
+                  spellCheck={false}
+                  maxLength={8192}
+                />
+              </label>
+            )}
+            <p className="capability-scope-note">
+              If your service gave you a token, add it here. Tokens are stored securely on this
+              computer. Services that require browser sign-in aren’t supported yet.
+            </p>
+            {saved && (
+              <p className="capability-scope-note">
+                Changing sign-in details requires reviewing the tools and updating agents’ tool
+                selections.
+              </p>
+            )}
+          </details>
           <div className="capability-actions">
             <button
               type="button"
               className="canvas-primary"
               disabled={
-                !name.trim() ||
                 !endpoint.trim() ||
                 (auth === 'bearer' && !token && !(saved?.auth === 'bearer' && saved.enabled))
               }
               onClick={() => void connect()}
             >
-              {busy ? 'Connecting…' : saved ? 'Save & check connection' : 'Connect & review tools'}
+              {busy ? 'Connecting…' : saved ? 'Save & check connection' : 'Connect'}
             </button>
             {saved && (
               <button
@@ -164,6 +175,10 @@ export function McpConnectionEditor({
                 onClick={() => {
                   setEditing(false);
                   setToken('');
+                  setName(saved.name);
+                  setEndpoint(saved.endpoint);
+                  setAuth(saved.auth || 'none');
+                  setError('');
                 }}
               >
                 Cancel
@@ -206,8 +221,8 @@ export function McpConnectionEditor({
               <fieldset disabled={busy} className="mcp-read-review">
                 <legend>Available tools</legend>
                 <p>
-                  Review what each tool can do before enabling it. Action tools can change the
-                  service. Agents still need their own selection.
+                  Choose which tools to make available to your workspace. You’ll assign them to
+                  agents in their settings.
                 </p>
                 {saved.tools.map((tool) => (
                   <label

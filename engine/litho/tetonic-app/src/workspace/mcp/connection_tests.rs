@@ -324,7 +324,9 @@ async fn token_rotation_invalidates_old_manifest_bindings_and_uncertain_saves_ca
             fixture.mode.store(6, std::sync::atomic::Ordering::SeqCst);
             let auth_failure = workspace.discover_mcp(&saved.id).await.unwrap();
             assert_eq!(auth_failure.status, "unavailable");
-            assert!(auth_failure.message.contains("authentication"));
+            assert!(auth_failure
+                .message
+                .contains("did not accept the saved token"));
             assert!(!auth_failure.message.contains("REPLACEMENT_TOKEN"));
         })
         .await;

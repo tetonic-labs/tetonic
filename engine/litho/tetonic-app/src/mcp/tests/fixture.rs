@@ -4,6 +4,7 @@ use tokio::io::{AsyncReadExt, AsyncWriteExt};
 pub(crate) struct Fixture {
     pub config: Vec<u8>,
     pub mode: Arc<AtomicU8>,
+    pub http_status: Arc<std::sync::atomic::AtomicU16>,
     pub calls: Arc<Mutex<Vec<Value>>>,
     task: tokio::task::JoinHandle<()>,
 }
@@ -17,6 +18,8 @@ impl Fixture {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let endpoint = format!("http://{}/mcp", listener.local_addr().unwrap());
         let mode = Arc::new(AtomicU8::new(0));
+        let http_status = Arc::new(std::sync::atomic::AtomicU16::new(0));
+        let status = http_status.clone();
         let calls = Arc::new(Mutex::new(Vec::new()));
         let state = mode.clone();
         let captured = calls.clone();
@@ -26,20 +29,21 @@ impl Fixture {
                 tokio::select! {
                     socket = listener.accept() => {
                         let (socket, _) = socket.unwrap();
-                        children.spawn(serve(socket, state.clone(), captured.clone()));
+                        children.spawn(serve(socket, state.clone(), status.clone(), captured.clone()));
 
                     }
                     Some(result) = children.join_next(), if !children.is_empty() => { result.unwrap(); }
                 }
             }
         });
-        Self { config: json!({"connections":[{"id":"calendar","name":"Calendar","endpoint":endpoint,"read_tools":["search","lookup"]}]}).to_string().into_bytes(), mode, calls, task }
+        Self { config: json!({"connections":[{"id":"calendar","name":"Calendar","endpoint":endpoint,"read_tools":["search","lookup"]}]}).to_string().into_bytes(), mode, http_status, calls, task }
     }
 }
 
 async fn serve(
     mut socket: tokio::net::TcpStream,
     mode: Arc<AtomicU8>,
+    http_status: Arc<std::sync::atomic::AtomicU16>,
     captured: Arc<Mutex<Vec<Value>>>,
 ) {
     let mut bytes = Vec::new();
@@ -79,6 +83,13 @@ async fn serve(
     let body: Value = serde_json::from_slice(&bytes[end..end + length]).unwrap();
     let method = body["method"].as_str().unwrap();
     captured.lock().unwrap().push(body.clone());
+    let status = http_status.load(Ordering::SeqCst);
+    if status != 0 {
+        let text = "<html>PRIVATE_SERVICE_BODY</html>";
+        let response = format!("HTTP/1.1 {status} Fixture\r\nContent-Type: text/html\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{text}", text.len());
+        let _ = socket.write_all(response.as_bytes()).await;
+        return;
+    }
     assert!(headers.contains("accept: application/json, text/event-stream"));
     assert!(headers.contains("mcp-protocol-version: 2025-11-25"));
     if method != "initialize" {

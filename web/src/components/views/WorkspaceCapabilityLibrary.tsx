@@ -144,7 +144,7 @@ export function WorkspaceCapabilityLibrary({
               <Plug size={19} />
               <span>
                 <strong>Connect a service</strong>
-                <small>Add an MCP endpoint and review its tools.</small>
+                <small>Paste a service address and choose its tools.</small>
               </span>
             </button>
           </div>
