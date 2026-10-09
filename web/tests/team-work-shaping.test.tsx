@@ -94,6 +94,35 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('retries an unstarted saved message without losing the next thought or creating another turn', async () => {
+    const unstarted = { ...saved, state: 'not_started' as const, run_id: null, messages: [] };
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([unstarted]);
+    f.submit.mockRejectedValueOnce(new Error('The Guide is still occupied.'));
+    f.view();
+    const draft = await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(draft, { target: { value: 'Keep this thought for after your reply.' } });
+    expect(screen.getByRole('button', { name: 'Send exploration reply' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    const retry = screen.getByRole('button', { name: 'Retry saved message' });
+    fireEvent.click(retry);
+    await screen.findByText('The Guide is still occupied.');
+    expect(draft).toHaveProperty('value', 'Keep this thought for after your reply.');
+    fireEvent.click(retry);
+    await waitFor(() => expect(f.submit).toHaveBeenCalledTimes(2));
+    expect(f.submit.mock.calls[0]).toEqual([
+      saved.id,
+      saved.input,
+      guide.key,
+      undefined,
+      'explore',
+    ]);
+    expect(f.submit.mock.calls[1]).toEqual(f.submit.mock.calls[0]);
+    expect(draft).toHaveProperty('value', 'Keep this thought for after your reply.');
+  });
+
   it('keeps discussions and failed Guide replies out of work while retaining searchable conversations', async () => {
     const interrupted = {
       ...saved,

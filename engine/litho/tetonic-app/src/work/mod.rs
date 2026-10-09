@@ -20,6 +20,7 @@ mod plan_recovery;
 mod plans;
 mod shaping;
 mod submission;
+mod submission_grants;
 mod work_teams;
 mod workroom;
 pub use plan_execution::{PlanExecutionView, PlanTaskLink, StartPlan};

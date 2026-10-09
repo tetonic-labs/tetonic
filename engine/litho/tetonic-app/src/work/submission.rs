@@ -274,37 +274,16 @@ impl WorkService {
             )
             .await
             .map_err(resource)?;
-        let grant_id = format!("local-ui-{id}");
-        if resources
-            .get_execution_grant(
-                &self.services.host.credential,
-                app_scope.organization().into(),
-                grant_id.clone(),
+        let grant_id = self
+            .submission_grant(
+                &id,
+                &work.request_id,
+                prepared
+                    .start_command(id.clone())
+                    .map_err(resource)?
+                    .job_spec,
             )
-            .await
-            .map_err(resource)?
-            .is_none()
-        {
-            resources
-                .issue_execution_grant(
-                    &self.services.host.credential,
-                    tetonic_memory::ExecutionGrant {
-                        grant_id: grant_id.clone(),
-                        scope: ExecutionScope {
-                            principal_id: app_scope.principal().into(),
-                            organization_id: app_scope.organization().into(),
-                            information_context_id: self.services.scope.context().to_owned(),
-                        },
-                        job: prepared
-                            .start_command(id.clone())
-                            .map_err(resource)?
-                            .job_spec,
-                        expires_at: chrono::Utc::now().timestamp() + 3600,
-                    },
-                )
-                .await
-                .map_err(resource)?;
-        }
+            .await?;
         let (work, submission) = self
             .services
             .host

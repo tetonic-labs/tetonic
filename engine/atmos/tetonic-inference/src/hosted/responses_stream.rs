@@ -68,7 +68,7 @@ impl ResponsesStream {
                     self.response = Some(value["response"].clone());
                 }
                 Some("error" | "response.failed" | "response.incomplete") => {
-                    return Err(error("Responses stream failed or was incomplete"))
+                    return Err(stream_failure(&value))
                 }
                 Some(_) => {} // Progress and partial tool arguments do not execute anything.
                 None => return Err(error("Responses event missing type")),
@@ -87,9 +87,86 @@ impl ResponsesStream {
     }
 }
 
+fn stream_failure(value: &Value) -> InferenceError {
+    // Provider messages may contain submitted content. Expose fixed explanations
+    // or a bounded code label, never the raw message or request.
+    let code = value["code"]
+        .as_str()
+        .or_else(|| value["error"]["code"].as_str())
+        .or_else(|| value["response"]["error"]["code"].as_str());
+    if let Some(code) = code.filter(|code| {
+        !code.is_empty()
+            && code.len() <= 64
+            && code.bytes().all(|b| b.is_ascii_lowercase() || b == b'_')
+    }) {
+        if !matches!(
+            code,
+            "insufficient_quota"
+                | "credit_balance_exhausted"
+                | "rate_limit_exceeded"
+                | "invalid_api_key"
+                | "authentication_error"
+                | "permission_denied"
+                | "model_not_found"
+                | "invalid_request_error"
+                | "server_error"
+        ) {
+            return error(&format!("Responses API rejected the request ({code})"));
+        }
+    }
+    error(match code {
+        Some("insufficient_quota" | "credit_balance_exhausted") => {
+            "Responses API quota unavailable; check API billing and project limits"
+        }
+        Some("rate_limit_exceeded") => "Responses API rate limit reached; retry later",
+        Some("invalid_api_key" | "authentication_error" | "permission_denied") => {
+            "Responses API access rejected; check the API key and model permissions"
+        }
+        Some("model_not_found" | "invalid_request_error") => {
+            "Responses API rejected the model request"
+        }
+        Some("server_error") => "Responses API server error; retry later",
+        _ if value["type"] == "response.incomplete" => {
+            match value["response"]["incomplete_details"]["reason"].as_str() {
+                Some("max_output_tokens") => {
+                    "Responses output token limit reached before completing the reply"
+                }
+                Some("content_filter") => "Responses reply stopped by the provider content filter",
+                _ => "Responses reply was incomplete",
+            }
+        }
+        _ => "Responses API reported a failed reply",
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    #[test]
+    fn reports_safe_provider_failures_without_copying_response_content() {
+        for (value, expected) in [
+            (
+                serde_json::json!({"type":"error","code":"insufficient_quota","message":"PRIVATE"}),
+                "API quota unavailable",
+            ),
+            (
+                serde_json::json!({"type":"response.failed","response":{"error":{"code":"rate_limit_exceeded","message":"PRIVATE"}}}),
+                "API rate limit reached",
+            ),
+            (
+                serde_json::json!({"type":"response.incomplete","response":{"incomplete_details":{"reason":"max_output_tokens"},"output":"PRIVATE"}}),
+                "output token limit reached",
+            ),
+        ] {
+            let mut parser = ResponsesStream::default();
+            let message = parser
+                .push(format!("data: {value}\n\n").as_bytes(), &mut |_| {})
+                .unwrap_err()
+                .to_string();
+            assert!(message.contains(expected));
+            assert!(!message.contains("PRIVATE"));
+        }
+    }
     #[test]
     fn handles_split_utf8_and_crlf_without_exposing_private_or_partial_tool_events() {
         let bytes =

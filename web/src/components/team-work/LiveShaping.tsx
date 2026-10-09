@@ -58,11 +58,15 @@ function ConnectedShaping({
   const [briefVersion, setBriefVersion] = useState(0);
   const [stopError, setStopError] = useState('');
   const [stopping, setStopping] = useState(false);
+  const [retrying, setRetrying] = useState(false);
+  const [retryError, setRetryError] = useState('');
+  const retryGate = useRef(false);
   const stopGate = useRef(false);
   const selected = records.find((work) => work.id === selectedId);
   const missing = !!selectedId && !selected && !!workspace;
   const latest = selected?.latest;
   const active = !!latest && taskIsActive(latest);
+  const unstarted = latest?.state === 'not_started' && !planView?.continuation_from;
   const guideKey = latest?.agent_key || workspace?.shaping_agent_key || '';
   const guide = uiAgents.find((agent) => agent.id === guideKey);
   const guideProfile = workspace?.agents.find((agent) => agent.key === guideKey);
@@ -91,6 +95,8 @@ function ConnectedShaping({
     (!setupIssue || !!draft.pending) &&
     !missing &&
     !writer.busyKey &&
+    !retrying &&
+    (!unstarted || !!draft.pending) &&
     (!active || !!draft.pending) &&
     latest?.state !== 'recovery_required' &&
     !!draft.text.trim() &&
@@ -150,6 +156,31 @@ function ConnectedShaping({
     }
   }
 
+  async function retryReply() {
+    if (!latest || !unstarted || !isConnected || retryGate.current || writer.busyKey) return;
+    retryGate.current = true;
+    setRetrying(true);
+    setRetryError('');
+    try {
+      const team = latest.work_team;
+      await submitTask(
+        latest.input,
+        latest.agent_key,
+        latest.parent_id || undefined,
+        latest.id,
+        'explore',
+        team ? { id: team.id, revision: team.revision } : undefined,
+      );
+    } catch (error) {
+      setRetryError(
+        error instanceof Error ? error.message : 'The reply could not start. Try again.',
+      );
+    } finally {
+      retryGate.current = false;
+      setRetrying(false);
+    }
+  }
+
   const renderTurn = (turn: EngineTask) => (
     <article className="px-shaping-turn" key={turn.id}>
       <div className="px-shaping-human">
@@ -190,8 +221,8 @@ function ConnectedShaping({
       {turn.state === 'canceled' && <p>Reply stopped. Your discussion is saved.</p>}
       {turn.state === 'recovery_required' && (
         <p>
-          This reply was interrupted. Earlier discussion is saved; start a new conversation to
-          continue.
+          This reply was interrupted and needs engine recovery before the Guide can continue. Your
+          discussion is saved.
         </p>
       )}
     </article>
@@ -225,15 +256,17 @@ function ConnectedShaping({
               : selected
                 ? active
                   ? 'Thinking it through…'
-                  : planView?.execution
-                    ? `Team · ${planView.execution.state === 'completed' && !planView.execution.root?.messages.some((message) => message.role === 'assistant' && message.content.trim()) ? 'Execution finished' : stateLabels[planView.execution.state] || planView.execution.state}`
-                    : planView?.plans[0]?.content
-                      ? planView.readiness.length
-                        ? 'A few things to resolve'
-                        : 'Proposal ready for review'
-                      : latest?.state === 'completed'
-                        ? 'Ready when you are'
-                        : stateLabel(selected)
+                  : unstarted
+                    ? 'Reply hasn’t started'
+                    : planView?.execution
+                      ? `Team · ${planView.execution.state === 'completed' && !planView.execution.root?.messages.some((message) => message.role === 'assistant' && message.content.trim()) ? 'Execution finished' : stateLabels[planView.execution.state] || planView.execution.state}`
+                      : planView?.plans[0]?.content
+                        ? planView.readiness.length
+                          ? 'A few things to resolve'
+                          : 'Proposal ready for review'
+                        : latest?.state === 'completed'
+                          ? 'Ready when you are'
+                          : stateLabel(selected)
                 : 'Think it through. Put your team to work.'}
           </small>
         </span>
@@ -290,6 +323,22 @@ function ConnectedShaping({
         {selected ? (
           <>
             {selected.turns.map(renderTurn)}
+            {unstarted && (
+              <div className="px-shaping-retry" role="status">
+                <p>
+                  This message was saved, but the reply didn’t start. It isn’t running in the
+                  background.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => void retryReply()}
+                  disabled={!isConnected || retrying || !!writer.busyKey || !!setupIssue}
+                >
+                  {retrying ? 'Starting reply…' : 'Retry saved message'}
+                </button>
+                {retryError && <p role="alert">{retryError}</p>}
+              </div>
+            )}
             <div className="tw-conversation-plan" data-handoff={hasHandoff}>
               {planView?.execution && onTeamMap && (
                 <button

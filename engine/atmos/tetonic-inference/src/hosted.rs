@@ -143,14 +143,23 @@ impl HostedTransport for EgressHostedTransport {
             .await
             .map_err(|_| error("hosted credential unavailable"))?;
         let mut stream = responses_stream::ResponsesStream::default();
-        self.guard
+        let mut decode_error = None;
+        let transport = self
+            .guard
             .post_hosted_stream(&self.endpoint, &body, &credential, &mut |bytes| {
-                stream.push(bytes, on_token).map_err(|_| {
+                stream.push(bytes, on_token).map_err(|error| {
+                    // Decoder errors are safe messages/code labels, never provider
+                    // payloads. Retain the cause instead of masking API failures
+                    // and incomplete replies as malformed event framing.
+                    decode_error = Some(error);
                     tetonic_egress::EgressError::StreamDecode("invalid Responses stream".into())
                 })
             })
-            .await
-            .map_err(|e| error(&format!("hosted stream error: {e}")))?;
+            .await;
+        if let Some(error) = decode_error {
+            return Err(error);
+        }
+        transport.map_err(|e| error(&format!("hosted stream error: {e}")))?;
         stream.finish()
     }
     async fn list_models(

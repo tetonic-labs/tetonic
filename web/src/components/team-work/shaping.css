@@ -555,3 +555,23 @@
   display: block;
   margin: 16px 0;
 }
+.px-shaping-retry {
+  margin: 12px 0 20px;
+  padding: 12px 0;
+  border-block: 1px solid currentColor;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.px-shaping-retry button {
+  margin-top: 8px;
+  padding: 7px 12px;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.px-shaping-retry button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

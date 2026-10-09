@@ -145,6 +145,32 @@ qualified first-use latency target. Do not mark EXP-001 accepted from these runs
 
 ### Remaining acceptance work
 
+#### October 9: stuck Guide diagnosis and recovery
+
+- A Guide reply admitted before a preview-engine restart was canceled afterward,
+  without a surviving executor to acknowledge quiescence. Its durable capacity
+  hold therefore blocked later Guide messages. After verifying the old process
+  had exited and the job had only `work_plan`, an offline, backed-up repair used
+  the existing supervisor's quiescence command. No projection flag was edited.
+  Automatic recovery of arbitrary interrupted effects remains out of scope.
+- Retries of rejected admission previously reused a grant for an older workspace
+  observation/model, causing `registered job access denied`. An explicit retry
+  now refreshes preparation only if no durable activation exists. Existing jobs
+  cannot be replayed or replaced; revoked base grants remain denied.
+- Saved, unstarted discussions now say that the reply never started and offer
+  an idempotent retry. Draft follow-up text is retained. Canceled Guide replies
+  with unacknowledged executor exit show canceling/recovery rather than stopped.
+- Live frontier checks reached the configured `o3-mini` provider, which returned
+  `credit_balance_exhausted`. The streaming adapter had masked this as an invalid
+  stream. Safe error-code handling and actionable billing/limit messages now
+  preserve the cause without exposing provider messages or submitted context.
+  No successful frontier answer was observed; no further inference was attempted
+  after identifying the credit error. Provider/model settings were preserved.
+- Validation: 43 work tests passed (3 live-scenario tests intentionally ignored),
+  14 Guide UI tests passed, 3 Responses-stream tests passed, and TypeScript passed.
+  Regression coverage includes immutable grants, revoked grants, replay prevention,
+  saved-message retries, draft retention, and safe provider-error presentation.
+
 1. Accurate, timely orientation and a follow-up through a qualified reference
    model/profile; preserve discussion without invented capabilities or plans.
 2. Real-model missing-folder recovery and useful selected-folder work. Finish the

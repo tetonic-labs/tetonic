@@ -220,6 +220,28 @@ impl WorkService {
             _ => "starting",
         }
         .into();
+        // A cancellation fences future effects before the executor has drained.
+        // After a host restart an unacknowledged hold needs recovery, not a
+        // misleading "stopped" status while that agent remains unavailable.
+        if task.purpose == WorkPurpose::Explore
+            && task.state == "canceled"
+            && attempt.is_some_and(|a| !a.execution_quiesced)
+        {
+            task.state = if attempt.is_some_and(|a| {
+                self.services
+                    .host
+                    .app
+                    .run_manager
+                    .managed()
+                    .binding(&a.attempt_id)
+                    .is_some()
+            }) {
+                "canceling"
+            } else {
+                "recovery_required"
+            }
+            .into();
+        }
         if task.plan.is_some() {
             // Older finite-plan records used the generic retry policy but had
             // no retry owner. Show the terminal bound attempt, not false Starting.
@@ -381,6 +403,17 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
     let reason = reason.unwrap_or_default();
     if reason.contains("token allowance") || reason.contains("complete token usage") {
         return "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.";
+    }
+    if reason.contains("Responses API quota unavailable")
+        || reason.contains("credit_balance_exhausted")
+    {
+        return "OpenAI could not fund this API request. Check API billing, credits and project spending limits. Your conversation is saved.";
+    }
+    if reason.contains("Responses output token limit reached") {
+        return "The model reached its output token limit before finishing. Review the Guide's token allowance or try a smaller request.";
+    }
+    if reason.contains("Responses API rate limit reached") {
+        return "OpenAI's API rate limit was reached. Wait briefly before trying again.";
     }
     if reason.contains("requested model residency unavailable") {
         "The local inference server could not confirm the requested model was loaded. Completed contributions are saved. Check the model server before starting more work."

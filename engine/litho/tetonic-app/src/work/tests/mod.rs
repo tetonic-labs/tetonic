@@ -8,6 +8,11 @@ fn local_model_failure_is_actionable_without_exposing_provider_payloads() {
     assert!(message.contains("local inference server"));
     assert!(message.contains("Completed contributions are saved"));
     assert!(!message.contains("PRIVATE_PAYLOAD"));
+    let message = task_failure_message(Some(
+        "provider: Responses API rejected the request (credit_balance_exhausted) PRIVATE_PAYLOAD",
+    ));
+    assert!(message.contains("billing"));
+    assert!(!message.contains("PRIVATE_PAYLOAD"));
 }
 
 #[tokio::test]
