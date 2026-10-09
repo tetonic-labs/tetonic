@@ -90,6 +90,13 @@ export function LocalEngineProvider({
   const [error, setError] = useState<string | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [readErrors, setReadErrors] = useState<Record<string, string>>({});
+  const [catalogError, setCatalogError] = useState<string | null>(null);
+  const catalogRead = useRef<{
+    engine: LocalEngine;
+    controller: AbortController;
+    pending: Promise<void> | null;
+    nextReadAt: number;
+  } | null>(null);
   const pollVersion = useRef(0);
   const alive = useRef(true);
 
@@ -97,15 +104,55 @@ export function LocalEngineProvider({
     engineRef.current = providedClient || new LocalEngine(token);
   }
 
+  // Discovery can contact model providers. Keep it off the live-work critical path;
+  // explicit refreshes after settings changes still fetch the new catalog immediately.
+  const refreshCatalog = useCallback((force = false): Promise<void> => {
+    const engine = engineRef.current;
+    if (!engine || !alive.current) return Promise.resolve();
+    const previous = catalogRead.current;
+    if (!force && previous?.engine === engine && !previous.controller.signal.aborted) {
+      if (previous.pending) return previous.pending;
+      if (Date.now() < previous.nextReadAt) return Promise.resolve();
+    }
+    previous?.controller.abort();
+    const read = {
+      engine,
+      controller: new AbortController(),
+      pending: null as Promise<void> | null,
+      nextReadAt: 0,
+    };
+    catalogRead.current = read;
+    const isCurrent = () =>
+      alive.current &&
+      engine === engineRef.current &&
+      catalogRead.current === read &&
+      !read.controller.signal.aborted;
+    read.pending = (async () => {
+      try {
+        const result = await engine.agentCatalog(read.controller.signal);
+        if (!isCurrent()) return;
+        setCatalog(result);
+        setCatalogError(null);
+        read.nextReadAt = Date.now() + 30000;
+      } catch (err) {
+        if (!isCurrent()) return;
+        setCatalogError(err instanceof Error ? err.message : 'Could not refresh agent setup');
+        read.nextReadAt = Date.now() + 5000;
+      } finally {
+        read.pending = null;
+      }
+    })();
+    return read.pending;
+  }, []);
+
   const poll = useCallback(async (signal?: AbortSignal) => {
     const engine = engineRef.current;
     if (!engine) return;
     const version = ++pollVersion.current;
 
     try {
-      const [ws, cat, items, apprv, tm] = await Promise.allSettled([
+      const [ws, items, apprv, tm] = await Promise.allSettled([
         engine.snapshot(signal),
-        engine.agentCatalog(signal),
         engine.workItems(signal),
         engine.approvals(signal),
         engine.teams(signal),
@@ -121,13 +168,11 @@ export function LocalEngineProvider({
       if (ws.status === 'rejected') throw ws.reason;
 
       setWorkspace((old) => mergeWorkspace(old, ws.value));
-      if (cat.status === 'fulfilled') setCatalog(cat.value);
       if (items.status === 'fulfilled') setWorkItems(items.value);
       if (apprv.status === 'fulfilled') setApprovals(apprv.value);
       if (tm.status === 'fulfilled') setTeams(tm.value);
       const errors: Record<string, string> = {};
       for (const [name, result] of [
-        ['Agent setup', cat],
         ['Work details', items],
         ['Decisions', apprv],
         ['Teams', tm],
@@ -152,10 +197,19 @@ export function LocalEngineProvider({
       setIsConnected(false);
       setError(msg);
     } finally {
-      if (!signal?.aborted && alive.current && version === pollVersion.current)
+      if (
+        !signal?.aborted &&
+        alive.current &&
+        engine === engineRef.current &&
+        version === pollVersion.current
+      )
         setIsConnecting(false);
     }
   }, []);
+
+  const refresh = useCallback(async () => {
+    await Promise.all([poll(), refreshCatalog(true)]);
+  }, [poll, refreshCatalog]);
 
   useEffect(() => {
     alive.current = true;
@@ -164,6 +218,7 @@ export function LocalEngineProvider({
     let timeoutId: number | undefined;
 
     async function tick() {
+      void refreshCatalog();
       await poll(controller.signal);
       if (active) timeoutId = window.setTimeout(tick, 1500);
     }
@@ -174,9 +229,10 @@ export function LocalEngineProvider({
       active = false;
       alive.current = false;
       controller.abort();
+      catalogRead.current?.controller.abort();
       if (timeoutId) window.clearTimeout(timeoutId);
     };
-  }, [poll, token]);
+  }, [poll, refreshCatalog, token]);
 
   const submitTask = useCallback(
     async (
@@ -318,12 +374,13 @@ export function LocalEngineProvider({
       setDigest(null);
       setLastUpdated(null);
       setReadErrors({});
+      setCatalogError(null);
     }
     setToken(refreshedToken);
     engineRef.current = providedClient || new LocalEngine(refreshedToken);
     setIsConnecting(true);
-    void poll();
-  }, [poll, token, providedClient]);
+    void refresh();
+  }, [refresh, token, providedClient]);
 
   useEffect(() => {
     const connect = () => {
@@ -347,9 +404,9 @@ export function LocalEngineProvider({
         isConnecting,
         error,
         lastUpdated,
-        readErrors,
+        readErrors: catalogError ? { ...readErrors, 'Agent setup': catalogError } : readErrors,
         client: engineRef.current,
-        refresh: poll,
+        refresh,
         workspace,
         catalog,
         workItems,

@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { PlanReview } from '../src/components/team-work/PlanReview';
 import { PlanExecution } from '../src/components/team-work/PlanExecution';
@@ -172,9 +172,130 @@ function fixture(
   };
 }
 afterEach(() => {
+  vi.useRealTimers();
   vi.restoreAllMocks();
   sessionStorage.clear();
   window.history.replaceState(null, '', '/');
+});
+
+it('recovers a failed plan read automatically without submitting or launching work', async () => {
+  vi.useFakeTimers();
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  vi.mocked(f.client.plan).mockRejectedValueOnce(new Error('Temporary read failure'));
+  const start = vi.spyOn(f.client, 'startPlan');
+  f.render();
+  await act(async () => {});
+  expect(screen.getByRole('status').textContent).toContain('Retrying');
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(screen.getByRole('heading', { name: 'Compare formats' })).toBeTruthy();
+  expect(screen.queryByText(/Retrying/)).toBeNull();
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.submit).not.toHaveBeenCalled();
+  expect(start).not.toHaveBeenCalled();
+});
+
+it('keeps the last plan visible through a read failure and stops retries when closed', async () => {
+  vi.useFakeTimers();
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  const page = render(
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" conversationActive />
+    </LocalEngineProvider>,
+  );
+  await act(async () => {});
+  vi.mocked(f.client.plan).mockRejectedValue(new Error('Temporary read failure'));
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(screen.getByRole('heading', { name: 'Compare formats' })).toBeTruthy();
+  expect(screen.getByRole('status').textContent).toContain('last saved plan');
+  page.unmount();
+  const reads = vi.mocked(f.client.plan).mock.calls.length;
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(30000);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(reads);
+});
+
+it('backs off repeated failed reads and allows an immediate manual refresh', async () => {
+  vi.useFakeTimers();
+  const f = fixture();
+  vi.mocked(f.client.plan).mockRejectedValue(new Error('Offline'));
+  f.render();
+  await act(async () => {});
+  expect(f.client.plan).toHaveBeenCalledTimes(1);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(2);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(2);
+  fireEvent.click(screen.getByRole('button', { name: 'Retry plan refresh' }));
+  await act(async () => {});
+  expect(f.client.plan).toHaveBeenCalledTimes(3);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(8000);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(4);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(14999);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(4);
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(1);
+  });
+  expect(f.client.plan).toHaveBeenCalledTimes(5);
+});
+
+it('does not erase or replay an unconfirmed plan edit when a background read succeeds', async () => {
+  vi.useFakeTimers();
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  f.update.mockRejectedValue(new Error('Save response was lost'));
+  const page = f.render();
+  await act(async () => {});
+  fireEvent.click(screen.getByRole('button', { name: 'Adjust plan' }));
+  fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
+    target: { value: 'My unsaved direction' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save plan revision' }));
+  await act(async () => {});
+  page.rerender(
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" conversationActive />
+    </LocalEngineProvider>,
+  );
+  await act(async () => {
+    await vi.advanceTimersByTimeAsync(2000);
+  });
+  expect(screen.getByRole('alert').textContent).toBe('Save response was lost');
+  expect(screen.getByRole('textbox', { name: 'Outcome' })).toHaveProperty(
+    'value',
+    'My unsaved direction',
+  );
+  expect(f.update).toHaveBeenCalledTimes(1);
+  expect(screen.getByRole('button', { name: 'Retry plan operation' })).toBeTruthy();
 });
 
 it('offers the specific agent access and workspace connection fixes without granting or starting work', async () => {

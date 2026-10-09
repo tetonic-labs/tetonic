@@ -59,6 +59,8 @@ export function PlanReview({
   const captureAttempt = useRef<string>('');
   const [view, setView] = useState<PlanView>();
   const [error, setError] = useState('');
+  const [readError, setReadError] = useState('');
+  const readPlan = useRef<() => Promise<void>>(async () => {});
   const [busy, setBusy] = useState(false);
   const gate = useRef(false);
   const mounted = useRef(true);
@@ -112,14 +114,22 @@ export function PlanReview({
   }, [key, pending, edit, direction]);
   useEffect(() => {
     mounted.current = true;
-    const controller = new AbortController();
+    let active = true;
+    let request: AbortController | undefined;
     let timer: ReturnType<typeof setTimeout>;
+    let retryDelay = 2000;
     async function read() {
-      if (!isConnected) return;
+      if (!isConnected || !active) return;
+      clearTimeout(timer);
+      request?.abort();
+      const controller = new AbortController();
+      request = controller;
       try {
         const result = await client.plan(workId, controller.signal);
         if (controller.signal.aborted) return;
         setView(result);
+        setReadError('');
+        retryDelay = 2000;
         if (
           conversationActive ||
           (result.recovery &&
@@ -131,14 +141,20 @@ export function PlanReview({
         )
           timer = setTimeout(read, 2000);
       } catch (e) {
-        if (!controller.signal.aborted)
-          setError(e instanceof Error ? e.message : 'Could not load the plan.');
+        if (!controller.signal.aborted) {
+          setReadError(e instanceof Error ? e.message : 'Could not load the plan.');
+          // Retry reads only. Uncertain mutations still require an explicit retry.
+          timer = setTimeout(read, retryDelay);
+          retryDelay = Math.min(retryDelay * 2, 15000);
+        }
       }
     }
+    readPlan.current = read;
     void read();
     return () => {
+      active = false;
       mounted.current = false;
-      controller.abort();
+      request?.abort();
       clearTimeout(timer);
     };
   }, [
@@ -151,15 +167,7 @@ export function PlanReview({
     view?.execution?.receipt.root_work_id,
   ]);
   async function refresh() {
-    try {
-      const result = await client.plan(workId);
-      if (mounted.current) {
-        setView(result);
-        setError('');
-      }
-    } catch (e) {
-      if (mounted.current) setError(e instanceof Error ? e.message : 'Could not reload the plan.');
-    }
+    await readPlan.current();
   }
   async function perform(command: PlanCommand) {
     if (!isConnected || gate.current) return;
@@ -243,6 +251,7 @@ export function PlanReview({
     const identity = `${current?.revision}:${view?.generation?.id}`;
     if (
       isConnected &&
+      !readError &&
       !busy &&
       !pending &&
       current?.status === 'drafting' &&
@@ -258,10 +267,12 @@ export function PlanReview({
     view?.generation?.id,
     view?.generation?.state,
     isConnected,
+    readError,
     busy,
     pending,
   ]);
-  const disabled = !isConnected || busy || !!pending || !!view?.execution || conversationActive;
+  const disabled =
+    !isConnected || !!readError || busy || !!pending || !!view?.execution || conversationActive;
   const proposedDirection = direction ?? suggestion ?? '';
   const prepare = () =>
     view &&
@@ -289,9 +300,25 @@ export function PlanReview({
         disabled={disabled || stale}
       />
     ) : null;
-  if (conversationActive && !current) return null;
+  if (conversationActive && !current && !readError) return null;
   return (
     <section className="tw-plan" aria-label="Work plan">
+      {readError && (
+        <div>
+          <p role="status" title={readError}>
+            {view ? 'Showing the last saved plan. ' : 'The plan could not be loaded. '}
+            {isConnected ? 'Retrying automatically…' : 'Reconnect to resume updates.'}
+          </p>
+          <button
+            type="button"
+            className="px-text-button"
+            disabled={!isConnected || busy}
+            onClick={() => void refresh()}
+          >
+            Retry plan refresh
+          </button>
+        </div>
+      )}
       {compact && view && (
         <div ref={summarySurface}>
           <GuidePlanCard view={view} onReview={() => setDetailsOpen(true)} onTeamMap={onTeamMap} />
@@ -833,7 +860,13 @@ export function PlanReview({
         {error && <p role="alert">{error}</p>}
         {!isConnected && <p>Reconnect to load or change the plan. Your local edits are kept.</p>}
         {error && view && !view.execution && (
-          <button disabled={!isConnected || busy} onClick={() => void refresh()}>
+          <button
+            disabled={!isConnected || busy}
+            onClick={() => {
+              setError('');
+              void refresh();
+            }}
+          >
             Reload saved plan
           </button>
         )}
