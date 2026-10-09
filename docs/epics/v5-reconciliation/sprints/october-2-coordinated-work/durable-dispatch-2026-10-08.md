@@ -90,6 +90,10 @@ markers and assert the current target version; the full suite passed afterward.
 
 ## Remaining before enabling durable team waits
 
+Follow-on: [coordinator checkpoints](coordinator-checkpoints-2026-10-08.md) implements
+the first prerequisite below on the production dispatch path. The other recovery
+requirements remain open.
+
 1. Bind the coordinator's exact pending dispatch call to its checkpoint and rebuild
    delivery state from the calls represented in that checkpoint. Do not blindly
    treat all completed assignments or all historical receipts as model-acknowledged.

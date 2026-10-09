@@ -110,6 +110,7 @@ impl HumanHandoff {
     }
 }
 pub(crate) struct DispatchCall {
+    pub checkpoint: Box<tetonic_core::WaitCheckpoint>,
     pub call_id: String,
     pub keys: Vec<String>,
     pub grouped: bool,
@@ -133,7 +134,8 @@ impl PlanDispatch {
         manager: Arc<tetonic_run::managed::ManagedRunService>,
     ) -> tetonic_core::SpawnHook {
         let dispatch = self.clone();
-        Box::new(move |request, _| {
+        Box::new(move |request, conversation| {
+            let checkpoint = conversation.host_checkpoint().cloned();
             let dispatch = dispatch.clone();
             let manager = manager.clone();
             Box::pin(async move {
@@ -149,7 +151,7 @@ impl PlanDispatch {
                         None => ToolOutcome::fail("Human handoff unavailable", "denied"),
                     };
                 }
-                group::dispatch(&dispatch, request).await
+                group::dispatch(&dispatch, request, checkpoint).await
             })
         })
     }
@@ -163,8 +165,8 @@ pub(crate) struct RegisteredToolHost {
 
 impl ToolHost for RegisteredToolHost {
     fn checkpoint_ready(&self) -> bool {
-        // Dispatch tracks in-memory assignments, and the director has its own
-        // turn state. They need controller reconstruction before opting in.
+        // Dispatch checkpoints do not yet quiesce/restore child executors. The
+        // director also has its own turn state. Neither can opt into root waits.
         self.dispatch
             .as_ref()
             .is_none_or(|d| d.assignment_keys.is_empty() && d.director.is_none())

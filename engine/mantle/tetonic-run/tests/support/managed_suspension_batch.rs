@@ -45,6 +45,15 @@ impl tetonic_inference::InferenceProvider for BatchProvider {
 
 #[tokio::test(flavor = "current_thread")]
 async fn handoff_batch_cannot_partially_execute_then_lose_its_remaining_calls() {
+    reject_batch(true).await;
+}
+
+#[tokio::test(flavor = "current_thread")]
+async fn checkpointed_dispatch_batch_cannot_run_an_ordinary_effect_first() {
+    reject_batch(false).await;
+}
+
+async fn reject_batch(durable_human: bool) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let (base, dir) = test_service();
@@ -61,14 +70,23 @@ async fn handoff_batch_cannot_partially_execute_then_lose_its_remaining_calls() 
             )
             .with_spawn(Box::new(|_, _| {
                 Box::pin(async { panic!("batched handoff must not run") })
-            }))
-            .with_durable_waits();
+            }));
+            let agent = if durable_human {
+                agent.with_durable_waits()
+            } else {
+                agent
+            };
+            let mut command = command();
+            if !durable_human {
+                command.invocation.discipline.spawn_tool =
+                    command.invocation.discipline.handoff_tool.take();
+            }
             let ManagedSubmission::Started {
                 binding,
                 completion,
             } = service
                 .submit_identity_job_with_context(
-                    command(),
+                    command,
                     agent,
                     admission(Arc::new(AtomicBool::new(true)), 30),
                     None,

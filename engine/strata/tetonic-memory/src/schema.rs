@@ -250,6 +250,12 @@ impl Store {
             self.migrate_work_metadata_v70()?;
         }
         self.migrate_huddle_dispatch_v71()?;
+        // Older writers would erase the immutable checkpoint reference when
+        // rewriting a receipt. Refuse them even though its JSON column is unchanged.
+        self.conn.execute(
+            "INSERT OR IGNORE INTO schema_versions VALUES(72,?1)",
+            [now()],
+        )?;
         if applied < 66 {
             // Saved human answers bind checkpoints and stop generations. Older
             // writers must not accept them under live-only question semantics.

@@ -7,7 +7,7 @@ use tetonic_memory::{HuddleDispatchCommand, HuddleDispatchResult};
 mod tests;
 
 #[derive(Clone)]
-struct DispatchBinding {
+pub(super) struct DispatchBinding {
     reader: ProgressReader,
     source: String,
     run: String,
@@ -19,7 +19,7 @@ struct DispatchBinding {
 }
 
 impl DispatchBinding {
-    fn command(&self) -> HuddleDispatchCommand<'_> {
+    pub(super) fn command(&self) -> HuddleDispatchCommand<'_> {
         HuddleDispatchCommand {
             actor: &self.reader.actor,
             org: &self.reader.org,
@@ -40,14 +40,12 @@ impl TeamWorkController {
     pub(super) async fn dispatch_recorded(&self, call: &DispatchCall) -> ToolOutcome {
         match self.try_dispatch_recorded(call).await {
             Ok(outcome) => outcome,
-            Err(_) => ToolOutcome::fail(
-                "The dispatch receipt could not be confirmed. Saved contributions remain available; inspect the plan before starting more work.",
-                "unavailable",
-            ),
+            Err(_) => receipt_failure(),
         }
     }
 
     async fn try_dispatch_recorded(&self, call: &DispatchCall) -> Result<ToolOutcome, AppError> {
+        super::checkpoint::validate_call(call)?;
         // A serialized attempt ID cannot authorize a controller. Recheck the
         // original runtime handle/credential, then transact under its lease fence.
         let lease = self.parent.authorize_dispatch().await.map_err(|_| {
@@ -78,6 +76,7 @@ impl TeamWorkController {
             .await
             .map_err(|_| AppError::InferenceUnavailable)?
             .map_err(|_| AppError::InferenceUnavailable)?;
+        self.bind_checkpoint(call, &binding, &accepted).await?;
         let result = match accepted.result {
             Some(saved) => saved,
             None => {
@@ -142,6 +141,10 @@ impl TeamWorkController {
             change: None,
         })
     }
+}
+
+pub(super) fn receipt_failure() -> ToolOutcome {
+    ToolOutcome::fail("The dispatch receipt could not be confirmed. Saved contributions remain available; inspect the plan before starting more work.", "unavailable")
 }
 
 fn response_contains_contributions(outcome: &ToolOutcome) -> bool {

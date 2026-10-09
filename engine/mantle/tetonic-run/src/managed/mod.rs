@@ -3,6 +3,7 @@
 pub mod activation;
 pub mod admission;
 pub mod attestation;
+mod checkpoint;
 pub mod contracts;
 mod delegation;
 pub mod execution;

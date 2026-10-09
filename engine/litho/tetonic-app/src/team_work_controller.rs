@@ -11,6 +11,7 @@ use tetonic_domain::ToolOutcome;
 use tetonic_memory::{AssignmentState, HuddleExecution, HuddleProgress, SharedStore};
 use tetonic_run::managed::DelegationParent;
 
+mod checkpoint;
 mod receipts;
 
 #[async_trait::async_trait(?Send)]
@@ -70,6 +71,7 @@ pub(crate) struct TeamWorkController {
     pub host: Rc<dyn TeamWorkHost>,
     pub receipt: HuddleExecution,
     pub parent: DelegationParent,
+    pub manager: Arc<tetonic_run::managed::ManagedRunService>,
     /// Delivery cache only. Durable task success determines readiness, and the
     /// model's finish guard advances only after receiving a contribution.
     pub remaining: Arc<Mutex<HashSet<String>>>,

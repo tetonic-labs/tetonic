@@ -39,7 +39,7 @@ pub use tetonic_domain::engine_config::{
 };
 pub use tokenizer::{ExactTokenizer, HeuristicTokenizer, Tokenizer};
 pub use turn::{validate_transition, TurnOpsEvent, TurnOpsHook, TurnState};
-pub use wait_checkpoint::WaitCheckpoint;
+pub use wait_checkpoint::{ReceivedHostCall, WaitCheckpoint};
 
 mod execution_gate;
 pub use execution_gate::{ExecutionGate, ScopeCancellationGate};

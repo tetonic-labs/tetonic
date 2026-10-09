@@ -66,6 +66,12 @@ impl Agent {
         // Capacity and current authority are reacquired before leaving the saved boundary.
         gate.resume().await.map_err(|_| fail())?;
         let result = outcome.to_model_string();
+        convo
+            .received_host_calls
+            .push(crate::wait_checkpoint::ReceivedHostCall::new(
+                pending.clone(),
+                &result,
+            ));
         if let Some(audit) = self.audit() {
             audit.tool_call(
                 &pending.call_id,

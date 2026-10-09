@@ -15,6 +15,8 @@ use tetonic_inference::Message;
 /// conversation that remembers prior turns. A fresh `Conversation` is a new chat.
 pub struct Conversation {
     pub(crate) pending_resume: Option<crate::WaitCheckpoint>,
+    pub(crate) host_checkpoint: Option<Box<crate::WaitCheckpoint>>,
+    pub(crate) received_host_calls: Vec<crate::wait_checkpoint::ReceivedHostCall>,
     pub(crate) messages: Vec<Message>,
     pub(crate) prefix_len: usize,
     pub(crate) nonce: u128,
@@ -50,6 +52,8 @@ impl Conversation {
             .unwrap_or(0);
         Self {
             pending_resume: None,
+            host_checkpoint: None,
+            received_host_calls: Vec::new(),
             messages,
             prefix_len,
             nonce,
@@ -67,6 +71,8 @@ impl Conversation {
             .unwrap_or(0);
         Self {
             pending_resume: None,
+            host_checkpoint: None,
+            received_host_calls: Vec::new(),
             messages: Vec::new(),
             prefix_len: 1,
             nonce,
@@ -82,10 +88,18 @@ impl Conversation {
         self.messages.len()
     }
 
+    /// Exact current host boundary, available only while its hook executes.
+    /// This is sensitive execution state; only the managed artifact owner may persist it.
+    pub fn host_checkpoint(&self) -> Option<&crate::WaitCheckpoint> {
+        self.host_checkpoint.as_deref()
+    }
+
     /// Drop turns carried from another execution. The cancel handle stays so a
     /// stop requested on this conversation still reaches the attempt.
     pub fn discard_carried_turns(&mut self) {
         self.pending_resume = None;
+        self.host_checkpoint = None;
+        self.received_host_calls.clear();
         self.messages.clear();
         self.prefix_len = 1;
         self.call_no = 0;
@@ -102,6 +116,8 @@ impl Conversation {
 
     /// Start a new user turn (resets fabric turn-affinity on the coordinator).
     pub fn begin_turn(&mut self) {
+        self.host_checkpoint = None;
+        self.received_host_calls.clear();
         let nonce = SystemTime::now()
             .duration_since(UNIX_EPOCH)
             .map(|d| d.as_millis())

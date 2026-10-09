@@ -14,6 +14,7 @@ tetonic-telemetry = { path = "../tetonic-telemetry" }
 tetonic-domain = { path = "../tetonic-domain" }
 serde_json = { workspace = true }
 serde = { workspace = true }
+sha2 = "0.10"
 async-trait = { workspace = true }
 futures-util = { workspace = true }
 anyhow = { workspace = true }

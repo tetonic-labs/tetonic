@@ -3,7 +3,7 @@ use super::{lifetime::unix_now, *};
 use tetonic_domain::{ArtifactRef, AttemptId, RunCommand, StartAttempt};
 use tetonic_memory::RecoverMutex;
 
-const MAX_CHECKPOINT_BYTES: usize = 2 * 1024 * 1024;
+use super::checkpoint::MAX_CHECKPOINT_BYTES;
 
 fn unavailable() -> ManagedRunError {
     ManagedRunError::InvalidRequest("saved execution cannot be safely continued".into())
@@ -61,38 +61,14 @@ impl ManagedRunService {
                 .await
                 .map_err(|_| unavailable())?;
         }
-        let bytes = serde_json::to_vec(checkpoint).map_err(|_| unavailable())?;
-        if bytes.len() > MAX_CHECKPOINT_BYTES {
-            return Err(unavailable());
-        }
         // This closes ordinary tool admission atomically with the quiescence check.
         if !active.work_scope.park() {
             return Err(unavailable());
         }
         let result = async {
-            use tetonic_domain::artifact::{ArtifactDeclaration, ArtifactKind, RetentionPolicy};
-            let mut writer = self
-                .artifacts
-                .begin_write(ArtifactDeclaration {
-                    kind: ArtifactKind::ContextPack,
-                    producer_run_id: active.binding.run_id.clone(),
-                    producer_task_id: active.binding.task_id.clone(),
-                    producer_attempt_id: attempt.clone(),
-                    worker_id: None,
-                    workspace_version: None,
-                    data_class: tetonic_domain::DataClass::Secret,
-                    retention_policy: RetentionPolicy::UntilRunCompletes,
-                })
-                .await
-                .map_err(|_| unavailable())?;
-            writer
-                .write_chunk(&bytes)
-                .await
-                .map_err(|_| unavailable())?;
-            let meta = writer.seal().await.map_err(|_| unavailable())?;
-            tetonic_artifact::verify_stored_content(self.artifacts.as_ref(), &meta.artifact_id)
-                .await
-                .map_err(|_| unavailable())?;
+            let reference = self
+                .write_wait_checkpoint(&active.binding, checkpoint)
+                .await?;
             let result = self
                 .supervisor
                 .handle(RunCommand::SuspendAttempt(tetonic_domain::SuspendAttempt {
@@ -105,10 +81,7 @@ impl ManagedRunService {
                     attempt_id: attempt.clone(),
                     lease_proof: active.lease_proof.clone(),
                     reason,
-                    checkpoint: ArtifactRef {
-                        artifact_id: meta.artifact_id.0,
-                        digest: format!("sha256:{}", meta.content_digest.0),
-                    },
+                    checkpoint: reference,
                 }))
                 .await
                 .map_err(|e| ManagedRunError::PersistenceFailed(e.to_string()))?;

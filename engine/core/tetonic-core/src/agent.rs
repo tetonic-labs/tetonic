@@ -1031,6 +1031,10 @@ impl Agent {
         F: FnMut(Step) + Send,
     {
         let resuming = convo.pending_resume.take();
+        if resuming.is_none() {
+            convo.host_checkpoint = None;
+            convo.received_host_calls.clear();
+        }
         if resuming.as_ref().is_some_and(|c| {
             !c.matches_agent(self)
                 || c.invocation != invocation
@@ -1508,10 +1512,16 @@ impl Agent {
             // A resumable host boundary must be the only call in its response.
             // Reject the whole batch before any ordinary effect, so no skipped
             // tail can later be mistaken for a completed or replayable action.
-            if self.durable_waits
-                && tool_calls.len() > 1
+            if tool_calls.len() > 1
                 && tool_calls.iter().any(|tc| {
-                    invocation.discipline.handoff_tool.as_deref() == Some(tc.function.name.as_str())
+                    (self.durable_waits
+                        && invocation.discipline.handoff_tool.as_deref()
+                            == Some(tc.function.name.as_str()))
+                        || (self.config.attempt_id.is_some()
+                            && self.context_compiler.is_none()
+                            && self.turn_instructions.is_none()
+                            && invocation.discipline.spawn_tool.as_deref()
+                                == Some(tc.function.name.as_str()))
                 })
             {
                 for (ordinal, call) in tool_calls.iter().enumerate() {
@@ -1729,14 +1739,16 @@ Fix the JSON to match the tool schema and call the tool again."
                             task,
                             parent_agent_id: self.config.agent_id.clone(),
                         };
-                        if self.durable_waits
-                            && invocation.discipline.handoff_tool.as_deref() == Some(name.as_str())
+                        let checkpoint = if self.config.attempt_id.is_some()
+                            && self.context_compiler.is_none()
+                            && self.turn_instructions.is_none()
                         {
-                            let checkpoint = crate::WaitCheckpoint {
-                                version: 1,
+                            Some(crate::WaitCheckpoint {
+                                version: 2,
                                 harness: self.wait_harness_binding(),
                                 invocation: invocation.clone(),
-                                pending: request,
+                                pending: request.clone(),
+                                received_host_calls: convo.received_host_calls.clone(),
                                 messages: convo.messages.clone(),
                                 prefix_len: convo.prefix_len,
                                 nonce: convo.nonce,
@@ -1752,6 +1764,17 @@ Fix the JSON to match the tool schema and call the tool again."
                                 step_index,
                                 reported_tokens,
                                 monitor: monitor.clone(),
+                            })
+                        } else {
+                            None
+                        };
+                        if self.durable_waits
+                            && invocation.discipline.handoff_tool.as_deref() == Some(name.as_str())
+                        {
+                            let Some(checkpoint) = checkpoint else {
+                                return CandidateOutcome::Failed {
+                                    message: "Host checkpoint unavailable".into(),
+                                };
                             };
                             if let Err(outcome) =
                                 self.host_wait(convo, checkpoint, &mut on_step).await
@@ -1760,8 +1783,17 @@ Fix the JSON to match the tool schema and call the tool again."
                             }
                             continue 'steps;
                         }
-                        let outcome = hook(request, convo).await;
+                        convo.host_checkpoint =
+                            checkpoint.filter(|c| c.validate().is_ok()).map(Box::new);
+                        let tracked = convo.host_checkpoint.is_some();
+                        let outcome = hook(request.clone(), convo).await;
+                        convo.host_checkpoint = None;
                         let model_str = outcome.to_model_string();
+                        if tracked {
+                            convo.received_host_calls.push(
+                                crate::wait_checkpoint::ReceivedHostCall::new(request, &model_str),
+                            );
+                        }
                         if let Some(a) = self.audit() {
                             a.tool_call(
                                 &call_id,

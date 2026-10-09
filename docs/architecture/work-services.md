@@ -89,11 +89,23 @@ only after the response is saved and only for contributions contained in it.
 Failed writes keep that guard intact; a retry reconciles existing child state.
 
 Schema **71** adds scoped dispatch receipts through the existing upgrade/backup
-path. Pending requests and completed responses survive database reopen. This does
-not yet restore a team after process loss: coordinator/child checkpoint restoration,
-bounded human response horizons and safe resume accounting still need integration.
+path. Schema **72** protects an immutable checkpoint reference in each new receipt.
+Before child admission, the controller saves the exact pending call and general
+harness state in the existing protected artifact store, through
+[`managed/checkpoint.rs`](../../engine/mantle/tetonic-run/src/managed/checkpoint.rs).
+Checkpoint version two records received host-call IDs, arguments and response
+digests separately from compactable model messages. The controller reconstructs
+its delivery guard by matching those records against scoped durable responses.
+Completed work alone cannot count as received; historical responses absent from
+the checkpoint cannot silently advance the guard. Changed state, a missing artifact
+or a failed reference write denies dispatch before worker admission.
+
+Pending requests, checkpoints and completed responses survive storage reopen. This
+does not yet restore a team after process loss: child quiescence, subtree ownership,
+bounded human response horizons and resume accounting still need integration.
 Existing guards against unsupported subtree restoration remain in place. See
-[the implementation evidence](../epics/v5-reconciliation/sprints/october-2-coordinated-work/durable-dispatch-2026-10-08.md).
+[the receipt evidence](../epics/v5-reconciliation/sprints/october-2-coordinated-work/durable-dispatch-2026-10-08.md)
+and [checkpoint follow-on](../epics/v5-reconciliation/sprints/october-2-coordinated-work/coordinator-checkpoints-2026-10-08.md).
 
 ## Metadata migration
 

@@ -46,7 +46,16 @@ pub(super) fn keys(args: Value, allowed: &[String]) -> Result<(Vec<String>, bool
 pub(super) async fn dispatch(
     dispatch: &PlanDispatch,
     request: tetonic_core::SpawnRequest,
+    checkpoint: Option<tetonic_core::WaitCheckpoint>,
 ) -> ToolOutcome {
+    let Some(checkpoint) = checkpoint.filter(|checkpoint| {
+        checkpoint.pending == request && checkpoint.received_host_calls().is_ok()
+    }) else {
+        return ToolOutcome::fail(
+            "The coordinator boundary could not be saved. Dispatch as a single tool call.",
+            "unavailable",
+        );
+    };
     let Some(attempt) = request.attempt_id else {
         return ToolOutcome::fail("Managed parent required", "denied");
     };
@@ -58,6 +67,7 @@ pub(super) async fn dispatch(
     if dispatch
         .sender
         .send(DispatchCall {
+            checkpoint: Box::new(checkpoint),
             call_id: request.call_id,
             keys,
             grouped,

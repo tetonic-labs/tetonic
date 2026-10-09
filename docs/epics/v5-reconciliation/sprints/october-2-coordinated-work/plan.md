@@ -53,6 +53,13 @@ Extended acceptance: duplicate/lost exchange replies, unavailable recipients, co
 
 ## OCT-203 Keep independent work moving and conflicts visible
 
+October 8 checkpoint follow-on: [coordinator dispatch checkpoints](coordinator-checkpoints-2026-10-08.md)
+now bind the actual pending host call and received-response history to protected
+artifacts before child admission. Controller reconstruction uses matching received
+calls rather than every successful task or every stored response. Supported child
+parking, restored subtree ownership and human-wait horizons remain required;
+the production team-wait gate stays closed.
+
 October 8 prerequisite: [durable coordinator dispatch receipts](durable-dispatch-2026-10-08.md)
 now retain accepted tool-call selections and exact responses under the current
 runtime lease and stop generation. The controller uses them before dispatch and

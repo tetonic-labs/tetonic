@@ -39,6 +39,9 @@ pub struct HuddleDispatchReceipt {
     pub grouped: bool,
     pub lease: LeaseProof,
     pub stop_binding: String,
+    /// Protected harness state. Payload is never stored in this shared receipt.
+    #[serde(default)]
+    pub checkpoint: Option<tetonic_domain::ArtifactRef>,
     pub result: Option<HuddleDispatchResult>,
 }
 
@@ -128,10 +131,46 @@ impl Store {
                     grouped: command.grouped,
                     lease: command.lease.clone(),
                     stop_binding,
+                    checkpoint: None,
                     result: None,
                 }
             }
         };
+        self.write_dispatch_receipt(&command, &row)?;
+        tx.commit()?;
+        Ok(row)
+    }
+
+    /// Bind the sealed pre-dispatch checkpoint before child admission. Retry is
+    /// exact; a historical response cannot be retrofitted with guessed state.
+    pub fn bind_huddle_dispatch_checkpoint(
+        &self,
+        command: HuddleDispatchCommand<'_>,
+        checkpoint: tetonic_domain::ArtifactRef,
+    ) -> Result<HuddleDispatchReceipt> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        let (_, _, stop) = self.require_dispatch_owner(&command)?;
+        let mut row = self
+            .dispatch_receipt(&command)?
+            .ok_or(StoreError::ControlResourceConflict)?;
+        require_same_request(&command, &row, &stop)?;
+        if row.lease != *command.lease
+            || checkpoint.artifact_id.is_empty()
+            || checkpoint.artifact_id.len() > 256
+            || checkpoint.digest.len() != 71
+            || !checkpoint.digest.starts_with("sha256:")
+            || !checkpoint.digest[7..]
+                .bytes()
+                .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+        {
+            return Err(StoreError::ControlResourceConflict);
+        }
+        match &row.checkpoint {
+            Some(old) if old != &checkpoint => return Err(StoreError::ControlResourceConflict),
+            None if row.result.is_some() => return Err(StoreError::ControlResourceConflict),
+            _ => {}
+        }
+        row.checkpoint = Some(checkpoint);
         self.write_dispatch_receipt(&command, &row)?;
         tx.commit()?;
         Ok(row)
@@ -150,7 +189,7 @@ impl Store {
             .dispatch_receipt(&command)?
             .ok_or(StoreError::ControlResourceConflict)?;
         require_same_request(&command, &row, &stop_binding)?;
-        if row.lease != *command.lease {
+        if row.lease != *command.lease || row.checkpoint.is_none() {
             return Err(StoreError::ControlAccessDenied);
         }
         if let Some(old) = &row.result {

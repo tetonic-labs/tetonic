@@ -3,6 +3,9 @@ use crate::local_workspace::{LocalWorkspace, ORG, OWNER, TEAM};
 use crate::work::{plan_execution::tests as plan_fixture, StartPlan};
 use tetonic_memory::HuddleDispatchReceipt;
 
+#[path = "checkpoint_tests.rs"]
+mod checkpoints;
+
 #[test]
 fn aborted_groups_do_not_claim_to_have_returned_collected_contributions() {
     assert!(!response_contains_contributions(&ToolOutcome::fail(
@@ -89,6 +92,7 @@ impl WaitingTeam {
                         .as_ref()
                         .is_some_and(|r| r.delivered_keys == ["check"])
                     && records[2].result.is_none()
+                    && records[2].checkpoint.is_some()
                 {
                     break records;
                 }
@@ -119,6 +123,14 @@ impl WaitingTeam {
             .delegation_parent(&tetonic_domain::AttemptId::new(&self.records[1].attempt_id))
             .unwrap();
         TeamWorkController {
+            manager: self
+                .workspace
+                .services
+                .host
+                .app
+                .run_manager
+                .managed()
+                .clone(),
             reader: ProgressReader {
                 store: self.workspace.services.local.store().clone(),
                 actor: OWNER.into(),
@@ -160,9 +172,16 @@ impl WaitingTeam {
     }
 }
 
-fn call(record: &HuddleDispatchReceipt) -> DispatchCall {
+async fn call(team: &WaitingTeam, record: &HuddleDispatchReceipt) -> DispatchCall {
     let (reply, _) = tokio::sync::oneshot::channel();
+    let controller = team.controller(Rc::new(NoDispatch));
+    let checkpoint = controller
+        .manager
+        .read_dispatch_checkpoint(&controller.parent, record.checkpoint.as_ref().unwrap())
+        .await
+        .unwrap();
     DispatchCall {
+        checkpoint: Box::new(checkpoint),
         call_id: record.call_id.clone(),
         keys: record.keys.clone(),
         grouped: record.grouped,
@@ -189,7 +208,9 @@ async fn reopened_dispatch_response_replays_without_work_or_model_calls() {
             let saved = records[1].result.as_ref().unwrap();
             let count = team.calls.lock().unwrap().len();
             for _ in 0..2 {
-                let replay = controller.dispatch_recorded(&call(&records[1])).await;
+                let replay = controller
+                    .dispatch_recorded(&call(&team, &records[1]).await)
+                    .await;
                 assert_eq!(
                     (
                         replay.ok,
@@ -205,7 +226,7 @@ async fn reopened_dispatch_response_replays_without_work_or_model_calls() {
                 );
             }
             assert_eq!(team.calls.lock().unwrap().len(), count);
-            let mut changed = call(&records[1]);
+            let mut changed = call(&team, &records[1]).await;
             changed.keys = vec!["compare".into()];
             assert!(!controller.dispatch_recorded(&changed).await.ok);
             assert_eq!(team.calls.lock().unwrap().len(), count);
@@ -243,6 +264,14 @@ async fn dispatch_receipts_reject_changed_requests_stale_fences_and_false_delive
             let mut expired = binding.command();
             expired.now += 86400;
             assert!(db.accept_huddle_dispatch(expired).is_err());
+            let reference = team.records[1].checkpoint.clone().unwrap();
+            db.bind_huddle_dispatch_checkpoint(binding.command(), reference.clone())
+                .unwrap();
+            let mut changed_reference = reference;
+            changed_reference.artifact_id = "replacement-checkpoint".into();
+            assert!(db
+                .bind_huddle_dispatch_checkpoint(binding.command(), changed_reference)
+                .is_err());
             let mut altered = team.records[1].result.clone().unwrap();
             altered.content = "replacement result".into();
             assert!(db
@@ -279,7 +308,7 @@ async fn dispatch_receipts_reject_changed_requests_stale_fences_and_false_delive
             db.persist_run_projection(&original).unwrap();
             drop(db);
             let controller = team.controller(Rc::new(NoDispatch));
-            let replay = call(&team.records[1]);
+            let replay = call(&team, &team.records[1]).await;
             team.workspace
                 .cancel(&team.receipt.root_work_id)
                 .await
@@ -297,8 +326,9 @@ async fn failed_response_persistence_cannot_clear_the_coordinator_finish_guard()
         let controller = team.controller(team.workspace.clone());
         let conn = rusqlite::Connection::open(team.directory.path().join("team.db")).unwrap();
         conn.execute_batch("CREATE TRIGGER fail_dispatch_response BEFORE UPDATE ON huddle_dispatch_receipts WHEN json_type(NEW.payload,'$.result') = 'object' BEGIN SELECT RAISE(ABORT,'injected response write failure'); END;").unwrap();
-        let mut request = call(&team.records[1]);
-        request.call_id = "response-write-fault".into();
+        let request = call(&team, &team.records[1]).await;
+        // Simulate a crash after child completion but before receipt completion.
+        conn.execute("UPDATE huddle_dispatch_receipts SET payload=json_set(payload,'$.result',NULL) WHERE call_id=?1", [&request.call_id]).unwrap();
         let before = controller.remaining.lock().unwrap().clone();
         let count = team.calls.lock().unwrap().len();
         assert!(!controller.dispatch_recorded(&request).await.ok);

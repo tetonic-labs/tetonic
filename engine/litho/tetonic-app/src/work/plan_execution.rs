@@ -489,6 +489,7 @@ impl WorkService {
             .delegation_parent(&execution.attempt_id)
             .map_err(|_| AppError::InferenceUnavailable)?;
         let controller = crate::team_work_controller::TeamWorkController {
+            manager: self.services.host.app.run_manager.managed().clone(),
             reader: self.controller_reader(),
             host: self.clone(),
             receipt: receipt.clone(),
