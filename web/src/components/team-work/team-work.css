@@ -1,6 +1,6 @@
 .px-app {
   height: 100dvh;
-  min-height: 620px;
+  min-height: 0;
   overflow: hidden;
   position: relative;
   color: var(--text-primary);
@@ -35,7 +35,6 @@
   display: flex;
   align-items: center;
   gap: 22px;
-  pointer-events: none;
   color: var(--on-ink);
   background: var(--surface-ink);
   border-bottom: 3px solid var(--brand-field);
@@ -141,7 +140,8 @@
 }
 .pm-map {
   position: absolute;
-  inset: 220px 0 260px;
+  /* One continuous canvas; navigation and work controls float above it. */
+  inset: 0;
   overflow: hidden;
   background-image: radial-gradient(
     color-mix(in srgb, var(--control-border) 43%, transparent) 1px,
@@ -1322,10 +1322,6 @@
   }
 }
 @media (max-width: 760px) {
-  .pm-map {
-    top: 295px;
-    bottom: 300px;
-  }
   .px-inspector[data-wide='true'] {
     width: auto;
   }
@@ -1443,10 +1439,6 @@
   .px-overview h1 {
     font-size: 24px;
     margin: 3px 0 7px;
-  }
-  .pm-map {
-    top: 178px;
-    bottom: 188px;
   }
   .px-composer form {
     padding: 10px 16px;

@@ -20,13 +20,6 @@
 .tw-live .px-composer {
   width: min(650px, calc(100% - 48px));
 }
-.tw-live .pm-map {
-  top: 200px;
-  bottom: 225px;
-}
-.tw-live:has(.px-inspector) .pm-map {
-  bottom: 35px;
-}
 .tw-live .px-overview {
   right: 28px;
 }
@@ -519,9 +512,6 @@
   .tw-live .px-inspector,
   .tw-live .px-inspector[data-shaping='true'] {
     top: 116px;
-  }
-  .tw-live .pm-map {
-    top: 225px;
   }
   .tw-connection {
     top: 203px;

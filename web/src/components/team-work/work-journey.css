@@ -288,15 +288,8 @@
   font: inherit;
   cursor: pointer;
 }
-.tw-live .pm-map {
-  top: 215px;
-  bottom: 245px;
-}
 .tw-live .pm-zoom {
   bottom: 250px;
-}
-.tw-live:has(.px-inspector) .pm-map {
-  bottom: 35px;
 }
 .tw-live:has(.px-inspector) .pm-zoom {
   bottom: 35px;
@@ -319,11 +312,6 @@
   to {
     opacity: 1;
     transform: translateX(0);
-  }
-}
-@media (max-width: 1000px) {
-  .tw-live .pm-map {
-    top: 255px;
   }
 }
 @media (max-width: 760px) {

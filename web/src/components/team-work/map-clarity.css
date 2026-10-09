@@ -136,7 +136,7 @@
 }
 .pm-reading-key {
   position: absolute;
-  top: 32px;
+  top: 247px;
   left: 30px;
   max-width: calc(100% - 60px);
   color: var(--text-secondary);
@@ -145,6 +145,11 @@
   background: var(--bg-ground);
   padding: 3px 8px;
   pointer-events: none;
+}
+@media (max-width: 1000px) {
+  .pm-reading-key {
+    top: 268px;
+  }
 }
 .pm-zoom .pm-motion-toggle {
   border-left: 1px solid var(--brand-rule);

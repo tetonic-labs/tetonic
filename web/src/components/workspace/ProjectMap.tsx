@@ -71,7 +71,8 @@ export function ProjectMap({
     reduced,
     { width: world.width, height: world.height },
     { x: 0, y: -15, width: world.width, height: world.height + 30 },
-    { top: 35, bottom: 15 },
+    // Framing keeps the initial view clear of overlays without clipping the canvas.
+    { top: 280, bottom: 180 },
   );
   useEffect(() => {
     const scope = project?.id || 'all';
