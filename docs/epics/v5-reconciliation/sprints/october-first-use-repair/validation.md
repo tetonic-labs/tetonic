@@ -1,6 +1,6 @@
 # First-use repair validation
 
-Status: planned; no new trials completed by this planning change.
+Status: in progress. [Initial implementation and trial evidence](implementation-2026-10-08.md) covers part of EXP-001–003. The full journey and release gate remain unaccepted.
 
 ## Setup and preservation
 

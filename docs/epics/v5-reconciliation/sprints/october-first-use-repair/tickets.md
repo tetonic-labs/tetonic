@@ -1,9 +1,11 @@
 # First-use repair tickets
 
-All nine tickets are **P0, planned, and required for the additional product-experience release gate**. No implementation or acceptance is implied by this document. See the [sprint plan](plan.md) for the schedule, existing-owner mapping and added scope, and [validation](validation.md) for cross-ticket proof. Reusing existing owners does not erase the new delivery obligation.
+All nine tickets are **P0 and required for the additional product-experience release gate**. EXP-001–003 are in progress with implementation and test evidence; EXP-004–009 remain planned. None has passed full product acceptance yet. See [the first implementation slice](implementation-2026-10-08.md) for exact progress and unresolved qualification. See the [sprint plan](plan.md) for the schedule, existing-owner mapping and added scope, and [validation](validation.md) for cross-ticket proof. Reusing existing owners does not erase the new delivery obligation.
 
 <a id="exp-001"></a>
 ## EXP-001 — One starting point; discussion before unnecessary planning
+
+**Status:** implemented entry/context changes; actual-model orientation remains imperfect. The owner clarified that discussion must expand upward from the existing composer on the map, using one continuous, subtly translucent surface and compact message rows. It must not open a side drawer or a separate page.
 
 **Problem:** the first screen asks the person to understand two agents; an orientation request becomes filesystem exploration or a premature coding plan.
 
@@ -23,6 +25,8 @@ All nine tickets are **P0, planned, and required for the additional product-expe
 
 <a id="exp-002"></a>
 ## EXP-002 — Make relevant access and execution limits usable
+
+**Status:** implemented revisioned selection of host-approved folders, disclosure checks, control-directory exclusions and higher finite ceilings. In-app addition of new host-approved folders and reference model/profile qualification remain open.
 
 **Problem:** an agent can see only an empty folder, cannot reach the requested repositories, and spends its short allowance searching. The owner cannot meaningfully adjust the 8-step/120-second ceilings.
 
@@ -45,6 +49,8 @@ All nine tickets are **P0, planned, and required for the additional product-expe
 
 <a id="exp-003"></a>
 ## EXP-003 — Connect first, then select a model inside Tetonic
+
+**Status:** implemented connect-first flow, credential-triggered catalog refresh, advanced fallbacks and typed discovery errors. Real account qualification remains open; no provider credential was supplied for this slice.
 
 **Problem:** the unconnected frontier picker appears to require external research and manual model IDs.
 

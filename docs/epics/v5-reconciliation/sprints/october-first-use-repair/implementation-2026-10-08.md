@@ -1,0 +1,130 @@
+# EXP-001–003: first implementation slice
+
+Date: October 8, 2026, America/New_York. Planning baseline: `208e848`.
+Engine implementation: `9b93c69`; UI implementation: `82816fd`. Product acceptance remains open for all three
+tickets. This is progress toward the additional release gate, not a scope reduction.
+
+## What changed
+
+### EXP-001 — Begin with a conversation
+
+- The empty map has one starting prompt and defaults to the existing Guide.
+  Choosing a worker/team remains available. Saved agent identities are retained.
+- Orientation has authoritative product/navigation context. New worker defaults
+  no longer assume every request is a coding task. The Guide is explicitly told
+  that worker tools are not its own tools. Actual execution still uses the same
+  managed run and planning capabilities.
+- A proposal form is disclosed by a deliberate action instead of dominating
+  an unfinished discussion. Existing saved proposals remain reviewable inline.
+- During review, the owner rejected both a side drawer and a page-like discussion
+  surface. The implemented direction grows the conversation upward from the map
+  composer, slightly wider, on one subtly translucent ink surface. Compact avatar,
+  name and message rows replace the separated human-message card treatment.
+  Minimize/resume retains the same discussion and unsent draft. The input grows
+  vertically within a viewport bound. This also advances part of EXP-005; it does
+  not close that ticket's full reader, settings, and budget-presentation scope.
+- Restored the existing palette picker to the live workspace header with presets,
+  custom colors and existing preference keys. It was present but unmounted, with
+  its presentation styles absent from the current production entry. Classic
+  Tetonic remains the fallback when no preference is saved.
+
+### EXP-002 — Relevant folders and finite working limits
+
+- Added startup-configured `agent_folders` and an agent-editor selector. The owner
+  chooses an exact canonical folder from the host-approved catalog. It is stored
+  in the existing agent definition revision using the existing compare-and-swap
+  edit path. No second permission store was introduced.
+- Future admission revalidates the selected folder. Removing it from the host
+  does not silently substitute the default. Previous agent revisions and prepared
+  settings retain their scope. Additional folder candidates exclude whole-drive,
+  recognized credential/control, database-containing and configured artifact/log
+  paths. The legacy explicitly supplied base folder keeps its existing behavior.
+- Folder selection and hosted disclosure consent are separate. Changing the
+  selection invalidates the UI consent; the engine checks the exact consented root.
+- Ordinary file discovery/read operations exclude `.lokai` and `.tetonic` runtime
+  control directories through the existing tool protections. This is not an
+  OS-wide shell sandbox or a migration of all existing runtime storage.
+- Default host ceilings are now 32 steps/600 seconds; newly created UI agents
+  start at 16 steps/300 seconds, capped by operator settings. Saved per-agent
+  limits remain unchanged. Token and higher-level allowance enforcement remain.
+  These settings are provisional until a useful reference profile is qualified.
+- Setup and agent details expose the working folder and explain host versus
+  per-agent limits. Adding a *new host-approved folder* still requires a host
+  configuration edit/restart; this slice provides selection, not an in-app host
+  configuration manager. See [host configuration](../../../../architecture/host-configuration.md).
+
+### EXP-003 — Connect, discover, select
+
+- Provider-key setup precedes the model control. Saving a key refreshes discovery
+  without discarding the draft. Searchable display names lead; exact IDs remain
+  available. Manual IDs and external catalog links are advanced/fallback options.
+- Missing credentials, authentication rejection, account access denial, rate
+  limiting, discovery failure and empty catalogs retain distinct recovery paths.
+  Typed HTTP status propagates through existing egress/inference adapters;
+  provider error bodies and secrets are not exposed by discovery errors.
+- Agent tool selection and new provider-disclosure requirements are preserved.
+  Existing vendor capability/harness limitations have not changed.
+
+## Verification
+
+| Check | Result |
+|---|---|
+| `tetonic-app --lib` | 176 passed, 4 existing ignored |
+| `tetonic-tools --lib` | 60 passed, 1 existing ignored |
+| `tetonic-egress --lib` | 27 passed, 1 existing ignored |
+| `tetonic-inference --lib` | 151 passed, 2 existing ignored |
+| Web suite after palette integration | 215 passed, 31 files |
+| Web architecture tests / static boundaries | 8 passed / passed |
+| TypeScript | Passed |
+| Rust `tetonic-arch-gate verify package` | Passed formatting, workspace/all-target Clippy, architecture and static quality |
+| Production UI build | Passed including palette integration; existing large-chunk warning |
+| Browser | Desktop first-use, discussion surface/message layout, palette control and custom builder inspected; owner supplied live feedback |
+
+The folder integration test exercises actual managed file-tool execution with a
+controlled inference transport: the selected folder's evidence is received and a
+different folder's canary is absent. It also checks stale edits, pinned previous
+configuration, changed hosted consent, restart persistence and removed-root
+rejection. This proves the exercised authority path, not real-model usefulness.
+
+## Real-model trials and limitations
+
+The original review database at `.lokai/first-use-review-20261008` was retained.
+The initial repair preview uses `.lokai/first-use-repair-20261008`, engine 3006,
+UI 5180. Once the owner began using that preview, final model checks moved to a
+separate `model-checks/workspace.db` on engine 3007 with no visible UI. That
+validation-only engine was stopped afterward; the preview remains available.
+
+Windows; Ryzen 5 5600X; GTX 970 and Tesla P40 reported by the host (not proof of
+which GPU served each inference). Model `qwen3.5:latest`, existing local Ollama
+route. Two final requests each had a 6,144-token work envelope, under the host's
+12,288-token ceiling. No frontier credential or paid provider was used.
+
+| Trial | Recorded run duration¹ | Reported input/output tokens | Result |
+|---|---|---|---|
+| Unseen product-orientation phrasing | 44.05 s | 2,042 / 461 | Explained teams, delegation and the map; no plan or worker dispatch. Still incorrectly claimed personal file-tool access. **Partial/fail for accurate orientation.** |
+| Seed swap versus book exchange, discussion only | 41.94 s | 2,052 / 386 | Compared noncoding alternatives and asked about priorities; no execution plan or assignments. Generic assumptions remain model output, not verified facts. |
+
+¹ Work creation to final run-projection timestamp, not time to first token.
+Two final trials: **4,941 reported tokens**, one inference call each, zero unknown
+or pending usage calls. An earlier orientation trial consumed 2,381 tokens and
+incorrectly introduced the workspace mainly as a file assistant. Total these
+three automated model trials: **7,322 tokens**. Owner preview interactions are
+separate; a capacity-rejected automated submission on 3006 remained not started
+and was not retried there. A temporary test allowance on that preview was restored.
+
+The local model's tool-ownership claim is misleading even though the runtime
+does not give the Guide file tools. Forty-second short replies are also not a
+qualified first-use latency target. Do not mark EXP-001 accepted from these runs.
+
+## Still required
+
+1. Accurate, timely orientation and a follow-up through a qualified reference
+   model/profile; preserve discussion without invented capabilities or plans.
+2. Real-model missing-folder recovery and useful selected-folder work. Finish the
+   owner-facing host-folder setup route if configuration/restart is too burdensome.
+3. A real authenticated provider connection/catalog/selection trial. Mocked
+   discovery and tool parity cannot establish account availability or compatibility.
+4. Narrow viewport, both themes, reduced-motion and full long-discussion/recovery
+   acceptance. Desktop review is only part of this evidence.
+5. EXP-004–009, including planning allocation, visible team participation,
+   comprehension, archive/restore and the complete fresh-user journey, remain open.

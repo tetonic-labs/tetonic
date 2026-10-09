@@ -1,6 +1,7 @@
 # First use to useful team work
 
-Created: October 8, 2026. Status: **planned; implementation not started**.
+Created: October 8, 2026. Status: **in progress; EXP-001–003 have an initial implementation, acceptance still open**.
+See [implementation and evidence](implementation-2026-10-08.md).
 Classification: **additional required product scope; release-blocking corrective sprint**.
 Baseline: 113a6a3e and the owner's fresh-workspace walkthrough on October 8.
 Release target: October 25. Feature freeze: October 18.
