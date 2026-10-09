@@ -197,6 +197,12 @@ export function PlanExecution({
       )}
       {!execution ? (
         <>
+          {pending && pending.revision !== plan?.revision && (
+            <p role="alert">
+              The start of version {pending.revision} is unconfirmed. The current proposal is
+              version {plan?.revision}. Check the earlier start before starting more work.
+            </p>
+          )}
           {continuation && (
             <div className="tw-plan-recovery">
               <h4>Continue with what you’ve already learned</h4>
@@ -318,6 +324,7 @@ export function PlanExecution({
           </details>
           <button
             className="cw-primary"
+            aria-describedby={`${workId}-start-version`}
             disabled={
               busy ||
               disabled ||
@@ -332,8 +339,10 @@ export function PlanExecution({
           >
             {busy ? 'Starting your team…' : pending ? 'Check this start again' : 'Start this plan'}
           </button>
-          <small>
-            Approves this direction and starts the assignments with their saved permissions.
+          <small id={`${workId}-start-version`}>
+            {pending
+              ? `Checks the unconfirmed start of version ${pending.revision}. It does not create another team.`
+              : `Starts the current proposal, version ${plan?.revision}, with the agents and permissions shown above.`}
           </small>
         </>
       ) : (

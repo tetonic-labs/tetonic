@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from 'vitest';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { LocalEngineProvider } from '../src/context/LocalEngineContext';
 import { PlanReview } from '../src/components/team-work/PlanReview';
 import { PlanExecution } from '../src/components/team-work/PlanExecution';
@@ -138,7 +138,7 @@ function fixture(
               };
     state = {
       ...state,
-      plans: [next],
+      plans: [next, ...state.plans.filter((p) => p.revision !== next.revision)],
       brief_revision: next.brief_revision,
       generation:
         command.action === 'generate' || command.action === 'prepare'
@@ -222,7 +222,7 @@ it('keeps the last plan visible through a read failure and stops retries when cl
     await vi.advanceTimersByTimeAsync(2000);
   });
   expect(screen.getByRole('heading', { name: 'Compare formats' })).toBeTruthy();
-  expect(screen.getByRole('status').textContent).toContain('last saved plan');
+  expect(screen.getByText(/Showing the last saved plan/).getAttribute('role')).toBe('status');
   page.unmount();
   const reads = vi.mocked(f.client.plan).mock.calls.length;
   await act(async () => {
@@ -275,11 +275,11 @@ it('does not erase or replay an unconfirmed plan edit when a background read suc
   f.update.mockRejectedValue(new Error('Save response was lost'));
   const page = f.render();
   await act(async () => {});
-  fireEvent.click(screen.getByRole('button', { name: 'Adjust plan' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Edit details yourself' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
     target: { value: 'My unsaved direction' },
   });
-  fireEvent.click(screen.getByRole('button', { name: 'Save plan revision' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   await act(async () => {});
   page.rerender(
     <LocalEngineProvider client={f.client}>
@@ -596,7 +596,7 @@ it('keeps unsaved owner edits when a Guide reply saves a newer proposal', async 
     </LocalEngineProvider>
   );
   const page = render(element(false));
-  fireEvent.click(await screen.findByRole('button', { name: 'Adjust plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit details yourself' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
     target: { value: 'Keep my unsaved direction' },
   });
@@ -618,10 +618,7 @@ it('keeps unsaved owner edits when a Guide reply saves a newer proposal', async 
     'value',
     'Keep my unsaved direction',
   );
-  expect(screen.getByRole('button', { name: 'Save plan revision' })).toHaveProperty(
-    'disabled',
-    true,
-  );
+  expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty('disabled', true);
   expect(f.update).not.toHaveBeenCalled();
   expect(f.submit).not.toHaveBeenCalled();
 });
@@ -986,7 +983,7 @@ it('keeps edits and blocks stale agreement until current brief and plan are revi
     execution_available: false,
   });
   const first = f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Adjust plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit details yourself' }));
   fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
     target: { value: 'My changed outcome' },
   });
@@ -999,13 +996,10 @@ it('keeps edits and blocks stale agreement until current brief and plan are revi
       'My changed outcome',
     ),
   );
-  expect(screen.getByRole('button', { name: 'Save plan revision' })).toHaveProperty(
-    'disabled',
-    true,
-  );
+  expect(screen.getByRole('button', { name: 'Save changes' })).toHaveProperty('disabled', true);
   fireEvent.click(screen.getByRole('button', { name: 'Apply edits against current revisions' }));
-  fireEvent.click(screen.getByRole('button', { name: 'Save plan revision' }));
-  await screen.findByText('Plan 2 · brief 3');
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('Version 2 · not started');
   expect(f.update.mock.calls[0][1]).toMatchObject({
     action: 'revise',
     expected_revision: 1,
@@ -1013,6 +1007,96 @@ it('keeps edits and blocks stale agreement until current brief and plan are revi
     content: { title: 'My changed outcome' },
   });
   expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('replaces the current proposal after an edit and starts only the displayed revision', async () => {
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  const start = vi.spyOn(f.client, 'startPlan').mockRejectedValue(new Error('Start reply lost'));
+  render(
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" inConversation onDiscuss={vi.fn()} />
+    </LocalEngineProvider>,
+  );
+  const initialStart = await screen.findByRole('button', { name: 'Start this plan' });
+  expect(initialStart).toHaveProperty('disabled', false);
+  expect(screen.queryByRole('button', { name: 'Review proposal' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Edit details yourself' }));
+  expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
+  fireEvent.change(screen.getByRole('textbox', { name: 'Outcome' }), {
+    target: { value: 'Our revised outcome' },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await screen.findByText('Version 2 · not started');
+  expect(screen.getAllByRole('heading', { name: 'Our revised outcome' })).toHaveLength(1);
+  expect(screen.queryByRole('heading', { name: 'Compare options' })).toBeNull();
+  expect(screen.queryByRole('region', { name: 'Earlier proposal versions' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Earlier versions (1)' }));
+  const history = screen.getByRole('region', { name: 'Earlier proposal versions' });
+  expect(within(history).getByText('Compare options')).toBeTruthy();
+  expect(within(history).queryByText('Our revised outcome')).toBeNull();
+  expect(within(history).queryByRole('button')).toBeNull();
+  expect(within(history).getByText(/not queued/)).toBeTruthy();
+  expect(start).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Start this plan' }));
+  await screen.findByText('Start reply lost');
+  expect(start).toHaveBeenCalledExactlyOnceWith('shape', expect.objectContaining({ revision: 2 }));
+  expect(f.update.mock.calls.at(-1)?.[1]).toMatchObject({ action: 'agree', revision: 2 });
+});
+
+it('keeps discussion changes attached to the current proposal without changing it before send', async () => {
+  const f = fixture({
+    plans: [plan],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  const discuss = vi.fn();
+  render(
+    <LocalEngineProvider client={f.client}>
+      <PlanReview workId="shape" inConversation onDiscuss={discuss} />
+    </LocalEngineProvider>,
+  );
+  fireEvent.click(await screen.findByRole('button', { name: 'Ask the Guide for changes' }));
+  expect(discuss).toHaveBeenCalledExactlyOnceWith(
+    expect.stringContaining('current proposal “Compare options” (version 1)'),
+  );
+  expect(screen.getByLabelText('Current proposal')).toBeTruthy();
+  expect(screen.getByRole('button', { name: 'Start this plan' })).toBeTruthy();
+  expect(screen.queryByRole('button', { name: 'Review proposal' })).toBeNull();
+  expect(f.update).not.toHaveBeenCalled();
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
+it('identifies an unconfirmed earlier start instead of implying the newer proposal will run', async () => {
+  const f = fixture({
+    plans: [{ ...plan, status: 'agreed' }],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: true,
+  });
+  const start = vi.spyOn(f.client, 'startPlan').mockRejectedValue(new Error('Start reply lost'));
+  const first = f.render();
+  fireEvent.click(await screen.findByRole('button', { name: 'Start this plan' }));
+  await screen.findByText('Start reply lost');
+  const request = start.mock.calls[0][1];
+  first.unmount();
+  f.set({ plans: [{ ...plan, revision: 2, status: 'agreed' }] });
+  f.render();
+  await screen.findByText(
+    /The start of version 1 is unconfirmed. The current proposal is version 2/,
+  );
+  expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
+  fireEvent.click(screen.getByRole('button', { name: 'Check this start again' }));
+  await waitFor(() => expect(start).toHaveBeenCalledTimes(2));
+  expect(start.mock.calls[1][1]).toEqual(request);
 });
 
 it('does not treat a mismatched agreement receipt as success', async () => {

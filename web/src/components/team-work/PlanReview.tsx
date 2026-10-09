@@ -1,6 +1,7 @@
 import { PlanExecution } from './PlanExecution';
 import { PlanHandoff } from './PlanHandoff';
 import { GuidePlanCard } from './GuidePlanCard';
+import { ProposalHistory } from './ProposalHistory';
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
@@ -26,6 +27,7 @@ export function PlanReview({
   onTools,
   suggestion,
   conversationActive = false,
+  conversationTurnId,
   inConversation = false,
   onTeamMap,
   initialDetailsOpen = false,
@@ -39,6 +41,7 @@ export function PlanReview({
   onTools?: () => void;
   suggestion?: string;
   conversationActive?: boolean;
+  conversationTurnId?: string;
   inConversation?: boolean;
   onTeamMap?: (id: string) => void;
   initialDetailsOpen?: boolean;
@@ -83,7 +86,7 @@ export function PlanReview({
   }
   const compact =
     inConversation &&
-    (!!current || !!view?.execution) &&
+    !!view?.execution &&
     !detailsOpen &&
     !edit &&
     !pending &&
@@ -162,6 +165,7 @@ export function PlanReview({
     workId,
     isConnected,
     conversationActive,
+    conversationTurnId,
     current?.revision,
     current?.status,
     view?.execution?.receipt.root_work_id,
@@ -325,7 +329,7 @@ export function PlanReview({
         </div>
       )}
       <div className="tw-plan-detail-content" hidden={compact} ref={detailSurface} tabIndex={-1}>
-        {inConversation && (current || view?.execution) && (
+        {inConversation && view?.execution && (
           <button
             type="button"
             className="px-text-button"
@@ -343,11 +347,17 @@ export function PlanReview({
           <>
             {!current && !preparing && (
               <button
-                className="px-text-button"
+                className={onDiscuss ? 'cw-primary' : 'px-text-button'}
                 disabled={disabled}
-                onClick={() => setPreparing(true)}
+                onClick={() =>
+                  onDiscuss
+                    ? discuss(
+                        'Help me turn this discussion into a proposal for the team. Check the available agents, access and allowance, and ask if anything important is still unclear. Do not start work yet.',
+                      )
+                    : setPreparing(true)
+                }
               >
-                Plan work from this discussion
+                {onDiscuss ? 'Plan this with the Guide' : 'Plan work from this discussion'}
               </button>
             )}
             {((!current && preparing) || reworking) && (
@@ -406,21 +416,21 @@ export function PlanReview({
             )}
             {current && !view.execution && !reworking && (
               <>
-                <div className="tw-plan-state">
+                <div className="tw-plan-state" aria-label="Current proposal">
                   <strong>
-                    {current.status === 'agreed'
-                      ? view.execution
-                        ? 'Direction agreed · execution recorded'
-                        : 'Direction agreed · not started'
+                    {edit
+                      ? 'Editing the current proposal'
                       : current.status === 'drafting'
-                        ? running
-                          ? 'Preparing a proposal'
-                          : view.generation?.state === 'completed'
-                            ? 'Reply ready to review'
-                            : 'Proposal not ready'
-                        : 'Proposed · not started'}
+                        ? 'Preparing the current proposal'
+                        : 'Current proposal'}
                   </strong>
+                  <span>Version {current.revision} · not started</span>
                 </div>
+                {conversationActive && content && (
+                  <p role="status">
+                    The Guide is replying. Review the current proposal when the reply finishes.
+                  </p>
+                )}
                 {current.status === 'drafting' && (
                   <div>
                     <p>
@@ -488,8 +498,8 @@ export function PlanReview({
                 )}
                 {stale && (
                   <p role="alert">
-                    Your brief has changed. Review and update this plan against brief{' '}
-                    {view.brief_revision}.
+                    Your direction has changed. Ask the Guide to update this proposal before
+                    starting.
                   </p>
                 )}
                 {content &&
@@ -770,7 +780,7 @@ export function PlanReview({
                             })
                           }
                         >
-                          Save plan revision
+                          Save changes
                         </button>
                         <button disabled={disabled} onClick={() => setEdit(undefined)}>
                           Discard edits
@@ -808,9 +818,21 @@ export function PlanReview({
                   ) : (
                     <>
                       <PlanHandoff content={content}>
-                        {executionPanel}
                         <div className="tw-plan-actions">
+                          {!running && onDiscuss && (
+                            <button
+                              disabled={disabled}
+                              onClick={() =>
+                                discuss(
+                                  `Update the current proposal “${content.title}” (version ${current.revision}). Inspect the saved proposal and apply these changes to it; do not start work. My changes: `,
+                                )
+                              }
+                            >
+                              Ask the Guide for changes
+                            </button>
+                          )}
                           <button
+                            className="px-text-button"
                             disabled={disabled}
                             onClick={() =>
                               setEdit({
@@ -820,24 +842,16 @@ export function PlanReview({
                               })
                             }
                           >
-                            Adjust plan
+                            Edit details yourself
                           </button>
-                          {!running && (
-                            <button
-                              disabled={disabled}
-                              onClick={() =>
-                                onDiscuss
-                                  ? discuss(
-                                      `I’d like to refine the saved proposal “${content.title}”. My changes: `,
-                                    )
-                                  : setReworking(true)
-                              }
-                            >
+                          {!running && !onDiscuss && (
+                            <button disabled={disabled} onClick={() => setReworking(true)}>
                               Refine this proposal
                             </button>
                           )}
                         </div>
                       </PlanHandoff>
+                      {executionPanel}
                     </>
                   ))}
               </>
@@ -870,31 +884,12 @@ export function PlanReview({
             Reload saved plan
           </button>
         )}
-        {!!view?.plans.length && (
-          <details>
-            <summary>Plan history · {view.plans.length}</summary>
-            {view.plans.map((p) => (
-              <article key={p.revision}>
-                <strong>
-                  Plan {p.revision} · brief {p.brief_revision}
-                </strong>
-                <small>{p.status}</small>
-                {p.content && (
-                  <>
-                    <h4>{p.content.title}</h4>
-                    <FormattedMarkdown text={p.content.summary} />
-                    <ol>
-                      {p.content.assignments.map((a) => (
-                        <li key={a.key}>
-                          {a.title} · {a.agent_key}
-                        </li>
-                      ))}
-                    </ol>
-                  </>
-                )}
-              </article>
-            ))}
-          </details>
+        {view && (
+          <ProposalHistory
+            key={current?.revision}
+            plans={view.plans}
+            currentRevision={current?.revision}
+          />
         )}
         {onBrief && !!view?.brief_revision && (
           <button type="button" className="px-text-button" onClick={onBrief}>

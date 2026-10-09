@@ -73,6 +73,22 @@
   color: var(--text-secondary);
   font-size: 12px;
 }
+.tw-plan-state > span {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tw-proposal-history > button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.tw-proposal-history section {
+  margin-top: 12px;
+  padding: 12px 16px;
+  border: 1px solid var(--brand-rule);
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+}
 .tw-plan-edit {
   border: 0;
   padding: 0;

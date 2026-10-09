@@ -368,9 +368,12 @@ describe('shaping in the team-work map', () => {
     ).toBeTruthy();
     const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
     fireEvent.change(composer, { target: { value: 'Keep this thought.' } });
-    expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
-    expect(screen.queryByText('Plan history · 1')?.closest('[hidden]')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: 'Review proposal' }));
+    expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
+      'disabled',
+      true,
+    );
+    expect(screen.queryByRole('button', { name: 'Review proposal' })).toBeNull();
+    expect(screen.queryByText(/Earlier versions/)).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: 'Work through this with the Guide' }));
     expect(composer).toHaveProperty('value', expect.stringContaining('Keep this thought.'));
     expect(composer).toHaveProperty(
@@ -378,16 +381,91 @@ describe('shaping in the team-work map', () => {
       expect.stringContaining('Which audience is this for?'),
     );
     expect(document.activeElement).toBe(composer);
-    fireEvent.click(screen.getByRole('button', { name: 'Review proposal' }));
+    expect(screen.getByLabelText('Current proposal').textContent).toContain('Version 3');
     expect(screen.getByRole('button', { name: 'Start this plan' })).toHaveProperty(
       'disabled',
       true,
     );
     expect(f.submit).not.toHaveBeenCalled();
     expect(start).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }));
-    expect(screen.queryByRole('button', { name: 'Start this plan' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Back to conversation' })).toBeNull();
+    expect(screen.getAllByRole('heading', { name: 'A decision we can use' })).toHaveLength(1);
     expect(composer).toHaveProperty('value', expect.stringContaining('Keep this thought.'));
+  });
+
+  it('keeps proposal changes in the same conversation and refreshes one current proposal after the reply', async () => {
+    const f = fixture([saved]);
+    const content = {
+      title: 'Compare options',
+      summary: 'Compare supplied notes.',
+      token_budget: 4000,
+      open_questions: [],
+      assignments: [
+        {
+          key: 'compare',
+          title: 'Compare',
+          instructions: 'Use the notes.',
+          agent_key: 'worker',
+          tools: [],
+          depends_on: [],
+          deliverable: 'Comparison',
+          token_budget: 2000,
+        },
+      ],
+    };
+    const plan = {
+      work_id: saved.id,
+      revision: 1,
+      brief_revision: 1,
+      request_id: 'first',
+      generation_id: '',
+      status: 'draft' as const,
+      created_by: 'owner',
+      agreed_by: null,
+      agreement_id: null,
+      content,
+    };
+    const view = {
+      plans: [plan],
+      brief_revision: 1,
+      generation: null,
+      readiness: [],
+      execution_available: true,
+    };
+    vi.mocked(f.client.plan).mockResolvedValue(view);
+    f.submit.mockImplementation(async (id, input, key, parent, purpose) => {
+      const updated = {
+        ...plan,
+        revision: 2,
+        brief_revision: 2,
+        content: { ...content, title: 'Compare only the two options' },
+      };
+      vi.mocked(f.client.plan).mockResolvedValue({
+        ...view,
+        brief_revision: 2,
+        plans: [updated, plan],
+      });
+      return { ...saved, id, input, agent_key: key, parent_id: parent, purpose };
+    });
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    f.view();
+    fireEvent.click(await screen.findByRole('button', { name: 'Ask the Guide for changes' }));
+    const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
+    expect(document.activeElement).toBe(composer);
+    expect(composer).toHaveProperty('value', expect.stringContaining('(version 1)'));
+    fireEvent.change(composer, {
+      target: { value: `${(composer as HTMLTextAreaElement).value} Compare only two options.` },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send exploration reply' }));
+    await screen.findByText('Version 2 · not started', {}, { timeout: 5000 });
+    expect(screen.getAllByRole('heading', { name: 'Compare only the two options' })).toHaveLength(
+      1,
+    );
+    expect(screen.queryByRole('heading', { name: 'Compare options' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Review proposal' })).toBeNull();
+    expect(location.hash).toBe(`#shape=${saved.id}`);
+    expect(screen.getByRole('button', { name: 'Earlier versions (1)' })).toBeTruthy();
+    expect(f.submit).toHaveBeenCalledOnce();
   });
 
   it('returns from a saved Guide setup change to the same discussion with the draft intact', async () => {

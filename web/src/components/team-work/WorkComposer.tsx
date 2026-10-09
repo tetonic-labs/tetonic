@@ -6,6 +6,7 @@ import { canReply, type WorkRecord } from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { agentSetup } from '../../lib/agentCapabilities';
 import { GuideConversations } from './GuideConversations';
+import { submitChatOnEnter } from '../ui/chatKeyboard';
 
 export function WorkComposer({
   work,
@@ -156,6 +157,7 @@ export function WorkComposer({
           }
           readOnly={!!writer.busyKey || (!!draft.pending && !draft.editable)}
           onChange={(event) => writer.edit(key, event.target.value)}
+          onKeyDown={submitChatOnEnter}
         />
         <button
           disabled={!enabled}

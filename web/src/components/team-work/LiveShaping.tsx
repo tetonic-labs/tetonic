@@ -13,6 +13,7 @@ import { Portrait } from '../ui/Portrait';
 import { agentSetup } from '../../lib/agentCapabilities';
 import { GuideConversations } from './GuideConversations';
 import { GuideActivity } from './GuideActivity';
+import { submitChatOnEnter } from '../ui/chatKeyboard';
 import './shaping.css';
 
 type ShapingProps = {
@@ -112,7 +113,6 @@ function ConnectedShaping({
     latest?.guide_activity?.length,
     latest?.guide_activity?.at(-1)?.state,
     selectedId,
-    planView?.plans[0]?.revision,
   ]);
 
   function discuss(text: string) {
@@ -350,6 +350,7 @@ function ConnectedShaping({
                 onWork={onWork}
                 suggestion={suggestion}
                 conversationActive={active}
+                conversationTurnId={latest?.id}
                 inConversation
                 onTeamMap={onTeamMap}
                 onBrief={() => setBriefOpen(true)}
@@ -399,6 +400,7 @@ function ConnectedShaping({
             ref={composer}
             value={draft.text}
             onChange={(event) => writer.edit(draftKey, event.target.value)}
+            onKeyDown={submitChatOnEnter}
             readOnly={!!writer.busyKey || (!!draft.pending && !draft.editable)}
             rows={2}
             placeholder={
