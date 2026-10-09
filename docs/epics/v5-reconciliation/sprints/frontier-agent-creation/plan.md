@@ -1,6 +1,6 @@
 # Frontier agent creation and execution
 
-Started October 6, 2026. Status: **in progress**. This dedicated sprint is authorized by the user's request following the [source audit](../october-1-coherent-workspace/agent-creation-frontier-audit-2026-10-06.md). It is the immediate implementation focus under the existing v5 reconciliation epic.
+Started October 6, 2026. Status: **in progress**. This dedicated sprint is authorized by the user's request following the [source audit](../october-1-coherent-workspace/agent-creation-frontier-audit-2026-10-06.md). On October 8 the owner added the [first-use corrective sprint](../october-first-use-repair/plan.md) as the immediate release-blocking priority. Its provider/setup tickets reuse this work; broader outstanding capability work remains open and is not silently canceled.
 
 ## Outcome
 

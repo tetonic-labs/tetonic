@@ -1,5 +1,25 @@
 # MVP implementation progress
 
+## 2026-10-08 — Additional first-use product repair sprint planned
+
+The owner's fresh-workspace walkthrough exposed a significant product failure:
+unclear entry, two direct-request timeouts, premature coding-oriented planning,
+invalid coordination allocation, unclear team selection and overloaded details.
+Created [First use to useful team work](sprints/october-first-use-repair/plan.md),
+its nine P0 tickets, preserved review baseline and actual-model/browser validation
+protocol. No application behavior, data or running engine was changed.
+
+The owner explicitly requires this as added scope, not a relabeling of existing
+work. The release now requires this corrective product gate alongside the original
+October obligations. Existing map/creation/runtime capabilities are reused. The
+next recovery increment follows the repair; recovery, recurrence and cohesive
+launch remain open. Target implementation is October 9–13 with an October 10
+feasibility decision. Added effort and schedule risk are explicit; October 18/25
+remain targets without an assertion that the expanded scope fits.
+
+This entry records planning only. No EXP ticket or original release gate is
+marked implemented or verified.
+
 ## 2026-10-07 — Reviewable continuation of unfinished team plans
 
 Added [plan continuation](sprints/october-1-coherent-workspace/plan-continuation-2026-10-07.md) to the existing work panel. Owners can prepare a proposal from stopped unfinished work, retain completed evidence and answered questions, review potentially repeated actions, and start only the remaining assignments with a new allowance. Existing huddles, team-work records, agent revisions, runtime and accounting remain the owners; schema 63 records provenance and prevents duplicate continuations. Original histories and unknown usage are preserved. This closes a dead-end recovery journey for terminal plans; unresolved crash recovery, durable parking and the wider MVP remain open.

@@ -8,6 +8,12 @@ The revised [UI consolidation sprint](ui-consolidation-sprint.md) specifies the 
 
 ## Changes to scope and order
 
+October 8 owner walkthrough: the [first-use corrective sprint](../october-first-use-repair/plan.md)
+adds an explicit release-blocking product gate, with EXP-001–009 as its required
+delivery. It is additional scope and the immediate priority. Existing OCT/COORD
+requirements remain open; owner mappings identify reuse, not unchanged effort.
+See its feasibility checkpoint and revised sequencing before taking the next work item.
+
 October 6: the [agent creation and frontier integration audit](agent-creation-frontier-audit-2026-10-06.md)
 traces current creation, tools, model protocols, harness execution and team dispatch.
 It proposes one governed path for selected tools across Tetonic and supported vendor

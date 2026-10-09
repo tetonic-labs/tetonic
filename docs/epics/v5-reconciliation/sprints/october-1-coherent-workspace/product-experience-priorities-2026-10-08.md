@@ -2,6 +2,8 @@
 
 Date: October 8, 2026. Implementation baseline: `3294b94c`. Status: implementation started; human decision slice delivered locally.
 
+Later October 8 owner review: the [First use to useful team work sprint](../october-first-use-repair/plan.md) is now an explicit additional layer of required product scope. Its EXP-001–009 tickets and acceptance gate supersede this candidate backlog's delivery order. Reuse overlapping completed work; do not treat all 28 candidates as new commitments or imply the corrective scope was already accounted for.
+
 The objective is to let one person keep more useful work aligned with their intent while spending less effort configuring, supervising and recovering context. The highest immediate returns are contextual setup, understandable decisions and a continuous place to direct work. Persistent direction and dependable execution are necessary foundations for the larger autonomy promise.
 
 This breakdown refines the existing October work; it creates no additional calendar sprint and closes no parent acceptance. Task IDs 1.1 through 7.4 refer to the seven product slices discussed with the owner. The first implementation covers the existing-request UI in 5.1 and 5.2, plus the receipt and observed-state portion of 5.4; see [decision experience evidence and limits](decision-experience-2026-10-08.md). Remaining tasks are proposed. Existing partial implementations must be reused and verified, not recounted as new delivery. Work in groups 1, 2, 4 and 5 is detailed in [the coherent workspace breakdown](product-experience-tasks-2026-10-08.md); groups 3, 6 and 7 are in [the coordinated work breakdown](../october-2-coordinated-work/product-experience-tasks-2026-10-08.md).
@@ -103,8 +105,8 @@ Record repeated explanations, required navigation detours, interventions needed 
 
 - [TeamWorkspace](../../../../../web/src/components/team-work/TeamWorkspace.tsx) owns the current map, inspector, composer and return trail.
 - [Work journeys](../../../../../web/src/lib/workJourneys.ts) currently groups launched work and suppresses its source from the list; use existing lineage to extend continuity.
-- [Work briefs](../../../../../engine/strata/tetonic-memory/src/work_briefs.rs) already stores append-only versions on existing team work.
-- [Plan direction store](../../../../../engine/strata/tetonic-memory/src/plan_human.rs) checks every affected assignment before accepting upcoming changes.
+- [Work briefs](../../../../../engine/strata/tetonic-memory/src/control/work_briefs.rs) already stores append-only versions on existing team work.
+- [Plan direction store](../../../../../engine/strata/tetonic-memory/src/control/plan_human.rs) checks every affected assignment before accepting upcoming changes.
 - [TeamWorkController](../../../../../engine/litho/tetonic-app/src/team_work_controller.rs) owns dispatch policy over existing journals and admission.
 - [Attention projection](../../../../../web/src/lib/attentionItems.ts) and [decision component](../../../../../web/src/components/team-work/Decision.tsx) provide current request identities and exact approval behavior.
 - [Latest handoff slice](delegation-experience-2026-10-08.md) already improves proposal placement, setup return and current activity. The remaining tasks extend that work rather than replacing it.

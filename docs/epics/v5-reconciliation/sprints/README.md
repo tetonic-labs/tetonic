@@ -1,10 +1,26 @@
 # October 25 MVP sprint plan
 
-Updated October 6, 2026. The active delivery schedule is the three sprints below, ending with a release decision on October 25. They consolidate remaining V5 integration and product work; they do not start another engine architecture or reset earlier implementation history. Sprint 1 is in progress; sprints 2 and 3 remain planned. See the [baseline implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md) and [first shaping slice](october-1-coherent-workspace/shaping-evidence-2026-10-05.md). No October P0 ticket has met its complete exit criteria yet.
+Updated October 8, 2026. The calendar baseline remains the three windows below, ending with a release decision on October 25. The owner has additionally required the [First use to useful team work corrective sprint](october-first-use-repair/plan.md) as a new layer of release-blocking product scope. This increases required work; it is not merely a regrouping of the original tickets. Sprint 1 is in progress; sprints 2 and 3 remain planned, with feasibility requiring reassessment after this addition. See the [baseline implementation evidence](october-1-coherent-workspace/evidence-2026-10-04.md) and [first shaping slice](october-1-coherent-workspace/shaping-evidence-2026-10-05.md). No complete October exit is newly verified by this planning update.
 
 The release should prove that digital autonomous teams can carry out the person's work while the human shapes outcomes, boundaries and priorities. The operator sees work structure, status, agent participation and actual interactions at a glance, can inspect the details, and receives concise flags when judgment is needed. Tetonic carries orchestration and coordination without unbounded interruption loops. Start with one human owner, one execution machine, a prominent map and composer, and a small tested team. Label this an installable limited MVP preview. Shared human rooms, remote workers and production HA remain later V5 milestones.
 
 ## Active schedule
+
+**October 8 owner review: added corrective sprint.** The actual first-use journey
+failed to demonstrate useful team work. The [new sprint](october-first-use-repair/plan.md)
+adds eight implementation tickets and one validation ticket, EXP-001–009, all P0
+for an additional product-experience release gate. It addresses entry and exploration,
+relevant access and usable limits, in-product model discovery, executable proposals,
+focused work details, visible teams, strong state/recovery signals and archive/restore.
+Its immediate priority supersedes the older workstream ordering below.
+
+The original 15 OCT P0 obligations remain; release readiness now also requires this
+corrective gate. The proposed implementation window is October 9–13 with an October 10
+feasibility decision. The next team-recovery increment follows this repair; recovery,
+recurrence and cohesive launch remain required, not waived. October 18 freeze and
+October 25 target remain, but the added effort is not yet estimated to fit. Any
+requirement/date change needs an explicit owner decision. Earlier statements that
+no additional sprint or scope was added describe the earlier baseline.
 
 October 8 product planning: the [ranked product experience backlog](october-1-coherent-workspace/product-experience-priorities-2026-10-08.md)
 breaks seven experience improvements into 28 proposed tasks with impact, effort,
@@ -13,8 +29,9 @@ existing October parents and does not add a sprint, close a gate or commit all
 28 tasks to the remaining calendar. Its delivery order accounts for engine
 dependencies as well as immediate UX value.
 
-October 6 priority update: the dedicated [frontier agent creation sprint](frontier-agent-creation/plan.md)
-is now the immediate implementation focus, following the source audit and explicit
+October 6 priority update (superseded in sequencing by the October 8 corrective sprint):
+the dedicated [frontier agent creation sprint](frontier-agent-creation/plan.md)
+became the immediate implementation focus, following the source audit and explicit
 user request. It covers real model discovery, modern streaming/tool protocols,
 selected tools, vendor harnesses and integration with existing team execution.
 It is a focused workstream within the October schedule, not an additional calendar
@@ -50,7 +67,7 @@ recovery or release-reliability gates.
 
 October 25 is the release decision, not another feature-development day. Freeze features on October 18. Reserve October 21 to 24 for release-candidate validation and fixes. The October 6 baseline review must confirm a feasible supported profile and revise sequencing if current failures consume capacity; calendar dates are targets, not measured effort estimates.
 
-The revised [Sprint 1 workspace plan](october-1-coherent-workspace/ui-consolidation-sprint.md) is the product-experience delivery plan: one map, one composer, progressive work inspection and clear human flags backed by bounded coordination. Ten UI children remain: eight P0, one P1 and one P2. UI-008's minimum real team selection/inspection is now required; advanced custom setup stays optional. COORD-A/B/C pull the smallest governed collaboration and activity slices of OCT-201/202/205 into Sprint 1 without duplicating their owners or closing their full acceptance. No fourth sprint is added. Optional customization, filters, shortcuts and motion refinement defer; the second real domain scenario moves from Sprint 1 to Sprint 2 to make room.
+The revised [Sprint 1 workspace plan](october-1-coherent-workspace/ui-consolidation-sprint.md) remains the original product-experience foundation: one map, one composer, progressive work inspection and clear human flags backed by bounded coordination. Its ten UI children comprise eight P0, one P1 and one P2. UI-008's minimum real team selection/inspection is required; advanced custom setup stays optional. COORD-A/B/C pull the smallest governed collaboration and activity slices of OCT-201/202/205 into Sprint 1 without duplicating their owners or closing their full acceptance. The October 8 corrective sprint adds to this baseline and supersedes the earlier no-additional-sprint claim. Optional customization, filters, shortcuts and motion refinement defer; the second real domain scenario remains in Sprint 2.
 
 October 5 cancellation follow-up: [cancellation reliability evidence](october-1-coherent-workspace/cancellation-reliability-evidence-2026-10-05.md)
 records a deterministic late-finalizer cancellation race, its managed-runtime fix,
@@ -127,7 +144,7 @@ versioned briefs and finite local plan dispatch now have implementation evidence
 skills and capability requests remain open. Re-estimate at the October 6 review rather
 than assuming the expanded scope fits within the dates.
 
-Each sprint has seven tickets: five P0, one P1 and one P2. There are 21 tickets total, including 15 release requirements. Priorities apply to the October profile, not the lifetime importance of a feature.
+The original three calendar sprints each have seven tickets: five P0, one P1 and one P2. Those 21 OCT tickets include 15 original release requirements. The October 8 corrective sprint adds nine required EXP tickets and a separate product-experience exit; it is additional scope even where implementation overlaps. Priorities apply to the October profile, not the lifetime importance of a feature.
 
 These counts refer to the OCT parent tickets. UI-001 through UI-010 are their implementation breakdown; priorities and dependencies are recorded in the workspace plan. Eight required UI children and the three COORD slices do not automatically complete their parent acceptance. COORD-A/B/C are named partial gates within existing parents, not new parent tickets.
 

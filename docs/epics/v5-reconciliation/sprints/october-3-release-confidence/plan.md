@@ -1,6 +1,6 @@
 # October sprint 3 Release confidence
 
-Dates: October 18 to 24, 2026. Status: planned. Release decision: October 25. Depends on [sprint 1](../october-1-coherent-workspace/plan.md) and [sprint 2](../october-2-coordinated-work/plan.md) P0 exits. Follow the [shared scope and priority rules](../README.md).
+Dates: October 18 to 24, 2026. Status: planned. Release decision: October 25. Depends on [sprint 1](../october-1-coherent-workspace/plan.md), [sprint 2](../october-2-coordinated-work/plan.md) P0 exits and the additional [first-use corrective gate](../october-first-use-repair/plan.md). Follow the [shared scope and priority rules](../README.md).
 
 User outcome: a person can install the supported profile, understand what to do, leave useful work running, and recover from ordinary failures without a developer operating the system for them. Feature freeze starts October 18; October 21 to 24 is reserved for release-candidate verification and fixes.
 
@@ -75,7 +75,7 @@ Work: compile a compact release checklist linking each P0 ticket to its actual e
 
 Reuse: epic progress, existing product/system contracts and the evidence produced in these sprint folders. Adapt the standalone portions of MVP-701 and applicable MVP-702 gates; retain production-HA requirements for the later milestone.
 
-Acceptance: all 15 P0 tickets across the three sprints have current evidence and no unresolved critical privacy, permission, data-loss, duplicate-effect or control failure. Confirm installation and smoke checks against the packaged candidate, not only the development server. On October 25, record go/no-go with an explicit supported scope. Any scope reduction is visible and preserves safety requirements. Publication or a wider rollout is a separate release action; this planning ticket does not silently deploy anything.
+Acceptance: all 15 original OCT P0 tickets and the additional [first-use corrective gate](../october-first-use-repair/validation.md), including EXP-001–009, have current evidence and no unresolved critical privacy, permission, data-loss, duplicate-effect or control failure. Technical completion alone cannot substitute for the added product-experience exit. Confirm installation and smoke checks against the packaged candidate, not only the development server. On October 25, record go/no-go with an explicit supported scope. Any scope reduction requires an explicit owner decision and preserves safety requirements. Publication or a wider rollout is a separate release action; this planning ticket does not silently deploy anything.
 
 ## OCT-307 Apply small usability refinements from the pilots
 
