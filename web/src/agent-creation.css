@@ -213,6 +213,17 @@
 .agent-selected-model {
   overflow-wrap: anywhere;
 }
+.agent-working-folder {
+  margin: 0 0 18px;
+  padding: 14px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 8px;
+  overflow-wrap: anywhere;
+}
+.agent-working-folder select {
+  width: 100%;
+  min-width: 0;
+}
 .agent-model-actions {
   display: flex;
   align-items: center;

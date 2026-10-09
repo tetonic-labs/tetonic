@@ -1,0 +1,270 @@
+/* Shared palette controls retained from the earlier workspace experiment. */
+html[data-palette='shrigley'] {
+  --brand-field: #f4ce28;
+  --brand-ink: #25231c;
+  --color-accent: #2546af;
+  --color-accent-hover: #19327e;
+  --bg-ground: #f7f4e4;
+  --bg-surface: #fffdf5;
+  --surface-ink: #25231c;
+}
+html[data-palette='warhol'] {
+  --brand-field: #ef6aad;
+  --brand-ink: #262039;
+  --color-accent: #006d7a;
+  --color-accent-hover: #004c56;
+  --bg-ground: #eaf2ec;
+  --bg-surface: #f7fbf6;
+  --surface-ink: #19393b;
+}
+html[data-palette='electric'] {
+  --brand-field: #ffd166;
+  --brand-ink: #261e38;
+  --color-accent: #b53565;
+  --color-accent-hover: #88234b;
+  --bg-ground: #f5eff7;
+  --bg-surface: #fdf9ff;
+  --surface-ink: #291e3b;
+}
+html[data-palette='coral'] {
+  --brand-field: #f26444;
+  --brand-ink: #282821;
+  --color-accent: #2546af;
+  --color-accent-hover: #19327e;
+  --bg-ground: #f7efe2;
+  --bg-surface: #fffaf1;
+  --surface-ink: #303043;
+}
+html.dark[data-palette]:not([data-palette='custom']) {
+  --bg-ground: #1d211c;
+  --bg-surface: #282d25;
+  --color-accent: var(--brand-field);
+  --color-accent-hover: var(--on-ink);
+}
+.palette-utility-btn {
+  position: relative;
+}
+.palette-pip {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  bottom: 5px;
+  right: 5px;
+  border-radius: 50%;
+  background: var(--brand-field);
+}
+.palette-popover-content {
+  z-index: 100;
+  width: min(340px, calc(100vw - 24px));
+  max-height: min(720px, var(--radix-popover-content-available-height));
+  overflow-y: auto;
+  padding: 16px;
+  color: var(--text-primary);
+  background: var(--bg-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  box-shadow: 0 12px 40px #0003;
+  font: 13px/1.5 var(--font-sans);
+}
+.palette-popover-content button {
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+}
+.palette-popover-header {
+  padding: 2px 4px 12px;
+}
+.palette-popover-title,
+.palette-popover-subtitle,
+.palette-item-name,
+.palette-item-tagline {
+  display: block;
+}
+.palette-popover-title {
+  font-weight: 650;
+  font-size: 15px;
+}
+.palette-popover-subtitle,
+.palette-item-tagline {
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.palette-menu-list {
+  display: grid;
+  gap: 4px;
+}
+.palette-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  text-align: left;
+}
+.palette-menu-item:hover,
+.palette-menu-item.is-active {
+  background: var(--bg-surface-hover);
+}
+.palette-menu-item.is-active {
+  border-color: var(--control-border);
+}
+.palette-menu-text {
+  flex: 1;
+}
+.palette-swatch-circle {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  border: 1px solid #0002;
+}
+.palette-swatch-circle[data-palette='default'] {
+  background: conic-gradient(#bb7046 0deg 120deg, #282c25 120deg 240deg, #eeeee6 240deg);
+}
+.palette-swatch-circle[data-palette='shrigley'] {
+  background: conic-gradient(#f4ce28 0deg 120deg, #e04439 120deg 240deg, #2546af 240deg);
+}
+.palette-swatch-circle[data-palette='warhol'] {
+  background: conic-gradient(#ef6aad 0deg 120deg, #ffd100 120deg 240deg, #00b4d8 240deg);
+}
+.palette-swatch-circle[data-palette='electric'] {
+  background: conic-gradient(#ff4d6d 0deg 120deg, #ffd166 120deg 240deg, #590de5 240deg);
+}
+.palette-swatch-circle[data-palette='coral'] {
+  background: conic-gradient(#f26444 0deg 120deg, #2546af 120deg 240deg, #f7efe2 240deg);
+}
+.palette-menu-divider {
+  height: 1px;
+  background: var(--color-border);
+  margin: 8px 0;
+}
+.palette-custom-select-area {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-align: left;
+}
+.palette-custom-actions,
+.palette-customize-btn,
+.palette-builder-header,
+.palette-builder-back-btn,
+.palette-builder-reset-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.palette-customize-btn,
+.palette-builder-back-btn,
+.palette-builder-reset-btn {
+  background: transparent;
+  border: 0;
+  padding: 6px;
+}
+.palette-builder-header {
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.palette-builder-preview-card {
+  border: 1px solid;
+  border-radius: 8px;
+  padding: 16px;
+}
+.preview-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11px;
+}
+.preview-highlight-pill {
+  padding: 2px 8px;
+  border-radius: 10px;
+}
+.preview-accent-btn {
+  border: 0;
+  border-radius: 6px;
+  padding: 8px 12px;
+  margin: 14px 0 8px;
+}
+.palette-builder-sections {
+  display: grid;
+  gap: 18px;
+  padding-top: 20px;
+}
+.palette-builder-row {
+  display: grid;
+  gap: 8px;
+}
+.palette-builder-row label {
+  font-weight: 600;
+}
+.palette-builder-row input[type='color'] {
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  cursor: pointer;
+}
+.palette-builder-footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+.palette-builder-done-btn {
+  border: 0;
+  border-radius: 6px;
+  padding: 9px 18px;
+  background: var(--surface-ink);
+  color: var(--on-ink) !important;
+}
+
+.builder-row-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+.builder-color-val {
+  color: var(--text-secondary);
+  font: 10px var(--font-mono);
+}
+.builder-swatches-grid {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+.builder-swatch-dot {
+  width: 24px;
+  height: 24px;
+  border: 1px solid #0003;
+  border-radius: 50%;
+}
+.builder-swatch-dot.is-selected {
+  outline: 2px solid var(--text-primary);
+  outline-offset: 2px;
+}
+.builder-color-picker-label {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  position: relative;
+  padding: 4px 7px;
+  border: 1px solid var(--color-border);
+  border-radius: 5px;
+  font-size: 11px;
+}
+.palette-builder-row .builder-native-picker {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  opacity: 0;
+}

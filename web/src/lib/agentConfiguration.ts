@@ -17,6 +17,7 @@ export interface AgentDraft {
   hostedConsent?: boolean;
   hostedToolsConsent?: boolean;
   expectedWorkspaceRoot?: string;
+  workspaceRoot?: string;
   name: string;
   purpose: string;
   teamId: string;

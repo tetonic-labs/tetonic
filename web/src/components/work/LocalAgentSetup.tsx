@@ -64,6 +64,7 @@ export function LocalAgentSetup({
       hosted_consent: !!draft.hostedConsent,
       hosted_tools_consent: !!draft.hostedToolsConsent,
       expected_workspace_root: draft.expectedWorkspaceRoot,
+      workspace_root: draft.workspaceRoot,
       tools: draft.tools || [],
       name: draft.name,
       purpose: draft.purpose,

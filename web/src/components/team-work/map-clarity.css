@@ -136,7 +136,7 @@
 }
 .pm-reading-key {
   position: absolute;
-  top: 0;
+  top: 32px;
   left: 30px;
   max-width: calc(100% - 60px);
   color: var(--text-secondary);

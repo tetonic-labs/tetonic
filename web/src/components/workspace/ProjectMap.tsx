@@ -411,13 +411,15 @@ export function ProjectMap({
           {paused || reduced ? <Play size={15} /> : <Pause size={15} />}
         </button>
       </div>
-      <div className="pm-reading-key">
-        {project?.kind === 'plan'
-          ? 'Contributions · dependency links · coordination'
-          : project
-            ? 'Requests and explorations · open any card to see the work'
-            : 'Efforts grouped by team · open a card to see the work inside'}
-      </div>
+      {projects.length > 0 && (
+        <div className="pm-reading-key">
+          {project?.kind === 'plan'
+            ? 'Contributions · dependency links · coordination'
+            : project
+              ? 'Requests and explorations · open any card to see the work'
+              : 'Efforts grouped by team · open a card to see the work inside'}
+        </div>
+      )}
     </div>
   );
 }

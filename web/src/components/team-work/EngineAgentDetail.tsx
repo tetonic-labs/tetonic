@@ -130,6 +130,11 @@ export function EngineAgentDetail({
           ? 'Helps you think through ideas, shape team plans, and understand ongoing work.'
           : profile.purpose || 'No role has been added yet.'}
       </p>
+      {profile.workspace_root && (
+        <p className="agent-field-note">
+          Working folder: <span>{profile.workspace_root}</span>
+        </p>
+      )}
       {updated && (
         <p className="operator-receipt" role="status">
           Changes saved. New work will use these settings.

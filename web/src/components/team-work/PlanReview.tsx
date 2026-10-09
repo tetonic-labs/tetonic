@@ -56,6 +56,7 @@ export function PlanReview({
   const gate = useRef(false);
   const mounted = useRef(true);
   const current = view?.plans[0];
+  const [preparing, setPreparing] = useState(false);
   useEffect(() => {
     if (view) onView?.(view);
   }, [view, onView]);
@@ -267,9 +268,18 @@ export function PlanReview({
         </button>
       ) : (
         <>
-          {(!current || reworking) && (
+          {!current && !preparing && (
+            <button
+              className="px-text-button"
+              disabled={disabled}
+              onClick={() => setPreparing(true)}
+            >
+              Plan work from this discussion
+            </button>
+          )}
+          {((!current && preparing) || reworking) && (
             <div className="tw-plan-empty">
-              <h3>{current ? 'Refine the approach' : 'Ready to put a team on it?'}</h3>
+              <h3>{current ? 'Refine the approach' : 'What should the team accomplish?'}</h3>
               <p>
                 We’ll suggest who can help and what they should do. You review it before anyone
                 starts.
@@ -311,6 +321,11 @@ export function PlanReview({
               >
                 {current ? 'Update proposal' : 'Prepare a plan'}
               </button>
+              {!current && (
+                <button type="button" onClick={() => setPreparing(false)}>
+                  Keep discussing
+                </button>
+              )}
               {!view.brief_revision && !proposedDirection && !conversationActive && (
                 <>
                   <small>Continue the conversation to settle on a direction.</small>

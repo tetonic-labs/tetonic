@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { ArrowUp, Square } from 'lucide-react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { ArrowUp, Minus, Square, UserRound } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { taskIsActive } from '../../engine/projections/taskState';
@@ -20,6 +20,7 @@ type ShapingProps = {
   onGuideSettings?: () => void;
   onAgentSettings?: (key: string) => void;
   onTools?: () => void;
+  onMinimize?: () => void;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
@@ -33,6 +34,7 @@ function ConnectedShaping({
   onGuideSettings,
   onAgentSettings,
   onTools,
+  onMinimize,
 }: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
@@ -65,6 +67,11 @@ function ConnectedShaping({
   const draftKey = selectedId || 'new';
   const draft = writer.drafts[draftKey] || { text: '' };
   const composer = useRef<HTMLTextAreaElement>(null);
+  useLayoutEffect(() => {
+    if (!composer.current) return;
+    composer.current.style.height = 'auto';
+    composer.current.style.height = `${composer.current.scrollHeight}px`;
+  }, [draft.text, selectedId]);
   const hasHandoff = !!planView?.plans[0] || !!planView?.execution;
   const currentKey = useRef(draftKey);
   currentKey.current = draftKey;
@@ -148,16 +155,30 @@ function ConnectedShaping({
   const renderTurn = (turn: EngineTask) => (
     <article className="px-shaping-turn" key={turn.id}>
       <div className="px-shaping-human">
-        <strong>You</strong>
-        <p>{turn.input}</p>
+        <span className="px-shaping-person" aria-hidden="true">
+          <UserRound size={18} />
+        </span>
+        <div className="px-shaping-message-content">
+          <strong>You</strong>
+          <p>{turn.input}</p>
+        </div>
       </div>
       {turn.messages
         .filter((message) => message.role === 'assistant')
         .slice(-1)
         .map((message) => (
           <div className="px-shaping-answer" key={message.id}>
-            <strong>{turn.agent_name}</strong>
-            <FormattedMarkdown text={message.content} />
+            {guide ? (
+              <Portrait agent={guide} size={30} square={false} />
+            ) : (
+              <span className="px-shaping-person" aria-hidden="true">
+                T
+              </span>
+            )}
+            <div className="px-shaping-message-content">
+              <strong>{turn.agent_name}</strong>
+              <FormattedMarkdown text={message.content} />
+            </div>
           </div>
         ))}
       {taskIsActive(turn) && (
@@ -234,6 +255,16 @@ function ConnectedShaping({
           >
             <Square size={12} />
             {stopping || latest?.state === 'canceling' ? 'Stopping…' : 'Stop reply'}
+          </button>
+        )}
+        {onMinimize && (
+          <button
+            type="button"
+            onClick={onMinimize}
+            aria-label="Minimize conversation"
+            title="Minimize conversation"
+          >
+            <Minus size={18} />
           </button>
         )}
       </div>
@@ -349,7 +380,6 @@ function ConnectedShaping({
             }
           >
             <ArrowUp size={19} />
-            <span>Send</span>
           </button>
         </div>
         {bytes > (workspace?.input_limit || 12000) && (

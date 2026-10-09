@@ -130,6 +130,14 @@ export function AgentAdvancedSettings({
         )}
         <fieldset>
           <legend>Per-run limits</legend>
+          {enforcedLimits && (
+            <p className="agent-field-note">
+              Choose how long this agent may work on one request. The host allows up to{' '}
+              {enforcedLimits.maxSteps} steps, {enforcedLimits.maxSeconds} seconds and{' '}
+              {enforcedLimits.maxTokens.toLocaleString()} reported tokens. Shared work budgets may
+              limit it further. Saved changes apply to new work.
+            </p>
+          )}
           <div className="agent-form-grid three-columns">
             {(
               [

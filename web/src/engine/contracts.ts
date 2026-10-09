@@ -230,6 +230,7 @@ export interface EngineAgent {
     workspace: string | null;
   } | null;
   hosted_workspace?: string | null;
+  workspace_root?: string | null;
   plan_coordinator?: boolean;
   provider?: string;
   hosted_consent?: boolean;
@@ -255,6 +256,9 @@ export interface WorkspaceSkill {
 }
 
 export interface AgentCatalog {
+  workspace_folders?: string[];
+  default_steps?: number;
+  default_seconds?: number;
   mcp_management?: boolean;
   skills?: WorkspaceSkill[];
   mcp_connections?: McpConnection[];

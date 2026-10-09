@@ -36,6 +36,16 @@
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+.tw-live .px-overview[data-first-use='true'] h1 {
+  white-space: normal;
+  max-width: 640px;
+  font-size: clamp(32px, 3.2vw, 48px);
+  line-height: 1.12;
+}
+.tw-live .px-overview[data-first-use='true'] > p {
+  max-width: 490px;
+  line-height: 1.65;
+}
 .tw-live .pm-stream-heading strong {
   display: -webkit-box;
   -webkit-line-clamp: 2;
@@ -99,6 +109,19 @@
   border: 1px solid var(--muted-on-ink);
   border-radius: 3px;
   font: inherit;
+}
+.tw-live .px-composer .tw-recipient > button {
+  width: auto;
+  height: auto;
+  min-height: 28px;
+  display: inline-flex;
+  padding: 2px 0;
+  background: transparent;
+  color: var(--muted-on-ink);
+  font-size: 11px;
+  white-space: nowrap;
+  text-decoration: underline;
+  text-underline-offset: 3px;
 }
 .tw-record-list,
 .tw-agent-list {

@@ -1,6 +1,7 @@
 import { useEffect, useState, useMemo } from 'react';
 import * as Popover from '@radix-ui/react-popover';
 import { Palette, Check, ChevronLeft, Sliders, Pipette, RotateCcw } from 'lucide-react';
+import './palette-picker.css';
 
 export type PaletteId = 'default' | 'shrigley' | 'warhol' | 'electric' | 'coral' | 'custom';
 
@@ -177,7 +178,12 @@ export function PalettePicker() {
       const saved = localStorage.getItem(CUSTOM_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
-        if (parsed.accent && parsed.highlight && parsed.ground) return parsed;
+        if (
+          [parsed.accent, parsed.highlight, parsed.ground].every(
+            (value) => typeof value === 'string' && /^#[0-9a-f]{6}$/i.test(value),
+          )
+        )
+          return parsed;
       }
     } catch {
       // fallback
@@ -186,11 +192,14 @@ export function PalettePicker() {
   });
 
   const [activePalette, setActivePalette] = useState<PaletteId>(() => {
-    if (typeof window === 'undefined') return 'shrigley';
-    const saved = localStorage.getItem(STORAGE_KEY) as PaletteId | null;
-    return saved && (PRESET_PALETTES.some((p) => p.id === saved) || saved === 'custom')
-      ? saved
-      : 'shrigley';
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY) as PaletteId | null;
+      return saved && (PRESET_PALETTES.some((p) => p.id === saved) || saved === 'custom')
+        ? saved
+        : 'default';
+    } catch {
+      return 'default';
+    }
   });
 
   // Keep dynamic custom CSS updated
@@ -293,7 +302,7 @@ export function PalettePicker() {
             <>
               <div className="palette-popover-header">
                 <span className="palette-popover-title">Color Palette</span>
-                <span className="palette-popover-subtitle">Theme experiment</span>
+                <span className="palette-popover-subtitle">Make this space yours</span>
               </div>
 
               <div className="palette-menu-list" role="menu" aria-label="Choose color palette">

@@ -10,6 +10,7 @@ import {
   type WorkContextSource,
 } from '../../lib/workContext';
 import { ProjectMap } from '../workspace/ProjectMap';
+import { PalettePicker } from '../ui/PalettePicker';
 import { LiveShaping } from './LiveShaping';
 import { WorkShelf } from './WorkShelf';
 import { workJourneys } from '../../lib/workJourneys';
@@ -69,7 +70,9 @@ function ConnectedTeamWorkspace() {
   const [panel, setPanel] = useState<Panel>(route().panel);
   const [trail, setTrail] = useState<NonNullable<Panel>[]>([]);
   const [recipient, setRecipient] = useState<string>();
+  const [collapsedConversation, setCollapsedConversation] = useState<string>();
   const [query, setQuery] = useState<WorkContextQuery>({});
+  const firstUse = isConnected && records.length === 0 && !workspace?.work_teams?.length;
   const [boardScope, setBoardScope] = useState<string>();
   const [boardHighlight, setBoardHighlight] = useState<string>();
   const [dark, setDark] = useState(false);
@@ -196,6 +199,7 @@ function ConnectedTeamWorkspace() {
     }
   }
   function shape(id?: string) {
+    setCollapsedConversation(undefined);
     url(id ? `#shape=${encodeURIComponent(id)}` : '');
     open({ kind: 'shaping', id });
   }
@@ -312,43 +316,50 @@ function ConnectedTeamWorkspace() {
           <button aria-label="Workspace settings" onClick={() => open({ kind: 'settings' })}>
             <Settings2 size={16} />
           </button>
+          <PalettePicker />
         </nav>
       </header>
-      <main id="main-content" tabIndex={-1}>
+      <main id="main-content" tabIndex={-1} data-conversation={journey}>
         <ProjectMap
-          projects={projects}
-          project={project}
+          projects={firstUse ? [] : projects}
+          project={firstUse ? undefined : project}
           playing={isConnected && working > 0}
           scope={`team-work:${connectionDraftScope()}`}
           selectedStream={selected?.id || focusRoot?.id || focusSource}
-          inspectionWidth={journey ? 680 : 620}
+          inspectionWidth={journey ? 0 : 620}
           onProject={choose}
           onStream={showWork}
           onAgent={(id) => open({ kind: 'agents', id })}
           onPlace={() => open({ kind: 'tools' })}
         />
-        <div className="px-overview" data-obscured={!!panel}>
-          <div className="px-breadcrumb">
-            <button onClick={() => choose()} aria-label="Show all projects">
-              <Layers size={14} />
-              All work
-            </button>
-            {project && (
-              <>
-                <ChevronRight size={12} />
-                <span>{project.kind === 'plan' ? 'Team effort' : project.team}</span>
-              </>
-            )}
-          </div>
-          <h1>{project?.title || 'Your team, at work.'}</h1>
+        <div className="px-overview" data-obscured={!!panel} data-first-use={firstUse}>
+          {!firstUse && (
+            <div className="px-breadcrumb">
+              <button onClick={() => choose()} aria-label="Show all projects">
+                <Layers size={14} />
+                All work
+              </button>
+              {project && (
+                <>
+                  <ChevronRight size={12} />
+                  <span>{project.kind === 'plan' ? 'Team effort' : project.team}</span>
+                </>
+              )}
+            </div>
+          )}
+          <h1>
+            {firstUse
+              ? 'What would you like to move forward?'
+              : project?.title || 'Your team, at work.'}
+          </h1>
           <p>
             {visibleRecords.length
               ? `${workScope} · ${project ? project.people.length : engine.uiAgents.length} agents${working ? ` · ${working} working` : ''}`
               : isConnected
-                ? 'Give an agent direction, or shape an idea together.'
+                ? 'Bring an idea or a goal. Your Guide helps you shape it, then your agents get to work. Follow their progress here.'
                 : 'Connect your engine to see your team’s work.'}
           </p>
-          {!panel && (
+          {!panel && !firstUse && (
             <div className="tw-map-actions">
               <button
                 onClick={() => {
@@ -385,26 +396,42 @@ function ConnectedTeamWorkspace() {
         )}
         {!panel && (
           <div className="px-composer">
-            <WorkShelf
-              records={visibleRecords}
-              onWork={showWork}
-              onAll={() => open({ kind: 'work' })}
-            />
-            <WorkComposer
-              key={recipient || 'default'}
-              recipient={recipient}
-              onAccepted={showWork}
-              onShape={shape}
-              onGuideSettings={() =>
-                open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
-              }
-            />
+            {collapsedConversation ? (
+              <div className="tw-collapsed-conversation">
+                <button onClick={() => shape(collapsedConversation)}>
+                  <strong>Continue with the Guide</strong>
+                  <span>
+                    {records.find((record) => record.id === collapsedConversation)?.title ||
+                      'Your discussion is saved'}
+                  </span>
+                </button>
+                <button onClick={() => setCollapsedConversation(undefined)}>New idea</button>
+              </div>
+            ) : (
+              <>
+                <WorkShelf
+                  records={visibleRecords}
+                  onWork={showWork}
+                  onAll={() => open({ kind: 'work' })}
+                />
+                <WorkComposer
+                  key={recipient || 'default'}
+                  recipient={recipient}
+                  onAccepted={showWork}
+                  onShape={shape}
+                  onGuideSettings={() =>
+                    open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
+                  }
+                />
+              </>
+            )}
           </div>
         )}
         {panel && (
-          <aside
+          <section
             className="px-inspector"
-            aria-label="Project details"
+            role={journey ? 'region' : 'complementary'}
+            aria-label={journey ? 'Work conversation' : 'Project details'}
             data-shaping={journey}
             data-wide={[
               'detail',
@@ -419,20 +446,32 @@ function ConnectedTeamWorkspace() {
             ].includes(panel.kind)}
             data-tools={panel.kind === 'tools'}
           >
-            <header>
-              <button
-                onClick={back}
-                aria-label={trail.length ? 'Back to previous view' : 'Close project details'}
-              >
-                <ArrowLeft size={15} />
-                {trail.length
-                  ? `Back to ${trail.at(-1)?.kind === 'shaping' ? 'team work' : titles[trail.at(-1)!.kind].toLowerCase()}`
-                  : 'Back to the map'}
-              </button>
-              <button onClick={close} aria-label="Close">
-                <X size={18} />
-              </button>
-            </header>
+            {!journey && (
+              <header>
+                <button
+                  onClick={journey ? close : back}
+                  aria-label={
+                    journey
+                      ? 'Back to the map'
+                      : trail.length
+                        ? 'Back to previous view'
+                        : 'Close project details'
+                  }
+                >
+                  <ArrowLeft size={15} />
+                  {journey
+                    ? 'Back to the map'
+                    : trail.length
+                      ? `Back to ${trail.at(-1)?.kind === 'shaping' ? 'team work' : titles[trail.at(-1)!.kind].toLowerCase()}`
+                      : 'Back to the map'}
+                </button>
+                {!journey && (
+                  <button onClick={close} aria-label="Close">
+                    <X size={18} />
+                  </button>
+                )}
+              </header>
+            )}
             <span className="px-inspector-label">
               {workspace?.team_name || 'Your workspace'}
               {!isConnected && ' · disconnected'}
@@ -449,6 +488,10 @@ function ConnectedTeamWorkspace() {
                   onAgentSettings={(key) => open({ kind: 'agents', id: key, edit: true })}
                   onTools={() => open({ kind: 'tools' })}
                   onWork={showWork}
+                  onMinimize={() => {
+                    setCollapsedConversation(focusSource);
+                    close();
+                  }}
                   onGuideSettings={() =>
                     open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })
                   }
@@ -525,7 +568,7 @@ function ConnectedTeamWorkspace() {
                 />
               )}
             </div>
-          </aside>
+          </section>
         )}
       </main>
     </div>

@@ -94,6 +94,42 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('minimizes a conversation on the map and resumes the same unsent thought', async () => {
+    history.replaceState(null, '', '/#shape=saved-exploration');
+    const f = fixture([saved]);
+    f.view();
+    const text = await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(text, { target: { value: 'I need room to think about this.' } });
+    expect(screen.getByRole('region', { name: 'Work conversation' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Minimize conversation' }));
+    expect(screen.queryByRole('region', { name: 'Work conversation' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: /Continue with the Guide/ }));
+    expect(
+      await screen.findByRole('textbox', { name: 'Continue the conversation' }),
+    ).toHaveProperty('value', 'I need room to think about this.');
+    expect(location.hash).toBe('#shape=saved-exploration');
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+  it('starts with the Guide and keeps agent selection optional on an empty map', async () => {
+    const f = fixture();
+    f.view();
+    await screen.findByRole('heading', { name: 'What would you like to move forward?' });
+    expect(screen.queryByRole('combobox', { name: 'Assign to agent' })).toBeNull();
+    fireEvent.change(screen.getByRole('textbox', { name: 'What would you like to work on?' }), {
+      target: { value: 'I am not sure what to bring here yet.' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Send to the Guide' }));
+    await waitFor(() =>
+      expect(f.submit).toHaveBeenCalledWith(
+        expect.any(String),
+        'I am not sure what to bring here yet.',
+        guide.key,
+        undefined,
+        'explore',
+      ),
+    );
+    expect(screen.queryByRole('button', { name: 'Prepare a plan' })).toBeNull();
+  });
   it('keeps the saved proposal first and resolves questions in the same unsent conversation', async () => {
     const f = fixture([saved]);
     vi.mocked(f.client.plan).mockResolvedValue({

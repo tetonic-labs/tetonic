@@ -49,11 +49,11 @@ describe('account model discovery', () => {
         })}
       />,
     );
-    await screen.findByRole('option', { name: 'Future research model · future-model' });
+    await screen.findByRole('option', { name: 'Future research model' });
     expect(screen.getByText(/2 models returned by Anthropic · Last checked/)).toBeTruthy();
     fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'future-model' } });
     fireEvent.change(screen.getByLabelText('Search models'), { target: { value: 'fast' } });
-    expect(screen.getByRole('option', { name: 'Fast model · other-model' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Fast model' })).toBeTruthy();
     expect(screen.getByLabelText('Model')).toHaveProperty('value', 'future-model');
     expect(screen.queryByText(/selected model was not returned/)).toBeNull();
     fireEvent.change(screen.getByLabelText('Search models'), { target: { value: 'unmatched' } });
@@ -96,16 +96,14 @@ describe('account model discovery', () => {
     expect(screen.queryByText(/Showing the last successful list/)).toBeNull();
   });
 
-  it('offers the official public catalog before connecting, without inventing account models', () => {
+  it('connects before offering model choice, manual IDs or external catalogs', () => {
     const discover = vi.fn();
     render(<Form provider="google" keySaved={false} discover={discover} />);
-    expect(screen.getByRole('link', { name: /Browse Google/ })).toHaveProperty(
-      'href',
-      'https://ai.google.dev/gemini-api/docs/models',
-    );
-    expect(screen.getByText(/Your API key determines account access/)).toBeTruthy();
+    expect(screen.getByRole('status').textContent).toContain('Connect Google above');
+    expect(screen.queryByLabelText('Model')).toBeNull();
+    expect(screen.queryByRole('link')).toBeNull();
+    expect(screen.queryByLabelText('Model identifier')).toBeNull();
     expect(discover).not.toHaveBeenCalled();
-    expect(screen.getAllByRole('option')).toHaveLength(2);
   });
 
   it('uses the account catalog and retains the selection when refreshed availability changes', async () => {
@@ -135,7 +133,8 @@ describe('account model discovery', () => {
       <Form discover={vi.fn().mockRejectedValue(new Error('Check provider account access.'))} />,
     );
     await screen.findByText('Check provider account access.');
-    fireEvent.change(screen.getByLabelText('Model'), { target: { value: 'custom' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Advanced model options' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Enter a model ID' }));
     expect(screen.getByLabelText('Model identifier')).toBeTruthy();
   });
   it('does not discover without credentials and ignores results after credentials are removed', async () => {

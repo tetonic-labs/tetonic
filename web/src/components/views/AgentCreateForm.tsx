@@ -77,12 +77,19 @@ export function AgentCreateForm({
         : 'ollama'),
   );
   const [selectedTools, setSelectedTools] = useState<string[]>(agent?.tools || []);
+  const [folderChoice, setFolderChoice] = useState<string | undefined>(
+    agent?.workspace_root || undefined,
+  );
+  const workingFolder = folderChoice ?? connected?.catalog.workspace_root ?? '';
+  const usesFolder = selectedTools.some((id) =>
+    Object.values(agentToolGroups).some((group) => group.includes(id)),
+  );
   const [hostedConsent, setHostedConsent] = useState(!!agent?.hosted_consent);
   const scopeKey = JSON.stringify([
     provider,
     model,
     customModel,
-    connected?.catalog.workspace_root,
+    workingFolder,
     [...selectedTools].sort(),
   ]);
   const [approvedScope, setApprovedScope] = useState<string | null>(() => {
@@ -93,7 +100,7 @@ export function AgentCreateForm({
     return disclosure?.version === 1 &&
       disclosure.provider === provider &&
       JSON.stringify([...disclosure.tools].sort()) === JSON.stringify([...selectedTools].sort()) &&
-      disclosure.workspace === (hasWorkspaceTools ? connected?.catalog.workspace_root : null)
+      disclosure.workspace === (hasWorkspaceTools ? workingFolder || null : null)
       ? scopeKey
       : null;
   });
@@ -104,8 +111,8 @@ export function AgentCreateForm({
     const value = defaultAgentConfiguration();
     if (connected)
       value.limits = {
-        maxSteps: connected.catalog.max_steps,
-        maxSeconds: connected.catalog.max_seconds,
+        maxSteps: connected.catalog.default_steps ?? connected.catalog.max_steps,
+        maxSeconds: connected.catalog.default_seconds ?? connected.catalog.max_seconds,
         maxTokens: Math.min(value.limits.maxTokens, connected.catalog.max_tokens),
       };
     if (agent) {
@@ -161,10 +168,10 @@ export function AgentCreateForm({
   );
   const saveHint = !name.trim()
     ? 'Start with a name for your agent.'
-    : !resolvedModel
-      ? 'Choose a model to continue.'
-      : hosted && !lab?.key_saved
-        ? `Add your ${lab?.name || provider} API key above.`
+    : hosted && !lab?.key_saved
+      ? `Connect ${lab?.name || provider} above to choose a model.`
+      : !resolvedModel
+        ? 'Choose a model to continue.'
         : hosted && !hostedConsent
           ? 'Review and allow conversation sharing above.'
           : compatibilityIssue
@@ -210,7 +217,11 @@ export function AgentCreateForm({
                 hostedToolsConsent: requiresToolConsent && hostedToolsConsent,
                 expectedWorkspaceRoot:
                   requiresToolConsent && hostedToolsConsent
-                    ? connected?.catalog.workspace_root || undefined
+                    ? workingFolder || undefined
+                    : undefined,
+                workspaceRoot:
+                  usesFolder && connected.catalog.workspace_folders
+                    ? workingFolder || undefined
                     : undefined,
                 tools: selectedTools,
               }
@@ -341,6 +352,15 @@ export function AgentCreateForm({
                 </select>
               </label>
             )}
+            {hosted && lab && connected?.onSaveKey && (
+              <AgentProviderKey
+                key={provider}
+                provider={lab}
+                loadModels
+                onSave={connected.onSaveKey}
+                onRemove={connected.onRemoveKey}
+              />
+            )}
             <AgentModelSelect
               key={`models-${provider}`}
               provider={provider}
@@ -356,14 +376,6 @@ export function AgentCreateForm({
               connected={!!connected}
             />
           </div>
-          {hosted && lab && connected?.onSaveKey && (
-            <AgentProviderKey
-              key={provider}
-              provider={lab}
-              onSave={connected.onSaveKey}
-              onRemove={connected.onRemoveKey}
-            />
-          )}
           {hosted && (
             <>
               <label className="agent-hosted-consent">
@@ -452,6 +464,44 @@ export function AgentCreateForm({
               selected
             </span>
           </legend>
+          {connected && usesFolder && (
+            <div className="agent-working-folder">
+              <label>
+                Working folder
+                {connected.catalog.workspace_folders ? (
+                  <select
+                    value={workingFolder}
+                    onChange={(event) => setFolderChoice(event.target.value)}
+                  >
+                    <option value="">Choose an approved folder</option>
+                    {workingFolder &&
+                      !connected.catalog.workspace_folders.includes(workingFolder) && (
+                        <option value={workingFolder}>{workingFolder} · unavailable</option>
+                      )}
+                    {connected.catalog.workspace_folders.map((path) => (
+                      <option key={path} value={path}>
+                        {path}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <span>{workingFolder || 'No working folder configured'}</span>
+                )}
+              </label>
+              <p className="agent-field-note">
+                File and terminal tools stay within this folder. Saving applies to new work; active
+                runs keep their existing access.
+              </p>
+              <details>
+                <summary>Need a different folder?</summary>
+                <p>
+                  The host operator can add it to <code>agent_folders</code> in the engine
+                  configuration. Refresh setup after the engine reloads. Your discussion stays
+                  saved. This does not grant access to any other folders.
+                </p>
+              </details>
+            </div>
+          )}
           <div className="agent-tool-grid">
             {tools.map((tool) => {
               const group = agentToolGroups[tool.id] || [];
@@ -588,8 +638,7 @@ export function AgentCreateForm({
                 Allow selected tool inputs and results to be sent to {lab?.name}.
                 {selectedTools.some(
                   (tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_'),
-                ) &&
-                  ` Working folder: ${connected?.catalog.workspace_root || 'the engine’s configured folder'}.`}{' '}
+                ) && ` Working folder: ${workingFolder || 'the engine’s configured folder'}.`}{' '}
                 Only the selected tools are included in this approval.
               </span>
             </label>

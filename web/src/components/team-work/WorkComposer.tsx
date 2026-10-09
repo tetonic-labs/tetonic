@@ -21,6 +21,7 @@ export function WorkComposer({
 }) {
   const engine = useLocalEngine();
   const [choice, setChoice] = useState(recipient || '');
+  const [choosing, setChoosing] = useState(!!recipient);
   const agents = (engine.workspace?.agents || []).filter(
     (agent) => agent.key !== engine.workspace?.shaping_agent_key && !agent.plan_coordinator,
   );
@@ -93,7 +94,12 @@ export function WorkComposer({
         <label htmlFor={`request-${key}`}>
           {work ? 'Follow up on this work' : 'What would you like to work on?'}
         </label>
-        {!work && (
+        {!work && !choosing && directing && (
+          <button type="button" className="px-text-button" onClick={() => setChoosing(true)}>
+            With the Guide · change
+          </button>
+        )}
+        {!work && (choosing || !directing) && (
           <label>
             With{' '}
             <select
@@ -173,7 +179,7 @@ export function WorkComposer({
       {teamChoice && !selectedTeam && (
         <p role="alert">This team is unavailable. Choose a saved team or agent.</p>
       )}
-      {directing && selectedAgent && onGuideSettings && (
+      {directing && selectedAgent && onGuideSettings && (choosing || setupIssue) && (
         <button
           type="button"
           className="px-text-button"

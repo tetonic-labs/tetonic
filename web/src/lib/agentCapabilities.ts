@@ -86,6 +86,14 @@ export function agentSetup(
   if (selected.length && !catalog.tools)
     return { state: 'unknown', message: 'Tool availability has not been confirmed.' };
   const supported = supportedAgentTools(catalog, provider, agent.harness);
+  if (
+    agent.workspace_root &&
+    catalog.workspace_folders &&
+    !catalog.workspace_folders.includes(agent.workspace_root)
+  )
+    return needs(
+      'This agent’s working folder is unavailable. Edit the agent to select an approved folder.',
+    );
   if (provider !== 'ollama' && agent.tool_disclosure) {
     const scope = agent.tool_disclosure;
     if (
@@ -114,7 +122,11 @@ export function agentSetup(
     provider !== 'ollama' &&
     selected.some((tool) => !tool.startsWith('mcp_') && !tool.startsWith('skill_')) &&
     (!agent.hosted_workspace ||
-      (catalog.workspace_root !== undefined && catalog.workspace_root !== agent.hosted_workspace))
+      (catalog.workspace_folders
+        ? !catalog.workspace_folders.includes(agent.hosted_workspace) ||
+          (agent.workspace_root && agent.workspace_root !== agent.hosted_workspace)
+        : catalog.workspace_root !== undefined &&
+          catalog.workspace_root !== agent.hosted_workspace))
   )
     return needs(
       'The approved folder has changed. Edit this agent to approve its current file access.',

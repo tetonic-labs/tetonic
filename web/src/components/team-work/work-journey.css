@@ -206,7 +206,7 @@
   color: var(--text-primary);
 }
 .tw-live .px-composer {
-  width: min(730px, calc(100% - 48px));
+  width: min(760px, calc(100% - 48px));
 }
 .tw-work-shelf {
   display: flex;
@@ -364,4 +364,195 @@
   .tw-work-shelf button {
     transition: none;
   }
+}
+
+/* The conversation grows from the map composer, retaining its width and anchor. */
+.tw-live main[data-conversation='true'] > .px-inspector[data-shaping='true'] {
+  --conversation-height: min(700px, calc(100% - 140px));
+  top: auto;
+  bottom: 24px;
+  left: 50%;
+  right: auto;
+  transform: translateX(-50%);
+  width: min(880px, calc(100% - 48px));
+  height: var(--conversation-height);
+  padding: 0;
+  border-radius: 3px 3px 16px 3px;
+  overflow: hidden;
+  --text-primary: var(--on-ink);
+  --text-secondary: var(--muted-on-ink);
+  --brand-rule: color-mix(in srgb, var(--on-ink) 16%, transparent);
+  --bg-surface: var(--surface-ink);
+  --bg-ground: var(--surface-ink);
+  color: var(--on-ink);
+  background: color-mix(in srgb, var(--surface-ink) 94%, transparent);
+  backdrop-filter: blur(12px);
+  border-top: 3px solid var(--brand-field);
+  animation: tw-conversation-expand 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+@keyframes tw-conversation-expand {
+  from {
+    height: 140px;
+    width: min(760px, calc(100% - 48px));
+  }
+  to {
+    height: var(--conversation-height);
+  }
+}
+.tw-live main[data-conversation='true'] > .px-inspector > h2 {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.tw-live main[data-conversation='true'] .px-shaping {
+  font-size: 15px;
+}
+.tw-live main[data-conversation='true'] .px-shaping-guide {
+  padding: 14px 24px;
+  border-bottom: 1px solid var(--brand-rule);
+}
+.tw-live main[data-conversation='true'] .px-shaping-body {
+  padding: 4px 24px 16px;
+  scrollbar-gutter: stable;
+}
+.tw-live main[data-conversation='true'] .px-shaping-composer {
+  padding: 14px 24px;
+  margin: 0;
+  border-radius: 0;
+  border-top: 1px solid var(--brand-rule);
+  background: transparent;
+}
+.tw-live main[data-conversation='true'] .px-shaping-composer > div {
+  align-items: flex-end;
+}
+.tw-live main[data-conversation='true'] .px-shaping-composer textarea {
+  min-height: 56px;
+  max-height: min(240px, 28dvh);
+  font-size: 15px;
+  line-height: 1.65;
+  resize: none;
+  overflow-y: auto;
+}
+.tw-live .tw-conversation-plan .tw-plan > .px-text-button {
+  justify-self: start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.tw-live .tw-collapsed-conversation {
+  display: flex;
+  align-items: center;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-top: 3px solid var(--brand-field);
+  border-radius: 3px 3px 16px 3px;
+  padding: 14px 20px;
+  gap: 16px;
+}
+.tw-live .tw-collapsed-conversation > button {
+  width: auto;
+  height: auto;
+  display: block;
+  background: transparent;
+  color: inherit;
+  padding: 4px;
+  text-align: left;
+  font-size: 12px;
+}
+.tw-live .tw-collapsed-conversation > button:first-child {
+  flex: 1;
+  min-width: 0;
+}
+.tw-collapsed-conversation strong,
+.tw-collapsed-conversation span {
+  display: block;
+}
+.tw-collapsed-conversation span {
+  color: var(--muted-on-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 6px;
+}
+@media (max-width: 760px) {
+  .tw-live main[data-conversation='true'] > .px-inspector[data-shaping='true'] {
+    --conversation-height: calc(100% - 150px);
+    width: calc(100% - 24px);
+    bottom: 16px;
+  }
+  .tw-live main[data-conversation='true'] .px-shaping-guide,
+  .tw-live main[data-conversation='true'] .px-shaping-body,
+  .tw-live main[data-conversation='true'] .px-shaping-composer {
+    padding-inline: 16px;
+  }
+}
+
+.tw-live main[data-conversation='true'] .px-shaping-guide button,
+.tw-live main[data-conversation='true'] .px-shaping-answer {
+  color: var(--on-ink);
+}
+.tw-live main[data-conversation='true'] .px-shaping-turn a {
+  color: inherit;
+  text-decoration: underline;
+}
+
+/* Compact, readable message rows on one continuous conversation surface. */
+.tw-live main[data-conversation='true'] .px-shaping-turn {
+  padding-block: 10px;
+}
+.tw-live main[data-conversation='true'] .px-shaping-human,
+.tw-live main[data-conversation='true'] .px-shaping-answer {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 6px 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+}
+.tw-live main[data-conversation='true'] .px-shaping-answer {
+  margin-top: 16px;
+}
+.px-shaping-person {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  color: var(--muted-on-ink);
+  background: color-mix(in srgb, var(--on-ink) 10%, transparent);
+}
+.px-shaping-message-content {
+  flex: 1;
+  min-width: 0;
+}
+.tw-live main[data-conversation='true'] .px-shaping-message-content > strong {
+  display: block;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.5;
+  margin: 0 0 4px;
+}
+.tw-live main[data-conversation='true'] .px-shaping-message-content p,
+.tw-live main[data-conversation='true'] .px-shaping-message-content li {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.tw-live main[data-conversation='true'] .px-shaping-message-content p {
+  margin: 0 0 10px;
+}
+.tw-live main[data-conversation='true'] .px-shaping-message-content p:last-child {
+  margin-bottom: 0;
+}
+.tw-live main[data-conversation='true'] .px-shaping-status {
+  margin-left: 42px;
+  font-size: 12px;
 }

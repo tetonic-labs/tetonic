@@ -6,7 +6,13 @@ import { PlanExecution } from '../src/components/team-work/PlanExecution';
 import { PlanReadiness } from '../src/components/team-work/PlanHandoff';
 import { LocalEngine } from '../src/engine/client';
 import { EngineRequestError } from '../src/engine/failure';
-import { type HuddlePlan, type PlanView, type PlanExecutionView, type WorkUsage, type PlanContinuation } from '../src/engine/contracts';
+import {
+  type HuddlePlan,
+  type PlanView,
+  type PlanExecutionView,
+  type WorkUsage,
+  type PlanContinuation,
+} from '../src/engine/contracts';
 
 const content = {
   title: 'Compare options',
@@ -825,7 +831,8 @@ it('explains exhausted coordination even while the plan total has unused allowan
 it('prepares and captures a proposal inline without dispatching assignments', async () => {
   const f = fixture();
   f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare a plan' }));
   await screen.findByRole('heading', { name: 'Compare formats' });
   expect(screen.getByText('After: Compare formats')).toBeTruthy();
   expect(f.update.mock.calls.map((c) => c[1].action)).toEqual(['generate', 'capture']);
@@ -837,7 +844,8 @@ it('retains an uncertain operation across closing the overlay and retries its id
   const f = fixture();
   f.update.mockRejectedValueOnce(new Error('Lost response'));
   const first = f.render();
-  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare a plan' }));
   await screen.findByText('Lost response');
   const original = f.update.mock.calls[0][1];
   first.unmount();
@@ -913,10 +921,9 @@ it('requires a saved brief and performs no planning on read', async () => {
     execution_available: false,
   });
   f.render();
-  expect(await screen.findByRole('button', { name: 'Prepare a plan' })).toHaveProperty(
-    'disabled',
-    true,
-  );
+  expect(screen.queryByRole('button', { name: 'Prepare a plan' })).toBeNull();
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
+  expect(screen.getByRole('button', { name: 'Prepare a plan' })).toHaveProperty('disabled', true);
   expect(f.update).not.toHaveBeenCalled();
   expect(f.submit).not.toHaveBeenCalled();
 });
@@ -933,7 +940,8 @@ it('carries reviewed direction into planning and agrees and dispatches with one 
     .spyOn(f.client, 'startPlan')
     .mockRejectedValueOnce(new Error('Start response lost'));
   const first = f.render('Investigate the supplied options with two independent contributors.');
-  fireEvent.click(await screen.findByText('Direction to share with the team'));
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
+  fireEvent.click(screen.getByText('Direction to share with the team'));
   fireEvent.change(screen.getByRole('textbox', { name: 'Direction for the team' }), {
     target: {
       value: 'Use only the supplied evidence. Compare options and independently check constraints.',
@@ -994,7 +1002,8 @@ it('keeps an unconfirmed prepared direction pinned across closing and reopening'
   });
   f.update.mockRejectedValueOnce(new Error('Preparation response lost'));
   const first = f.render('First direction');
-  fireEvent.click(await screen.findByRole('button', { name: 'Prepare a plan' }));
+  fireEvent.click(await screen.findByRole('button', { name: 'Plan work from this discussion' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Prepare a plan' }));
   await screen.findByText('Preparation response lost');
   const original = f.update.mock.calls[0][1];
   first.unmount();

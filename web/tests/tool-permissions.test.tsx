@@ -64,6 +64,62 @@ function setup(
 afterEach(() => vi.restoreAllMocks());
 
 describe('connected agent permissions', () => {
+  it('saves a selected host folder and requires new hosted disclosure after changing it', async () => {
+    const { create, catalog } = setup(['read_file'], true);
+    await screen.findByLabelText('Name', { exact: true });
+    const initial = await catalog.mock.results[0].value;
+    catalog.mockResolvedValue({
+      ...initial,
+      workspace_folders: ['C:/approved-work', 'C:/research'],
+      default_steps: 16,
+      default_seconds: 300,
+      max_steps: 32,
+      max_seconds: 600,
+    });
+    fireEvent.click(screen.getByRole('button', { name: 'Refresh engine setup' }));
+    await waitFor(() => expect(catalog).toHaveBeenCalledTimes(2));
+    fireEvent.change(screen.getByLabelText('Name', { exact: true }), {
+      target: { value: 'My research agent' },
+    });
+    fireEvent.change(screen.getByLabelText('Model provider'), { target: { value: 'openai' } });
+    await screen.findByRole('option', { name: 'gpt-4.1', exact: true });
+    fireEvent.change(screen.getByLabelText('Model', { exact: true }), {
+      target: { value: 'gpt-4.1' },
+    });
+    await userEvent.click(screen.getByRole('checkbox', { name: /Allow this agent/ }));
+    await userEvent.click(screen.getByRole('checkbox', { name: 'Read files' }));
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+    );
+    fireEvent.change(screen.getByRole('combobox', { name: 'Working folder' }), {
+      target: { value: 'C:/research' },
+    });
+    expect(screen.getByRole('button', { name: 'Create agent' })).toHaveProperty('disabled', true);
+    expect(
+      screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+    ).toHaveProperty('checked', false);
+    await userEvent.click(
+      screen.getByRole('checkbox', { name: /Allow selected tool inputs and results/ }),
+    );
+    fireEvent.click(screen.getByText('Working limits', { exact: true }));
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Steps' }), {
+      target: { value: '20' },
+    });
+    fireEvent.change(screen.getByRole('spinbutton', { name: 'Time (seconds)' }), {
+      target: { value: '450' },
+    });
+    await userEvent.click(screen.getByRole('button', { name: 'Create agent' }));
+    await waitFor(() => expect(create).toHaveBeenCalledOnce());
+    expect(create.mock.calls[0][0]).toMatchObject({
+      name: 'My research agent',
+      workspace_root: 'C:/research',
+      expected_workspace_root: 'C:/research',
+      tools: ['read_file'],
+      max_steps: 20,
+      max_seconds: 450,
+    });
+  });
+
   it('retains a selected terminal when switching to a compatible frontier provider', async () => {
     const { create } = setup(['read_file', 'run_shell'], true, ['read_file', 'run_shell']);
     fireEvent.change(await screen.findByLabelText('Name', { exact: true }), {

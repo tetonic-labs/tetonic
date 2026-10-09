@@ -5,10 +5,12 @@ export function AgentProviderKey({
   provider,
   onSave,
   onRemove,
+  loadModels = false,
 }: {
   provider: EngineProvider;
   onSave: (provider: string, key: string) => Promise<void>;
   onRemove?: (provider: string) => Promise<void>;
+  loadModels?: boolean;
 }) {
   const [key, setKey] = useState('');
   const [editing, setEditing] = useState(!provider.key_saved);
@@ -93,14 +95,14 @@ export function AgentProviderKey({
             disabled={saving || !key.trim()}
             onClick={() => void save()}
           >
-            {saving ? 'Saving key…' : 'Save key securely'}
+            {saving ? 'Saving key…' : loadModels ? 'Save key and load models' : 'Save key securely'}
           </button>
         </>
       )}
       {error && <p role="alert">{error}</p>}
       <small>
-        Shared on this machine. Saved in your OS credential store; not yet verified with the
-        provider.
+        Saved in your OS credential store and shared by agents using {provider.name} on this
+        workspace. Loading models checks account access; saving a key alone does not verify it.
       </small>
     </div>
   );
