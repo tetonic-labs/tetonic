@@ -1,5 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, ChevronRight, Layers, Settings2, X } from 'lucide-react';
+import {
+  ArrowLeft,
+  ChevronRight,
+  Layers,
+  Settings2,
+  X,
+  BookOpen,
+  Gauge,
+  Search,
+} from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { teamWorkspace } from '../../engine/projections/workspace';
@@ -23,11 +32,13 @@ import { EngineTools } from './EngineTools';
 import { UsagePanel } from './UsagePanel';
 import { ProjectBlackboard } from './ProjectBlackboard';
 import { WorkContextPanel } from './WorkContextPanel';
+import { WorkspaceWelcome } from './WorkspaceWelcome';
 import './team-work.css';
 import './engine-workspace.css';
 import './work-journey.css';
 import './operator-experience.css';
 import './map-clarity.css';
+import './arrival-workspace.css';
 
 type Panel = {
   kind:
@@ -212,7 +223,7 @@ function ConnectedTeamWorkspace() {
         : record?.latest?.purpose === 'explore'
           ? root
           : undefined;
-    if (source) {
+    if (source && record?.latest?.purpose === 'explore') {
       url(`#shape=${encodeURIComponent(source)}`);
       open({ kind: 'shaping', id: source });
     } else {
@@ -306,7 +317,7 @@ function ConnectedTeamWorkspace() {
     detail: selected?.title || 'Work details',
   };
   return (
-    <div className="px-app tw-live">
+    <div className="px-app tw-live" data-design="arrival">
       <a className="skip-link" href="#main-content">
         Skip to workspace
       </a>
@@ -320,8 +331,8 @@ function ConnectedTeamWorkspace() {
             choose();
           }}
         >
-          Tetonic
           <span className="brand-symbol" aria-hidden="true" />
+          tetonic
         </a>
         <button className="tw-connection-label" onClick={() => open({ kind: 'settings' })}>
           {isConnected ? workspace?.team_name : isConnecting ? 'Connecting…' : 'Disconnected'}
@@ -339,7 +350,8 @@ function ConnectedTeamWorkspace() {
             </button>
           ))}
           {(attention > 0 || !!readErrors.Decisions) && (
-            <button onClick={() => open({ kind: 'attention' })}>
+            <button className="arrival-attention" onClick={() => open({ kind: 'attention' })}>
+              <span className="arrival-attention-dot" aria-hidden="true" />
               Needs you{attention > 0 ? ` · ${attention}` : ''}
             </button>
           )}
@@ -377,18 +389,24 @@ function ConnectedTeamWorkspace() {
               )}
             </div>
           )}
-          <h1>
-            {firstUse
-              ? 'What would you like to move forward?'
-              : project?.title || 'Your team, at work.'}
-          </h1>
-          <p>
-            {visibleRecords.length
-              ? `${workScope} · ${project ? project.people.length : engine.uiAgents.length} agents${working ? ` · ${working} working` : ''}`
-              : isConnected
-                ? 'Bring an idea or a goal. Your Guide helps you shape it, then your agents get to work. Follow their progress here.'
-                : 'Connect your engine to see your team’s work.'}
-          </p>
+          {!firstUse && (
+            <span className="arrival-eyebrow">
+              {project ? 'A shared direction' : 'Your world of work'}
+            </span>
+          )}
+          {!firstUse && <h1>{project?.title || 'Your team, at work.'}</h1>}
+          {!firstUse && (
+            <p className="arrival-context-line">
+              {working > 0 && (
+                <span className="arrival-live-dot" data-active={isConnected} aria-hidden="true" />
+              )}
+              {visibleRecords.length
+                ? `${workScope} · ${project ? project.people.length : engine.uiAgents.length} agents${working ? ` · ${working} working` : ''}`
+                : isConnected
+                  ? 'Bring an idea or a goal. Your Guide helps you shape it, then your agents get to work. Follow their progress here.'
+                  : 'Connect your engine to see your team’s work.'}
+            </p>
+          )}
           {!panel && !firstUse && (
             <div className="tw-map-actions">
               <button
@@ -398,13 +416,23 @@ function ConnectedTeamWorkspace() {
                   open({ kind: 'blackboard' });
                 }}
               >
-                Blackboard
+                <BookOpen size={14} aria-hidden="true" /> Blackboard
               </button>
-              <button onClick={() => open({ kind: 'usage' })}>Usage</button>
-              <button onClick={() => open({ kind: 'context' })}>Search activity</button>
+              <button onClick={() => open({ kind: 'usage' })}>
+                <Gauge size={14} aria-hidden="true" /> Usage
+              </button>
+              <button onClick={() => open({ kind: 'context' })}>
+                <Search size={14} aria-hidden="true" /> Search activity
+              </button>
             </div>
           )}
         </div>
+        {firstUse && !panel && (
+          <WorkspaceWelcome
+            onAgents={() => open({ kind: 'agents' })}
+            onTeams={() => open({ kind: 'teams' })}
+          />
+        )}
         {(!isConnected || Object.keys(readErrors).length > 0) && (
           <div className="tw-connection" role="status">
             <strong>
@@ -519,8 +547,9 @@ function ConnectedTeamWorkspace() {
               {panel.kind === 'usage' && <UsagePanel onWork={showWork} />}
               {journey && (
                 <LiveShaping
-                  key={focusSource || 'new'}
+                  key={`${focusSource || 'new'}:${panel.kind === 'detail' ? 'work' : 'conversation'}`}
                   workId={focusSource}
+                  reviewInitially={panel.kind === 'detail'}
                   onAgentSettings={(key) => open({ kind: 'agents', id: key, edit: true })}
                   onTools={() => open({ kind: 'tools' })}
                   onWork={showWork}

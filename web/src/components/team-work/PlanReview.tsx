@@ -28,6 +28,7 @@ export function PlanReview({
   conversationActive = false,
   inConversation = false,
   onTeamMap,
+  initialDetailsOpen = false,
 }: {
   workId: string;
   onView?: (view: PlanView) => void;
@@ -40,6 +41,7 @@ export function PlanReview({
   conversationActive?: boolean;
   inConversation?: boolean;
   onTeamMap?: (id: string) => void;
+  initialDetailsOpen?: boolean;
 }) {
   const { client, isConnected, workspace, cancelTask } = useLocalEngine();
   const key = `tetonic_plan:${connectionDraftScope()}:${workId}`;
@@ -62,7 +64,7 @@ export function PlanReview({
   const mounted = useRef(true);
   const current = view?.plans[0];
   const [preparing, setPreparing] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(initialDetailsOpen);
   const detailSurface = useRef<HTMLDivElement>(null);
   const summarySurface = useRef<HTMLDivElement>(null);
   const wasOpen = useRef(false);

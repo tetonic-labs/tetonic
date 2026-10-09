@@ -864,6 +864,7 @@ it('keeps a Guide proposal off the map until explicit dispatch, then shows its c
   });
   history.replaceState(null, '', '/#shape=source');
   f.view();
+  fireEvent.click(await screen.findByRole('button', { name: 'Review proposal' }));
   const dispatch = await screen.findByRole('button', { name: 'Start this plan' });
   expect(
     within(screen.getByRole('region', { name: 'All projects map' })).queryByRole('button', {
@@ -873,7 +874,10 @@ it('keeps a Guide proposal off the map until explicit dispatch, then shows its c
   expect(start).not.toHaveBeenCalled();
   await waitFor(() => expect(dispatch).toHaveProperty('disabled', false));
   fireEvent.click(dispatch);
-  const mapLink = await screen.findByRole('button', { name: 'View team on map' });
+  // Dispatch stays in the review until the operator returns to the conversation.
+  await screen.findByRole('heading', { name: 'Your team’s result' });
+  fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }));
+  const mapLink = await screen.findByRole('button', { name: 'View on map' });
   expect(start).toHaveBeenCalledOnce();
   fireEvent.click(mapLink);
   const map = await screen.findByRole('region', { name: 'Workshop options project map' });

@@ -45,10 +45,10 @@ export function layoutProject(project: ProjectView) {
   }
   const validEdges = edges.filter((e) => !remaining.has(e.from) && !remaining.has(e.to));
   const gutter = 40 + validEdges.length * 8;
-  const width = 360;
+  const width = 380;
   const height = Math.max(
-    290,
-    ...project.streams.map((s) => 185 + Math.ceil(s.agents.length / 2) * 105),
+    340,
+    ...project.streams.map((s) => 225 + Math.ceil(s.agents.length / 2) * 115),
   );
   const streams: Record<string, Rect> = {};
   // Terminal coordination is visually separate, but its real incoming links remain.
@@ -185,7 +185,7 @@ export function layoutProject(project: ProjectView) {
     const homeRect = stream ? streams[stream.id] : undefined;
     const slot = stream?.agents.indexOf(person.agent.id) ?? 0;
     const home = homeRect
-      ? { x: homeRect.x + 90 + (slot % 2) * 175, y: homeRect.y + 195 + Math.floor(slot / 2) * 105 }
+      ? { x: homeRect.x + 100 + (slot % 2) * 180, y: homeRect.y + 210 + Math.floor(slot / 2) * 115 }
       : {
           x: (order.length ? participantX : gutter) + 90 + (unplaced.indexOf(person) % 2) * 180,
           y: (order.length ? nodeTop + 145 : 80) + Math.floor(unplaced.indexOf(person) / 2) * 130,
@@ -251,5 +251,28 @@ export function layoutPortfolio(projects: ProjectView[]) {
   };
 }
 
-export const edgePath = (points: Point[]) =>
-  points.map((p, i) => `${i ? 'L' : 'M'}${p.x} ${p.y}`).join(' ');
+/** Round only within each reserved orthogonal corridor; never bend across a node. */
+export function edgePath(points: Point[]) {
+  if (!points.length) return '';
+  let path = `M${points[0].x} ${points[0].y}`;
+  for (let i = 1; i < points.length - 1; i++) {
+    const a = points[i - 1],
+      b = points[i],
+      c = points[i + 1];
+    const before = Math.hypot(b.x - a.x, b.y - a.y);
+    const after = Math.hypot(c.x - b.x, c.y - b.y);
+    const radius = Math.min(12, before / 2, after / 2);
+    if (!radius) continue;
+    const start = {
+      x: b.x + ((a.x - b.x) * radius) / before,
+      y: b.y + ((a.y - b.y) * radius) / before,
+    };
+    const end = {
+      x: b.x + ((c.x - b.x) * radius) / after,
+      y: b.y + ((c.y - b.y) * radius) / after,
+    };
+    path += ` L${start.x} ${start.y} Q${b.x} ${b.y} ${end.x} ${end.y}`;
+  }
+  const last = points.at(-1)!;
+  return `${path} L${last.x} ${last.y}`;
+}

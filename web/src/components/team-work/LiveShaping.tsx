@@ -24,6 +24,7 @@ type ShapingProps = {
   onMinimize?: () => void;
   onConversation?: (id?: string) => void;
   onTeamMap?: (rootId: string) => void;
+  reviewInitially?: boolean;
 };
 export function LiveShaping(props: ShapingProps) {
   useLocalEngine();
@@ -40,6 +41,7 @@ function ConnectedShaping({
   onMinimize,
   onConversation,
   onTeamMap,
+  reviewInitially = false,
 }: ShapingProps) {
   const engine = useLocalEngine();
   const { workspace, uiAgents, isConnected, isConnecting, submitTask, cancelTask } = engine;
@@ -330,6 +332,7 @@ function ConnectedShaping({
             )}
             <div className="tw-conversation-plan" data-handoff={hasHandoff}>
               <PlanReview
+                initialDetailsOpen={reviewInitially}
                 key={`${selected.id}:${briefVersion}`}
                 workId={selected.id}
                 onView={viewChanged}

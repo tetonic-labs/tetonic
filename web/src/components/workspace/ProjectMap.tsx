@@ -11,6 +11,7 @@ import {
   TestTube2,
   Pause,
   Play,
+  Wrench,
 } from 'lucide-react';
 import { Portrait } from '../ui/Portrait';
 import { useMapCamera } from '../graph/useMapCamera';
@@ -72,7 +73,7 @@ export function ProjectMap({
     { width: world.width, height: world.height },
     { x: 0, y: -15, width: world.width, height: world.height + 30 },
     // Framing keeps the initial view clear of overlays without clipping the canvas.
-    { top: 280, bottom: 180 },
+    { top: 245, bottom: 190 },
   );
   useEffect(() => {
     const scope = project?.id || 'all';
@@ -241,11 +242,13 @@ export function ProjectMap({
                       </span>
                       <ArrowUpRight size={20} />
                     </button>
-                    <p>
-                      {stream.role === 'coordination'
-                        ? 'Keeps assignments moving and brings the results together.'
-                        : stream.summary}
-                    </p>
+                    {(!stream.stateLabel || stream.role === 'coordination') && (
+                      <p className="pm-stream-summary">
+                        {stream.role === 'coordination'
+                          ? 'Keeps assignments moving and brings the results together.'
+                          : stream.summary}
+                      </p>
+                    )}
                     {away.map((p) => {
                       const pos = graph.people.find((a) => a.person.agent.id === p.agent.id)!.home;
                       return (
@@ -282,7 +285,13 @@ export function ProjectMap({
                             count={stream.tasks.filter((t) => t.status === 'working').length}
                           />
                         ) : (
-                          'Inspect work →'
+                          <button
+                            type="button"
+                            onClick={() => onStream(stream.id)}
+                            aria-label={`Inspect work: ${stream.name}`}
+                          >
+                            Open work <ArrowUpRight size={12} />
+                          </button>
                         )}
                       </span>
                     </div>
@@ -350,6 +359,9 @@ export function ProjectMap({
                     onClick={() => onAgent(person.agent.id)}
                     aria-label={`Inspect ${person.agent.name}: ${person.doing}`}
                     data-docked={!!destination}
+                    data-working={
+                      animate && ['thinking', 'executing'].includes(person.agent.status)
+                    }
                   >
                     <span className="pm-portrait">
                       <Portrait agent={person.agent} size={54} square={false} />
@@ -360,13 +372,13 @@ export function ProjectMap({
                           ) : person.tool === 'Read' ? (
                             <FileText size={12} />
                           ) : (
-                            <GitBranch size={12} />
+                            <Wrench size={12} />
                           )}
                         </span>
                       )}
                     </span>
                     <strong>{person.agent.name}</strong>
-                    <small>{person.doing}</small>
+                    {person.agent.status !== 'idle' && <small>{person.doing}</small>}
                   </button>
                 </motion.div>
               ))}
