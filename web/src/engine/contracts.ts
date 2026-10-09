@@ -158,6 +158,7 @@ export type EngineTaskState =
   | 'recovery_required';
 
 export interface EngineTask {
+  guide_activity?: GuideActivity[];
   work_team?: WorkTeam | null;
   human_questions?: WorkHumanQuestion[];
   plan?: PlanTaskLink | null;
@@ -173,6 +174,12 @@ export interface EngineTask {
   run_id: string | null;
   sequence: number;
   messages: EngineMessage[];
+}
+
+export interface GuideActivity {
+  id: string;
+  operation: 'resources' | 'work' | 'inspect' | 'propose';
+  state: 'requested' | 'completed' | 'failed' | 'unconfirmed' | 'interrupted';
 }
 
 export interface EngineWorkspace {

@@ -176,6 +176,22 @@ impl ContextService {
             .await??)
     }
 
+    pub async fn transcript_entries(
+        &self,
+        credential: &str,
+        context: String,
+        session: String,
+        limit: u32,
+    ) -> Result<Vec<tetonic_memory::TranscriptEntry>, ResourceError> {
+        let actor = self.verifier.verify(credential).await?;
+        Ok(self
+            .store
+            .read(move |db| {
+                db.scoped_transcript_entries(&actor.principal_id, &context, &session, limit)
+            })
+            .await??)
+    }
+
     /// Project notes and digests for one authorized context. This does not
     /// publish them into another context.
     pub async fn project_memory(

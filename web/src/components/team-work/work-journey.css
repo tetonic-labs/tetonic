@@ -525,6 +525,102 @@
 .tw-live main[data-conversation='true'] .px-shaping-answer {
   margin-top: 16px;
 }
+/* Highlight individual messages without shifting their alignment or text. */
+.tw-live main[data-conversation='true'] :is(.px-shaping-human, .px-shaping-answer) {
+  border-radius: 8px;
+  transition:
+    background-color 120ms ease,
+    box-shadow 120ms ease;
+}
+.tw-live main[data-conversation='true'] :is(.px-shaping-human, .px-shaping-answer):focus-within {
+  background: color-mix(in srgb, var(--on-ink) 5%, transparent);
+  box-shadow:
+    8px 0 0 color-mix(in srgb, var(--on-ink) 5%, transparent),
+    -8px 0 0 color-mix(in srgb, var(--on-ink) 5%, transparent);
+}
+@media (hover: hover) {
+  .tw-live main[data-conversation='true'] :is(.px-shaping-human, .px-shaping-answer):hover {
+    background: color-mix(in srgb, var(--on-ink) 5%, transparent);
+    box-shadow:
+      8px 0 0 color-mix(in srgb, var(--on-ink) 5%, transparent),
+      -8px 0 0 color-mix(in srgb, var(--on-ink) 5%, transparent);
+  }
+}
+.guide-activity {
+  margin: 8px 0 12px 42px;
+  color: var(--text-secondary);
+  font-size: 11px;
+}
+.guide-activity ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.guide-activity li,
+.guide-activity .px-shaping-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.guide-activity li > svg {
+  flex-shrink: 0;
+}
+.guide-activity-toggle {
+  padding: 4px 0;
+  margin: 2px 0 0 20px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+.guide-activity-toggle:is(:hover, :focus-visible) {
+  color: var(--on-ink);
+}
+.guide-activity [data-state='unconfirmed'] {
+  color: var(--on-ink);
+}
+.guide-activity-dots {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-width: 18px;
+  height: 12px;
+}
+.guide-activity-dots i {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: guide-activity-pulse 1.2s ease-in-out infinite;
+}
+.guide-activity-dots i:nth-child(2) {
+  animation-delay: 150ms;
+}
+.guide-activity-dots i:nth-child(3) {
+  animation-delay: 300ms;
+}
+@keyframes guide-activity-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .guide-activity-dots i {
+    animation: none;
+  }
+  .tw-live main[data-conversation='true'] :is(.px-shaping-human, .px-shaping-answer) {
+    transition: none;
+  }
+}
 .px-shaping-person {
   display: flex;
   align-items: center;

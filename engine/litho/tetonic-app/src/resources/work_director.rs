@@ -9,6 +9,11 @@ pub(crate) const CONTROL: &str = "work_plan";
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Command {
     Inspect {},
+    Resources {},
+    Work {
+        #[serde(default)]
+        work_id: Option<String>,
+    },
     Propose {
         direction: String,
         plan: Box<tetonic_memory::PlanContent>,
@@ -21,7 +26,7 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
     }
     // A fixed, fully required outer shape is easier for model tool callers.
     // Only null placeholders are omitted for inspection, never unknown fields.
-    if value["operation"] == "inspect" {
+    if value["operation"] != "propose" {
         if let Some(fields) = value.as_object_mut() {
             for name in ["direction", "plan"] {
                 if fields.get(name).is_some_and(serde_json::Value::is_null) {
@@ -30,15 +35,24 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
             }
         }
     }
+    if value["operation"] != "work" && value["work_id"].is_null() {
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("work_id");
+        }
+    }
     let parsed: Command = serde_json::from_value(value).map_err(|error| {
         let detail: String = error.to_string().chars().take(240).collect();
-        format!("Invalid work_plan arguments: {detail}. Propose requires top-level direction and plan; inspect uses null direction and plan.")
+        format!("Invalid work_plan arguments: {detail}. Propose requires direction and plan; reads use null direction and plan. Only work accepts a non-null work_id.")
     })?;
     if let Command::Propose { direction, plan } = &parsed {
         if direction.trim().is_empty() || direction.len() > 12_000 || direction.contains('\0') {
             return Err("Provide a concise shared direction of at most 12000 bytes.".into());
         }
         plan.validate().map_err(|e| e.to_string())?;
+    }
+    if let Command::Work { work_id: Some(id) } = &parsed {
+        uuid::Uuid::parse_str(id)
+            .map_err(|_| "Use a recorded work_id from the workspace listing".to_string())?;
     }
     Ok(parsed)
 }
@@ -63,12 +77,13 @@ impl DirectorBinding {
     pub(crate) fn advertisement(&self) -> ToolAdvertisement {
         ToolAdvertisement {
             name: CONTROL.into(),
-            description: "Inspect this conversation's saved plan, work and bounded results. To propose, supply BOTH direction and the complete plan. Use each saved agent's exact key from ENGINE OBSERVATION, never its display name. One proposal per reply. Saves a draft only; never dispatches or changes permissions. The owner starts it inline.".into(),
+            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One proposal per reply; does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
             parameters: serde_json::json!({"type":"object","additionalProperties":false,
-                "required":["operation","direction","plan"],"properties":{
-                    "operation":{"type":"string","enum":["inspect","propose"]},
-                    "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for inspect."},
-                    "plan":{"anyOf":[self.plan_schema,{"type":"null"}],"description":"Complete proposal for propose; null for inspect."}}}),
+                "required":["operation","direction","plan","work_id"],"properties":{
+                    "operation":{"type":"string","enum":["resources","work","inspect","propose"]},
+                    "work_id":{"type":["string","null"],"description":"For work: a recorded work ID to inspect, or null to list efforts. Null for all other operations."},
+                    "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for read operations."},
+                    "plan":{"anyOf":[self.plan_schema,{"type":"null"}],"description":"Complete proposal for propose; null for read operations."}}}),
         }
     }
 

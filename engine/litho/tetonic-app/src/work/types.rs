@@ -97,6 +97,15 @@ pub struct LocalTask {
     pub run_id: Option<String>,
     pub sequence: u64,
     pub messages: Vec<LocalMessage>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub guide_activity: Vec<GuideActivity>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct GuideActivity {
+    pub id: String,
+    pub operation: String,
+    pub state: String,
 }
 
 #[derive(Serialize)]

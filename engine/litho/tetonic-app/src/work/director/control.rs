@@ -155,6 +155,8 @@ impl WorkService {
         }
         match command {
             Command::Inspect {} => self.director_state(&binding.source).await,
+            Command::Resources {} => self.director_resources(&binding.source).await,
+            Command::Work { work_id } => self.director_work(work_id.as_deref()).await,
             Command::Propose { direction, plan } => {
                 self.director_propose(binding, direction, *plan).await
             }

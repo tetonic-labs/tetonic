@@ -12,6 +12,7 @@ import { FormattedMarkdown } from '../ui/FormattedMarkdown';
 import { Portrait } from '../ui/Portrait';
 import { agentSetup } from '../../lib/agentCapabilities';
 import { GuideConversations } from './GuideConversations';
+import { GuideActivity } from './GuideActivity';
 import './shaping.css';
 
 type ShapingProps = {
@@ -105,7 +106,14 @@ function ConnectedShaping({
 
   useEffect(() => {
     if (thread.current && following.current) thread.current.scrollTop = thread.current.scrollHeight;
-  }, [latest?.sequence, latest?.id, selectedId, planView?.plans[0]?.revision]);
+  }, [
+    latest?.sequence,
+    latest?.id,
+    latest?.guide_activity?.length,
+    latest?.guide_activity?.at(-1)?.state,
+    selectedId,
+    planView?.plans[0]?.revision,
+  ]);
 
   function discuss(text: string) {
     if (writer.busyKey || (draft.pending && !draft.editable)) return;
@@ -207,13 +215,11 @@ function ConnectedShaping({
             </div>
           </div>
         ))}
-      {taskIsActive(turn) && (
-        <p className="px-shaping-status" role="status">
-          {isConnected
-            ? 'Thinking it through…'
-            : 'Connection lost. The reply may still be running.'}
-        </p>
-      )}
+      <GuideActivity
+        activities={turn.guide_activity || []}
+        active={taskIsActive(turn)}
+        connected={isConnected}
+      />
       {turn.error && <p role="alert">{turn.error}</p>}
       {turn.state === 'canceled' && <p>Reply stopped. Your discussion is saved.</p>}
       {turn.state === 'recovery_required' && (

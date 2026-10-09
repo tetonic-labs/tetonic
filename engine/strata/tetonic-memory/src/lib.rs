@@ -70,6 +70,7 @@ pub use sync_lock::{mutex_lock, RecoverMutex};
 pub use util::{new_id, workspace_storage_key, workspace_storage_key_str};
 
 pub use context::recall::RecallHit;
+pub use context::context_access::TranscriptEntry;
 pub use control::control_credentials::ControlCredentialRow;
 pub use control::human_controls::{
     ControlStop, EffectApproval, ShellApprovalProposal, TeamEffortEntry, TeamWorkInspection,

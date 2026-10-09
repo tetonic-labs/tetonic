@@ -158,7 +158,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                     .unwrap();
                 assert_eq!(
                     tool["function"]["parameters"]["required"],
-                    json!(["operation", "direction", "plan"])
+                    json!(["operation", "direction", "plan", "work_id"])
                 );
                 assert_eq!(
                     tool["function"]["parameters"]["properties"]["plan"]["anyOf"][0]["properties"]
@@ -345,6 +345,11 @@ fn model_commands_cannot_smuggle_launch_authority_or_select_another_conversation
     use crate::resources::work_director::command;
     assert!(command(json!({"operation":"inspect"})).is_ok());
     assert!(command(json!({"operation":"inspect","direction":null,"plan":null})).is_ok());
+    assert!(
+        command(json!({"operation":"resources","direction":null,"plan":null,"work_id":null}))
+            .is_ok()
+    );
+    assert!(command(json!({"operation":"work","direction":null,"plan":null,"work_id":uuid::Uuid::new_v4().to_string()})).is_ok());
     let missing_direction = command(json!({"operation":"propose","plan":plan("Plan")}))
         .err()
         .unwrap();
@@ -352,6 +357,10 @@ fn model_commands_cannot_smuggle_launch_authority_or_select_another_conversation
     for value in [
         json!({"operation":"start"}),
         json!({"operation":"agree"}),
+        json!({"operation":"resources","organization":"other-org"}),
+        json!({"operation":"resources","grant":"admin"}),
+        json!({"operation":"work","work_id":"../private"}),
+        json!({"operation":"inspect","work_id":uuid::Uuid::new_v4().to_string()}),
         json!({"operation":"inspect","source":"someone-else"}),
         json!({"operation":"inspect","direction":"A hidden write","plan":null}),
         json!({"operation":"propose","direction":"Shared","plan":plan("Plan"),"grant":"admin"}),

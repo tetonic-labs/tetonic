@@ -25,12 +25,38 @@ impl HostedTransport for PlanningTransport {
             1 => parity::completion(
                 self.provider,
                 "work_plan",
-                json!({
-                    "operation":"inspect", "direction":null, "plan":null
-                }),
-                "inspect",
+                json!({"operation":"resources","direction":null,"plan":null,"work_id":null}),
+                "resources",
             ),
             2 => {
+                let resources = parity::output(&body, self.provider, "resources");
+                assert!(
+                    resources.contains("agents")
+                        && resources.contains("execution_limits")
+                        && resources.contains("reported_tokens_including_discussions"),
+                    "{resources}"
+                );
+                assert!(!resources.contains("disposable-guide-key"));
+                parity::completion(
+                    self.provider,
+                    "work_plan",
+                    json!({"operation":"work","direction":null,"plan":null,"work_id":null}),
+                    "work",
+                )
+            }
+            3 => {
+                let work = parity::output(&body, self.provider, "work");
+                assert!(work.contains("workspace_totals"), "{work}");
+                parity::completion(
+                    self.provider,
+                    "work_plan",
+                    json!({
+                        "operation":"inspect", "direction":null, "plan":null
+                    }),
+                    "inspect",
+                )
+            }
+            4 => {
                 assert!(parity::output(&body, self.provider, "inspect").contains("conversation_id"));
                 parity::completion(
                     self.provider,
@@ -49,7 +75,7 @@ impl HostedTransport for PlanningTransport {
                     "proposal",
                 )
             }
-            3 => {
+            5 => {
                 let receipt = parity::output(&body, self.provider, "proposal");
                 assert!(receipt.contains("Workshop comparison"), "{receipt}");
                 // Ordinary text must complete a conversational turn after tool use.
@@ -274,6 +300,19 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                     .messages
                     .iter()
                     .any(|m| m.content.contains("No team has started")));
+                assert_eq!(
+                    completed
+                        .guide_activity
+                        .iter()
+                        .map(|a| (a.operation.as_str(), a.state.as_str()))
+                        .collect::<Vec<_>>(),
+                    vec![
+                        ("resources", "completed"),
+                        ("work", "completed"),
+                        ("inspect", "completed"),
+                        ("propose", "completed")
+                    ]
+                );
                 let view = workspace.plan_view(&id).await.unwrap();
                 assert_eq!(view.plans[0].status, "draft");
                 assert_eq!(
@@ -292,7 +331,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                     .unwrap();
                 assert_eq!(retry.run_id, task.run_id);
                 let calls = transport.calls.lock().unwrap().clone();
-                assert_eq!(calls.len(), 3);
+                assert_eq!(calls.len(), 5);
                 // Editing during inference does not mutate the active turn's limits.
                 match provider {
                     "openai" => assert_eq!(calls[1]["max_output_tokens"], 4056),
@@ -325,7 +364,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                         .is_err(),
                     "no local fallback after key removal"
                 );
-                assert_eq!(transport.calls.lock().unwrap().len(), 3);
+                assert_eq!(transport.calls.lock().unwrap().len(), 5);
                 assert_eq!(
                     workspace.snapshot().await.unwrap().tasks.len(),
                     1,

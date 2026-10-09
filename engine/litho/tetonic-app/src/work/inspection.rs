@@ -184,6 +184,7 @@ impl WorkService {
             run_id: work.run_id,
             sequence: 0,
             messages: vec![],
+            guide_activity: vec![],
         };
         let Some(run) = task.run_id.clone() else {
             return Ok(task);
@@ -313,7 +314,7 @@ impl WorkService {
             .map(|a| a.audit_session_id.clone())
         {
             let history = contexts
-                .transcript(
+                .transcript_entries(
                     &self.services.host.credential,
                     context.clone(),
                     history,
@@ -324,16 +325,26 @@ impl WorkService {
             // Delegation work stores its title; the scoped audit contains the
             // exact admitted input, including dependency contributions.
             if task.plan.is_some() {
-                if let Some((_, _, input)) = history.iter().find(|(_, role, _)| role == "user") {
-                    task.input = input.clone();
+                if let Some(input) = history.iter().find(|m| m.role == "user") {
+                    task.input = input.content.clone();
                 }
+            }
+            if task.purpose == WorkPurpose::Explore && task.agent_key == shaping::GUIDE {
+                task.guide_activity = director::activity::project(
+                    &history,
+                    matches!(task.state.as_str(), "starting" | "running"),
+                );
             }
             task.messages = history
                 .into_iter()
-                .filter(|(_, role, content)| {
-                    (role == "assistant" || role == "tool") && !content.trim().is_empty()
+                .filter(|m| {
+                    (m.role == "assistant" || m.role == "tool") && !m.content.trim().is_empty()
                 })
-                .map(|(id, role, content)| LocalMessage { id, role, content })
+                .map(|m| LocalMessage {
+                    id: m.sequence,
+                    role: m.role,
+                    content: m.content,
+                })
                 .collect();
         }
         // `finish` may contain the entire answer in its arguments, with no assistant

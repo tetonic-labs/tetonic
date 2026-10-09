@@ -2,6 +2,16 @@
 use crate::{Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 
+#[derive(Debug)]
+pub struct TranscriptEntry {
+    pub sequence: i64,
+    pub role: String,
+    pub content: String,
+    pub tool_calls_json: Option<String>,
+    pub tool_name: Option<String>,
+    pub tool_status: Option<String>,
+}
+
 /// Stable id for the private working context created when a principal joins a team.
 /// It is not that principal's other private history and not the shared team context.
 pub fn team_participation_context_id(org: &str, team: &str, principal: &str) -> Result<String> {
@@ -141,6 +151,22 @@ impl Store {
         session: &str,
         limit: u32,
     ) -> Result<Vec<(i64, String, String)>> {
+        Ok(self
+            .scoped_transcript_entries(actor, context, session, limit)?
+            .into_iter()
+            .map(|m| (m.sequence, m.role, m.content))
+            .collect())
+    }
+
+    /// Structured audit metadata uses the same context and session authorization
+    /// as text history. Tool arguments are never a source of execution authority.
+    pub fn scoped_transcript_entries(
+        &self,
+        actor: &str,
+        context: &str,
+        session: &str,
+        limit: u32,
+    ) -> Result<Vec<TranscriptEntry>> {
         let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Deferred)?;
         if !self.context_access(actor, context)? {
             return Err(StoreError::ControlAccessDenied);
@@ -157,10 +183,17 @@ impl Store {
             return Err(StoreError::ControlAccessDenied);
         }
         let rows = {
-            let mut stmt = self.conn.prepare("SELECT m.seq,m.role,m.content FROM messages m WHERE m.session_id=?1 AND NOT EXISTS(SELECT 1 FROM spawn_rollbacks r WHERE r.session_id=m.session_id AND r.agent_id=m.agent_id) ORDER BY m.seq DESC LIMIT ?2")?;
+            let mut stmt = self.conn.prepare("SELECT m.seq,m.role,m.content,m.tool_calls_json,m.tool_name,t.status FROM messages m LEFT JOIN tool_calls t ON t.id=m.tool_call_id AND t.session_id=m.session_id WHERE m.session_id=?1 AND NOT EXISTS(SELECT 1 FROM spawn_rollbacks r WHERE r.session_id=m.session_id AND r.agent_id=m.agent_id) ORDER BY m.seq DESC LIMIT ?2")?;
             let rows = stmt
                 .query_map(params![session, limit.clamp(1, 200)], |r| {
-                    Ok((r.get(0)?, r.get(1)?, r.get(2)?))
+                    Ok(TranscriptEntry {
+                        sequence: r.get(0)?,
+                        role: r.get(1)?,
+                        content: r.get(2)?,
+                        tool_calls_json: r.get(3)?,
+                        tool_name: r.get(4)?,
+                        tool_status: r.get(5)?,
+                    })
                 })?
                 .collect::<std::result::Result<Vec<_>, _>>()?;
             rows
@@ -224,6 +257,9 @@ mod tests {
             "PRIVATECANARY"
         );
         for actor in ["admin", "bob"] {
+            assert!(db
+                .scoped_transcript_entries(actor, "private-a", "p", 10)
+                .is_err());
             assert!(db.scoped_transcript(actor, "private-a", "p", 10).is_err());
             assert!(db.scoped_transcript(actor, "shared", "t", 10).is_err());
         }
@@ -243,6 +279,9 @@ mod tests {
             "team discussion"
         );
         assert!(db.scoped_transcript("bob", "shared", "p", 10).is_err());
+        assert!(db
+            .scoped_transcript_entries("bob", "shared", "p", 10)
+            .is_err());
         assert!(db
             .scoped_transcript("bob", "shared", "missing", 10)
             .is_err());
