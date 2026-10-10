@@ -6,6 +6,22 @@ The release should prove that digital autonomous teams can carry out the person'
 
 ## Active schedule
 
+**October 9 owner focus: return to MVP delivery.** Marketplace integration and
+adoption of an external connector-management platform are deferred. The recent
+catalog/provider discussion was exploration, not an implementation commitment.
+Retain the existing tools, saved MCP connections and agent grants; do not add a
+portfolio of application-specific connectors to the October scope.
+
+Resume the existing first-use repair sequence, starting with the unfinished
+Guide → reviewed proposal → useful team result journey (EXP-004/009). The
+[bounded proposal correction slice](october-first-use-repair/guide-proposal-correction-2026-10-09.md)
+has automated evidence, but does not establish real-model decomposition,
+parallel contribution quality or grounded synthesis. Follow with the existing
+access/setup and work-comprehension repairs, then the required independent-work,
+recovery/recurrence and installable-preview exits. This focus update adds no new
+sprint, changes no release date and closes no acceptance gate. Preserve the
+current map and interaction design while addressing demonstrated friction.
+
 **October 8 owner review: added corrective sprint.** The actual first-use journey
 failed to demonstrate useful team work. The [new sprint](october-first-use-repair/plan.md)
 adds eight implementation tickets and one validation ticket, EXP-001–009, all P0
