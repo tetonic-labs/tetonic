@@ -69,9 +69,14 @@ affected suite) or `npm run architecture:check` gives narrower feedback.
 
 From `engine/`:
 
+Rustup selects the compiler, rustfmt and Clippy version pinned in
+`engine/rust-toolchain.toml`. CI and release builds use the same version; update
+their `dtolnay/rust-toolchain` pins together when upgrading. Verification uses
+the committed `Cargo.lock` (`--locked`) so it cannot silently update dependencies.
+
 ```sh
 cargo test -p tetonic-app --lib  # substitute the affected package/suite
-cargo run -p tetonic-arch-gate -- verify package
+cargo run --locked -p tetonic-arch-gate -- verify package
 ```
 
 `verify package` checks formatting, workspace/all-target Clippy with warnings

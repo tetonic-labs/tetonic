@@ -96,7 +96,10 @@ impl WaitCheckpoint {
                 || !ids.insert(&call.request.call_id)
                 || call.request.attempt_id != self.pending.attempt_id
                 || call.request.parent_agent_id != self.pending.parent_agent_id
-                || !self.invocation.discipline.is_host_tool(&call.request.tool_name)
+                || !self
+                    .invocation
+                    .discipline
+                    .is_host_tool(&call.request.tool_name)
                 || call.response_digest.len() != 64
                 || !call
                     .response_digest

@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.0 # Keep in sync with engine/rust-toolchain.toml.
         with:
           components: rustfmt, clippy
 
@@ -47,7 +47,7 @@ jobs:
           workspaces: engine
 
       - name: Engineering gate (formatting, clippy, architecture, quality)
-        run: cargo run -p tetonic-arch-gate -- verify package
+        run: cargo run --locked -p tetonic-arch-gate -- verify package
 
   test:
     name: Core Test Suite
@@ -58,7 +58,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.0 # Keep in sync with engine/rust-toolchain.toml.
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -67,7 +67,7 @@ jobs:
 
       - name: Run Core Tests
         run: |
-          cargo test -p tetonic-core \
+          cargo test --locked -p tetonic-core \
                      -p tetonic-policy \
                      -p tetonic-secrets \
                      -p tetonic-domain \
@@ -92,7 +92,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@1.99.0 # Keep in sync with engine/rust-toolchain.toml.
 
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
@@ -100,4 +100,4 @@ jobs:
           workspaces: engine
 
       - name: Build release binaries
-        run: cargo build --release -p tetonic-cli
+        run: cargo build --locked --release -p tetonic-cli

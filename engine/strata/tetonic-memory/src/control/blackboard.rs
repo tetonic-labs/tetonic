@@ -132,7 +132,7 @@ impl BlackboardCommand {
         let valid = match self {
             Self::Peers => true,
             Self::Read { thread_id, offset } => {
-                *offset <= 100_000 && thread_id.as_ref().is_none_or(|id| text(id, 128))
+                *offset <= 100_000 && thread_id.as_ref().map_or(true, |id| text(id, 128))
             }
             Self::Resolve { thread_id: id } => text(id, 128),
             Self::React {
@@ -159,7 +159,7 @@ impl BlackboardCommand {
             } => {
                 text(thread_id, 128)
                     && text(body, 4000)
-                    && reply_to.as_ref().is_none_or(|id| text(id, 128))
+                    && reply_to.as_ref().map_or(true, |id| text(id, 128))
             }
         };
         if valid {
@@ -430,7 +430,7 @@ impl Store {
         self.require_team_participant(actor, org, team)?;
         if self
             .get_team(org, team)?
-            .is_none_or(|t| t.owner_principal_id != actor)
+            .map_or(true, |t| t.owner_principal_id != actor)
         {
             return Err(StoreError::ControlAccessDenied);
         }
