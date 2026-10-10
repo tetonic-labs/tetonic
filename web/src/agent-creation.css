@@ -224,6 +224,24 @@
   width: 100%;
   min-width: 0;
 }
+
+.agent-folder-setup {
+  display: grid;
+  gap: 12px;
+  padding: 16px;
+  border: 1px solid var(--brand-rule);
+  border-radius: 12px;
+}
+.agent-folder-path {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.agent-folder-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
 .agent-model-actions {
   display: flex;
   align-items: center;

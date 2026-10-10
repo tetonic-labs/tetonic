@@ -1,4 +1,4 @@
-//! HTTP mapping of the application's versioned failure contract.
+//! Local HTTP authentication, origin constraints and versioned failure mapping.
 use super::{json, Bytes, Full, Response, StatusCode};
 use tetonic_app::errors::{AppError, FailureCode, PublicFailureV1, RecoveryAction};
 
@@ -60,6 +60,45 @@ pub(super) fn check_version(headers: &hyper::HeaderMap) -> Option<Response<Full<
         RecoveryAction::UpdateClient,
     );
     Some(json(StatusCode::BAD_REQUEST, serde_json::json!(failure)))
+}
+
+pub(super) fn local_origin(value: &str) -> anyhow::Result<String> {
+    let url = url::Url::parse(value)?;
+    anyhow::ensure!(
+        url.scheme() == "http"
+            && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
+            && url.username().is_empty()
+            && url.password().is_none()
+            && url.query().is_none()
+            && url.fragment().is_none()
+            && url.path() == "/",
+        "expected a loopback HTTP origin"
+    );
+    Ok(url.origin().ascii_serialization())
+}
+
+pub(super) fn authorized(
+    headers: &hyper::HeaderMap,
+    token: &str,
+    origin: &str,
+    host: &str,
+) -> bool {
+    let bearer = headers
+        .get("authorization")
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .unwrap_or("");
+    let same_secret = bearer.len() == token.len()
+        && bearer
+            .bytes()
+            .zip(token.bytes())
+            .fold(0u8, |difference, (a, b)| difference | (a ^ b))
+            == 0;
+    same_secret
+        && headers.get("host").and_then(|v| v.to_str().ok()) == Some(host)
+        && headers
+            .get("origin")
+            .is_none_or(|v| v.to_str().ok() == Some(origin))
 }
 
 #[cfg(test)]

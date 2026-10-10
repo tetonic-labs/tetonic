@@ -127,8 +127,10 @@ it('keeps the receipt after polling removes the resolved request and never claim
   allow.focus();
   fireEvent.click(allow);
   await screen.findByText('Command approved once');
-  expect(document.activeElement).toBe(
-    screen.getByRole('heading', { name: 'Command approved once' }),
+  await waitFor(() =>
+    expect(document.activeElement).toBe(
+      screen.getByRole('heading', { name: 'Command approved once' }),
+    ),
   );
   engine.approvals.pending_approvals = [];
   view.rerender(<ApprovalRequests />);

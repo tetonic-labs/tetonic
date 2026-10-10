@@ -3,8 +3,9 @@ use crate::errors::AppError;
 use crate::resources::TeamWorkLaunch;
 use crate::workspace::{resource, validate_request_id, WorkspaceServices, AGENT, INPUT_LIMIT};
 pub use crate::workspace::{
-    CreateLocalAgent, ImportSkill, LocalAgent, LocalAgentCatalog, LocalModelCatalog, LocalProvider,
-    RemoveProviderKey, RevokeSkill, SaveMcpConnection, SaveProviderKey, UpdateLocalAgent,
+    CreateLocalAgent, FolderInspection, ImportSkill, LocalAgent, LocalAgentCatalog,
+    LocalModelCatalog, LocalProvider, RemoveProviderKey, RevokeSkill, SaveMcpConnection,
+    SaveProviderKey, SaveWorkspaceFolders, UpdateLocalAgent, WorkspaceFolderCatalog,
 };
 use serde::{Deserialize, Serialize};
 use tetonic_domain::{ExecutionScope, RunState, TaskState};

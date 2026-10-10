@@ -1,5 +1,6 @@
 import { useId, useState, type ReactNode } from 'react';
 import { AgentSkills } from './AgentSkills';
+import { AgentFolderSetup } from './AgentFolderSetup';
 import { CapabilityPolicyEditor } from './CapabilityPolicyEditor';
 import type { LocalEngine } from '../../engine/client';
 import { ArrowLeft, Plus, Search, Cpu, Plug, Terminal, Database, UserRound } from 'lucide-react';
@@ -24,7 +25,12 @@ import {
 import { AgentProviderKey } from './AgentProviderKey';
 import { AgentModelSelect } from './AgentModelSelect';
 import { AgentMcpTools } from './AgentMcpTools';
-import { agentToolGroups, isFolderTool, supportedAgentTools, toolDescription } from '../../lib/agentCapabilities';
+import {
+  agentToolGroups,
+  isFolderTool,
+  supportedAgentTools,
+  toolDescription,
+} from '../../lib/agentCapabilities';
 
 export function AgentCreateForm({
   teams,
@@ -62,6 +68,7 @@ export function AgentCreateForm({
     refreshing?: boolean;
     onRefresh?: () => void;
     onDiscoverMcp?: (id: string) => Promise<void>;
+    onFolderAdded?: (path: string) => Promise<void>;
   };
 }) {
   const saveHintId = useId();
@@ -85,6 +92,13 @@ export function AgentCreateForm({
   );
   const workingFolder = folderChoice ?? connected?.catalog.workspace_root ?? '';
   const usesFolder = selectedTools.some(isFolderTool);
+  const [folderSetupActive, setFolderSetupActive] = useState(false);
+  const folderUnavailable =
+    !!connected &&
+    usesFolder &&
+    (!workingFolder ||
+      (!!connected.catalog.workspace_folders &&
+        !connected.catalog.workspace_folders.includes(workingFolder)));
   const [hostedConsent, setHostedConsent] = useState(!!agent?.hosted_consent);
   const scopeKey = JSON.stringify([
     provider,
@@ -165,21 +179,25 @@ export function AgentCreateForm({
   const choices = [...new Set([defaultModel, ...models])].filter(
     (name) => name && name !== 'Not connected' && name !== 'Workspace default',
   );
-  const saveHint = !name.trim()
-    ? 'Start with a name for your agent.'
-    : hosted && !lab?.key_saved
-      ? `Connect ${lab?.name || provider} above to choose a model.`
-      : !resolvedModel
-        ? 'Choose a model to continue.'
-        : hosted && !hostedConsent
-          ? 'Review and allow conversation sharing above.'
-          : compatibilityIssue
-            ? 'Review the model and tool compatibility above.'
-            : requiresToolConsent && !hostedToolsConsent
-              ? 'Review and allow sharing for the selected tools.'
-              : agent
-                ? 'Changes apply to new work.'
-                : 'You can change these settings later.';
+  const saveHint = folderSetupActive
+    ? 'Finish or cancel folder setup before saving your agent.'
+    : folderUnavailable
+      ? 'Choose an available working folder for the selected tools.'
+      : !name.trim()
+        ? 'Start with a name for your agent.'
+        : hosted && !lab?.key_saved
+          ? `Connect ${lab?.name || provider} above to choose a model.`
+          : !resolvedModel
+            ? 'Choose a model to continue.'
+            : hosted && !hostedConsent
+              ? 'Review and allow conversation sharing above.'
+              : compatibilityIssue
+                ? 'Review the model and tool compatibility above.'
+                : requiresToolConsent && !hostedToolsConsent
+                  ? 'Review and allow sharing for the selected tools.'
+                  : agent
+                    ? 'Changes apply to new work.'
+                    : 'You can change these settings later.';
   function changeTeam(id: string) {
     const next = configurationForTeam(configuration, resources, id);
     setNotice(
@@ -205,6 +223,8 @@ export function AgentCreateForm({
           !resolvedModel ||
           !providerReady ||
           compatibilityIssue ||
+          folderSetupActive ||
+          folderUnavailable ||
           connected?.saving
         )
           return;
@@ -463,13 +483,14 @@ export function AgentCreateForm({
               selected
             </span>
           </legend>
-          {connected && usesFolder && (
+          {connected && (usesFolder || connected.catalog.folder_management) && (
             <div className="agent-working-folder">
               <label>
                 Working folder
                 {connected.catalog.workspace_folders ? (
                   <select
                     value={workingFolder}
+                    disabled={connected.saving || folderSetupActive}
                     onChange={(event) => setFolderChoice(event.target.value)}
                   >
                     <option value="">Choose an approved folder</option>
@@ -488,17 +509,28 @@ export function AgentCreateForm({
                 )}
               </label>
               <p className="agent-field-note">
-                File and terminal tools stay within this folder. Saving applies to new work; active
-                runs keep their existing access.
+                {usesFolder
+                  ? 'Saving applies this folder to new work; active runs keep their existing access.'
+                  : 'For file or terminal access, choose a folder and select the abilities below. A folder alone does not grant access.'}
               </p>
-              <details>
-                <summary>Need a different folder?</summary>
-                <p>
-                  The host operator can add it to <code>agent_folders</code> in the engine
-                  configuration. Refresh setup after the engine reloads. Your discussion stays
-                  saved. This does not grant access to any other folders.
+              {connected.catalog.folder_management &&
+              connected.permissionsClient &&
+              connected.onFolderAdded ? (
+                <AgentFolderSetup
+                  client={connected.permissionsClient}
+                  disabled={connected.saving}
+                  onActiveChange={setFolderSetupActive}
+                  onAdded={async (path) => {
+                    await connected.onFolderAdded!(path);
+                    setFolderChoice(path);
+                  }}
+                />
+              ) : (
+                <p className="agent-field-note">
+                  Need another folder? The host operator manages available folders. Refresh engine
+                  setup after they add it.
                 </p>
-              </details>
+              )}
             </div>
           )}
           <div className="agent-tool-grid">
@@ -635,9 +667,8 @@ export function AgentCreateForm({
               />
               <span>
                 Allow selected tool inputs and results to be sent to {lab?.name}.
-                {selectedTools.some(
-                  isFolderTool,
-                ) && ` Working folder: ${workingFolder || 'the engine’s configured folder'}.`}{' '}
+                {selectedTools.some(isFolderTool) &&
+                  ` Working folder: ${workingFolder || 'the engine’s configured folder'}.`}{' '}
                 Only the selected tools are included in this approval.
               </span>
             </label>
@@ -778,6 +809,8 @@ export function AgentCreateForm({
             !resolvedModel ||
             !providerReady ||
             !!compatibilityIssue ||
+            folderSetupActive ||
+            folderUnavailable ||
             connected?.saving
           }
         >

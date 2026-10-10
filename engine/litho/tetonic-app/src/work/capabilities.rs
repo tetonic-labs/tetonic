@@ -1,6 +1,18 @@
 //! Compatibility entry points delegate capability management to its scoped owner.
 use super::*;
 impl WorkService {
+    pub async fn folder_catalog(&self) -> Result<WorkspaceFolderCatalog, AppError> {
+        self.services.folder_catalog().await
+    }
+    pub async fn inspect_folder(&self, input: FolderInspection) -> Result<String, AppError> {
+        self.services.inspect_folder(input).await
+    }
+    pub async fn save_folders(
+        &self,
+        input: SaveWorkspaceFolders,
+    ) -> Result<WorkspaceFolderCatalog, AppError> {
+        self.services.save_folders(input).await
+    }
     pub fn with_mcp_config(mut self, bytes: &[u8]) -> Result<Self, AppError> {
         self.services = self.services.with_mcp_config(bytes)?;
         Ok(self)

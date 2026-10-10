@@ -39,6 +39,7 @@ pub struct LocalAgentCatalog {
     pub mcp_connections: Vec<crate::mcp::McpConnectionView>,
     pub workspace_root: Option<String>,
     pub workspace_folders: Vec<String>,
+    pub folder_management: bool,
     pub default_steps: usize,
     pub default_seconds: u64,
     pub runtime_profiles: Vec<LocalAgentRuntimeProfile>,
@@ -90,6 +91,7 @@ impl WorkspaceServices {
             Ok(models) => (models, None),
             Err(error) => (Vec::new(), Some(error.employee_message().to_string())),
         };
+        let workspace_folders = self.available_folders()?;
         let mut tools: Vec<_> = self
             .host
             .settings
@@ -99,6 +101,9 @@ impl WorkspaceServices {
             .cloned()
             .collect();
         tools.sort();
+        if workspace_folders.is_empty() {
+            tools.retain(|tool| !crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str()));
+        }
         tools.extend(
             self.host
                 .settings
@@ -110,7 +115,8 @@ impl WorkspaceServices {
         let skills = self.workspace_skills()?;
         tools.extend(skills.iter().filter(|s| s.enabled).map(|s| s.id.clone()));
         Ok(LocalAgentCatalog {
-            workspace_folders: self.available_folders(),
+            workspace_folders,
+            folder_management: self.owner_folder_registration,
             default_steps: self.host.settings.limits.max_steps.min(16),
             default_seconds: self.host.settings.max_elapsed_seconds.min(300),
             mcp_management: true,

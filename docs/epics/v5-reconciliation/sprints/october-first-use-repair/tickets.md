@@ -26,7 +26,7 @@ All nine tickets are **P0 and required for the additional product-experience rel
 <a id="exp-002"></a>
 ## EXP-002 — Make relevant access and execution limits usable
 
-**Status:** implemented revisioned selection of host-approved folders, disclosure checks, control-directory exclusions and higher finite ceilings. In-app addition of new host-approved folders and reference model/profile qualification remain open.
+**Status:** implemented revisioned selection of host-approved folders, disclosure checks, control-directory exclusions and higher finite ceilings. October 9 adds owner-authorized folder registration directly in the existing agent editor, durable scoped approvals, host lockdown, canonical-path checks and draft-preserving refresh. Reference model/profile qualification and the complete first-use journey remain open; see [working setup evidence](working-setup-2026-10-09.md).
 
 **Problem:** an agent can see only an empty folder, cannot reach the requested repositories, and spends its short allowance searching. The owner cannot meaningfully adjust the 8-step/120-second ceilings.
 

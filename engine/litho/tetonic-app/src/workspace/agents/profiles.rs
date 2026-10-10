@@ -22,8 +22,12 @@ impl WorkspaceServices {
             .cloned()
             .collect();
         tools.sort();
+        let has_folder = self
+            .available_folders()
+            .is_ok_and(|paths| !paths.is_empty());
         tools.retain(|tool| {
-            tool == "blackboard" || crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str())
+            tool == "blackboard"
+                || (has_folder && crate::resources::WORKSPACE_TOOLS.contains(&tool.as_str()))
         });
         tools.extend(
             self.host

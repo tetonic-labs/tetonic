@@ -16,6 +16,9 @@ pub struct HostConfiguration {
     /// Additional operator-approved working folders offered in agent setup.
     /// Selecting one still requires an authenticated agent revision and tool grants.
     pub agent_folders: Vec<PathBuf>,
+    /// Prevent the authenticated local owner from adding folders through the UI.
+    /// When locked, only startup-configured folders are available, including after restart.
+    pub lock_agent_folders: bool,
 }
 
 #[derive(Clone, Debug, Deserialize, Serialize)]

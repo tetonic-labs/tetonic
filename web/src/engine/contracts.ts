@@ -179,7 +179,14 @@ export interface EngineTask {
 export interface GuideActivity {
   id: string;
   operation: 'resources' | 'work' | 'inspect' | 'propose' | 'repair';
-  state: 'requested' | 'completed' | 'failed' | 'unconfirmed' | 'interrupted' | 'repair_needed' | 'repair_failed';
+  state:
+    | 'requested'
+    | 'completed'
+    | 'failed'
+    | 'unconfirmed'
+    | 'interrupted'
+    | 'repair_needed'
+    | 'repair_failed';
 }
 
 export interface EngineWorkspace {
@@ -263,6 +270,7 @@ export interface WorkspaceSkill {
 }
 
 export interface AgentCatalog {
+  folder_management?: boolean;
   workspace_folders?: string[];
   default_steps?: number;
   default_seconds?: number;
@@ -279,6 +287,13 @@ export interface AgentCatalog {
   max_steps: number;
   max_seconds: number;
   max_tokens: number;
+}
+
+export interface WorkspaceFolders {
+  revision: number;
+  paths: string[];
+  configured_paths: string[];
+  can_manage: boolean;
 }
 
 export interface McpTool {
@@ -388,17 +403,43 @@ export type AutonomyTier = 'automatic' | 'review_changes' | 'read_only';
 export interface CapabilityPolicy {
   tier: AutonomyTier;
   overrides: Partial<Record<Capability, CapabilityDecision>>;
-  communication?: { mode: 'assigned_work' | 'blocked' } | { mode: 'selected_agents'; agent_ids: string[] };
+  communication?:
+    | { mode: 'assigned_work' | 'blocked' }
+    | { mode: 'selected_agents'; agent_ids: string[] };
 }
-export interface BlackboardPeer { agent_id: string; name: string; work_id: string }
-export interface BlackboardReaction { emoji: '👍' | '❤️' | '👀' | '🎉' | '💡' | '🙏' | '🤔' | '✅'; agents: BlackboardPeer[] }
-export interface BlackboardMessage { id: string; author: BlackboardPeer; body: string; created_at: string; reply_to: string | null; reactions?: BlackboardReaction[] }
+export interface BlackboardPeer {
+  agent_id: string;
+  name: string;
+  work_id: string;
+}
+export interface BlackboardReaction {
+  emoji: '👍' | '❤️' | '👀' | '🎉' | '💡' | '🙏' | '🤔' | '✅';
+  agents: BlackboardPeer[];
+}
+export interface BlackboardMessage {
+  id: string;
+  author: BlackboardPeer;
+  body: string;
+  created_at: string;
+  reply_to: string | null;
+  reactions?: BlackboardReaction[];
+}
 export interface BlackboardThread {
-  id: string; source_work_id: string; root_work_id: string; title: string;
-  kind: 'finding' | 'question' | 'handoff'; audience: BlackboardPeer[];
-  resolved: boolean; messages: BlackboardMessage[]; reply_count: number; updated_at: string;
+  id: string;
+  source_work_id: string;
+  root_work_id: string;
+  title: string;
+  kind: 'finding' | 'question' | 'handoff';
+  audience: BlackboardPeer[];
+  resolved: boolean;
+  messages: BlackboardMessage[];
+  reply_count: number;
+  updated_at: string;
 }
-export interface BlackboardPage { threads: BlackboardThread[]; has_more: boolean }
+export interface BlackboardPage {
+  threads: BlackboardThread[];
+  has_more: boolean;
+}
 export interface ScopedCapabilityPolicy {
   scope: 'workspace' | 'team' | 'agent';
   scope_id: string;

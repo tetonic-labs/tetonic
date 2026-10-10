@@ -43,6 +43,7 @@ impl LocalWorkspace {
         configuration: HostConfiguration,
     ) -> Result<Self, AppError> {
         configuration.validate()?;
+        let owner_folder_registration = !configuration.lock_agent_folders;
         let agent_folders = configuration.agent_folders.clone();
         let protected_folders = [
             configuration.storage.artifact_directory.clone(),
@@ -79,23 +80,24 @@ impl LocalWorkspace {
             .map_err(resource)?;
 
         let has_workspace = workspace_root.is_some();
-        let mut allowed_tools: std::collections::HashSet<String> = if has_workspace {
-            [
-                "read_file",
-                "list_dir",
-                "grep",
-                "glob",
-                "edit_file",
-                "write_file",
-                "run_shell",
-                "finish",
-            ]
-            .into_iter()
-            .map(String::from)
-            .collect()
-        } else {
-            Default::default()
-        };
+        let mut allowed_tools: std::collections::HashSet<String> =
+            if has_workspace || !configuration.lock_agent_folders {
+                [
+                    "read_file",
+                    "list_dir",
+                    "grep",
+                    "glob",
+                    "edit_file",
+                    "write_file",
+                    "run_shell",
+                    "finish",
+                ]
+                .into_iter()
+                .map(String::from)
+                .collect()
+            } else {
+                Default::default()
+            };
         // Keep control state outside the command working folder. The process
         // sink enforces this too; do not offer an unusable terminal permission.
         let shell_ready = workspace_root
@@ -103,7 +105,7 @@ impl LocalWorkspace {
             .and_then(|path| tetonic_tools::Workspace::new(path).ok())
             .zip(database.canonicalize().ok())
             .is_some_and(|(workspace, database)| !database.starts_with(workspace.root()));
-        if !shell_ready {
+        if !shell_ready && (has_workspace || configuration.lock_agent_folders) {
             allowed_tools.remove("run_shell");
         }
 
@@ -271,17 +273,17 @@ impl LocalWorkspace {
                 .ok_or(AppError::InferenceUnavailable)?,
             vault: std::sync::Arc::new(tetonic_secrets::key_storage::PlatformKeyStorage),
         });
-        Ok(Self {
-            services: WorkspaceServices::bind(
-                local,
-                host,
-                scope,
-                keys,
-                execution,
-                agent_folders,
-                protected_folders,
-            )
-            .await?,
-        })
+        let mut services = WorkspaceServices::bind(
+            local,
+            host,
+            scope,
+            keys,
+            execution,
+            agent_folders,
+            protected_folders,
+        )
+        .await?;
+        services.owner_folder_registration = owner_folder_registration;
+        Ok(Self { services })
     }
 }

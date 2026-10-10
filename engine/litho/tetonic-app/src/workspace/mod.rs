@@ -10,6 +10,8 @@ pub(crate) const DEFAULT_WORK_TOKENS: u64 = 4096;
 pub(crate) const LOCAL_TOKEN_CEILING: u64 = 12_288;
 pub(crate) mod agents;
 mod folders;
+pub use folders::{FolderInspection, WorkspaceFolderCatalog};
+pub use tetonic_memory::SaveWorkspaceFolders;
 mod mcp;
 pub(crate) mod providers;
 mod skills;
@@ -25,6 +27,8 @@ pub(crate) struct WorkspaceServices {
     pub(crate) execution: crate::host::WorkspaceExecutionConfiguration,
     pub(crate) folders: Vec<std::path::PathBuf>,
     pub(crate) protected_folders: Vec<std::path::PathBuf>,
+    // Opted into only by the local-owner bootstrap, never by general service binding.
+    pub(crate) owner_folder_registration: bool,
     // Only admission/configuration changes serialize; inference never holds this lock.
     pub(crate) admission: std::sync::Arc<tokio::sync::Mutex<()>>,
     pub(crate) keys: std::sync::Arc<providers::ProviderKeys>,
@@ -74,6 +78,7 @@ impl WorkspaceServices {
             execution,
             folders,
             protected_folders,
+            owner_folder_registration: false,
             admission: std::sync::Arc::new(tokio::sync::Mutex::new(())),
             #[cfg(test)]
             hosted_transport: None,

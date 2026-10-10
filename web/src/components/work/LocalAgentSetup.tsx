@@ -157,6 +157,14 @@ export function LocalAgentSetup({
         connectionRevision,
         refreshing,
         onRefresh: () => setRetry((value) => value + 1),
+        onFolderAdded: async (path) => {
+          const updated = await client.agentCatalog();
+          if (active.current) setCatalog(updated);
+          if (!updated.workspace_folders?.includes(path))
+            throw new Error(
+              'This folder is no longer available. Check it again before selecting it.',
+            );
+        },
         onDiscoverMcp: async (id) => {
           await client.discoverMcp(id);
           const updated = await client.agentCatalog();

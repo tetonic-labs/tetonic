@@ -14,6 +14,7 @@ import type {
   EngineAgent,
   WorkspaceSkill,
   AgentCatalog,
+  WorkspaceFolders,
   McpConnection,
   EngineProvider,
   ProviderModelCatalog,
@@ -86,7 +87,11 @@ export class LocalEngine {
     return this.request<EngineWorkspace>('/workspace', undefined, signal);
   }
   blackboard(thread?: string, offset = 0, signal?: AbortSignal, workIds?: string[]) {
-    return this.request<BlackboardPage>('/blackboard/query', { thread_id: thread, offset, work_ids: workIds }, signal);
+    return this.request<BlackboardPage>(
+      '/blackboard/query',
+      { thread_id: thread, offset, work_ids: workIds },
+      signal,
+    );
   }
   setBudgetSetting(input: {
     request_id: string;
@@ -97,6 +102,15 @@ export class LocalEngine {
   }
   agentCatalog(signal?: AbortSignal) {
     return this.request<AgentCatalog>('/agent-catalog', undefined, signal);
+  }
+  workspaceFolders(signal?: AbortSignal) {
+    return this.request<WorkspaceFolders>('/workspace-folders', undefined, signal);
+  }
+  inspectFolder(path: string) {
+    return this.request<{ path: string }>('/workspace-folders/inspect', { path });
+  }
+  saveWorkspaceFolders(input: { request_id: string; expected_revision: number; paths: string[] }) {
+    return this.request<WorkspaceFolders>('/workspace-folders', input);
   }
   importSkill(input: { content: string; source: string }) {
     return this.request<WorkspaceSkill>('/skills', input);

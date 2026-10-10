@@ -38,7 +38,7 @@ impl WorkService {
         });
         context["local_access"] = serde_json::json!({
             "configured_folder":self.services.host.settings.workspace_root.as_ref().map(|p|p.to_string_lossy()),
-            "available_folders":self.services.available_folders(),
+            "available_folders":self.services.available_folders()?,
             "rule":"File tools are confined to the configured folder and each agent's selected tools. Other folders and external accounts are not implicitly accessible. If relevant context is missing, ask for that specific access or information; do not send workers searching an unrelated folder. No folder is needed just to discuss an idea."
         });
         context["coordination_limits"] = serde_json::json!({

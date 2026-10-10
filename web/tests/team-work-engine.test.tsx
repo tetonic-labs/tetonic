@@ -106,6 +106,8 @@ function fixture(tasks: EngineTask[] = []) {
   };
   const snapshot = vi.spyOn(client, 'snapshot').mockImplementation(async () => data);
   vi.spyOn(client, 'agentCatalog').mockResolvedValue({
+    workspace_root: 'C:/work',
+    workspace_folders: ['C:/work'],
     models: [agent.model],
     harnesses: ['general'],
     tools: ['read_file'],

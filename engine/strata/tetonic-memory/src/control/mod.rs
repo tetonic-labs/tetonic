@@ -39,5 +39,6 @@ pub(crate) mod trust;
 pub(crate) mod work_briefs;
 pub(crate) mod work_metadata;
 pub(crate) mod work_teams;
+pub(crate) mod workspace_folders;
 pub(crate) mod workspace_mcp;
 pub(crate) mod workspace_skills;

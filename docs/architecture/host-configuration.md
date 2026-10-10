@@ -106,9 +106,8 @@ copy required artifacts before changing an existing deployment's location.
 ### Selecting an agent working folder
 
 `agent_folders` is an optional list of up to 32 additional operator-approved local
-directories. Paths resolve relative to the host configuration file. With a local
-file-tool profile (`--workspace-root`), the connected agent editor offers the base
-folder plus usable additional folders. For example:
+directories. Paths resolve relative to the host configuration file. The connected
+agent editor offers the base folder plus usable additional folders. For example:
 
 ```json
 {
@@ -119,7 +118,7 @@ folder plus usable additional folders. For example:
 
 An agent's selection is saved in its existing immutable definition revision.
 Editing requires the current revision; future runs validate the selected canonical
-path against current host configuration. A removed, unavailable or repointed root
+path against current host configuration and local-owner folder approvals. A removed, unavailable or repointed root
 is rejected rather than replaced with another folder. Existing prepared executions
 keep their captured scope; this setting does not rebind running work. Legacy
 agents without a saved selection continue inheriting the original base folder.
@@ -135,9 +134,33 @@ controls and tool approvals continue to apply.
 For hosted models, selecting a folder and consenting to disclose its contents are
 separate decisions. Changing the selected folder clears the disclosure checkbox;
 the engine validates the exact consented folder before hosted tool execution.
-Adding another entry to `agent_folders` currently requires changing the host config
-and restarting. There is no browser path field that grants arbitrary filesystem
-access and no in-app host-folder manager yet.
+The local owner can also choose **Add a working folder** in the agent editor.
+Enter an existing absolute path on the engine computer, check the resolved path,
+then add and select it. The authenticated local API validates it using the same
+control-storage/credential exclusions before saving an immutable, scoped approval
+revision in the workspace database. No restart or config-file edit is needed.
+The agent draft stays open; only saving that agent grants its selected tools
+access. Other agent definitions and already prepared executions stay unchanged.
+Hosted disclosure remains a separate checkbox. The browser cannot browse the host
+filesystem or create a missing directory through this action.
+
+Set `"lock_agent_folders": true` to make folders exclusively operator-managed.
+This disables in-app registration and excludes previously UI-approved paths from
+future admission; explicitly configured base/additional folders remain available.
+The default is `false` for the local-owner host. General scoped service binding
+does not enable host folder management. The Guide and worker tool registries do
+not expose these management operations. Removing a saved folder approval is a
+future-admission change, not an emergency stop for an already admitted execution.
+
+The owner API exposes `GET /api/local/workspace-folders`,
+`POST /api/local/workspace-folders/inspect` (`path`), and
+`POST /api/local/workspace-folders` (`request_id`, `expected_revision`, sorted
+`paths`). It uses the existing local token, origin, host and version checks.
+Inspection does not grant access. Publication requires the exact reviewed
+canonical paths, a current revision and a distinct request ID; an identical retry
+does not create another revision or roll back a newer change. An unavailable path
+is never replaced with the default folder. Stored approvals use schema 76; older
+writers reject this database version.
 
 ### Configuring longer workspace work
 

@@ -1,7 +1,7 @@
 //! Loopback-only adapter for the owner-controlled local workspace.
 mod contract;
 use clap::Parser;
-use contract::{application_error, error};
+use contract::{application_error, authorized, error, local_origin};
 use http_body_util::{BodyExt, Full, Limited};
 use hyper::{
     body::{Bytes, Incoming},
@@ -149,40 +149,6 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
         .await
 }
 
-fn local_origin(value: &str) -> anyhow::Result<String> {
-    let url = url::Url::parse(value)?;
-    anyhow::ensure!(
-        url.scheme() == "http"
-            && matches!(url.host_str(), Some("127.0.0.1" | "localhost"))
-            && url.username().is_empty()
-            && url.password().is_none()
-            && url.query().is_none()
-            && url.fragment().is_none()
-            && url.path() == "/",
-        "expected a loopback HTTP origin"
-    );
-    Ok(url.origin().ascii_serialization())
-}
-
-fn authorized(headers: &hyper::HeaderMap, token: &str, origin: &str, host: &str) -> bool {
-    let bearer = headers
-        .get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|v| v.strip_prefix("Bearer "))
-        .unwrap_or("");
-    let same_secret = bearer.len() == token.len()
-        && bearer
-            .bytes()
-            .zip(token.bytes())
-            .fold(0u8, |difference, (a, b)| difference | (a ^ b))
-            == 0;
-    same_secret
-        && headers.get("host").and_then(|v| v.to_str().ok()) == Some(host)
-        && headers
-            .get("origin")
-            .is_none_or(|v| v.to_str().ok() == Some(origin))
-}
-
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct Submit {
@@ -230,6 +196,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
         state
             .workspace
             .snapshot()
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path == "/api/local/workspace-folders" {
+        state
+            .workspace
+            .folder_catalog()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path == "/api/local/agent-catalog" {
@@ -299,6 +271,8 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 | "/api/local/capability-policies"
                 | "/api/local/agents"
                 | "/api/local/agents/update"
+                | "/api/local/workspace-folders"
+                | "/api/local/workspace-folders/inspect"
                 | "/api/local/skills"
                 | "/api/local/mcp-connections"
                 | "/api/local/skills/revoke"
@@ -331,7 +305,29 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/blackboard/query" {
+        if path == "/api/local/workspace-folders" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::local_workspace::SaveWorkspaceFolders>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid folder settings.");
+            };
+            state
+                .workspace
+                .save_folders(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/workspace-folders/inspect" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::local_workspace::FolderInspection>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid folder path.");
+            };
+            state
+                .workspace
+                .inspect_folder(payload)
+                .await
+                .map(|path| serde_json::json!({"path":path}))
+        } else if path == "/api/local/blackboard/query" {
             let Ok(query) =
                 serde_json::from_slice::<tetonic_app::local_workspace::BlackboardQuery>(&body)
             else {

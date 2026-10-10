@@ -39,6 +39,7 @@ pub use control::organization_agent_edits::AgentEdit;
 pub use control::organization_agents::RegisteredAgent;
 pub use control::work_metadata::WorkMetadataPatch;
 pub use control::work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
+pub use control::workspace_folders::{SaveWorkspaceFolders, WorkspaceFolders};
 pub use control::workspace_mcp::WorkspaceMcpConnection;
 pub use control::workspace_skills::WorkspaceSkill;
 pub use control::{
