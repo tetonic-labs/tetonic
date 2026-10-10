@@ -11,6 +11,7 @@ pub struct WorkspaceFolderCatalog {
     pub revision: i64,
     pub paths: Vec<String>,
     pub configured_paths: Vec<String>,
+    pub unavailable_paths: Vec<String>,
     pub can_manage: bool,
 }
 
@@ -74,10 +75,21 @@ impl WorkspaceServices {
     pub(crate) async fn folder_catalog(&self) -> Result<WorkspaceFolderCatalog, AppError> {
         self.authorized_scope().await?;
         let saved = self.saved_folders()?;
+        let unavailable_paths = saved
+            .paths
+            .iter()
+            .filter(|p| {
+                !self
+                    .inspect_folder_path(p)
+                    .is_ok_and(|canonical| canonical == **p)
+            })
+            .cloned()
+            .collect();
         Ok(WorkspaceFolderCatalog {
             revision: saved.revision,
             paths: saved.paths,
             configured_paths: self.configured_folders(),
+            unavailable_paths,
             can_manage: self.owner_folder_registration,
         })
     }
@@ -130,9 +142,16 @@ impl WorkspaceServices {
                 "Choose at most 32 additional working folders.".into(),
             ));
         }
-        // Validate the exact reviewed canonical path, including on retries. Aliases
-        // cannot be repointed between review and save to expand the approved scope.
+        let saved = self.saved_folders()?;
+        // Existing approvals can stay recorded while unavailable, so removing one
+        // missing folder does not require revoking every other missing folder.
+        // available_folders/resolve_folder still revalidate them before any grant.
+        // Every newly added path, including a retry after removal, must match the
+        // exact reviewed canonical path; aliases cannot expand the approved scope.
         for path in &input.paths {
+            if saved.paths.contains(path) {
+                continue;
+            }
             if self.inspect_folder_path(path)? != *path {
                 return Err(AppError::Conflict(
                     "A folder changed since it was checked. Check it again before adding it."

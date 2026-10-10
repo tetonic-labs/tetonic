@@ -103,6 +103,54 @@
 .workspace-connection-actions p {
   color: var(--text-secondary);
 }
+.workspace-folders {
+  padding-bottom: 22px;
+  border-top: 1px solid var(--brand-rule);
+}
+.tw-live .px-inspector .workspace-folders .canvas-primary {
+  justify-self: start;
+  padding: 10px 16px;
+  background: var(--surface-ink);
+  color: var(--on-ink);
+  border-radius: 6px;
+}
+.workspace-folders .agent-folder-setup p {
+  margin: 0;
+}
+.workspace-folder-list {
+  list-style: none;
+  margin: 0 0 14px;
+  padding: 0;
+}
+.workspace-folder-list > li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 0;
+  border-top: 1px solid var(--brand-rule);
+}
+.workspace-folder-list > li > div:first-child {
+  flex: 1;
+  min-width: 180px;
+}
+.workspace-folder-list code {
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+.workspace-folder-confirm {
+  flex-basis: 100%;
+  padding: 12px 16px;
+  background: var(--bg-ground);
+}
+.workspace-folder-confirm p {
+  margin-top: 0;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+.workspace-folder-confirm button + button {
+  margin-left: 12px;
+}
 .workspace-theme-toggle {
   position: relative;
   display: flex;

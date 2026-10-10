@@ -293,6 +293,7 @@ export interface WorkspaceFolders {
   revision: number;
   paths: string[];
   configured_paths: string[];
+  unavailable_paths?: string[];
   can_manage: boolean;
 }
 

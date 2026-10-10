@@ -9,11 +9,13 @@ export function AgentFolderSetup({
   disabled,
   onAdded,
   onActiveChange,
+  workspaceOnly = false,
 }: {
   client: LocalEngine;
   disabled: boolean;
   onAdded: (path: string) => Promise<void>;
   onActiveChange: (active: boolean) => void;
+  workspaceOnly?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [path, setPath] = useState('');
@@ -94,14 +96,15 @@ export function AgentFolderSetup({
     );
 
   return (
-    <div className="agent-folder-setup" aria-label="Add a working folder">
+    <div className="agent-folder-setup simple-form" aria-label="Add a working folder">
       {review ? (
         <>
           <strong>Use this folder?</strong>
           <code className="agent-folder-path">{review.path}</code>
           <p className="agent-field-note">
-            This makes the folder available in this workspace. Save the agent to grant its selected
-            file or terminal tools access. Other agents keep their current folders.
+            {workspaceOnly
+              ? 'This makes the folder available to choose in agent settings. Adding it does not grant access to any agent.'
+              : 'This makes the folder available in this workspace. Save the agent to grant its selected file or terminal tools access. Other agents keep their current folders.'}
           </p>
           <div className="agent-folder-actions">
             <button
@@ -110,7 +113,7 @@ export function AgentFolderSetup({
               disabled={disabled || busy}
               onClick={() => void add()}
             >
-              {busy ? 'Adding…' : 'Add and select folder'}
+              {busy ? 'Adding…' : workspaceOnly ? 'Add folder' : 'Add and select folder'}
             </button>
             <button
               type="button"

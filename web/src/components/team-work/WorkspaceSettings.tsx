@@ -2,6 +2,7 @@ import { Monitor, Radio, ShieldCheck, CircleStop } from 'lucide-react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import './workspace-settings.css';
 import { CapabilityPolicyEditor } from '../views/CapabilityPolicyEditor';
+import { WorkspaceFolders } from './WorkspaceFolders';
 
 export function WorkspaceSettings({
   dark,
@@ -45,6 +46,13 @@ export function WorkspaceSettings({
         client={engine.client}
         isConnected={engine.isConnected}
       />
+      {engine.isConnected && (
+        <WorkspaceFolders
+          client={engine.client}
+          agents={workspace?.agents || []}
+          onChanged={engine.refresh}
+        />
+      )}
       <section className="workspace-connection">
         <div className="workspace-setting-row">
           <Radio size={19} aria-hidden="true" />

@@ -1,6 +1,77 @@
 use super::*;
 
 #[tokio::test]
+async fn missing_approvals_are_visible_and_can_be_removed_independently() {
+    let dir = tempfile::tempdir().unwrap();
+    let first = dir.path().join("first");
+    let second = dir.path().join("second");
+    for path in [&first, &second] {
+        std::fs::create_dir(path).unwrap();
+    }
+    let workspace = LocalWorkspace::open(
+        dir.path().join("state.db"),
+        "offline".into(),
+        "http://127.0.0.1:1".into(),
+    )
+    .await
+    .unwrap();
+    let mut paths = vec![];
+    for path in [&first, &second] {
+        paths.push(
+            workspace
+                .inspect_folder(FolderInspection {
+                    path: path.to_string_lossy().into_owned(),
+                })
+                .await
+                .unwrap(),
+        );
+    }
+    workspace
+        .save_folders(SaveWorkspaceFolders {
+            request_id: uuid::Uuid::new_v4().to_string(),
+            expected_revision: 0,
+            paths: paths.clone(),
+        })
+        .await
+        .unwrap();
+    for path in [&first, &second] {
+        std::fs::remove_dir(path).unwrap();
+    }
+    assert_eq!(
+        workspace
+            .folder_catalog()
+            .await
+            .unwrap()
+            .unavailable_paths
+            .len(),
+        2
+    );
+    assert!(workspace.services.available_folders().unwrap().is_empty());
+    let saved = workspace
+        .save_folders(SaveWorkspaceFolders {
+            request_id: uuid::Uuid::new_v4().to_string(),
+            expected_revision: 1,
+            paths: vec![paths[1].clone()],
+        })
+        .await
+        .unwrap();
+    assert_eq!(saved.paths, vec![paths[1].clone()]);
+    assert_eq!(saved.unavailable_paths, saved.paths);
+    assert!(workspace.services.resolve_folder(Some(&paths[1])).is_err());
+    assert!(
+        workspace
+            .save_folders(SaveWorkspaceFolders {
+                request_id: uuid::Uuid::new_v4().to_string(),
+                expected_revision: 2,
+                paths,
+            })
+            .await
+            .is_err(),
+        "an unavailable removed folder cannot be granted again"
+    );
+}
+
+#[tokio::test]
 async fn owner_adds_folder_without_restart_and_existing_agents_keep_their_scope() {
     let dir = tempfile::tempdir().unwrap();
     let first = dir.path().join("first");
