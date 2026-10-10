@@ -14,10 +14,10 @@ pub(super) fn response_schema() -> serde_json::Value {
         "required":["title","summary","token_budget","open_questions","assignments"],
         "properties":{"title":text,"summary":text,"token_budget":{"type":"integer","description":"Total allowance including all assignments AND coordination/synthesis; never allocate the entire total to workers."},
         "open_questions":{"type":"array","items":text},
-        "assignments":{"type":"array","items":{"type":"object","additionalProperties":false,
+        "assignments":{"type":"array","description":"1–12 bounded assignments. Independent contributions use empty depends_on arrays. The existing coordinator combines contributions; do not add an extra synthesis worker unless distinct substantive work requires it.","items":{"type":"object","additionalProperties":false,
             "required":["key","title","instructions","agent_key","depends_on","tools","deliverable","token_budget"],
-            "properties":{"key":text,"title":text,"instructions":text,"agent_key":text,
-                "depends_on":{"type":"array","items":text},"tools":{"type":"array","items":text},"deliverable":text,"token_budget":budget}}}}})
+            "properties":{"key":{"type":"string","description":"Unique assignment ID, 1–48 ASCII letters, digits, hyphens or underscores. No spaces. This identifies the task, not the agent."},"title":text,"instructions":text,"agent_key":{"type":"string","description":"Exact saved agent key from resources. Different from this assignment's key."},
+                "depends_on":{"type":"array","items":text,"description":"Keys of prerequisite assignments in this same plan, NOT agent keys or names. Use [] when independent. No self references or cycles."},"tools":{"type":"array","items":text},"deliverable":text,"token_budget":budget}}}}})
 }
 
 #[derive(Deserialize)]

@@ -443,6 +443,9 @@ impl WorkService {
 // Do not expose provider response bodies, tool output or internal store errors.
 pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
     let reason = reason.unwrap_or_default();
+    if reason == "stopping early: no progress over several steps (repeated or failing tool calls)" {
+        return "The agent stopped after repeated unsuccessful tool calls. Your conversation and saved work are preserved. Review the activity before trying again or choosing another model.";
+    }
     if reason.contains("token allowance") || reason.contains("complete token usage") {
         return "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.";
     }
@@ -475,5 +478,20 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
         "The provider key is unavailable. Save it again in agent setup."
     } else {
         "The run could not finish. Check the model connection and the agent's run limits before trying again."
+    }
+}
+
+#[cfg(test)]
+mod failure_message_tests {
+    use super::task_failure_message;
+
+    #[test]
+    fn progress_failure_is_actionable_without_exposing_internal_text() {
+        let message = task_failure_message(Some(
+            "stopping early: no progress over several steps (repeated or failing tool calls)",
+        ));
+        assert!(message.contains("repeated unsuccessful tool calls"));
+        assert!(message.contains("saved work are preserved"));
+        assert!(!task_failure_message(Some("PRIVATE TOOL OUTPUT")).contains("PRIVATE"));
     }
 }

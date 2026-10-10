@@ -1521,7 +1521,9 @@ impl Agent {
                         || (self.config.attempt_id.is_some()
                             && self.context_compiler.is_none()
                             && self.turn_instructions.is_none()
-                            && invocation.discipline.is_host_tool(tc.function.name.as_str()))
+                            && invocation
+                                .discipline
+                                .is_host_tool(tc.function.name.as_str()))
                 })
             {
                 for (ordinal, call) in tool_calls.iter().enumerate() {
@@ -1611,7 +1613,8 @@ impl Agent {
                     args: args.clone(),
                 });
 
-                // D7: validate tool JSON before execute; one repair pass via tool result.
+                // Reject before execution and let the model correct the call
+                // within the existing progress, step, time and token limits.
                 {
                     if let Err(e) = self.tools.validate_tool_args(&name, &args) {
                         let feedback = format!(
@@ -1638,6 +1641,18 @@ Fix the JSON to match the tool schema and call the tool again."
                         convo.messages.push(
                             Message::tool(name.clone(), feedback).with_tool_call_id(&call_id),
                         );
+                        if monitor.record_control_result(false) {
+                            let note = monitor.stuck_reason();
+                            if let Some(a) = self.audit() {
+                                a.note(note);
+                            }
+                            self.abort_staged_mutations().await;
+                            on_step(Step::Stopped(note.into()));
+                            return CandidateOutcome::Limited {
+                                kind: LimitKind::NoProgress,
+                                message: note.into(),
+                            };
+                        }
                         continue 'steps;
                     }
                 }
@@ -1812,6 +1827,18 @@ Fix the JSON to match the tool schema and call the tool again."
                         convo.messages.push(
                             Message::tool(name.clone(), model_str).with_tool_call_id(&call_id),
                         );
+                        if monitor.record_control_result(outcome.ok) {
+                            let note = monitor.stuck_reason();
+                            if let Some(a) = self.audit() {
+                                a.note(note);
+                            }
+                            self.abort_staged_mutations().await;
+                            on_step(Step::Stopped(note.into()));
+                            return CandidateOutcome::Limited {
+                                kind: LimitKind::NoProgress,
+                                message: note.into(),
+                            };
+                        }
                         continue 'steps;
                     }
                     let feedback = invocation

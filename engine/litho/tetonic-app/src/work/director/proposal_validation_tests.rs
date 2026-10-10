@@ -1,6 +1,60 @@
 use super::*;
 
 #[tokio::test]
+async fn managed_guide_repairs_malformed_assignment_keys_without_extra_work() {
+    let dir = tempfile::tempdir().unwrap();
+    let valid = plan("Compare workshop options");
+    let mut malformed = valid.clone();
+    malformed.assignments[0].key = "Format analyst".into();
+    let propose = |content| json!({"name":"work_plan","arguments":{"operation":"propose","direction":"Compare the supplied workshop options","plan":content,"work_id":null}});
+    let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+        true,
+        "sequence",
+        json!([propose(malformed), propose(valid.clone())]),
+        false,
+    )
+    .await;
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let workspace =
+                LocalWorkspace::open(dir.path().join("guide.db"), "qwen3.5:latest".into(), url)
+                    .await
+                    .unwrap();
+            let source = uuid::Uuid::new_v4().to_string();
+            workspace
+                .submit_with_purpose(
+                    source.clone(),
+                    "Plan a comparison".into(),
+                    shaping::GUIDE.into(),
+                    None,
+                    WorkPurpose::Explore,
+                )
+                .await
+                .unwrap();
+            done(&workspace, &source).await;
+            let requests = calls.lock().unwrap();
+            assert_eq!(requests.len(), 3);
+            let feedback = requests[1]["messages"].to_string();
+            assert!(feedback.contains("assignments[0].key") && feedback.contains("no spaces"));
+            drop(requests);
+            let view = workspace.plan_view(&source).await.unwrap();
+            assert_eq!(view.plans.len(), 1);
+            assert_eq!(view.plans[0].content.as_ref(), Some(&valid));
+            assert!(view.execution.is_none() && view.readiness.is_empty());
+            assert_eq!(workspace.work_briefs(&source).await.unwrap().len(), 1);
+            assert!(workspace
+                .snapshot()
+                .await
+                .unwrap()
+                .tasks
+                .iter()
+                .all(|t| t.purpose == WorkPurpose::Explore));
+        })
+        .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn managed_guide_corrects_once_and_preserves_scope_without_starting_work() {
     for changes_scope in [false, true] {
         let dir = tempfile::tempdir().unwrap();

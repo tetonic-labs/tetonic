@@ -361,6 +361,12 @@ fn model_commands_cannot_smuggle_launch_authority_or_select_another_conversation
         .err()
         .unwrap();
     assert!(missing_direction.contains("missing field `direction`"));
+    let quoted_plan =
+        command(json!({"operation":"propose","direction":"Shared","plan":"PRIVATE_QUOTED_PLAN"}))
+            .err()
+            .unwrap();
+    assert!(quoted_plan.contains("JSON object, not a quoted JSON string"));
+    assert!(!quoted_plan.contains("PRIVATE_QUOTED_PLAN"));
     for value in [
         json!({"operation":"start"}),
         json!({"operation":"agree"}),

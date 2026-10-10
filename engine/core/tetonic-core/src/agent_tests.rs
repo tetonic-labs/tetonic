@@ -4,6 +4,9 @@ use tetonic_domain::{ActionKind, CapabilityError, ToolAdvertisement, ToolProposa
 use tetonic_inference::{ChatRequest, ChatResponse, FabricSnapshot, InferenceError, TokenSink};
 use tetonic_tools::Tools;
 
+#[path = "tool_recovery_tests.rs"]
+mod tool_recovery;
+
 fn test_inv(user: &str) -> AgentInvocation {
     test_inv_explain(user, false)
 }

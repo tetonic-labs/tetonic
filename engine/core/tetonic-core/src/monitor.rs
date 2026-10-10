@@ -101,6 +101,18 @@ impl HeuristicMonitor {
         self.no_progress += 1;
     }
 
+    /// Host controls can return changing state for identical arguments. Count
+    /// their failures, not repeated successful reads, against the same cutoff
+    /// used by ordinary tools. Argument rejection also uses this path.
+    pub fn record_control_result(&mut self, ok: bool) -> bool {
+        if ok {
+            self.no_progress = 0;
+        } else {
+            self.record_no_progress_event();
+        }
+        self.no_progress >= self.no_progress_limit
+    }
+
     pub fn record_tool_execution(
         &mut self,
         name: &str,

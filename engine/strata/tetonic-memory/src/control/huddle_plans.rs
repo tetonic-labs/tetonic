@@ -30,59 +30,76 @@ pub struct PlanContent {
 
 impl PlanContent {
     pub fn validate(&self) -> Result<()> {
-        text(&self.title, 160)?;
-        text(&self.summary, 2000)?;
-        if self.assignments.is_empty()
-            || self.assignments.len() > 12
-            || self.open_questions.len() > 12
-        {
-            return invalid();
+        field_text("title", &self.title, 160)?;
+        field_text("summary", &self.summary, 2000)?;
+        if self.assignments.is_empty() || self.assignments.len() > 12 {
+            return invalid_field("assignments", "provide 1–12 assignments");
         }
-        for question in &self.open_questions {
-            text(question, 1000)?;
+        if self.open_questions.len() > 12 {
+            return invalid_field("open_questions", "provide at most 12 questions");
+        }
+        for (index, question) in self.open_questions.iter().enumerate() {
+            field_text(&format!("open_questions[{index}]"), question, 1000)?;
         }
         let mut keys = HashSet::new();
-        for assignment in &self.assignments {
-            text(&assignment.key, 48)?;
+        for (index, assignment) in self.assignments.iter().enumerate() {
+            let field = |name: &str| format!("assignments[{index}].{name}");
+            field_text(&field("key"), &assignment.key, 48)?;
             if !assignment
                 .key
                 .bytes()
                 .all(|b| b.is_ascii_alphanumeric() || b == b'-' || b == b'_')
-                || !keys.insert(assignment.key.as_str())
             {
-                return invalid();
+                return invalid_field(&field("key"), "use only ASCII letters, digits, hyphens or underscores; no spaces. This is an assignment ID, not the agent's name");
             }
-            text(&assignment.title, 160)?;
-            text(&assignment.instructions, 4000)?;
-            text(&assignment.agent_key, 128)?;
-            text(&assignment.deliverable, 1000)?;
+            if !keys.insert(assignment.key.as_str()) {
+                return invalid_field(&field("key"), "each assignment needs a unique key");
+            }
+            field_text(&field("title"), &assignment.title, 160)?;
+            field_text(&field("instructions"), &assignment.instructions, 4000)?;
+            field_text(&field("agent_key"), &assignment.agent_key, 128)?;
+            field_text(&field("deliverable"), &assignment.deliverable, 1000)?;
             if assignment.token_budget == 0 || assignment.token_budget > 1_000_000 {
-                return invalid();
+                return invalid_field(
+                    &field("token_budget"),
+                    "use an integer between 1 and 1000000, within the saved agent's allowance",
+                );
             }
-            if assignment.tools.len() > 16 || assignment.depends_on.len() > 12 {
-                return invalid();
+            if assignment.tools.len() > 16 {
+                return invalid_field(&field("tools"), "use at most 16 granted tools");
+            }
+            if assignment.depends_on.len() > 12 {
+                return invalid_field(&field("depends_on"), "use at most 12 assignment keys");
             }
             for tool in &assignment.tools {
-                text(tool, 128)?;
+                field_text(&field("tools"), tool, 128)?;
             }
-            if assignment.tools.iter().collect::<HashSet<_>>().len() != assignment.tools.len()
-                || assignment.depends_on.iter().collect::<HashSet<_>>().len()
-                    != assignment.depends_on.len()
+            if assignment.tools.iter().collect::<HashSet<_>>().len() != assignment.tools.len() {
+                return invalid_field(&field("tools"), "remove duplicate tool entries");
+            }
+            if assignment.depends_on.iter().collect::<HashSet<_>>().len()
+                != assignment.depends_on.len()
             {
-                return invalid();
+                return invalid_field(&field("depends_on"), "remove duplicate dependency keys");
             }
         }
         let total: u64 = self.assignments.iter().map(|a| a.token_budget).sum();
-        if self.token_budget == 0 || self.token_budget > 1_000_000 || total > self.token_budget {
-            return invalid();
+        if self.token_budget == 0 || self.token_budget > 1_000_000 {
+            return invalid_field(
+                "token_budget",
+                "use an integer between 1 and 1000000 within the owner's allowance",
+            );
         }
-        for assignment in &self.assignments {
+        if total > self.token_budget {
+            return invalid_field("assignments.token_budget", "worker allocations exceed the plan total. Rebalance within the existing total and leave room for coordination");
+        }
+        for (index, assignment) in self.assignments.iter().enumerate() {
             if assignment
                 .depends_on
                 .iter()
                 .any(|key| !keys.contains(key.as_str()) || key == &assignment.key)
             {
-                return invalid();
+                return invalid_field(&format!("assignments[{index}].depends_on"), "reference another assignment's key in this plan, never an agent_key, agent name or this assignment's own key. Use [] for independent work");
             }
         }
         // Topological elimination validates cycles without relying on array order.
@@ -102,7 +119,7 @@ impl PlanContent {
                 break;
             }
             if before == resolved.len() {
-                return invalid();
+                return invalid_field("assignments.depends_on", "dependencies contain a cycle. Preserve real prerequisites in an acyclic graph; independent assignments use []");
             }
         }
         if serde_json::to_vec(self)
@@ -110,8 +127,26 @@ impl PlanContent {
             .len()
             > 48_000
         {
-            return invalid();
+            return invalid_field("plan", "serialized plan must be at most 48000 bytes; shorten text without removing requested work");
         }
+        Ok(())
+    }
+}
+
+fn invalid_field<T>(field: &str, reason: &str) -> Result<T> {
+    // Paths are engine-authored indices/names, never echoed model text.
+    Err(StoreError::InvalidControlResource(format!(
+        "plan.{field}: {reason}"
+    )))
+}
+
+fn field_text(field: &str, value: &str, max: usize) -> Result<()> {
+    if value.trim().is_empty() || value.len() > max || value.contains('\0') {
+        invalid_field(
+            field,
+            &format!("provide nonempty text of at most {max} UTF-8 bytes without null characters"),
+        )
+    } else {
         Ok(())
     }
 }
@@ -196,6 +231,32 @@ mod tests {
         let mut too_long = plan;
         too_long.assignments[0].instructions = "x".repeat(4001);
         assert!(too_long.validate().is_err());
+    }
+    #[test]
+    fn validation_identifies_repairable_fields_without_echoing_private_text() {
+        let mut plan = content();
+        plan.assignments[0].key = "PRIVATE AGENT NAME".into();
+        let error = plan.validate().unwrap_err().to_string();
+        assert!(error.contains("assignments[0].key") && error.contains("no spaces"));
+        assert!(!error.contains("PRIVATE AGENT NAME"));
+        plan.assignments[0].key = "research".into();
+        plan.assignments[1].depends_on = vec!["Researcher".into()];
+        let error = plan.validate().unwrap_err().to_string();
+        assert!(
+            error.contains("assignments[1].depends_on") && error.contains("never an agent_key")
+        );
+        plan.assignments[1].depends_on = vec!["research".into()];
+        plan.assignments[0].instructions = "private".repeat(600);
+        let error = plan.validate().unwrap_err().to_string();
+        assert!(error.contains("assignments[0].instructions") && error.contains("4000"));
+        assert!(!error.contains("private"));
+        plan.assignments[0].instructions = "Read supplied evidence".into();
+        plan.token_budget = 3999;
+        assert!(plan
+            .validate()
+            .unwrap_err()
+            .to_string()
+            .contains("allocations exceed the plan total"));
     }
     #[test]
     fn durable_huddle_revisions_agreement_retries_and_stale_direction() {

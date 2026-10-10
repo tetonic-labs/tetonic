@@ -24,6 +24,9 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
     if value.to_string().len() > 60_000 {
         return Err("Keep the proposal concise.".into());
     }
+    if value["operation"] == "propose" && value["plan"].is_string() {
+        return Err("work_plan.plan must be a JSON object, not a quoted JSON string. Send its fields directly inside plan; do not stringify the proposal.".into());
+    }
     // A fixed, fully required outer shape is easier for model tool callers.
     // Only null placeholders are omitted for inspection, never unknown fields.
     if value["operation"] != "propose" {
@@ -84,7 +87,7 @@ impl DirectorBinding {
                     "operation":{"type":"string","enum":["resources","work","inspect","propose"]},
                     "work_id":{"type":["string","null"],"description":"For work: a recorded work ID to inspect, or null to list efforts. Null for all other operations."},
                     "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for read operations."},
-                    "plan":{"anyOf":[self.plan_schema,{"type":"null"}],"description":"Complete proposal for propose; null for read operations."}}}),
+                    "plan":{"anyOf":[self.plan_schema,{"type":"null"}],"description":"Complete JSON object for propose, never quoted or stringified JSON; null for read operations."}}}),
         }
     }
 
@@ -92,9 +95,12 @@ impl DirectorBinding {
         let Some(attempt) = request.attempt_id else {
             return ToolOutcome::fail("Managed conversation required", "denied");
         };
+        if request.tool_name != CONTROL {
+            return ToolOutcome::fail("Invalid work plan request", "bad_args");
+        }
         let command = match command(request.arguments) {
-            Ok(command) if request.tool_name == CONTROL => command,
-            _ => return ToolOutcome::fail("Invalid work plan request", "bad_args"),
+            Ok(command) => command,
+            Err(detail) => return ToolOutcome::fail(detail, "bad_args"),
         };
         let (reply, receive) = tokio::sync::oneshot::channel();
         if self
