@@ -1,6 +1,68 @@
 use super::*;
 
 #[tokio::test]
+async fn malformed_repairs_cannot_reset_their_limit_with_resource_reads() {
+    let dir = tempfile::tempdir().unwrap();
+    let valid = plan("Compare options");
+    let mut invalid = valid.clone();
+    invalid.assignments[0].key = "Invalid key".into();
+    let propose = |p| json!({"name":"work_plan","arguments":{"operation":"propose","direction":"Compare options","plan":p}});
+    let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
+        true,
+        "sequence",
+        json!([
+            propose(invalid.clone()),
+            {"name":"work_plan","arguments":{"operation":"resources"}},
+            propose(invalid),
+            {"name":"work_plan","arguments":{"operation":"resources"}},
+            propose(valid)
+        ]),
+        false,
+    )
+    .await;
+    tokio::task::LocalSet::new()
+        .run_until(async {
+            let workspace =
+                LocalWorkspace::open(dir.path().join("guide.db"), "qwen3.5:latest".into(), url)
+                    .await
+                    .unwrap();
+            let source = uuid::Uuid::new_v4().to_string();
+            workspace
+                .submit_with_purpose(
+                    source.clone(),
+                    "Plan a comparison".into(),
+                    shaping::GUIDE.into(),
+                    None,
+                    WorkPurpose::Explore,
+                )
+                .await
+                .unwrap();
+            done(&workspace, &source).await;
+            let view = workspace.plan_view(&source).await.unwrap();
+            assert!(view.plans.is_empty() && view.execution.is_none());
+            assert!(workspace.work_briefs(&source).await.unwrap().is_empty());
+            let activity = workspace.task(&source).await.unwrap().guide_activity;
+            assert_eq!(
+                activity
+                    .iter()
+                    .filter(|a| a.state == "repair_needed")
+                    .count(),
+                1
+            );
+            assert_eq!(
+                activity
+                    .iter()
+                    .filter(|a| a.state == "repair_failed")
+                    .count(),
+                2
+            );
+            assert!(calls.lock().unwrap().len() >= 5);
+        })
+        .await;
+    server.abort();
+}
+
+#[tokio::test]
 async fn managed_guide_repairs_malformed_assignment_keys_without_extra_work() {
     let dir = tempfile::tempdir().unwrap();
     let valid = plan("Compare workshop options");
@@ -536,11 +598,14 @@ async fn selected_roster_limits_schema_and_rejection_does_not_save_a_brief() {
     }
     assert!(workspace.work_briefs(&source).await.unwrap().is_empty());
     assert!(workspace.plan_view(&source).await.unwrap().plans.is_empty());
-    workspace
-        .director_propose(&session.binding, "Right team".into(), plan("Valid"))
-        .await
-        .unwrap();
-    assert_eq!(workspace.work_briefs(&source).await.unwrap().len(), 1);
+    assert!(
+        workspace
+            .director_propose(&session.binding, "Right team".into(), plan("Valid"))
+            .await
+            .is_err(),
+        "A third proposal cannot bypass two earlier rejected attempts"
+    );
+    assert!(workspace.work_briefs(&source).await.unwrap().is_empty());
     assert!(calls.lock().unwrap().is_empty());
     server.abort();
 }

@@ -2,6 +2,7 @@
 use crate::{HuddlePlan, PlanContent, Result, Store, StoreError};
 use rusqlite::{params, OptionalExtension, Transaction, TransactionBehavior};
 use serde::{Deserialize, Serialize};
+mod repair;
 
 /// Host-composed authority and preflight result, never a model or HTTP command.
 pub struct SubmitGuideProposal<'a> {
@@ -15,7 +16,8 @@ pub struct SubmitGuideProposal<'a> {
     pub expected_plan: i64,
     pub expected_brief: i64,
     pub direction: &'a str,
-    pub content: &'a PlanContent,
+    pub content: Option<&'a PlanContent>,
+    pub rejected_arguments: Option<&'a serde_json::Value>,
     pub generation_id: &'a str,
     pub generation_input: &'a str,
     pub validation_error: Option<&'a str>,
@@ -27,17 +29,6 @@ pub enum GuideProposalOutcome {
     Saved { plan: Box<HuddlePlan> },
     RepairNeeded { reason: String },
     RepairFailed { reason: String },
-}
-
-fn allocation_only(original: &PlanContent, candidate: &PlanContent) -> bool {
-    let mut comparison = candidate.clone();
-    if original.assignments.len() != comparison.assignments.len() {
-        return false;
-    }
-    for (first, next) in original.assignments.iter().zip(&mut comparison.assignments) {
-        next.token_budget = first.token_budget;
-    }
-    &comparison == original
 }
 
 impl Store {
@@ -73,6 +64,7 @@ impl Store {
             expected_brief,
             direction,
             content,
+            rejected_arguments,
             generation_id,
             generation_input,
             validation_error,
@@ -93,14 +85,19 @@ impl Store {
             || expected_brief < 0
             || expected_plan == i64::MAX
             || expected_brief == i64::MAX
+            || (content.is_none() && (rejected_arguments.is_none() || validation_error.is_none()))
         {
             return Err(StoreError::InvalidControlResource(
                 "Invalid proposal receipt".into(),
             ));
         }
-        let encoded = serde_json::json!({"actor":actor,"source":source,"request":request,
+        let mut encoded = serde_json::json!({"actor":actor,"source":source,"request":request,
             "expected_plan":expected_plan,"expected_brief":expected_brief,"direction":direction,"content":content,
-            "generation_id":generation_id,"generation_input":generation_input}).to_string();
+            "generation_id":generation_id,"generation_input":generation_input});
+        if let Some(arguments) = rejected_arguments {
+            encoded["rejected_arguments"] = arguments.clone();
+        }
+        let encoded = encoded.to_string();
         let prior: Option<(String,String)> = self.conn.query_row(
             "SELECT request_json,outcome_json FROM guide_proposal_attempts WHERE org_id=?1 AND team_id=?2 AND turn_id=?3 AND call_id=?4",
             params![org,team,turn,call], |r| Ok((r.get(0)?, r.get(1)?))).optional()?;
@@ -114,7 +111,8 @@ impl Store {
         // Preserve successful exact retries even when the provider chooses a new call ID.
         if let Some(plan) = plans.iter().find(|p| p.request_id == request) {
             let briefs = self.work_briefs(actor, org, team, source)?;
-            if plan.content.as_ref() == Some(content)
+            if content.is_some()
+                && plan.content.as_ref() == content
                 && plan.revision == expected_plan + 1
                 && plan.brief_revision == expected_brief + 1
                 && briefs
@@ -149,11 +147,7 @@ impl Store {
         let changed_scope = if let Some(first) = attempts.first() {
             let first: serde_json::Value =
                 serde_json::from_str(first).map_err(|_| StoreError::ControlResourceConflict)?;
-            let original: PlanContent = serde_json::from_value(first["content"].clone())
-                .map_err(|_| StoreError::ControlResourceConflict)?;
-            first["source"] != source
-                || first["direction"] != direction
-                || !allocation_only(&original, content)
+            first["source"] != source || !repair::preserves_intent(&first, direction, content)
         } else {
             false
         };
@@ -161,11 +155,12 @@ impl Store {
             GuideProposalOutcome::RepairFailed { reason: "Correction changed the scope, total allowance, contributors, tools, dependencies or promised output. Keep the previous proposal unchanged and ask the owner before changing the approach. Do not propose again in this reply.".into() }
         } else if let Some(reason) = validation_error {
             if attempts.is_empty() {
-                GuideProposalOutcome::RepairNeeded { reason: format!("{reason} You may make one corrected proposal within this reply's existing budget. Change only assignment token allocations; preserve the shared direction, total, contributors, tools, dependencies and all requested deliverables. If that is not possible, explain the blocker without another proposal.") }
+                GuideProposalOutcome::RepairNeeded { reason: format!("{reason} You may make one corrected proposal within this reply's existing budget. Correct the structure or assignment token allocations; preserve the shared direction, total, contributors, tools, dependency relationships and all requested deliverables. If that is not possible, explain the blocker without another proposal.") }
             } else {
                 GuideProposalOutcome::RepairFailed { reason: format!("{reason} The one correction attempt did not produce a valid proposal. Stop proposing in this reply and explain what needs to change; no work was started and the previous proposal is unchanged.") }
             }
         } else {
+            let content = content.ok_or(StoreError::ControlResourceConflict)?;
             let brief = self.save_work_brief_in_transaction(crate::SaveWorkBrief {
                 actor,
                 org,
@@ -258,12 +253,59 @@ mod tests {
             expected_plan: 0,
             expected_brief: 0,
             direction: "Compare the options",
-            content,
+            content: Some(content),
+            rejected_arguments: None,
             generation_id: "origin",
             generation_input: "Guide conversation",
             validation_error: error,
         }
     }
+    #[test]
+    fn malformed_proposals_share_the_durable_correction_limit() {
+        for valid_repair in [true, false] {
+            let dir = tempfile::tempdir().unwrap();
+            let path = dir.path().join("malformed.db");
+            let db = seed(&path);
+            let mut original = plan();
+            original.assignments[0].key = "Invalid key".into();
+            let arguments = serde_json::json!({"direction":"Compare the options","plan":original});
+            let mut first = input("malformed", &original, Some("Invalid assignment key"));
+            first.content = None;
+            first.rejected_arguments = Some(&arguments);
+            assert!(matches!(
+                db.submit_guide_proposal(first).unwrap(),
+                GuideProposalOutcome::RepairNeeded { .. }
+            ));
+            drop(db);
+            let db = Store::open(&path).unwrap();
+            let mut fixed = original.clone();
+            fixed.assignments[0].key = "compare".into();
+            fixed.assignments[0].token_budget = 744;
+            if !valid_repair {
+                fixed.assignments[0].deliverable = "Different promise".into();
+            }
+            let result = db
+                .submit_guide_proposal(input("repair", &fixed, None))
+                .unwrap();
+            assert_eq!(
+                matches!(result, GuideProposalOutcome::Saved { .. }),
+                valid_repair
+            );
+            if !valid_repair {
+                fixed.assignments[0].deliverable = original.assignments[0].deliverable.clone();
+                assert!(matches!(
+                    db.submit_guide_proposal(input("third", &fixed, None))
+                        .unwrap(),
+                    GuideProposalOutcome::RepairFailed { .. }
+                ));
+                assert!(db
+                    .huddle_plans("owner", "org", "team", "discussion")
+                    .unwrap()
+                    .is_empty());
+            }
+        }
+    }
+
     #[test]
     fn correction_is_durable_retry_safe_and_publishes_one_atomic_proposal() {
         let dir = tempfile::tempdir().unwrap();

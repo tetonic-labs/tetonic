@@ -171,6 +171,21 @@ impl WorkService {
                 self.director_propose_call(binding, call_id, direction, *plan)
                     .await
             }
+            Command::RejectedProposal { arguments, reason } => {
+                let direction = arguments["direction"]
+                    .as_str()
+                    .unwrap_or_default()
+                    .to_owned();
+                self.record_proposal(
+                    binding,
+                    call_id,
+                    direction,
+                    None,
+                    Some(arguments),
+                    Some(reason),
+                )
+                .await
+            }
         }
     }
 
@@ -183,7 +198,36 @@ impl WorkService {
     ) -> Result<serde_json::Value, AppError> {
         // Human names are accepted only when they resolve uniquely inside this
         // authorized roster. Persist canonical identities, never fuzzy matches.
-        resolve_agents(&mut content, &self.planning_agents(&binding.source).await?)?;
+        let validation_error =
+            match resolve_agents(&mut content, &self.planning_agents(&binding.source).await?) {
+                Ok(()) => match self.validate_plan_proposal(&binding.source, &content).await {
+                    Ok(()) => None,
+                    Err(AppError::InvalidRequest(reason)) => Some(reason),
+                    Err(error) => return Err(error),
+                },
+                Err(AppError::InvalidRequest(reason)) => Some(reason),
+                Err(error) => return Err(error),
+            };
+        self.record_proposal(
+            binding,
+            call_id,
+            direction,
+            Some(content),
+            None,
+            validation_error,
+        )
+        .await
+    }
+
+    async fn record_proposal(
+        &self,
+        binding: &DirectorBinding,
+        call_id: &str,
+        direction: String,
+        content: Option<tetonic_memory::PlanContent>,
+        rejected_arguments: Option<serde_json::Value>,
+        validation_error: Option<String>,
+    ) -> Result<serde_json::Value, AppError> {
         let view = self.plan_view(&binding.source).await?;
         if view.execution.is_some() {
             return Err(AppError::InvalidRequest("This plan has already started. Inspect its work; use its upcoming-assignment controls to change active work.".into()));
@@ -191,7 +235,8 @@ impl WorkService {
         let request = operation_id(&binding.turn, "proposal");
         if let Some(existing) = view.plans.iter().find(|p| p.request_id == request) {
             let briefs = self.work_briefs(&binding.source).await?;
-            if existing.content.as_ref() == Some(&content)
+            if content.is_some()
+                && existing.content.as_ref() == content.as_ref()
                 && briefs
                     .iter()
                     .any(|b| b.revision == existing.brief_revision && b.body == direction)
@@ -205,11 +250,6 @@ impl WorkService {
         {
             return Err(AppError::InvalidRequest("The owner changed the plan or direction during this reply. Inspect the current version and explain the conflict; do not overwrite their changes.".into()));
         }
-        let validation_error = match self.validate_plan_proposal(&binding.source, &content).await {
-            Ok(()) => None,
-            Err(AppError::InvalidRequest(reason)) => Some(reason),
-            Err(error) => return Err(error),
-        };
         let scope = self.services.authorized_scope().await?;
         let outcome = self.services.local.resources().submit_guide_proposal(
             &self.services.host.credential, scope.organization().into(), scope.team().into(),
@@ -218,7 +258,7 @@ impl WorkService {
                 expected_plan: binding.revision, expected_brief: binding.brief_revision,
                 generation_id: operation_id(&binding.turn, "proposal-origin"),
                 generation_input: format!("Guide conversation turn {}. Shared direction is stored in the linked brief revision.", binding.turn),
-                direction, content, validation_error,
+                direction, content, rejected_arguments, validation_error,
             },
         ).await.map_err(resource)?;
         Ok(match outcome {

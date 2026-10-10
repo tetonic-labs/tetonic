@@ -168,7 +168,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                     json!(["operation", "direction", "plan", "work_id"])
                 );
                 assert_eq!(
-                    tool["function"]["parameters"]["properties"]["plan"]["anyOf"][0]["properties"]
+                    tool["function"]["parameters"]["properties"]["plan"]["properties"]
                         ["assignments"]["items"]["properties"]["agent_key"]["enum"],
                     json!([AGENT])
                 );
@@ -326,7 +326,28 @@ async fn proposal_preserves_owner_edits_and_rejects_invalid_agents_and_repeated_
                 workspace.work_briefs(&source).await.unwrap()[0].body,
                 "Owner's edit"
             );
-            let (_, session) = workspace.bind_director(&source).await.unwrap();
+            let (_, mut session) = workspace.bind_director(&source).await.unwrap();
+            let next_turn = uuid::Uuid::new_v4().to_string();
+            workspace
+                .services
+                .local
+                .resources()
+                .create_team_work_item_for_purpose(
+                    &workspace.services.host.credential,
+                    crate::resources::CreateTeamWorkItem {
+                        org: ORG.into(),
+                        team: TEAM.into(),
+                        work_id: next_turn.clone(),
+                        title: "Owner follow-up".into(),
+                        request_id: format!("{next_turn}@{}#{source}", shaping::GUIDE),
+                        goal_id: None,
+                    },
+                    Some("Owner follow-up".into()),
+                    WorkPurpose::Explore,
+                )
+                .await
+                .unwrap();
+            session.binding.turn = next_turn;
             workspace
                 .director_propose(&session.binding, "Reconciled".into(), plan("Reconciled"))
                 .await

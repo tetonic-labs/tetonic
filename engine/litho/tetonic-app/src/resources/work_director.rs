@@ -18,6 +18,11 @@ pub(crate) enum Command {
         direction: String,
         plan: Box<tetonic_memory::PlanContent>,
     },
+    #[serde(skip)]
+    RejectedProposal {
+        arguments: serde_json::Value,
+        reason: String,
+    },
 }
 
 pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
@@ -79,15 +84,19 @@ pub(crate) struct DirectorBinding {
 
 impl DirectorBinding {
     pub(crate) fn advertisement(&self) -> ToolAdvertisement {
+        let mut plan_schema = self.plan_schema.clone();
+        plan_schema["type"] = serde_json::json!(["object", "null"]);
+        plan_schema["description"] =
+            "Complete plan object for propose; null for reads. Never stringify.".into();
         ToolAdvertisement {
             name: CONTROL.into(),
-            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. If the engine returns repair_needed, one correction of assignment token allocations is allowed within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
+            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. If the engine returns repair_needed, one correction of structure or assignment token allocations is allowed within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
             parameters: serde_json::json!({"type":"object","additionalProperties":false,
                 "required":["operation","direction","plan","work_id"],"properties":{
                     "operation":{"type":"string","enum":["resources","work","inspect","propose"]},
                     "work_id":{"type":["string","null"],"description":"For work: a recorded work ID to inspect, or null to list efforts. Null for all other operations."},
                     "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for read operations."},
-                    "plan":{"anyOf":[self.plan_schema,{"type":"null"}],"description":"Complete JSON object for propose, never quoted or stringified JSON; null for read operations."}}}),
+                    "plan":plan_schema}}),
         }
     }
 
@@ -98,8 +107,19 @@ impl DirectorBinding {
         if request.tool_name != CONTROL {
             return ToolOutcome::fail("Invalid work plan request", "bad_args");
         }
-        let command = match command(request.arguments) {
+        let command = match command(request.arguments.clone()) {
             Ok(command) => command,
+            Err(reason) if request.arguments["operation"] == "propose" => {
+                // Malformed proposals consume the same durable repair allowance
+                // as allocation failures; successful reads cannot reset it.
+                let arguments = if request.arguments.to_string().len() <= 60_000 {
+                    request.arguments
+                } else {
+                    use sha2::Digest;
+                    serde_json::json!({"oversized_digest":format!("{:x}", sha2::Sha256::digest(request.arguments.to_string()))})
+                };
+                Command::RejectedProposal { arguments, reason }
+            }
             Err(detail) => return ToolOutcome::fail(detail, "bad_args"),
         };
         let (reply, receive) = tokio::sync::oneshot::channel();

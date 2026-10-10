@@ -251,6 +251,12 @@ impl ToolHost for RegisteredToolHost {
             if !self.is_tool_allowed(name) {
                 return Err("Conversation planning unavailable".into());
             }
+            // Proposal validation belongs to the bound host so rejected shapes
+            // also consume the durable correction allowance. The host still
+            // parses and validates before any brief or plan can be published.
+            if args["operation"] == "propose" {
+                return Ok(());
+            }
             return super::work_director::command(args.clone()).map(|_| ());
         }
         if name == ASK_HUMAN {
