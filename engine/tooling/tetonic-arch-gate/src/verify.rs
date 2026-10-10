@@ -68,7 +68,9 @@ pub fn verify(tier: VerifyTier, opts: &VerifyOpts) -> VerifyReport {
         VerifyTier::Fast => {
             if let Some(name) = &opts.crate_name {
                 eprintln!("== cargo check -p {name} (QG-CHECK-001) ==");
-                if let Err(msg) = cargo_status(&engine, &["check", "-p", name, "--all-targets"]) {
+                if let Err(msg) =
+                    cargo_status(&engine, &["check", "--locked", "-p", name, "--all-targets"])
+                {
                     findings.push(cargo_finding(
                         "QG-CHECK-001",
                         &engine,
@@ -86,6 +88,7 @@ pub fn verify(tier: VerifyTier, opts: &VerifyOpts) -> VerifyReport {
                     &engine,
                     &[
                         "clippy",
+                        "--locked",
                         "--workspace",
                         "--all-targets",
                         "--",
@@ -113,7 +116,7 @@ pub fn verify(tier: VerifyTier, opts: &VerifyOpts) -> VerifyReport {
 
     if tier == VerifyTier::Full && !opts.skip_tests {
         eprintln!("== Tests (QG-TEST-001) ==");
-        if let Err(msg) = cargo_status(&engine, &["test", "--workspace"]) {
+        if let Err(msg) = cargo_status(&engine, &["test", "--locked", "--workspace"]) {
             findings.push(cargo_finding(
                 "QG-TEST-001",
                 &engine,

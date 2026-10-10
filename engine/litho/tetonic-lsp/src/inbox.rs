@@ -82,7 +82,7 @@ fn reader_loop(
             }
         };
         if charged
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
+            .try_update(Ordering::SeqCst, Ordering::SeqCst, |used| {
                 used.checked_add(bytes.len())
                     .filter(|total| *total <= budget)
             })

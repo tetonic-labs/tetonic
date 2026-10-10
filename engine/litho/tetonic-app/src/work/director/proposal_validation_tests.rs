@@ -32,11 +32,12 @@ async fn managed_guide_repairs_malformed_assignment_keys_without_extra_work() {
                 .await
                 .unwrap();
             done(&workspace, &source).await;
-            let requests = calls.lock().unwrap();
-            assert_eq!(requests.len(), 3);
-            let feedback = requests[1]["messages"].to_string();
-            assert!(feedback.contains("assignments[0].key") && feedback.contains("no spaces"));
-            drop(requests);
+            {
+                let requests = calls.lock().unwrap();
+                assert_eq!(requests.len(), 3);
+                let feedback = requests[1]["messages"].to_string();
+                assert!(feedback.contains("assignments[0].key") && feedback.contains("no spaces"));
+            }
             let view = workspace.plan_view(&source).await.unwrap();
             assert_eq!(view.plans.len(), 1);
             assert_eq!(view.plans[0].content.as_ref(), Some(&valid));

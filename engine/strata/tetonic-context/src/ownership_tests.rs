@@ -10,10 +10,17 @@ struct LimitedAccess(AtomicUsize);
 #[async_trait::async_trait]
 impl crate::interfaces::ContextAccessGate for LimitedAccess {
     async fn authorize(&self, _: &tetonic_domain::SessionId) -> Result<(), ()> {
-        self.0
-            .fetch_update(Ordering::SeqCst, Ordering::SeqCst, |n| n.checked_sub(1))
-            .map(|_| ())
-            .map_err(|_| ())
+        let mut remaining = self.0.load(Ordering::SeqCst);
+        loop {
+            let next = remaining.checked_sub(1).ok_or(())?;
+            match self
+                .0
+                .compare_exchange(remaining, next, Ordering::SeqCst, Ordering::SeqCst)
+            {
+                Ok(_) => return Ok(()),
+                Err(actual) => remaining = actual,
+            }
+        }
     }
 }
 

@@ -53,7 +53,8 @@ impl ExecutionAuthority for StoredGrant {
             if let Some(parent) = &self.parent {
                 parent
                     .authorize_continuation_scope(original_scope, lifetime)
-                    .await?;
+                    .await
+                    .map_err(|_| ())?;
             }
             Ok(())
         } else {
