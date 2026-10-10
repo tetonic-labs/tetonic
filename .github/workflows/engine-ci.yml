@@ -76,6 +76,9 @@ jobs:
                      -p tetonic-transaction \
                      -p tetonic-egress \
                      -p tetonic-telemetry \
+                     -p tetonic-memory \
+                     -p tetonic-run \
+                     -p tetonic-arch-gate \
                      -p tetonic-cli \
                      -p tetonic-app
 

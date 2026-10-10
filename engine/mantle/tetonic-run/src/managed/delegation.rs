@@ -5,6 +5,11 @@ use std::sync::{Arc, Mutex, Weak};
 use tetonic_domain::{AttemptId, ExecutionScope};
 use tetonic_memory::RecoverMutex;
 
+/// The parent no longer authorizes this scope. Do not expose credential details.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, thiserror::Error)]
+#[error("parent delegation authority is unavailable for this execution scope")]
+pub struct DelegationDenied;
+
 /// Only the managed runtime can mint this handle. A serialized run/attempt ID
 /// cannot substitute for a live parent, and keeping a handle cannot keep the
 /// runtime alive or restore permission after its attempt has finished.
@@ -27,19 +32,23 @@ impl DelegationParent {
 
     /// Current parent authority for recording a coordinator dispatch boundary.
     /// Receipts still validate this fence against the journal in their transaction.
-    pub async fn authorize_dispatch(&self) -> Result<tetonic_domain::LeaseProof, ()> {
-        let scope = self.binding.execution_scope.as_ref().ok_or(())?;
+    pub async fn authorize_dispatch(&self) -> Result<tetonic_domain::LeaseProof, DelegationDenied> {
+        let scope = self
+            .binding
+            .execution_scope
+            .as_ref()
+            .ok_or(DelegationDenied)?;
         self.authorize_child_scope(scope).await?;
         Ok(self.live_attempt()?.lease_proof)
     }
 
-    pub(super) fn live_attempt(&self) -> Result<ActiveAttempt, ()> {
-        let registry = self.active.upgrade().ok_or(())?;
+    pub(super) fn live_attempt(&self) -> Result<ActiveAttempt, DelegationDenied> {
+        let registry = self.active.upgrade().ok_or(DelegationDenied)?;
         let active = registry
             .lock_recover()
             .get(&self.binding.attempt_id)
             .cloned()
-            .ok_or(())?;
+            .ok_or(DelegationDenied)?;
         if active.binding != self.binding
             || active.lease_proof != self.issued.lease_proof
             || !Arc::ptr_eq(&active.clock, &self.issued.clock)
@@ -51,7 +60,7 @@ impl DelegationParent {
                 .delegation_closed
                 .load(std::sync::atomic::Ordering::SeqCst)
         {
-            return Err(());
+            return Err(DelegationDenied);
         }
         Ok(active)
     }
@@ -59,11 +68,14 @@ impl DelegationParent {
     /// Recheck the parent's original credential and job authority, not merely
     /// the child caller's credential. Child grant attenuation is checked by the
     /// store separately. No registry lock is held across an authority await.
-    pub async fn authorize_child_scope(&self, scope: &ExecutionScope) -> Result<(), ()> {
+    pub async fn authorize_child_scope(
+        &self,
+        scope: &ExecutionScope,
+    ) -> Result<(), DelegationDenied> {
         let active = self.live_attempt()?;
-        let authorization = active.authorization.as_ref().ok_or(())?;
+        let authorization = active.authorization.as_ref().ok_or(DelegationDenied)?;
         if authorization.scope != *scope {
-            return Err(());
+            return Err(DelegationDenied);
         }
         authorization
             .authority
@@ -72,7 +84,8 @@ impl DelegationParent {
                 &active.identity,
                 &active.binding.job_spec,
             )
-            .await?;
+            .await
+            .map_err(|_| DelegationDenied)?;
         self.live_attempt()?;
         Ok(())
     }
@@ -84,7 +97,7 @@ impl DelegationParent {
         &self,
         scope: &ExecutionScope,
         lifetime: tetonic_memory::DelegationLifetime,
-    ) -> Result<(), ()> {
+    ) -> Result<(), DelegationDenied> {
         if lifetime == tetonic_memory::DelegationLifetime::ParentLease {
             return self.authorize_child_scope(scope).await;
         }
@@ -95,19 +108,20 @@ impl DelegationParent {
                     .delegation_closed
                     .load(std::sync::atomic::Ordering::SeqCst)
             {
-                Err(())
+                Err(DelegationDenied)
             } else {
                 Ok(())
             }
         };
         check_stop()?;
-        let auth = self.issued.authorization.as_ref().ok_or(())?;
+        let auth = self.issued.authorization.as_ref().ok_or(DelegationDenied)?;
         if auth.scope != *scope {
-            return Err(());
+            return Err(DelegationDenied);
         }
         auth.authority
             .authorize(scope, &self.issued.identity, &self.binding.job_spec)
-            .await?;
+            .await
+            .map_err(|_| DelegationDenied)?;
         check_stop()
     }
 }
@@ -157,7 +171,8 @@ impl super::ExecutionAuthority for DelegatedAuthority {
             .map_err(|_| ())?;
         self.parent
             .authorize_continuation_scope(&continuation_scope, lineage.lifetime)
-            .await?;
+            .await
+            .map_err(|_| ())?;
         Ok(())
     }
     async fn revoked_during_execution(

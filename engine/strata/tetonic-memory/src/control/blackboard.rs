@@ -175,33 +175,6 @@ fn text(s: &str, max: usize) -> bool {
     !s.trim().is_empty() && s.len() <= max && !s.contains('\0')
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn older_messages_remain_readable_and_reactions_cannot_choose_an_author() {
-        let old = serde_json::json!({"id":"m", "author":{"agent_id":"a","name":"Ada","work_id":"w"},
-            "body":"A finding", "created_at":"2026-10-09T10:00:00Z", "reply_to":null});
-        let message: BlackboardMessage = serde_json::from_value(old).unwrap();
-        assert!(message.reactions.is_empty());
-        let command = serde_json::json!({"action":"react", "thread_id":"t", "message_id":"m", "emoji":"👍", "present":true});
-        let parsed: BlackboardCommand = serde_json::from_value(command.clone()).unwrap();
-        parsed.validate().unwrap();
-        for (field, value) in [
-            ("agent_id", serde_json::json!("other")),
-            ("emoji", serde_json::json!("arbitrary payload")),
-        ] {
-            let mut invalid = command.clone();
-            invalid[field] = value;
-            assert!(serde_json::from_value::<BlackboardCommand>(invalid).is_err());
-        }
-        let mut ambiguous_toggle = command;
-        ambiguous_toggle.as_object_mut().unwrap().remove("present");
-        assert!(serde_json::from_value::<BlackboardCommand>(ambiguous_toggle).is_err());
-    }
-}
-
 /// Trusted host binding; never deserialized from model arguments.
 pub struct BlackboardAccess<'a> {
     pub actor: &'a str,
@@ -714,5 +687,32 @@ impl Store {
             params![a.org, a.team, call, a.work, encoded, result.to_string()],
         )?;
         Ok(result)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn older_messages_remain_readable_and_reactions_cannot_choose_an_author() {
+        let old = serde_json::json!({"id":"m", "author":{"agent_id":"a","name":"Ada","work_id":"w"},
+            "body":"A finding", "created_at":"2026-10-09T10:00:00Z", "reply_to":null});
+        let message: BlackboardMessage = serde_json::from_value(old).unwrap();
+        assert!(message.reactions.is_empty());
+        let command = serde_json::json!({"action":"react", "thread_id":"t", "message_id":"m", "emoji":"👍", "present":true});
+        let parsed: BlackboardCommand = serde_json::from_value(command.clone()).unwrap();
+        parsed.validate().unwrap();
+        for (field, value) in [
+            ("agent_id", serde_json::json!("other")),
+            ("emoji", serde_json::json!("arbitrary payload")),
+        ] {
+            let mut invalid = command.clone();
+            invalid[field] = value;
+            assert!(serde_json::from_value::<BlackboardCommand>(invalid).is_err());
+        }
+        let mut ambiguous_toggle = command;
+        ambiguous_toggle.as_object_mut().unwrap().remove("present");
+        assert!(serde_json::from_value::<BlackboardCommand>(ambiguous_toggle).is_err());
     }
 }

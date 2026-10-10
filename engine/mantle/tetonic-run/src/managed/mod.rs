@@ -15,6 +15,6 @@ pub mod service;
 mod suspension;
 
 pub use contracts::*;
-pub use delegation::DelegationParent;
+pub use delegation::{DelegationDenied, DelegationParent};
 pub use lifetime::{ActiveAttempt, DispatchEntry};
 pub use service::ManagedRunService;
