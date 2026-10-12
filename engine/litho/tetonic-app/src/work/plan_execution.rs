@@ -7,13 +7,14 @@ use std::{
 };
 use tetonic_memory::{HuddleExecution, PlanAgentPin, PlanContent};
 
+pub(in crate::work) mod budget;
 mod controller;
 mod coordinator;
 mod projection;
 pub use coordinator::{CoordinationModel, PlanSetupIssue};
 
 pub(super) use crate::workspace::COORDINATOR;
-const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing all outstanding keys, including dependents. The host runs independent agents concurrently and starts dependent work after its inputs are ready. Use a one-key array only when intermediate judgment is needed. A blocked assignment does not stop unrelated work. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
+const INSTRUCTIONS: &str = "You coordinate an agreed plan; workers execute. Call dispatch_assignment with assignment_keys listing all outstanding keys, including dependents. The host runs independent agents concurrently and starts dependent work after its inputs are ready. Do not split dispatch by dependency stage: the host follows the reviewed graph without more inference. A blocked assignment does not stop unrelated work. Read every contribution and outstanding_assignments. Never redispatch completed work or invent authority or results. Only after all contributions arrive, call finish with the requested concise synthesis, source citations, limitations and [title](#work=WORK_ID) contribution links.";
 
 #[derive(Default, Deserialize)]
 #[serde(deny_unknown_fields)]
@@ -66,8 +67,9 @@ impl WorkService {
     pub(super) async fn execution_readiness(
         &self,
         content: &PlanContent,
+        brief: &str,
     ) -> Result<Vec<String>, AppError> {
-        let mut reasons = self.plan_allowance_issues(content).await?;
+        let mut reasons = self.plan_allowance_issues(content, brief).await?;
         for assignment in &content.assignments {
             if assignment.agent_key == shaping::GUIDE || assignment.agent_key == COORDINATOR {
                 reasons.push(format!("{} needs a working agent.", assignment.title));
@@ -292,13 +294,11 @@ impl WorkService {
             )
             .await
             .map_err(resource)?;
-        let input = format!(
-            "Shared brief (revision {}):\n{}\n\nAgreed plan (revision {}):\n{}",
+        let input = budget::input(
+            &receipt.brief,
             receipt.brief_revision,
-            receipt.brief,
+            &receipt.content,
             receipt.revision,
-            serde_json::json!({"title":receipt.content.title,"summary":receipt.content.summary,
-                "assignments":receipt.content.assignments.iter().map(|a|serde_json::json!({"key":a.key,"title":a.title,"depends_on":a.depends_on,"deliverable":a.deliverable})).collect::<Vec<_>>()})
         );
         if input.len() > 48_000 {
             return Err(AppError::InvalidRequest(

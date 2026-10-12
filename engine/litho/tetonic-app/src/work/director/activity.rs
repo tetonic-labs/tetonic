@@ -27,7 +27,7 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
                 if let Some(text) = arguments.as_str() {
                     arguments = serde_json::from_str(text).unwrap_or_default();
                 }
-                let Some(operation @ ("resources" | "work" | "inspect" | "propose")) =
+                let Some(operation @ ("resources" | "work" | "inspect" | "propose" | "rebalance")) =
                     arguments["operation"].as_str()
                 else {
                     // Keep malformed/unknown calls in the serial result order
@@ -36,12 +36,13 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
                     continue;
                 };
                 pending.push_back(Some(result.len()));
-                let repairing = operation == "propose"
-                    && result
-                        .iter()
-                        .rev()
-                        .find(|a| a.operation == "propose" || a.operation == "repair")
-                        .is_some_and(|a| a.state == "repair_needed");
+                let repairing = operation == "rebalance"
+                    || operation == "propose"
+                        && result
+                            .iter()
+                            .rev()
+                            .find(|a| a.operation == "propose" || a.operation == "repair")
+                            .is_some_and(|a| a.state == "repair_needed");
                 result.push(GuideActivity {
                     id: format!("{}:{index}", entry.sequence),
                     operation: if repairing { "repair" } else { operation }.into(),

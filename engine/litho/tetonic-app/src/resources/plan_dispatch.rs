@@ -4,6 +4,7 @@ use std::sync::{Arc, Mutex};
 use tetonic_domain::work_scope::CancellationSignal;
 use tetonic_domain::{AuthorizedAction, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal};
 
+pub(crate) mod advertisements;
 pub(crate) mod blackboard;
 mod group;
 
@@ -221,19 +222,13 @@ impl ToolHost for RegisteredToolHost {
             .as_ref()
             .is_some_and(|d| !d.assignment_keys.is_empty())
         {
-            // Advertisements repeat on every inference call. Keep the plan
-            // completion instruction concise; validation still owns readiness.
-            if let Some(finish) = ads.iter_mut().find(|ad| ad.name == "finish") {
-                finish.description = "Return the final synthesis in summary after all contributions arrive. Preserve source citations and the requested length.".into();
-            }
-            ads.push(ToolAdvertisement {
-            name:DISPATCH.into(),
-            description:"Dispatch agreed assignment_keys together. Independent agents run concurrently; dependencies and each agent's capacity are respected. Dependents receive completed results. Completed-key retries reuse results.".into(),
-            parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_keys"],"properties":{"assignment_keys":{"type":"array","minItems":1,"maxItems":12,"uniqueItems":true,"items":{"type":"string","enum":self.dispatch.as_ref().unwrap().assignment_keys}}}}),
-        });
+            ads.retain(|ad| ad.name != "finish");
+            ads.extend(advertisements::coordinator(
+                &self.dispatch.as_ref().unwrap().assignment_keys,
+            ));
         }
         if self.dispatch.as_ref().is_some_and(|d| d.human.is_some()) {
-            ads.push(ToolAdvertisement {name:ASK_HUMAN.into(),description:"Ask a blocking question within the host's response limit. Answers do not change permissions or budget.".into(),parameters:serde_json::json!({"type":"object","additionalProperties":false,"required":["question","why"],"properties":{"question":{"type":"string","maxLength":800},"why":{"type":"string","maxLength":1200},"options":{"type":"array","maxItems":4,"items":{"type":"string","maxLength":300}}}})});
+            ads.push(advertisements::human());
         }
         ads
     }
@@ -254,7 +249,7 @@ impl ToolHost for RegisteredToolHost {
             // Proposal validation belongs to the bound host so rejected shapes
             // also consume the durable correction allowance. The host still
             // parses and validates before any brief or plan can be published.
-            if args["operation"] == "propose" {
+            if matches!(args["operation"].as_str(), Some("propose" | "rebalance")) {
                 return Ok(());
             }
             return super::work_director::command(args.clone()).map(|_| ());

@@ -21,6 +21,29 @@ pub(crate) enum PlanMutation {
     },
 }
 impl ResourceService {
+    pub(crate) async fn guide_proposal_allocation_basis(
+        &self,
+        credential: &str,
+        org: String,
+        team: String,
+        source: String,
+        turn: String,
+    ) -> Result<Option<(String, PlanContent)>, ResourceError> {
+        let action = ResourceAction::ManageTeam {
+            org_id: org.clone(),
+            team_id: team.clone(),
+        };
+        let actor = self.authority.authorize(credential, &action).await?;
+        let result = self
+            .store
+            .read(move |db| {
+                db.guide_proposal_allocation_basis(&actor.principal_id, &org, &team, &source, &turn)
+            })
+            .await??;
+        self.authority.authorize(credential, &action).await?;
+        Ok(result)
+    }
+
     pub(crate) async fn submit_guide_proposal(
         &self,
         credential: &str,

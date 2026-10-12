@@ -7,6 +7,7 @@ use crate::resources::{
 };
 use std::sync::{Arc, Mutex};
 use tetonic_domain::ToolOutcome;
+mod allocations;
 #[cfg(test)]
 #[path = "control_tests.rs"]
 mod tests;
@@ -85,6 +86,10 @@ impl WorkService {
         let view = self.plan_view(&source).await?;
         let (sender, receiver) = tokio::sync::mpsc::channel(1);
         let mut plan_schema = plans::response_schema();
+        let coordination = self.services.execution.coordination_tokens();
+        plan_schema["properties"]["token_budget"]["description"] = format!(
+            "Total reported input AND output tokens across every worker call and coordinator call, not answer length. Calculate worker allocations first, then include up to {coordination} tokens for coordination inside this total. Prefer that coordination allowance when the owner's limit permits. Never exceed the owner's limit. A smaller total must still fund coordination and every assignment."
+        ).into();
         let agents = self.planning_agents(&source).await?;
         let agent_keys: Vec<_> = agents
             .iter()
@@ -164,6 +169,9 @@ impl WorkService {
             ));
         }
         match command {
+            Command::Rebalance { allocations } => {
+                self.director_rebalance(binding, call_id, allocations).await
+            }
             Command::Inspect {} => self.director_state(&binding.source).await,
             Command::Resources {} => self.director_resources(&binding.source).await,
             Command::Work { work_id } => self.director_work(work_id.as_deref()).await,
@@ -200,7 +208,10 @@ impl WorkService {
         // authorized roster. Persist canonical identities, never fuzzy matches.
         let validation_error =
             match resolve_agents(&mut content, &self.planning_agents(&binding.source).await?) {
-                Ok(()) => match self.validate_plan_proposal(&binding.source, &content).await {
+                Ok(()) => match self
+                    .validate_plan_with_direction(&binding.source, &direction, &content)
+                    .await
+                {
                     Ok(()) => None,
                     Err(AppError::InvalidRequest(reason)) => Some(reason),
                     Err(error) => return Err(error),
@@ -264,7 +275,7 @@ impl WorkService {
         Ok(match outcome {
             tetonic_memory::GuideProposalOutcome::Saved { plan } => proposal_receipt(&plan),
             tetonic_memory::GuideProposalOutcome::RepairNeeded { reason } => serde_json::json!({
-                "saved":false,"work_launched":false,"proposal_state":"repair_needed","reason":reason,"repair_attempts_remaining":1
+                "saved":false,"work_launched":false,"proposal_state":"repair_needed","reason":reason,"repair_attempts_remaining":1,"allocation_repair":"For budget-only correction use rebalance with original assignment keys and new token_budget values. Set direction, plan and work_id to null; the saved first proposal supplies all unchanged fields."
             }),
             tetonic_memory::GuideProposalOutcome::RepairFailed { reason } => serde_json::json!({
                 "saved":false,"work_launched":false,"proposal_state":"repair_failed","reason":reason,"repair_attempts_remaining":0

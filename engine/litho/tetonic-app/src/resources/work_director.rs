@@ -8,6 +8,9 @@ pub(crate) const CONTROL: &str = "work_plan";
 #[derive(Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Command {
+    Rebalance {
+        allocations: Vec<Allocation>,
+    },
     Inspect {},
     Resources {},
     Work {
@@ -23,6 +26,13 @@ pub(crate) enum Command {
         arguments: serde_json::Value,
         reason: String,
     },
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Allocation {
+    pub assignment_key: String,
+    pub token_budget: u64,
 }
 
 pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
@@ -46,6 +56,11 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
     if value["operation"] != "work" && value["work_id"].is_null() {
         if let Some(fields) = value.as_object_mut() {
             fields.remove("work_id");
+        }
+    }
+    if value["operation"] != "rebalance" && value["allocations"].is_null() {
+        if let Some(fields) = value.as_object_mut() {
+            fields.remove("allocations");
         }
     }
     let parsed: Command = serde_json::from_value(value).map_err(|error| {
@@ -90,12 +105,13 @@ impl DirectorBinding {
             "Complete plan object for propose; null for reads. Never stringify.".into();
         ToolAdvertisement {
             name: CONTROL.into(),
-            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. If the engine returns repair_needed, one correction of structure or assignment token allocations is allowed within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
+            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. rebalance: repair only assignment token budgets on the first rejected parsed proposal; provide allocations for every original assignment key, with null direction, plan and work_id. This retains every other field and the original total automatically. If the engine returns repair_needed, one correction is allowed: use rebalance for token allocations, or propose only for structural repair within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
             parameters: serde_json::json!({"type":"object","additionalProperties":false,
-                "required":["operation","direction","plan","work_id"],"properties":{
-                    "operation":{"type":"string","enum":["resources","work","inspect","propose"]},
+                "required":["operation","direction","plan","work_id","allocations"],"properties":{
+                    "operation":{"type":"string","enum":["resources","work","inspect","propose","rebalance"]},
                     "work_id":{"type":["string","null"],"description":"For work: a recorded work ID to inspect, or null to list efforts. Null for all other operations."},
                     "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for read operations."},
+                    "allocations":{"type":["array","null"],"description":"Only for rebalance: one allocation per original assignment key. Null otherwise.","items":{"type":"object","additionalProperties":false,"required":["assignment_key","token_budget"],"properties":{"assignment_key":{"type":"string"},"token_budget":{"type":"integer"}}}},
                     "plan":plan_schema}}),
         }
     }
@@ -109,7 +125,12 @@ impl DirectorBinding {
         }
         let command = match command(request.arguments.clone()) {
             Ok(command) => command,
-            Err(reason) if request.arguments["operation"] == "propose" => {
+            Err(reason)
+                if matches!(
+                    request.arguments["operation"].as_str(),
+                    Some("propose" | "rebalance")
+                ) =>
+            {
                 // Malformed proposals consume the same durable repair allowance
                 // as allocation failures; successful reads cannot reset it.
                 let arguments = if request.arguments.to_string().len() <= 60_000 {

@@ -23,6 +23,7 @@ impl WorkService {
     pub(super) async fn plan_allowance_issues(
         &self,
         content: &PlanContent,
+        brief: &str,
     ) -> Result<Vec<String>, AppError> {
         content
             .validate()
@@ -31,8 +32,9 @@ impl WorkService {
         let workers: u64 = content.assignments.iter().map(|a| a.token_budget).sum();
         let coordination = content.token_budget - workers;
         let ceiling = self.services.execution.coordination_tokens();
-        if !(256..=ceiling).contains(&coordination) {
-            issues.push(format!("This proposal leaves {coordination} tokens for coordination and the combined result; it needs 256–{ceiling} within the total of {}. Rebalance the allocations without increasing the total or reducing the requested work.", content.token_budget));
+        let minimum = plan_execution::budget::minimum(brief, content);
+        if !(minimum..=ceiling).contains(&coordination) {
+            issues.push(format!("This proposal leaves {coordination} tokens for coordination and the combined result; its estimated minimum is {minimum} and its configured ceiling is {ceiling}, within the total of {}. This estimate covers dispatch, repeated context, concise contributions and synthesis; actual use can vary. Rebalance the allocations without increasing the total or reducing the requested work. If the minimum exceeds the ceiling or available total, explain the constraint before proposing changes.", content.token_budget));
         }
         if let Some(limit) = self.plan_token_limit().await? {
             if content.token_budget > limit as u64 {
@@ -55,7 +57,23 @@ impl WorkService {
         source: &str,
         content: &PlanContent,
     ) -> Result<(), AppError> {
-        let issues = self.plan_allowance_issues(content).await?;
+        let brief = self
+            .work_briefs(source)
+            .await?
+            .first()
+            .map(|b| b.body.clone())
+            .unwrap_or_default();
+        self.validate_plan_with_direction(source, &brief, content)
+            .await
+    }
+
+    pub(super) async fn validate_plan_with_direction(
+        &self,
+        source: &str,
+        direction: &str,
+        content: &PlanContent,
+    ) -> Result<(), AppError> {
+        let issues = self.plan_allowance_issues(content, direction).await?;
         let agents = self.planning_agents(source).await?;
         for assignment in &content.assignments {
             if !agents.iter().any(|a| a.key == assignment.agent_key) {

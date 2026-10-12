@@ -195,18 +195,18 @@ async fn configured_coordination_budget_reaches_planning_and_real_managed_team_e
             let mut content = view.plans[0].content.clone().unwrap();
             content.token_budget = 10000; // 2,000 workers + 8,000 coordination, above the old 4,096 cap.
             assert!(workspace
-                .execution_readiness(&content)
+                .execution_readiness(&content, "Shared brief")
                 .await
                 .unwrap()
                 .is_empty());
             let mut excessive = content.clone();
             excessive.token_budget = 12001;
             assert!(workspace
-                .execution_readiness(&excessive)
+                .execution_readiness(&excessive, "Shared brief")
                 .await
                 .unwrap()
                 .iter()
-                .any(|r| r.contains("256–10000")));
+                .any(|r| r.contains("ceiling is 10000")));
             workspace
                 .set_budget_settings(BudgetSettingsRequest {
                     request_id: uuid::Uuid::new_v4().to_string(),
@@ -216,7 +216,7 @@ async fn configured_coordination_budget_reaches_planning_and_real_managed_team_e
                 .await
                 .unwrap();
             assert!(workspace
-                .execution_readiness(&content)
+                .execution_readiness(&content, "Shared brief")
                 .await
                 .unwrap()
                 .iter()

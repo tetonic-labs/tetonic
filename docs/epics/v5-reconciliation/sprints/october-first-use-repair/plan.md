@@ -2,6 +2,9 @@
 
 Created: October 8, 2026. Status: **in progress; EXP-001–003 have an initial implementation, acceptance still open**.
 See [implementation and evidence](implementation-2026-10-08.md).
+The [October 11 Guide/team qualification](guide-team-completion-2026-10-11.md)
+records the coordination fixes and one successful bounded frontier-model journey,
+alongside failed smaller-model trials. It does not close the broader sprint exit.
 Classification: **additional required product scope; release-blocking corrective sprint**.
 Baseline: 113a6a3e and the owner's fresh-workspace walkthrough on October 8.
 Release target: October 25. Feature freeze: October 18.

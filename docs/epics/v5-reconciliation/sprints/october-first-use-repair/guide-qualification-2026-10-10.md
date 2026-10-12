@@ -1,5 +1,10 @@
 # Guide qualification and remaining coordination gap
 
+Historical result at October 10. The follow-up implementation and a successful
+bounded frontier-model journey are recorded in
+[Guide to a useful team result — October 11](guide-team-completion-2026-10-11.md).
+The failed trials below remain evidence; the wider first-use/MVP gates remain open.
+
 Part 1 (Guide to useful team result) is **not yet accepted end to end**. This
 change closes the durable structural-repair gap and reduces conversation
 overhead. Real-provider tests confirmed parallel workers, but exposed a remaining

@@ -65,7 +65,7 @@ impl HostedTransport for PlanningTransport {
                         "operation":"propose", "direction":"Compare two workshop formats.",
                         "plan":{
                             "title":"Workshop comparison", "summary":"Compare supplied options.",
-                            "token_budget":3000, "open_questions":[], "assignments":[{
+                            "token_budget":5096, "open_questions":[], "assignments":[{
                                 "key":"compare", "title":"Compare formats", "instructions":"Use the supplied information.",
                                 "agent_key":AGENT, "depends_on":[], "tools":[],
                                 "deliverable":"A short comparison", "token_budget":1000

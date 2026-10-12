@@ -154,6 +154,7 @@ impl TeamWorkController {
                 running.push(async move {
                     let result = self.dispatch_assignment(&key).await;
                     let result = match result {
+                        Ok(outcome) if grouped => Ok(outcome),
                         Ok(outcome) => {
                             collect_contributions(
                                 &self.reader,
@@ -213,9 +214,19 @@ impl TeamWorkController {
             all_ok = false;
             results.push(serde_json::json!({"assignment_key":key,"ok":false,"result":null,"message":outcome.summary}));
         }
-        let Ok(outstanding) = remaining.lock() else {
+        let Ok(mut outstanding) = remaining.lock() else {
             return ToolOutcome::fail("Cannot confirm outstanding assignments", "unavailable");
         };
+        // Each selected contribution appears once, even when peers finish together.
+        // This is provisional: dispatch_recorded advances the live finish guard
+        // only after persisting this exact response under the parent's lease.
+        for result in &results {
+            if result["result"]["state"] == "completed" {
+                if let Some(key) = result["assignment_key"].as_str() {
+                    outstanding.remove(key);
+                }
+            }
+        }
         results.sort_by_key(|r| keys.iter().position(|key| r["assignment_key"] == *key));
         let mut outcome = if all_ok {
             ToolOutcome::ok("Requested assignments dispatched", "")

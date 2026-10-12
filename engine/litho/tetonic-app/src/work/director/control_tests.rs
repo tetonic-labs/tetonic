@@ -1,11 +1,13 @@
 use super::*;
 use serde_json::json;
 
+#[path = "allocation_tests.rs"]
+mod allocations;
 #[path = "proposal_validation_tests.rs"]
 mod proposal_validation;
 
 fn plan(title: &str) -> tetonic_memory::PlanContent {
-    serde_json::from_value(json!({"title":title,"summary":"Compare the supplied options.","token_budget":3000,"open_questions":[],"assignments":[
+    serde_json::from_value(json!({"title":title,"summary":"Compare the supplied options.","token_budget":5096,"open_questions":[],"assignments":[
         {"key":"compare","title":"Compare formats","instructions":"Use only the supplied workshop information.","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"A short comparison","token_budget":1000}
     ]})).unwrap()
 }
@@ -46,7 +48,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
             {
                 let mut expected = plan(title);
                 if index == 1 {
-                    expected.token_budget = 1024;
+                    expected.token_budget = 4608;
                     expected.assignments[0].token_budget = 512;
                 }
                 let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
@@ -78,7 +80,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                         .set_budget_settings(BudgetSettingsRequest {
                             request_id: uuid::Uuid::new_v4().to_string(),
                             expected_revision: 0,
-                            token_limit: Some(1024),
+                            token_limit: Some(4608),
                         })
                         .await
                         .unwrap();
@@ -148,7 +150,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                         .unwrap()
                         .token_limit,
                     if index == 1 {
-                        1024
+                        4608
                     } else {
                         LOCAL_TOKEN_CEILING as i64
                     }
@@ -165,7 +167,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                     .unwrap();
                 assert_eq!(
                     tool["function"]["parameters"]["required"],
-                    json!(["operation", "direction", "plan", "work_id"])
+                    json!(["operation", "direction", "plan", "work_id", "allocations"])
                 );
                 assert_eq!(
                     tool["function"]["parameters"]["properties"]["plan"]["properties"]

@@ -254,8 +254,8 @@ async fn grouped_dispatch_preserves_dependencies_receipts_and_idempotent_retries
                         .any(|message| {
                             let text = message["content"].as_str().unwrap_or("");
                             message["role"] == "tool"
-                                && text.contains("COMPARE_RESULT")
-                                && text.contains("CHECK_RESULT")
+                                && text.matches("COMPARE_RESULT").count() == 1
+                                && text.matches("CHECK_RESULT").count() == 1
                                 && text.contains("\"outstanding_assignments\":[]")
                         }),
                     "both source contributions must reach synthesis in one receipt"

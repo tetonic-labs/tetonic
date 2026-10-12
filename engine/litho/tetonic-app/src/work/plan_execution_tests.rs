@@ -380,7 +380,7 @@ async fn seed_roster_options(
         )
         .await
         .unwrap();
-    let mut content:PlanContent=serde_json::from_value(json!({"title":"Workshop options","summary":"Compare options, then check assumptions","token_budget":3000,"open_questions":[],"assignments":[
+    let mut content:PlanContent=serde_json::from_value(json!({"title":"Workshop options","summary":"Compare options, then check assumptions","token_budget":6096,"open_questions":[],"assignments":[
         {"key":"compare","title":"Compare formats","instructions":"COMPARE_CANARY Compare formats","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"Comparison","token_budget":1000},
         {"key":"check","title":"Check assumptions","instructions":"CHECK_CANARY Review the comparison","agent_key":worker.key,"depends_on":["compare"],"tools":[],"deliverable":"Risks","token_budget":1000}
     ]})).unwrap();
@@ -388,7 +388,7 @@ async fn seed_roster_options(
         content.assignments[1].depends_on.clear();
     }
     if handoff {
-        content.token_budget = 8000;
+        content.token_budget = 10096;
         content.assignments[0].token_budget = 2000;
         content.assignments[1].depends_on.clear();
         content.assignments[1].token_budget = 2000;

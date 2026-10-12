@@ -122,9 +122,10 @@ async fn managed_guide_corrects_once_and_preserves_scope_without_starting_work()
     for changes_scope in [false, true] {
         let dir = tempfile::tempdir().unwrap();
         let mut original = plan("Compare workshop options");
-        original.token_budget = 1000;
+        original.token_budget = 4096;
+        original.assignments[0].token_budget = 4096;
         let mut corrected = original.clone();
-        corrected.assignments[0].token_budget = 744;
+        corrected.assignments[0].token_budget = 512;
         if changes_scope {
             corrected.assignments[0].deliverable = "A smaller promise".into();
         }
@@ -132,7 +133,7 @@ async fn managed_guide_corrects_once_and_preserves_scope_without_starting_work()
         let mut sequence = vec![propose(&original), propose(&corrected)];
         if changes_scope {
             let mut third = original.clone();
-            third.assignments[0].token_budget = 744;
+            third.assignments[0].token_budget = 512;
             sequence.push(propose(&third));
         }
         let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
@@ -201,7 +202,7 @@ async fn managed_guide_corrects_once_and_preserves_scope_without_starting_work()
     }
 }
 
-async fn discussion(workspace: &LocalWorkspace) -> String {
+pub(super) async fn discussion(workspace: &LocalWorkspace) -> String {
     let source = uuid::Uuid::new_v4().to_string();
     workspace
         .services
@@ -246,7 +247,7 @@ async fn invalid_allocations_leave_no_brief_or_proposal_and_same_total_correctio
     let source = discussion(&workspace).await;
     let (_, session) = workspace.bind_director(&source).await.unwrap();
     let mut candidate = plan("Workshop options");
-    candidate.token_budget = 1000;
+    candidate.token_budget = 4608;
     for coordination in [
         0,
         255,
@@ -283,7 +284,7 @@ async fn invalid_allocations_leave_no_brief_or_proposal_and_same_total_correctio
         .set_budget_settings(BudgetSettingsRequest {
             request_id: uuid::Uuid::new_v4().to_string(),
             expected_revision: 0,
-            token_limit: Some(1000),
+            token_limit: Some(4608),
         })
         .await
         .unwrap();
@@ -297,14 +298,14 @@ async fn invalid_allocations_leave_no_brief_or_proposal_and_same_total_correctio
 
     // Rebalance only the worker allowance, preserving the total, contributor,
     // instructions and deliverable. The host never silently rewrites a plan.
-    candidate.assignments[0].token_budget = 744;
+    candidate.assignments[0].token_budget = 512;
     let receipt = workspace
         .director_propose(&session.binding, "Shared".into(), candidate.clone())
         .await
         .unwrap();
     assert_eq!(
         receipt["allowance"],
-        json!({"total_tokens":1000,"worker_tokens":744,"coordination_tokens":256,"reserved":false})
+        json!({"total_tokens":4608,"worker_tokens":512,"coordination_tokens":4096,"reserved":false})
     );
     assert_eq!(receipt["work_launched"], false);
     let view = workspace.plan_view(&source).await.unwrap();

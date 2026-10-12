@@ -32,6 +32,48 @@ pub enum GuideProposalOutcome {
 }
 
 impl Store {
+    /// Read the immutable first parsed proposal for allocation-only correction.
+    /// Publication still passes through submit_guide_proposal and its revision,
+    /// intent, attempt-count and idempotency checks. No new proposal authority.
+    pub fn guide_proposal_allocation_basis(
+        &self,
+        actor: &str,
+        org: &str,
+        team: &str,
+        source: &str,
+        turn: &str,
+    ) -> Result<Option<(String, PlanContent)>> {
+        self.require_team_participant(actor, org, team)?;
+        for id in [source, turn] {
+            let work = self
+                .get_team_work_item(org, team, id)?
+                .ok_or(StoreError::ControlAccessDenied)?;
+            if work.created_by != actor || work.purpose != crate::WorkPurpose::Explore {
+                return Err(StoreError::ControlAccessDenied);
+            }
+        }
+        let first: Option<String> = self.conn.query_row(
+            "SELECT request_json FROM guide_proposal_attempts WHERE org_id=?1 AND team_id=?2 AND turn_id=?3 AND ordinal=0",
+            params![org,team,turn], |r|r.get(0)).optional()?;
+        let Some(first) = first else {
+            return Ok(None);
+        };
+        let first: serde_json::Value =
+            serde_json::from_str(&first).map_err(|_| StoreError::ControlResourceConflict)?;
+        if first["actor"] != actor || first["source"] != source {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        // Malformed structural proposals need the existing full repair path.
+        let Ok(content) = serde_json::from_value::<PlanContent>(first["content"].clone()) else {
+            return Ok(None);
+        };
+        let direction = first["direction"]
+            .as_str()
+            .ok_or(StoreError::ControlResourceConflict)?
+            .to_owned();
+        Ok(Some((direction, content)))
+    }
+
     pub(crate) fn migrate_guide_proposals_v75(&self) -> Result<()> {
         self.conn.execute_batch("CREATE TABLE IF NOT EXISTS guide_proposal_attempts (
             org_id TEXT NOT NULL, team_id TEXT NOT NULL, turn_id TEXT NOT NULL,
@@ -260,6 +302,33 @@ mod tests {
             validation_error: error,
         }
     }
+    #[test]
+    fn allocation_basis_survives_reopen_and_cannot_cross_scope_or_turn() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("allocations.db");
+        let db = seed(&path);
+        let original = plan();
+        db.submit_guide_proposal(input("first", &original, Some("Insufficient coordination")))
+            .unwrap();
+        drop(db);
+        let db = Store::open(&path).unwrap();
+        assert_eq!(
+            db.guide_proposal_allocation_basis("owner", "org", "team", "discussion", "discussion")
+                .unwrap(),
+            Some(("Compare the options".into(), original))
+        );
+        for (actor, team, source, turn) in [
+            ("outsider", "team", "discussion", "discussion"),
+            ("owner", "other", "discussion", "discussion"),
+            ("owner", "team", "missing", "discussion"),
+            ("owner", "team", "discussion", "missing"),
+        ] {
+            assert!(db
+                .guide_proposal_allocation_basis(actor, "org", team, source, turn)
+                .is_err());
+        }
+    }
+
     #[test]
     fn malformed_proposals_share_the_durable_correction_limit() {
         for valid_repair in [true, false] {

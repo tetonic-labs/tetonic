@@ -42,7 +42,7 @@ impl WorkService {
             "rule":"Use each agent's selected folder and granted tools, not an unrelated default folder. Missing access: direct the owner to Agents, edit the assignee, add/select the needed working folder or tools. This never grants an external account or changes running work."
         });
         context["coordination_limits"] = serde_json::json!({
-            "minimum_tokens":256,
+            "minimum_tokens":"Estimated for each proposal from its shared context, tool schemas and contributions; checked before saving and starting.",
             "maximum_tokens":self.services.execution.coordination_tokens(),
             "maximum_steps":self.services.execution.coordination_max_steps,
             "budget_rule":"Reserve coordination tokens inside the plan total, in addition to worker allocations. Coordination must cover dispatch, reading all contributions, reasoning and the final synthesis, not just a short visible answer. For a multi-agent plan, prefer the available coordination ceiling when the owner's total permits; rebalance worker allocations instead of starving synthesis. The coordinator already combines contributions, so add a separate synthesis assignment only when it has distinct specialist work. These ceilings do not grant budget or tool access."
