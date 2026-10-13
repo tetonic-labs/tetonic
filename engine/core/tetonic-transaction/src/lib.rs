@@ -8,6 +8,7 @@ pub mod fuzzy_patch;
 pub mod journal;
 pub mod lock;
 mod publication;
+mod read_view;
 pub mod recovery;
 pub mod security;
 pub mod service;

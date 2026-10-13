@@ -295,6 +295,12 @@ impl WorkspaceTransaction {
         Ok(())
     }
 
+    /// Read this transaction's pending version, without publishing or approving it.
+    /// `None` means the path is unchanged and the caller should read the live file.
+    pub fn read_staged_file(&self, rel: &str) -> Result<Option<String>, TransactionError> {
+        crate::read_view::read_staged_file(&self.root, &self.staging, &self.sets, rel)
+    }
+
     pub fn stage_write_file(
         &mut self,
         rel: &str,

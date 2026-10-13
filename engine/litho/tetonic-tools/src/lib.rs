@@ -801,15 +801,30 @@ impl Tools {
         let path = self.ws.resolve(&a.path)?;
         self.deny_reserved(&path)?;
         self.deny_credential_store(&path)?;
-        if tetonic_transaction::fs_ops::is_symlink_or_reparse(&path) || !path.is_file() {
-            let sug = workspace::find_similar_paths(self.ws.root(), &a.path).unwrap_or_default();
-            return Err(ToolError::not_found(a.path, sug));
-        }
-        let text = workspace::read_to_string_nofollow(&path)?;
-        let _ = self
+        let relative = path
+            .strip_prefix(self.ws.root())
+            .map_err(|_| ToolError::OutsideWorkspace(a.path.clone()))?
+            .to_string_lossy();
+        let staged = self
             .mutation
             .transaction_service()
-            .with_active_if_any(|txn| txn.record_read(&a.path));
+            .with_active_if_any(|txn| {
+                let content = txn.read_staged_file(&relative)?;
+                txn.record_read(&relative)?;
+                Ok(content)
+            })
+            .map_err(|e| ToolError::Other(format!("transaction read: {e}")))?
+            .flatten();
+        let text = if let Some(content) = staged {
+            content
+        } else {
+            if tetonic_transaction::fs_ops::is_symlink_or_reparse(&path) || !path.is_file() {
+                let sug =
+                    workspace::find_similar_paths(self.ws.root(), &a.path).unwrap_or_default();
+                return Err(ToolError::not_found(a.path, sug));
+            }
+            workspace::read_to_string_nofollow(&path)?
+        };
         let byte_len = text.len();
         let content = match (a.start_line, a.end_line) {
             // Whole-file read: borrow `text` directly instead of cloning it.
@@ -1182,3 +1197,6 @@ mod integration_tests;
 
 #[cfg(test)]
 mod cancellation_tests;
+
+#[cfg(test)]
+mod staged_read_tests;
