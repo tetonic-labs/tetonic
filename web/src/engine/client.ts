@@ -34,12 +34,12 @@ import type {
   LocalTeamInfo,
   LocalDigestResponse,
 } from './contracts';
-import { readEngineFailure, EngineRequestError } from './failure';
+import { readEngineFailure, EngineRequestError, EngineConnectionError } from './failure';
 
 export class LocalEngine {
   constructor(private token: string) {}
   async request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
-    if (!this.token) throw new Error('Open the connection link printed by the local engine.');
+    if (!this.token) throw new EngineConnectionError('missing');
     const deadline = new AbortController();
     const abort = () => deadline.abort();
     signal?.addEventListener('abort', abort, { once: true });
@@ -60,13 +60,10 @@ export class LocalEngine {
       try {
         value = await response.json();
       } catch {
-        throw new Error('The local engine is unavailable. Start it and reconnect.');
+        throw new EngineConnectionError('unreachable');
       }
       const version = response.headers?.get('x-tetonic-api-version');
-      if (version && version !== '1')
-        throw new Error(
-          'The engine and this app use different API versions. Update the app and reconnect.',
-        );
+      if (version && version !== '1') throw new EngineConnectionError('incompatible');
       if (!response.ok) {
         const failure = readEngineFailure(value);
         throw new EngineRequestError(
@@ -78,6 +75,11 @@ export class LocalEngine {
         );
       }
       return value as T;
+    } catch (error) {
+      if (signal?.aborted) throw error;
+      if (deadline.signal.aborted) throw new EngineConnectionError('timeout');
+      if (error instanceof TypeError) throw new EngineConnectionError('unreachable');
+      throw error;
     } finally {
       clearTimeout(timer);
       signal?.removeEventListener('abort', abort);

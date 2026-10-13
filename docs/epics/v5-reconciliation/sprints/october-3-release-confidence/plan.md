@@ -6,7 +6,7 @@ User outcome: a person can install the supported profile, understand what to do,
 
 ## Ticket overview
 
-All tickets below are planned. Packaging and pilot preparation should begin earlier once sprint 1 freezes their contracts; this sprint owns their acceptance.
+Acceptance remains open for all tickets below. OCT-301 has an initial runtime-entry implementation, recorded in [October 13 evidence](local-product-entry-2026-10-13.md). Packaging and pilot preparation should begin earlier once sprint 1 freezes their contracts; this sprint owns their acceptance.
 
 | Ticket | Work | Priority | Size | Depends on |
 |---|---|---|---|---|
@@ -19,6 +19,8 @@ All tickets below are planned. Packaging and pilot preparation should begin earl
 | OCT-307 | Apply small usability refinements from the pilots | P2 | S | OCT-303 |
 
 ## OCT-301 Package the supported installation and operator controls
+
+October 13 progress: the existing local engine can serve the built product with `--ui-dir`; the entry screen supports connection recovery and Workspace settings supports copying a connection link. [Evidence and limitations](local-product-entry-2026-10-13.md). This closes the separate-Vite runtime dependency for that mode, not installation, upgrade, backup/restore, operator configuration or clean-machine acceptance.
 
 Work: deliver one installation package for the selected OS with preflight, versioned configuration and a reliable start/stop procedure. Serve the built product UI without requiring users to run Vite or a Rust development toolchain. Check provider readiness and explain missing prerequisites. Expose supported logging level/destination/rotation, telemetry endpoint/disable/redaction, storage/artifact location and backup configuration. Keep credentials in the existing secure store. Include migration, graceful shutdown, restore and diagnostic instructions.
 

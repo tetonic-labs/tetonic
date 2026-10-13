@@ -1,13 +1,23 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { Murmuration } from './Murmuration';
+import { ConnectionRecovery } from './ConnectionRecovery';
+import type { ConnectionProblem } from '../../engine/failure';
 import { DISPERSAL_MS, READY_HOLD_MS, type PreloadPhase } from './flockMotion';
 export type { PreloadPhase } from './flockMotion';
 import './preload.css';
 
 /** Only the first connection owns the entry screen. Later outages stay in the workspace. */
 export function StartupGate({ children }: { children: ReactNode }) {
-  const { workspace, isConnected, isConnecting, error, reconnect } = useLocalEngine();
+  const {
+    workspace,
+    isConnected,
+    isConnecting,
+    error,
+    reconnect,
+    connectionProblem,
+    connectWithLink,
+  } = useLocalEngine();
   const [entered, setEntered] = useState(false);
   const [departing, setDeparting] = useState(false);
   const [takingLonger, setTakingLonger] = useState(false);
@@ -67,6 +77,8 @@ export function StartupGate({ children }: { children: ReactNode }) {
           }
           error={error}
           onRetry={reconnect}
+          problem={connectionProblem}
+          onConnect={connectWithLink}
         />
       )}
     </>
@@ -79,11 +91,15 @@ export function PreloadScreen({
   error,
   onRetry,
   flock,
+  problem,
+  onConnect,
 }: {
   phase: PreloadPhase;
   error?: string | null;
   onRetry: () => void;
   flock?: ReactNode;
+  problem?: ConnectionProblem | null;
+  onConnect?: (link: string) => void;
 }) {
   const ready = phase === 'ready' || phase === 'departing';
   const unavailable = phase === 'unavailable';
@@ -91,14 +107,24 @@ export function PreloadScreen({
   const heading = ready
     ? 'Ready when you are.'
     : unavailable
-      ? 'Let’s find our way back.'
+      ? problem === 'missing'
+        ? 'Connect your workspace.'
+        : 'Let’s find our way back.'
       : takingLonger
         ? 'Still gathering the threads.'
         : 'Gathering the threads.';
   const message = ready
     ? 'Your workspace is ready.'
     : unavailable
-      ? 'We couldn’t reach your workspace just yet. Try again, or open a fresh connection link.'
+      ? problem === 'missing'
+        ? 'Open your existing work in this browser.'
+        : problem === 'authorization'
+          ? 'Your workspace needs a fresh connection link.'
+          : problem === 'unreachable' || problem === 'timeout'
+            ? 'Make sure the Tetonic engine is running, then try again.'
+            : problem === 'incompatible'
+              ? 'Update the app and engine to the same version, then reconnect.'
+              : 'We couldn’t reach your workspace just yet. Try again, or open a fresh connection link.'
       : takingLonger
         ? 'Your workspace is taking a little longer to answer. We’re still here.'
         : 'A moment to bring your world of work together.';
@@ -128,9 +154,14 @@ export function PreloadScreen({
         </div>
         {unavailable && (
           <div className="preload-recovery">
-            <button className="preload-retry" onClick={onRetry}>
-              Try again <span aria-hidden="true">↗</span>
-            </button>
+            {onConnect && problem !== 'incompatible' && (
+              <ConnectionRecovery problem={problem} onConnect={onConnect} />
+            )}
+            {problem !== 'missing' && (
+              <button className="preload-retry" onClick={onRetry}>
+                Try again <span aria-hidden="true">↗</span>
+              </button>
+            )}
             <details>
               <summary>Connection details</summary>
               <p>{error}</p>

@@ -1,6 +1,11 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { LocalEngine } from '../engine/client';
-import { takeConnectionToken } from '../engine/connection';
+import {
+  takeConnectionToken,
+  acceptConnectionLink,
+  copyConnectionLink,
+} from '../engine/connection';
+import { connectionProblem, type ConnectionProblem } from '../engine/failure';
 import {
   type EngineWorkspace,
   type AgentCatalog,
@@ -20,6 +25,7 @@ interface LocalEngineContextType {
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
+  connectionProblem: ConnectionProblem | null;
   lastUpdated: number | null;
   readErrors: Record<string, string>;
   client: LocalEngine;
@@ -64,6 +70,8 @@ interface LocalEngineContextType {
   ) => Promise<LocalApproval>;
   refreshDigest: () => Promise<LocalDigestResponse | null>;
   reconnect: () => void;
+  connectWithLink: (link: string) => void;
+  copyConnectionLink: () => Promise<void>;
 }
 
 const LocalEngineContext = createContext<LocalEngineContextType | null>(null);
@@ -88,6 +96,7 @@ export function LocalEngineProvider({
   const [isConnected, setIsConnected] = useState(false);
   const [isConnecting, setIsConnecting] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [problem, setProblem] = useState<ConnectionProblem | null>(null);
   const [lastUpdated, setLastUpdated] = useState<number | null>(null);
   const [readErrors, setReadErrors] = useState<Record<string, string>>({});
   const [catalogError, setCatalogError] = useState<string | null>(null);
@@ -185,6 +194,7 @@ export function LocalEngineProvider({
 
       setIsConnected(true);
       setError(null);
+      setProblem(null);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       if (
@@ -196,6 +206,7 @@ export function LocalEngineProvider({
         return;
       setIsConnected(false);
       setError(msg);
+      setProblem(connectionProblem(err));
     } finally {
       if (
         !signal?.aborted &&
@@ -363,24 +374,39 @@ export function LocalEngineProvider({
     return dig;
   }, []);
 
-  const reconnect = useCallback(() => {
-    const refreshedToken = takeConnectionToken();
-    if (refreshedToken !== token && !providedClient) {
-      setWorkspace(null);
-      setWorkItems([]);
-      setApprovals(null);
-      setTeams([]);
-      setCatalog(null);
-      setDigest(null);
-      setLastUpdated(null);
-      setReadErrors({});
-      setCatalogError(null);
-    }
-    setToken(refreshedToken);
-    engineRef.current = providedClient || new LocalEngine(refreshedToken);
-    setIsConnecting(true);
-    void refresh();
-  }, [refresh, token, providedClient]);
+  const applyConnection = useCallback(
+    (refreshedToken: string) => {
+      if (refreshedToken !== token && !providedClient) {
+        setWorkspace(null);
+        setWorkItems([]);
+        setApprovals(null);
+        setTeams([]);
+        setCatalog(null);
+        setDigest(null);
+        setLastUpdated(null);
+        setReadErrors({});
+        setCatalogError(null);
+      }
+      setToken(refreshedToken);
+      engineRef.current = providedClient || new LocalEngine(refreshedToken);
+      setIsConnected(false);
+      setIsConnecting(true);
+      void refresh();
+    },
+    [refresh, token, providedClient],
+  );
+
+  const reconnect = useCallback(() => applyConnection(takeConnectionToken()), [applyConnection]);
+  const connectWithLink = useCallback(
+    (link: string) => {
+      const nextToken = acceptConnectionLink(link);
+      if (nextToken !== token)
+        window.history.replaceState(null, '', window.location.pathname + window.location.search);
+      applyConnection(nextToken);
+    },
+    [applyConnection, token],
+  );
+  const copyLink = useCallback(() => copyConnectionLink(token), [token]);
 
   useEffect(() => {
     const connect = () => {
@@ -403,6 +429,7 @@ export function LocalEngineProvider({
         isConnected,
         isConnecting,
         error,
+        connectionProblem: problem,
         lastUpdated,
         readErrors: catalogError ? { ...readErrors, 'Agent setup': catalogError } : readErrors,
         client: engineRef.current,
@@ -422,6 +449,8 @@ export function LocalEngineProvider({
         resolveApproval,
         refreshDigest,
         reconnect,
+        connectWithLink,
+        copyConnectionLink: copyLink,
       }}
     >
       {children}

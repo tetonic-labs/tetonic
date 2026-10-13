@@ -3,6 +3,8 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import './workspace-settings.css';
 import { CapabilityPolicyEditor } from '../views/CapabilityPolicyEditor';
 import { WorkspaceFolders } from './WorkspaceFolders';
+import { useState } from 'react';
+import { ConnectionRecovery } from '../preload/ConnectionRecovery';
 
 export function WorkspaceSettings({
   dark,
@@ -12,6 +14,7 @@ export function WorkspaceSettings({
   setDark: (value: boolean) => void;
 }) {
   const engine = useLocalEngine();
+  const [copyNotice, setCopyNotice] = useState<string | null>(null);
   const { workspace, readErrors, approvals } = engine;
   const issues = Object.entries(readErrors);
   const status = engine.isConnecting
@@ -68,12 +71,39 @@ export function WorkspaceSettings({
             {status}
           </span>
         </div>
-        {!engine.isConnected && !engine.isConnecting && (
-          <p className="workspace-settings-note">
-            Open the connection link printed by your local Tetonic engine.
-          </p>
-        )}
+        {!engine.isConnected &&
+          !engine.isConnecting &&
+          (engine.connectionProblem === 'incompatible' ? (
+            <p className="workspace-settings-note">
+              Update the app and engine to the same version, then reconnect.
+            </p>
+          ) : (
+            <ConnectionRecovery
+              problem={engine.connectionProblem}
+              onConnect={engine.connectWithLink}
+            />
+          ))}
         <div className="workspace-connection-actions">
+          {engine.isConnected && (
+            <button
+              type="button"
+              className="workspace-settings-action"
+              onClick={async () => {
+                try {
+                  await engine.copyConnectionLink();
+                  setCopyNotice(
+                    'Link copied. Open it in another browser on this computer. It grants access to this workspace.',
+                  );
+                } catch (error) {
+                  setCopyNotice(
+                    error instanceof Error ? error.message : 'Could not copy the connection link.',
+                  );
+                }
+              }}
+            >
+              Copy connection link
+            </button>
+          )}
           <details open={issues.length > 0 || undefined}>
             <summary>Connection details</summary>
             <p>
@@ -97,6 +127,11 @@ export function WorkspaceSettings({
             Reconnect
           </button>
         </div>
+        {copyNotice && (
+          <p className="workspace-settings-note" role="status">
+            {copyNotice}
+          </p>
+        )}
       </section>
       {!!approvals?.active_stops.length && (
         <section className="workspace-restrictions" aria-label="Active restrictions">

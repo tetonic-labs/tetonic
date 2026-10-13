@@ -99,6 +99,26 @@ Replace `YOUR_INSTALLED_MODEL` with the exact model name from `ollama list`. The
 
 **Open the connection URL printed by the engine.** It connects the browser to your local workspace. Treat that link as a credential; restarting the engine creates a new one. Keep both processes running.
 
+For a built UI, you can run the interface and engine as **one process** instead. Build once from the checkout:
+
+```sh
+cd web
+npm ci
+npm run build
+cd ../engine
+cargo build --locked -p tetonic-cli
+```
+
+Then, from the repository root, run the built executable (use `tetonic.exe` on Windows):
+
+```sh
+./engine/target/debug/tetonic ui --database .lokai/ui/workspace.db --model YOUR_INSTALLED_MODEL --ui-dir web/dist
+```
+
+Stop any existing engine using that database first. Open the connection URL it prints; the built UI and API both use port **3000**, with no Vite process or proxy configuration. After the build, this mode needs the executable and built UI files at runtime, not Node or Cargo. This is a runtime launch option, not an installer. UI files are loaded at startup; rebuild and restart to update them.
+
+To open your workspace in another browser on the same computer, use **Workspace settings → Copy connection link**. If you opened the plain address without its connection key, the entry screen lets you paste the full link. Engine restart invalidates old links; use the new launcher link to reconnect. Keys stay in tab-scoped storage, and no workspace data becomes public.
+
 ### 4. Put a small team to work
 
 1. Open **Agents** to inspect the available agents or create one with a clear purpose.

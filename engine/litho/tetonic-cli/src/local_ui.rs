@@ -1,5 +1,7 @@
 //! Loopback-only adapter for the owner-controlled local workspace.
+mod assets;
 mod contract;
+mod requests;
 use clap::Parser;
 use contract::{application_error, authorized, error, local_origin};
 use http_body_util::{BodyExt, Full, Limited};
@@ -8,13 +10,13 @@ use hyper::{
     Request, Response, StatusCode,
 };
 use hyper_util::rt::{TokioIo, TokioTimer};
-use serde::Deserialize;
+use requests::{Submit, UpdateWorkItemRequest};
 use std::{convert::Infallible, net::Ipv4Addr, path::PathBuf, rc::Rc, time::Duration};
 use tetonic_app::local_workspace::{
     AmendPlanAssignment, AnswerPlanQuestion, BudgetSettingsRequest, ContinuePlan, CreateLocalAgent,
     CreateWorkItemRequest, ImportSkill, LocalWorkspace, PlanCommand, RemoveProviderKey,
     ResolveApprovalRequest, RevokeSkill, SaveProviderKey, SaveWorkBrief, StartPlan,
-    UpdateLocalAgent, WorkPurpose,
+    UpdateLocalAgent,
 };
 
 #[derive(Parser)]
@@ -36,8 +38,12 @@ pub struct UiCli {
     ollama: String,
     #[arg(long, default_value_t = 3000)]
     port: u16,
-    #[arg(long, default_value = "http://127.0.0.1:5173")]
-    ui_origin: String,
+    /// Development UI origin. Omit when serving a built UI with --ui-dir.
+    #[arg(long, conflicts_with = "ui_dir")]
+    ui_origin: Option<String>,
+    /// Built product UI directory. Serves the UI and engine together on --port.
+    #[arg(long)]
+    ui_dir: Option<PathBuf>,
     /// Optional owner-local connection URL file. Treat its contents as a credential.
     #[arg(long)]
     connection_file: Option<PathBuf>,
@@ -54,6 +60,7 @@ struct State {
     token: String,
     origin: String,
     host: String,
+    assets: Option<assets::UiAssets>,
 }
 
 pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
@@ -75,13 +82,24 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
         &configuration.telemetry,
     )
     .map_err(|e| anyhow::anyhow!("host diagnostics: {e}"))?;
-    let origin = local_origin(&args.ui_origin)?;
+    // Load a bounded, immutable set of public assets before opening the workspace.
+    // Serving a UI never exposes the workspace directory or its connection file.
+    let assets = args
+        .ui_dir
+        .as_deref()
+        .map(assets::UiAssets::load)
+        .transpose()?;
     let ollama = local_origin(&args.ollama)?;
     if let Some(parent) = args.database.parent().filter(|p| !p.as_os_str().is_empty()) {
         tokio::fs::create_dir_all(parent).await?;
     }
     let listener = tokio::net::TcpListener::bind((Ipv4Addr::LOCALHOST, args.port)).await?;
     let address = listener.local_addr()?;
+    let origin = if assets.is_some() {
+        format!("http://{address}")
+    } else {
+        local_origin(args.ui_origin.as_deref().unwrap_or("http://127.0.0.1:5173"))?
+    };
     // Opening a UI is not permission to grant the process working directory.
     let workspace_root = args.workspace_root;
     let mut workspace = LocalWorkspace::open_with_configuration(
@@ -120,6 +138,7 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
                 token,
                 origin,
                 host: address.to_string(),
+                assets,
             });
             let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(32));
             loop {
@@ -149,35 +168,18 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
         .await
 }
 
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct Submit {
-    #[serde(default)]
-    work_team: Option<tetonic_app::local_workspace::WorkTeamSelection>,
-    #[serde(default)]
-    purpose: WorkPurpose,
-    #[serde(default)]
-    parent_id: Option<String>,
-    request_id: String,
-    input: String,
-    #[serde(default)]
-    agent_key: Option<String>,
-}
-
-#[derive(Deserialize)]
-#[serde(deny_unknown_fields)]
-struct UpdateWorkItemRequest {
-    #[serde(default)]
-    notes: Option<Vec<String>>,
-    #[serde(default)]
-    status: Option<String>,
-    #[serde(default)]
-    lead_id: Option<String>,
-    #[serde(default)]
-    agent_ids: Option<Vec<String>>,
-}
-
 async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Bytes>> {
+    let path = request.uri().path();
+    if path != "/api" && !path.starts_with("/api/") {
+        if let Some(assets) = &state.assets {
+            return assets.serve(
+                request.method(),
+                request.uri(),
+                request.headers(),
+                &state.host,
+            );
+        }
+    }
     if !authorized(request.headers(), &state.token, &state.origin, &state.host) {
         return error(
             StatusCode::UNAUTHORIZED,
@@ -761,106 +763,26 @@ fn json(status: StatusCode, value: serde_json::Value) -> Response<Full<Bytes>> {
 mod tests {
     use super::*;
     #[test]
-    fn budget_settings_cannot_supply_usage_or_execution_authority() {
-        let command =
-            serde_json::json!({"request_id":"id","expected_revision":0,"token_limit":1024});
-        assert!(serde_json::from_value::<BudgetSettingsRequest>(command.clone()).is_ok());
-        let mut reset = command.clone();
-        reset["token_limit"] = serde_json::Value::Null;
-        assert!(serde_json::from_value::<BudgetSettingsRequest>(reset)
-            .unwrap()
-            .token_limit
-            .is_none());
-        let mut missing = command.clone();
-        missing.as_object_mut().unwrap().remove("token_limit");
-        assert!(serde_json::from_value::<BudgetSettingsRequest>(missing).is_err());
-        for field in [
-            "used_tokens",
-            "released_tokens",
-            "work_id",
-            "team_id",
-            "actor",
-            "grant",
-        ] {
-            let mut invalid = command.clone();
-            invalid[field] = serde_json::json!("untrusted");
-            assert!(serde_json::from_value::<BudgetSettingsRequest>(invalid).is_err());
-        }
-    }
-    #[test]
-    fn plan_commands_cannot_accept_execution_settings_or_dispatch_actions() {
-        let command = serde_json::json!({"action":"generate","request_id":"id","expected_revision":0,"brief_revision":1});
-        assert!(serde_json::from_value::<PlanCommand>(command.clone()).is_ok());
-        for key in ["grant", "execute", "tools", "credential", "workspace_root"] {
-            let mut bad = command.clone();
-            bad[key] = serde_json::json!(true);
-            assert!(serde_json::from_value::<PlanCommand>(bad).is_err());
-        }
-        assert!(serde_json::from_value::<PlanCommand>(
-            serde_json::json!({"action":"dispatch","revision":1})
-        )
+    fn built_ui_and_development_origin_are_exclusive() {
+        let args = [
+            "ui",
+            "--database",
+            "workspace.db",
+            "--model",
+            "configured-model",
+        ];
+        let parsed = UiCli::try_parse_from(args).unwrap();
+        assert!(parsed.ui_dir.is_none() && parsed.ui_origin.is_none());
+        assert!(UiCli::try_parse_from(args.into_iter().chain(["--ui-dir", "ui"])).is_ok());
+        assert!(UiCli::try_parse_from(args.into_iter().chain([
+            "--ui-dir",
+            "ui",
+            "--ui-origin",
+            "http://127.0.0.1:5173"
+        ]))
         .is_err());
     }
-    #[test]
-    fn shaping_payloads_are_explicit_and_cannot_supply_execution_authority() {
-        let mut value =
-            serde_json::json!({"request_id":"id","input":"Explore this","agent_key":"The Guide"});
-        assert_eq!(
-            serde_json::from_value::<Submit>(value.clone())
-                .unwrap()
-                .purpose,
-            WorkPurpose::Work
-        );
-        value["purpose"] = serde_json::json!("explore");
-        assert_eq!(
-            serde_json::from_value::<Submit>(value.clone())
-                .unwrap()
-                .purpose,
-            WorkPurpose::Explore
-        );
-        value["purpose"] = serde_json::json!("anything");
-        assert!(serde_json::from_value::<Submit>(value).is_err());
-        let brief =
-            serde_json::json!({"request_id":"id","expected_revision":0,"body":"Draft only"});
-        assert!(serde_json::from_value::<SaveWorkBrief>(brief.clone()).is_ok());
-        for field in ["dispatch", "grant", "team_id", "actor"] {
-            let mut invalid = brief.clone();
-            invalid[field] = serde_json::json!("untrusted");
-            assert!(serde_json::from_value::<SaveWorkBrief>(invalid).is_err());
-        }
-    }
-    #[test]
-    fn agent_requests_reject_unimplemented_authority_fields() {
-        let value = serde_json::json!({"request_id":"id","name":"Analyst","purpose":"Think",
-            "model":"installed","harness":"general","max_steps":2,"max_seconds":60,"max_tokens":1024});
-        assert!(serde_json::from_value::<CreateLocalAgent>(value.clone()).is_ok());
-        for field in [
-            "tool_ids",
-            "permissions",
-            "workspace_path",
-            "principal",
-            "team_id",
-        ] {
-            let mut invalid = value.clone();
-            invalid[field] = serde_json::json!("untrusted");
-            assert!(serde_json::from_value::<CreateLocalAgent>(invalid).is_err());
-        }
-    }
-    #[test]
-    fn blackboard_inspection_query_accepts_scope_but_not_caller_authority() {
-        use tetonic_app::local_workspace::BlackboardQuery;
-        let value = serde_json::json!({"offset":20,"work_ids":["work"]});
-        let query = serde_json::from_value::<BlackboardQuery>(value.clone()).unwrap();
-        assert!(query.validate().is_ok());
-        for field in ["actor", "org", "team", "agent_id", "audience"] {
-            let mut invalid = value.clone();
-            invalid[field] = serde_json::json!("untrusted");
-            assert!(serde_json::from_value::<BlackboardQuery>(invalid).is_err());
-        }
-        let query = serde_json::from_value::<BlackboardQuery>(serde_json::json!({"offset":100001}))
-            .unwrap();
-        assert!(query.validate().is_err());
-    }
+
     #[test]
     fn only_loopback_origins_are_accepted() {
         assert!(local_origin("http://127.0.0.1:5173").is_ok());

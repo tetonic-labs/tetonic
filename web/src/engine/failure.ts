@@ -14,6 +14,7 @@ export function readEngineFailure(value: unknown): EngineFailure {
   if (record.schema_version !== undefined && record.schema_version !== 1)
     return {
       message: 'The engine and this app use different API versions. Update the app and reconnect.',
+      code: 'unsupported_version',
     };
   return {
     message: typeof record.error === 'string' && record.error ? record.error : fallback,
@@ -37,4 +38,34 @@ export class EngineRequestError extends Error {
   ) {
     super(message);
   }
+}
+
+export type ConnectionProblem =
+  | 'missing'
+  | 'authorization'
+  | 'unreachable'
+  | 'timeout'
+  | 'incompatible';
+
+export class EngineConnectionError extends Error {
+  constructor(public reason: Exclude<ConnectionProblem, 'authorization'>) {
+    super(
+      {
+        missing: 'Open the connection link printed by the local engine.',
+        unreachable: 'The local engine is unavailable. Start it and reconnect.',
+        timeout: 'The engine did not answer in time. Check that it is running, then retry.',
+        incompatible:
+          'The engine and this app use different API versions. Update the app and reconnect.',
+      }[reason],
+    );
+  }
+}
+
+export function connectionProblem(error: unknown): ConnectionProblem | null {
+  if (error instanceof EngineConnectionError) return error.reason;
+  if (error instanceof EngineRequestError) {
+    if (error.code === 'unsupported_version') return 'incompatible';
+    if (error.status === 401) return 'authorization';
+  }
+  return null;
 }
