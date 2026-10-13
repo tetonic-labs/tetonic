@@ -11,6 +11,7 @@ fn workspace_execution_defaults_and_partial_overrides_are_bounded() {
         (32, 32)
     );
     assert_eq!((default.max_seconds, default.max_tokens), (600, 12_288));
+    assert_eq!(default.context_tokens, 8192);
     assert_eq!(
         (
             default.coordination_max_steps,
@@ -19,15 +20,19 @@ fn workspace_execution_defaults_and_partial_overrides_are_bounded() {
         (16, 4096)
     );
     let config = HostConfiguration::from_json(
-        br#"{"workspace_execution":{"max_steps":32,"max_tokens":1024}}"#,
+        br#"{"workspace_execution":{"max_steps":32,"max_tokens":1024,"context_tokens":32768}}"#,
     )
     .unwrap();
     assert_eq!(config.workspace_execution.worker_steps(false), 32);
     assert_eq!(config.workspace_execution.worker_steps(true), 32);
     assert_eq!(config.workspace_execution.coordination_tokens(), 1024);
+    // A larger context does not enlarge the run's cumulative usage allowance.
+    assert_eq!(config.workspace_execution.context_tokens, 32768);
+    assert_eq!(config.workspace_execution.max_tokens, 1024);
     for (field, values) in [
         ("max_steps", [0, 513]),
         ("max_seconds", [9, 86_401]),
+        ("context_tokens", [2047, 262_145]),
         ("max_tokens", [255, 1_000_001]),
         ("coordination_max_steps", [0, 513]),
         ("coordination_max_tokens", [255, 1_000_001]),

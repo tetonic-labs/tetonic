@@ -88,6 +88,7 @@ settings outside the new `host` object keep their previous interpretation.
 | `telemetry.byte_budget` | `524288000` | Process-lifetime emitted-byte budget. Existing always-retained security outcomes can exceed it; this is not a hard disk quota. |
 | `workspace_execution.max_steps` | Omitted | Worker step ceiling, 1–512. Omitted/null uses 32 steps. |
 | `workspace_execution.max_seconds` | `600` | Worker elapsed-time ceiling, 10–86400 seconds. |
+| `workspace_execution.context_tokens` | `8192` | Approximate working context per model call, including tool schemas, 2048–262144 tokens. Choose a value supported by the configured model and local hardware. This controls history retention and the local model context request; it does not enlarge cumulative usage allowances. |
 | `workspace_execution.max_tokens` | `12288` | Worker reported input-plus-output token ceiling, 256–1000000 per run. |
 | `workspace_execution.coordination_max_steps` | `16` | Managed plan coordinator step ceiling, 1–512. |
 | `workspace_execution.coordination_max_tokens` | `4096` | Coordination allowance ceiling, 256–1000000, additionally capped by `max_tokens`. Included inside the plan's total allocation. |
@@ -183,13 +184,21 @@ Continuation proposals retain coordination allocations up to the current ceiling
 The coordinator's elapsed deadline still covers the worker ceiling multiplied by
 assignment count plus one, capped at 24 hours. The accepted plan pins its execution
 settings. These settings do not add permissions, raise workspace allowances,
-change model context windows, guarantee model completion or enable durable team
+increase a model's supported context window, guarantee model completion or enable durable team
 waiting. Provider/broker capacity and existing grants still apply. Human waiting
 in team work currently consumes the live attempt's deadline; safe team restoration
 after restart remains unfinished. See [the readiness slice](../epics/v5-reconciliation/sprints/october-2-coordinated-work/execution-limits-2026-10-08.md).
 
 `workspace_execution` applies to the local workspace host (`tetonic ui`). It does
 not override explicit per-job execution settings in `tetonic job --host-settings`.
+
+`context_tokens` controls the approximate amount of conversation and tool history
+kept for each call. Large source-reading tasks can require more than the default
+8192; for example, a capable hosted model can be configured with 32768. Choose
+within the model's actual context limit. Increasing this value can increase input
+usage per call and, for local models, memory consumption. It is not compaction or
+durable memory; old history still falls out when the configured window fills.
+`max_tokens` and saved agent/plan budgets continue to cap cumulative reported use.
 
 ## Scope and remaining work
 

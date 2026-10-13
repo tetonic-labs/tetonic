@@ -9,6 +9,9 @@ pub struct WorkspaceExecutionConfiguration {
     /// None uses a finite host ceiling of 32 steps. Saved agent limits remain independent.
     pub max_steps: Option<usize>,
     pub max_seconds: u64,
+    /// Approximate working context per model call, including tool schemas.
+    /// Independent of the cumulative reported-token allowance for a run.
+    pub context_tokens: usize,
     /// Reported input plus output tokens per worker run, not a spend allowance.
     pub max_tokens: u64,
     pub coordination_max_steps: usize,
@@ -21,6 +24,7 @@ impl Default for WorkspaceExecutionConfiguration {
         Self {
             max_steps: None,
             max_seconds: 600,
+            context_tokens: 8192,
             max_tokens: 12_288,
             coordination_max_steps: 16,
             coordination_max_tokens: 4096,
@@ -41,6 +45,7 @@ impl WorkspaceExecutionConfiguration {
         for (field, value, minimum, maximum) in [
             ("max_steps", self.max_steps.unwrap_or(4) as u64, 1, 512),
             ("max_seconds", self.max_seconds, 10, 86_400),
+            ("context_tokens", self.context_tokens as u64, 2048, 262_144),
             ("max_tokens", self.max_tokens, 256, 1_000_000),
             (
                 "coordination_max_steps",

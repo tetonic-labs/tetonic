@@ -250,7 +250,7 @@ impl LocalWorkspace {
                     reported_token_ceiling: Some(execution.max_tokens),
                     workspace_root,
                     model,
-                    num_ctx: 8192,
+                    num_ctx: execution.context_tokens,
                     data_class: DataClass::Secret,
                     allowed_tools,
                     limits: HarnessPreparationLimits {
