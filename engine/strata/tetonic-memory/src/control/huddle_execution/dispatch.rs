@@ -93,7 +93,7 @@ impl Store {
             || command.call.len() > 512
             || command.call.contains('\0')
             || command.keys.is_empty()
-            || command.keys.len() > 12
+            || command.keys.len() > crate::PlanContent::MAX_ASSIGNMENTS
             || (!command.grouped && command.keys.len() != 1)
             || command
                 .keys
@@ -200,7 +200,7 @@ impl Store {
             let bytes =
                 serde_json::to_vec(&result).map_err(|_| StoreError::ControlResourceConflict)?;
             if bytes.len() > MAX_RESULT_BYTES
-                || result.delivered_keys.len() > 12
+                || result.delivered_keys.len() > crate::PlanContent::MAX_ASSIGNMENTS
                 || result
                     .delivered_keys
                     .iter()

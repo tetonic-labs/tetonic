@@ -29,11 +29,17 @@ pub struct PlanContent {
 }
 
 impl PlanContent {
+    /// One bounded, reviewed dependency graph; independent of available agents.
+    pub const MAX_ASSIGNMENTS: usize = 32;
+
     pub fn validate(&self) -> Result<()> {
         field_text("title", &self.title, 160)?;
         field_text("summary", &self.summary, 2000)?;
-        if self.assignments.is_empty() || self.assignments.len() > 12 {
-            return invalid_field("assignments", "provide 1–12 assignments");
+        if self.assignments.is_empty() || self.assignments.len() > Self::MAX_ASSIGNMENTS {
+            return invalid_field(
+                "assignments",
+                &format!("provide 1–{} assignments", Self::MAX_ASSIGNMENTS),
+            );
         }
         if self.open_questions.len() > 12 {
             return invalid_field("open_questions", "provide at most 12 questions");
@@ -68,8 +74,11 @@ impl PlanContent {
             if assignment.tools.len() > 16 {
                 return invalid_field(&field("tools"), "use at most 16 granted tools");
             }
-            if assignment.depends_on.len() > 12 {
-                return invalid_field(&field("depends_on"), "use at most 12 assignment keys");
+            if assignment.depends_on.len() >= Self::MAX_ASSIGNMENTS {
+                return invalid_field(
+                    &field("depends_on"),
+                    &format!("use at most {} assignment keys", Self::MAX_ASSIGNMENTS - 1),
+                );
             }
             for tool in &assignment.tools {
                 field_text(&field("tools"), tool, 128)?;
@@ -152,9 +161,10 @@ fn field_text(field: &str, value: &str, max: usize) -> Result<()> {
 }
 
 fn invalid<T>() -> Result<T> {
-    Err(StoreError::InvalidControlResource(
-        "plan: use 1–12 unique assignments with valid dependencies and bounded text".into(),
-    ))
+    Err(StoreError::InvalidControlResource(format!(
+        "plan: use 1–{} unique assignments with valid dependencies and bounded text",
+        PlanContent::MAX_ASSIGNMENTS
+    )))
 }
 fn text(value: &str, max: usize) -> Result<()> {
     if value.trim().is_empty() || value.len() > max || value.contains('\0') {
@@ -209,6 +219,43 @@ mod tests {
             {"key":"compare","title":"Compare","instructions":"Use those facts","agent_key":"Analyst","depends_on":["research"],"tools":[],"deliverable":"Tradeoffs","token_budget":2000}
         ]})).unwrap()
     }
+    #[test]
+    fn wider_graph_preserves_cycle_reference_and_payload_limits() {
+        let mut plan = content();
+        let template = plan.assignments[0].clone();
+        plan.assignments = (0..PlanContent::MAX_ASSIGNMENTS)
+            .map(|i| {
+                let mut a = template.clone();
+                a.key = format!("task-{i}");
+                a.agent_key = format!("agent-{}", i % 6);
+                a.depends_on = if i + 1 == PlanContent::MAX_ASSIGNMENTS {
+                    (0..i).map(|n| format!("task-{n}")).collect()
+                } else {
+                    vec![]
+                };
+                a
+            })
+            .collect();
+        plan.token_budget = 100_000;
+        plan.validate().unwrap();
+        let mut invalid = plan.clone();
+        invalid.assignments.push(template);
+        assert!(invalid.validate().is_err());
+        let mut invalid = plan.clone();
+        invalid.assignments[0].depends_on = vec!["task-31".into()];
+        assert!(invalid.validate().is_err());
+        let mut invalid = plan.clone();
+        invalid.assignments[0].depends_on = vec!["missing".into()];
+        assert!(invalid.validate().is_err());
+        for assignment in &mut plan.assignments {
+            assignment.instructions = "x".repeat(4000);
+        }
+        assert!(
+            plan.validate().is_err(),
+            "task count must not relax the total byte bound"
+        );
+    }
+
     #[test]
     fn validates_graph_budgets_and_bounded_payloads() {
         let plan = content();

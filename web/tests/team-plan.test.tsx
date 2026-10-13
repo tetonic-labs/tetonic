@@ -974,6 +974,33 @@ it('retains an uncertain operation across closing the overlay and retries its id
   await screen.findByRole('heading', { name: 'Compare formats' });
 });
 
+it('uses the engine assignment limit when editing a large plan', async () => {
+  const large = {
+    ...content,
+    assignments: Array.from({ length: 20 }, (_, i) => ({
+      ...content.assignments[0],
+      key: `task-${i}`,
+      title: `Assignment ${i}`,
+    })),
+  };
+  const f = fixture({
+    max_assignments: 32,
+    plans: [{ ...plan, content: large }],
+    generation: null,
+    brief_revision: 2,
+    readiness: [],
+    execution_available: false,
+  });
+  f.render();
+  fireEvent.click(await screen.findByRole('button', { name: 'Edit details yourself' }));
+  const add = screen.getByRole('button', { name: 'Add assignment' });
+  expect(add).toHaveProperty('disabled', false);
+  for (let i = 20; i < 32; i++) fireEvent.click(add);
+  expect(add).toHaveProperty('disabled', true);
+  expect(screen.getAllByRole('button', { name: 'Remove assignment' })).toHaveLength(32);
+  expect(f.submit).not.toHaveBeenCalled();
+});
+
 it('keeps edits and blocks stale agreement until current brief and plan are reviewed', async () => {
   const f = fixture({
     plans: [plan],

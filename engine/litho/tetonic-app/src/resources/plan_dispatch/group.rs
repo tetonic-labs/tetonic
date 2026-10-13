@@ -31,12 +31,13 @@ pub(super) fn keys(args: Value, allowed: &[String]) -> Result<(Vec<String>, bool
     };
     let unique: std::collections::HashSet<_> = keys.iter().collect();
     if keys.is_empty()
-        || keys.len() > 12
+        || keys.len() > tetonic_memory::PlanContent::MAX_ASSIGNMENTS
         || unique.len() != keys.len()
         || keys.iter().any(|key| !allowed.contains(key))
     {
         return Err(format!(
-            "Select 1–12 distinct agreed keys from: {}.",
+            "Select 1–{} distinct agreed keys from: {}.",
+            tetonic_memory::PlanContent::MAX_ASSIGNMENTS,
             allowed.join(", ")
         ));
     }
@@ -111,7 +112,10 @@ mod tests {
         ] {
             assert!(keys(invalid.clone(), &allowed).is_err(), "{invalid}");
         }
-        let too_many: Vec<_> = (0..13).map(|i| i.to_string()).collect();
+        let limit = tetonic_memory::PlanContent::MAX_ASSIGNMENTS;
+        let full: Vec<_> = (0..limit).map(|i| i.to_string()).collect();
+        assert!(keys(json!({"assignment_keys":full}), &full).is_ok());
+        let too_many: Vec<_> = (0..=limit).map(|i| i.to_string()).collect();
         assert!(keys(json!({"assignment_keys":too_many}), &too_many).is_err());
     }
 }

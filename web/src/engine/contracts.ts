@@ -74,6 +74,8 @@ export interface PlanTaskLink {
 }
 
 export interface PlanView {
+  /** Engine's reviewed-plan bound; older engines support twelve assignments. */
+  max_assignments?: number;
   continuation_from?: PlanContinuation | null;
   continuation_to?: PlanContinuation | null;
   recovery?: {

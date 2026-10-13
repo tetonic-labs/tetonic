@@ -698,7 +698,10 @@ export function PlanReview({
                       </ol>
                       {edit && (
                         <button
-                          disabled={content.assignments.length >= 12 || !agents.length}
+                          disabled={
+                            content.assignments.length >= (view?.max_assignments ?? 12) ||
+                            !agents.length
+                          }
                           onClick={() =>
                             change({
                               assignments: [

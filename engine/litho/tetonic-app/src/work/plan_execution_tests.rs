@@ -11,6 +11,9 @@ mod documents;
 #[path = "plan_group_tests.rs"]
 mod groups;
 
+#[path = "plan_width_tests.rs"]
+mod width;
+
 #[path = "plan_recovery_tests.rs"]
 mod recovery;
 
@@ -100,7 +103,9 @@ pub(crate) async fn scripted_server(
                     let (tool, args) = {
                         let mut calls = captured.lock().unwrap();
                         calls.push(request.clone());
-                        if matches!(scenario, 14..=16) {
+                        if matches!(scenario, 17 | 18) {
+                            width::reply(child, &request)
+                        } else if matches!(scenario, 14..=16) {
                             blackboard::reply(scenario, child, &request)
                         } else if matches!(scenario, 10..=12) {
                             recovery::reply(scenario, child, &request)
@@ -208,6 +213,14 @@ pub(crate) async fn scripted_server(
                         let response = format!("HTTP/1.1 500 Internal Server Error\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len());
                         let _ = stream.write_all(response.as_bytes()).await;
                         return;
+                    }
+                    if matches!(scenario, 17 | 18) && child {
+                        width::wait_for_peers(
+                            &request,
+                            &captured,
+                            if scenario == 17 { 6 } else { 3 },
+                        )
+                        .await;
                     }
                     if child && matches!(scenario, 8 | 9) {
                         // Neither worker returns until both HTTP requests have arrived.

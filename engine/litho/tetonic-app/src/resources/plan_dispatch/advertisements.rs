@@ -13,7 +13,7 @@ pub(crate) fn coordinator(keys: &[String]) -> Vec<ToolAdvertisement> {
     }, ToolAdvertisement {
         name: DISPATCH.into(),
         description: "Dispatch all outstanding agreed assignment_keys together, including dependents. The host handles parallelism, dependency order and capacity without more model calls. Completed-key retries reuse results.".into(),
-        parameters: serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_keys"],"properties":{"assignment_keys":{"type":"array","minItems":1,"maxItems":12,"uniqueItems":true,"items":{"type":"string","enum":keys}}}}),
+        parameters: serde_json::json!({"type":"object","additionalProperties":false,"required":["assignment_keys"],"properties":{"assignment_keys":{"type":"array","minItems":1,"maxItems":tetonic_memory::PlanContent::MAX_ASSIGNMENTS,"uniqueItems":true,"items":{"type":"string","enum":keys}}}}),
     }]
 }
 
