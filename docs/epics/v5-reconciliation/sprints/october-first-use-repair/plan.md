@@ -9,21 +9,24 @@ Classification: **additional required product scope; release-blocking corrective
 Baseline: 113a6a3e and the owner's fresh-workspace walkthrough on October 8.
 Release target: October 25. Feature freeze: October 18.
 
-October 13 current owner direction: preserve the current MVP design and improve
-the Guide as a complete product system. The owner rejected the first engineering-led
-breakdown. The [revised Guide proposal](guide-system-refinement-2026-10-13.md) now
-defines GDE-001–006 around useful help, clearer thinking, easy delegation,
-understandable ongoing work, simple course corrections and usable results. Begin
-with the actual conversation and idea-development experience. Each slice includes
-its UI behavior, engine support and journey proof. Architecture boundaries remain
-mandatory without becoming the product objectives; the rejected GDE-007 validation
-milestone is incorporated into each outcome.
+October 13 current owner direction: preserve the MVP design and enhance the Guide
+as a complete product system. The dedicated [Guide partner sprint](../guide-partner/plan.md)
+now supplies the active sequence and six GPR tickets. It includes sustained
+conversation, multiple trains of thought, useful situational help, conversational
+work changes, bounded event awareness and understandable ongoing work/results.
+Begin with conversation continuity; each slice includes UI behavior, existing
+engine owners and product proof. No fixed intent router or planning sequence.
+The new plan cross-references the preceding GDE outcomes rather than duplicating
+their delivery work. Its additional subject/event mechanisms are not yet built
+or estimated to fit the freeze.
 
 The first GDE-001/002 increment now retains discussion understanding through the
 existing versioned brief and exposes it quietly in the current conversation.
 Ordinary replies no longer prompt for a plan. Automated integration and UI checks
 support this slice; live conversational quality and the wider journey remain open.
-See the Guide workstream's implementation increment for boundaries and evidence.
+See the [preceding Guide workstream's implementation increment](guide-system-refinement-2026-10-13.md#october-13-implementation-increment)
+for boundaries and evidence. That document retains the earlier breakdown;
+the dedicated Guide sprint replaces its overlapping implementation sequence.
 
 The preceding [product journey plan](product-continuity-2026-10-13.md) still supplies
 the broader experience obligations; the Guide workstream refines its overlapping

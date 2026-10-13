@@ -5,6 +5,12 @@ Source baseline: `55b77acf`; current map and Guide remain the design foundation.
 
 ## Current delivery direction
 
+The dedicated [Guide partner sprint](../guide-partner/plan.md) now supplies the
+active Guide sequence, including conversation continuity, multiple subjects and
+bounded event attention. It maps the preceding GDE outcomes into GPR tickets.
+The broader journey obligations below remain open; this does not authorize a
+new layout or establish release readiness.
+
 The owner subsequently locked the current MVP design and requested Guide
 improvements, then rejected the engineering-led ticket breakdown. The
 [revised Guide proposal](guide-system-refinement-2026-10-13.md) now organizes

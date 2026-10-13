@@ -6,21 +6,26 @@ The release should prove that digital autonomous teams can carry out the person'
 
 ## Active schedule
 
-**October 13 current focus: refine the Guide as a product system.** The owner has
-locked the current MVP design and requested improvements to the Guide. Following
-feedback that the initial plan was too engineering-led, the [revised Guide plan](october-first-use-repair/guide-system-refinement-2026-10-13.md)
-proposes six product outcomes: useful exchanges, clearer thinking, easy delegation,
-understandable parallel work, manageable changes/problems, and usable results.
-GDE-001–006 have revised meanings; the previous GDE-007 proof work is embedded in
-every outcome. Start by improving actual conversation and idea development, then
-their handoff into useful work. Architecture ownership and checks support every
-slice; they are not separate product milestones. Wider release obligations remain
-open. This adds no calendar sprint, closes no gate and makes no new date promise.
+**October 13 current focus: the dedicated Guide enhancement sprint.** The
+[Guide partner plan](guide-partner/plan.md) is the active implementation sequence,
+with [six concrete tickets](guide-partner/tickets.md) and
+[product acceptance journeys](guide-partner/acceptance.md). Improve continuity,
+movement between trains of thought, useful situational help, conversational work
+changes, bounded event awareness and orientation across ongoing work/results.
+Preserve the existing MVP interface and model-driven assistance; these outcomes
+are not fixed conversation modes or a scripted planning pipeline.
 
-Initial implementation now retains useful discussion notes without creating a
-proposal, keeps them inspectable/editable in the conversation, and removes the
-automatic planning prompt after ordinary replies. GDE-001/002 remain in progress;
-automated state/transport/UI evidence is not live-model product acceptance.
+GPR-001 through GPR-006 are implemented in `71f4ab8`; the
+[engineering and live evidence](guide-partner/evidence-2026-10-13.md) records the
+actual behavior and limits. Owner usability review, the larger useful-width proof
+and other October release gates remain separate. This workstream adds no calendar
+week and waives no wider obligation.
+
+The [preceding Guide breakdown](october-first-use-repair/guide-system-refinement-2026-10-13.md)
+retains implementation evidence; its overlapping GDE delivery sequence is replaced
+by the explicit crosswalk in the new plan. Existing saved understanding and quiet
+conversation controls are reused. Their automated evidence is not live-model
+product acceptance or completion of the new tickets.
 
 **October 13 preceding product direction.** The
 [revised product journey plan](october-first-use-repair/product-continuity-2026-10-13.md)

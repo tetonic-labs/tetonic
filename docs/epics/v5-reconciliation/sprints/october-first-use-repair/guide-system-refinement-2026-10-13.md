@@ -1,7 +1,15 @@
 # Make the Guide more useful throughout the work
 
-Date: October 13, 2026. Status: **in progress; initial GDE-001/002 slice implemented, product acceptance open**.
+Date: October 13, 2026. Status: **preceding breakdown; initial GDE-001/002 slice implemented, product acceptance open**.
 Source baseline: `55b77acf`. Parent: [First use to useful team work](plan.md).
+
+The [Guide partner sprint](../guide-partner/plan.md) is now the active delivery
+sequence, following the owner's request for a dedicated enhancement sprint and
+discussion of event awareness and multiple trains of thought. Its GPR crosswalk
+retains these product outcomes and the evidence below. Use its tickets instead of
+opening duplicate GDE work. Earlier handoff examples below are illustrative, not
+a prescribed request-to-plan sequence. Existing notes do not complete subject
+continuity or event activation; broader acceptance remains open.
 
 ## Product objective
 
