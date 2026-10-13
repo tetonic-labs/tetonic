@@ -14,6 +14,17 @@ export interface WorkRecord {
 export const isGuideConversation = (record: WorkRecord) =>
   record.latest?.purpose === 'explore' && !record.latest.plan;
 
+// Effort ownership is engine supplied; a newer proposal does not split the chat.
+export function guideProposalSource(record: WorkRecord, sources: string[] = []) {
+  const saved = new Set(sources);
+  return (
+    record.turns
+      .slice()
+      .reverse()
+      .find((turn) => saved.has(turn.id))?.id || record.id
+  );
+}
+
 // A compact presentation label, not a rewritten instruction. Full text stays
 // in the recorded turns and is displayed in the work view.
 function displayTitle(text: string) {

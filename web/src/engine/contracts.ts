@@ -245,6 +245,8 @@ export interface GuideAttentionView {
 }
 
 export interface EngineWorkspace {
+  /** Saved effort anchors within Guide conversations, in no particular order. */
+  guide_plan_sources?: string[];
   work_teams?: WorkTeam[];
   usage?: WorkUsage[];
   budget_setting?: BudgetSetting;

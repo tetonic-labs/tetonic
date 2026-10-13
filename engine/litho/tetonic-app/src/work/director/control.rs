@@ -82,7 +82,20 @@ impl WorkService {
         turn: &str,
     ) -> Result<(PlanDispatch, Session), AppError> {
         let snapshot = self.snapshot().await?;
-        let source = conversation_root(&snapshot, turn).to_string();
+        let conversation = conversation_root(&snapshot, turn).to_string();
+        let latest_source = proposal_source(&snapshot, turn).to_string();
+        let latest_view = self.plan_view(&latest_source).await?;
+        // A started effort is immutable. A new proposal attaches to this real
+        // conversation turn instead of replacing the old plan or inventing a chat.
+        let previous_source = latest_view
+            .execution
+            .is_some()
+            .then_some(latest_source.clone());
+        let source = if previous_source.is_some() {
+            turn.to_owned()
+        } else {
+            latest_source
+        };
         let view = self.plan_view(&source).await?;
         let (sender, receiver) = tokio::sync::mpsc::channel(1);
         let mut plan_schema = plans::response_schema();
@@ -102,6 +115,8 @@ impl WorkService {
         }
         let binding = DirectorBinding {
             read_only: self.guide_assessment_allowance(turn).await?.is_some(),
+            conversation,
+            previous_source,
             source,
             turn: turn.into(),
             revision: view.plans.first().map_or(0, |p| p.revision),
@@ -195,7 +210,7 @@ impl WorkService {
                     }
                 }
                 self.guide_context_command(
-                    &binding.source,
+                    &binding.conversation,
                     super::subjects::GuideContextMutation {
                         request_id: operation_id(&binding.turn, &format!("context/{call_id}")),
                         command: *context,
@@ -222,7 +237,25 @@ impl WorkService {
             Command::Rebalance { allocations } => {
                 self.director_rebalance(binding, call_id, allocations).await
             }
-            Command::Inspect {} => self.director_state(&binding.source).await,
+            Command::Inspect {} => {
+                let mut value = self.director_state(&binding.source).await?;
+                value["conversation_id"] = binding.conversation.clone().into();
+                value["proposal_source_id"] = binding.source.clone().into();
+                if value["plan"].is_null() {
+                    if let Some(previous) = &binding.previous_source {
+                        let prior = self.plan_view(previous).await?;
+                        value["previous_effort"] = serde_json::json!({
+                            "source_work_id": previous,
+                            "title": prior.plans.first().and_then(|p| p.content.as_ref()).map(|p| &p.title),
+                            "execution_state": prior.execution.as_ref().map(|e| &e.state),
+                            "work_id": prior.execution.as_ref().map(|e| &e.receipt.root_work_id),
+                            "details": "Use work with this work_id to inspect results or status."
+                        });
+                        value["authority"] = "propose creates a separate unstarted effort in this conversation; it cannot revise or restart the previous effort. The owner reviews and starts it inline.".into();
+                    }
+                }
+                Ok(value)
+            }
             Command::Resources {} => self.director_resources(&binding.source).await,
             Command::Work { work_id } => self.director_work(work_id.as_deref()).await,
             Command::Propose { direction, plan } => {

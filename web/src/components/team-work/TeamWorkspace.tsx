@@ -12,7 +12,7 @@ import {
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { teamWorkspace } from '../../engine/projections/workspace';
-import { isGuideConversation } from '../../engine/projections/records';
+import { isGuideConversation, guideProposalSource } from '../../engine/projections/records';
 import { attentionItems } from '../../lib/attentionItems';
 import {
   projectWorkContext,
@@ -122,9 +122,15 @@ function ConnectedTeamWorkspace() {
     records.flatMap((r) => (r.latest?.plan ? [r.latest.plan.source_work_id] : [])),
   );
   const attentionRecords = assignments.filter((r) => !launchedSources.has(r.id));
+  const conversationFocus =
+    panel?.kind === 'shaping'
+      ? records.find((r) => r.id === panel.id || r.turns.some((t) => t.id === panel.id))
+      : undefined;
   const focusSource =
     panel?.kind === 'shaping'
-      ? panel.id
+      ? conversationFocus
+        ? guideProposalSource(conversationFocus, workspace?.guide_plan_sources)
+        : panel.id
       : selected?.latest?.plan && !selected.latest.plan.assignment_key && !panel?.inspect
         ? selected.latest.plan.source_work_id
         : selected?.latest?.purpose === 'explore'
@@ -137,7 +143,7 @@ function ConnectedTeamWorkspace() {
       r.latest.plan.source_work_id === focusSource &&
       !r.latest.plan.assignment_key,
   );
-  const focusRecord = focusRoot || records.find((r) => r.id === focusSource);
+  const focusRecord = focusRoot || conversationFocus || records.find((r) => r.id === focusSource);
   const attention = attentionItems(
     attentionRecords,
     engine.approvals?.pending_approvals || [],

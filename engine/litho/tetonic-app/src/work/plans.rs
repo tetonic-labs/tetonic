@@ -9,7 +9,7 @@ pub(super) fn response_schema() -> serde_json::Value {
     // can make a constrained-decoding grammar expensive. PlanContent remains the
     // authority for all limits, references and budget validation on capture.
     let text = json!({"type":"string"});
-    let budget = json!({"type":"integer","description":"This worker's total reported input and output tokens across all its calls, including instructions and supplied context. Not its output length. Must fit its saved per-run ceiling."});
+    let budget = json!({"type":"integer","description":"This worker's total reported input AND output tokens across its entire tool loop, not output length. Instructions, generated content and tool results are paid again when sent in later calls. Budget for inspection, creation, review and a final completion call; do not exhaust the allowance generating the deliverable. Fit the saved per-run ceiling and owner's limit. Reduce scope or surface insufficient allowance rather than proposing a full task that can only afford its first steps."});
     json!({"type":"object","additionalProperties":false,
         "required":["title","summary","token_budget","open_questions","assignments"],
         "properties":{"title":text,"summary":text,"token_budget":{"type":"integer","description":"Total allowance including all assignments AND coordination/synthesis; never allocate the entire total to workers."},

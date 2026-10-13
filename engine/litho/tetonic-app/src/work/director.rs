@@ -27,8 +27,10 @@ impl WorkService {
         turn: &str,
     ) -> Result<serde_json::Value, AppError> {
         let app_scope = self.services.authorized_scope().await?;
-        let source = conversation_root(snapshot, turn);
-        let mut context = observation(snapshot, turn, &app_scope);
+        let conversation = conversation_root(snapshot, turn);
+        let source = proposal_source(snapshot, turn);
+        let mut context = observation(snapshot, source, &app_scope);
+        context["focus"]["conversation_id"] = conversation.into();
         context["current_turn_id"] = turn.into();
         context["product"] = serde_json::json!({
             "purpose":"Think through ideas, get useful answers, inspect ongoing work and delegate when ready.",
@@ -53,7 +55,7 @@ impl WorkService {
             context["selected_team"] = serde_json::json!({"id":team.id,"name":team.name,"purpose":team.purpose,"roster_revision":team.revision,"agent_keys":team.agent_keys,"constraint":"Assign work only to this saved roster. Team membership grants no additional tools or access."});
         }
         let view = self.plan_view(source).await?;
-        context["discussion_context"] = self.guide_context_view(source).await?;
+        context["discussion_context"] = self.guide_context_view(conversation).await?;
         if let Some(plan) = view.plans.first() {
             context["saved_plan"] = serde_json::json!({
                 "revision":plan.revision,"status":plan.status,"brief_revision":plan.brief_revision,
@@ -68,6 +70,11 @@ impl WorkService {
                 "partial":true,"details":"Use work_plan inspect for the complete saved proposal and readiness."
             });
             context["plan_started"] = view.execution.is_some().into();
+            context["delegation"] = if view.execution.is_some() {
+                serde_json::json!({"proposal_target":turn,"meaning":"propose saves a NEW, separately reviewed effort in this same conversation. It does not replace, edit or relaunch the previously started plan. Use it when the owner asks for new work, not to change existing work. Missing optional execution tools do not prevent delegating the parts agents can do. Chat code is not a saved deliverable."})
+            } else {
+                serde_json::json!({"proposal_target":source,"meaning":"propose revises this unstarted proposal. A proposal is not execution; the owner starts it inline."})
+            };
             if view.execution.is_none() {
                 // A proposal has no execution records yet. Other plans' completed
                 // assignments must not look like progress on this conversation.
@@ -125,12 +132,35 @@ fn conversation_root<'a>(snapshot: &'a LocalWorkspaceSnapshot, turn: &'a str) ->
     source
 }
 
+/// A conversation can carry several efforts. Revisions stay on the nearest
+/// proposal-bearing ancestor; starting one never consumes the conversation.
+fn proposal_source<'a>(snapshot: &'a LocalWorkspaceSnapshot, turn: &'a str) -> &'a str {
+    let sources: std::collections::HashSet<_> = snapshot.guide_plan_sources.iter().collect();
+    let mut source = turn;
+    let mut seen = std::collections::HashSet::new();
+    while seen.insert(source) {
+        if sources.iter().any(|id| id.as_str() == source) {
+            return source;
+        }
+        match snapshot
+            .tasks
+            .iter()
+            .find(|t| t.id == source)
+            .and_then(|t| t.parent_id.as_deref())
+        {
+            Some(parent) => source = parent,
+            None => break,
+        }
+    }
+    source
+}
+
 fn observation(
     snapshot: &LocalWorkspaceSnapshot,
     turn: &str,
     app_scope: &crate::resources::ApplicationScope,
 ) -> serde_json::Value {
-    let source = conversation_root(snapshot, turn);
+    let source = proposal_source(snapshot, turn);
     let focused = snapshot
         .tasks
         .iter()

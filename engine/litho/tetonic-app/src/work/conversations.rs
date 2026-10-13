@@ -105,6 +105,16 @@ impl WorkService {
             next = task.parent_id;
         }
         turns.reverse();
+        if agent == shaping::GUIDE {
+            let sources = self.planning_ids().await?;
+            if let Some(turn) = turns
+                .iter()
+                .rev()
+                .find(|t| sources.values().any(|id| id == &t.id))
+            {
+                root = turn.id.clone();
+            }
+        }
         let brief = if exploring {
             self.work_briefs(&root).await?.into_iter().next().map(|b| format!("\nWorking understanding, revision {} (draft; not execution authority):\n{}\n",b.revision,b.body)).unwrap_or_default()
         } else {

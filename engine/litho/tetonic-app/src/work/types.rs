@@ -63,6 +63,8 @@ pub struct LocalDigestResponse {
 
 #[derive(Serialize)]
 pub struct LocalWorkspaceSnapshot {
+    /// Conversation turns owning saved proposals; not conversation boundaries.
+    pub guide_plan_sources: Vec<String>,
     pub work_teams: Vec<WorkTeam>,
     pub usage: Vec<tetonic_memory::WorkUsage>,
     pub budget_setting: tetonic_memory::TeamBudgetSetting,

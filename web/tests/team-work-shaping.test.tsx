@@ -94,6 +94,34 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it.each([saved.id, 'new-effort'])(
+    'reviews the latest effort inside the same conversation from %s without resubmitting work',
+    async (link) => {
+      const next = {
+        ...saved,
+        id: 'new-effort',
+        parent_id: saved.id,
+        input: 'Now build a small game.',
+      };
+      const reply = { ...saved, id: 'correction', parent_id: next.id, input: 'Keep it text only.' };
+      const f = fixture([saved, next, reply]);
+      const original = await f.client.snapshot();
+      f.snapshot.mockResolvedValue({ ...original, guide_plan_sources: [saved.id, next.id] });
+      history.replaceState(null, '', `/#shape=${link}`);
+      const start = vi.spyOn(f.client, 'startPlan');
+      f.view();
+      await screen.findByRole('textbox', { name: 'Continue the conversation' });
+      await waitFor(() =>
+        expect(f.client.plan).toHaveBeenCalledWith(next.id, expect.any(AbortSignal)),
+      );
+      expect(f.client.plan).not.toHaveBeenCalledWith(saved.id, expect.any(AbortSignal));
+      expect(screen.getByText(next.input)).toBeTruthy();
+      expect(screen.getByText(reply.input)).toBeTruthy();
+      expect(f.submit).not.toHaveBeenCalled();
+      expect(start).not.toHaveBeenCalled();
+    },
+  );
+
   it('keeps an ordinary answer in the conversation without prompting for a plan', async () => {
     history.replaceState(null, '', `/#shape=${saved.id}`);
     const f = fixture([saved]);

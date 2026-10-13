@@ -3,6 +3,8 @@ use serde_json::json;
 
 #[path = "allocation_tests.rs"]
 mod allocations;
+#[path = "effort_tests.rs"]
+mod efforts;
 #[path = "partner_tests.rs"]
 mod partner;
 #[path = "proposal_validation_tests.rs"]

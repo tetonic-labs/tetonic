@@ -69,6 +69,9 @@ impl WorkService {
             .await
             .map_err(resource)?;
         let planning_ids = self.planning_ids().await?;
+        let mut guide_plan_sources: Vec<_> = planning_ids.values().cloned().collect();
+        guide_plan_sources.sort();
+        guide_plan_sources.dedup();
         let mut tasks = Vec::new();
         let mut planning_tasks = Vec::new();
         for item in work {
@@ -83,6 +86,7 @@ impl WorkService {
             tasks.push(self.project_task(item).await?);
         }
         Ok(LocalWorkspaceSnapshot {
+            guide_plan_sources,
             work_teams: self.work_teams().await?,
             usage: self
                 .services

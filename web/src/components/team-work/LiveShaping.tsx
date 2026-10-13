@@ -4,7 +4,12 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { taskIsActive } from '../../engine/projections/taskState';
 import { type EngineTask, type PlanView } from '../../engine/contracts';
-import { workRecords, isGuideConversation, stateLabel } from '../../engine/projections/records';
+import {
+  workRecords,
+  isGuideConversation,
+  stateLabel,
+  guideProposalSource,
+} from '../../engine/projections/records';
 import { useWorkspaceDraft } from '../workspace/useWorkspaceDraft';
 import { WorkingBrief } from '../workspace/WorkingBrief';
 import { PlanReview } from './PlanReview';
@@ -63,7 +68,10 @@ function ConnectedShaping({
   const [retryError, setRetryError] = useState('');
   const retryGate = useRef(false);
   const stopGate = useRef(false);
-  const selected = records.find((work) => work.id === selectedId);
+  const selected = records.find(
+    (work) => work.id === selectedId || work.turns.some((turn) => turn.id === selectedId),
+  );
+  const proposalSource = selected && guideProposalSource(selected, workspace?.guide_plan_sources);
   const missing = !!selectedId && !selected && !!workspace;
   const latest = selected?.latest;
   const active = !!latest && taskIsActive(latest);
@@ -358,8 +366,8 @@ function ConnectedShaping({
             <div className="tw-conversation-plan" data-handoff={hasHandoff}>
               <PlanReview
                 initialDetailsOpen={reviewInitially}
-                key={`${selected.id}:${briefVersion}`}
-                workId={selected.id}
+                key={`${proposalSource}:${briefVersion}`}
+                workId={proposalSource!}
                 onView={viewChanged}
                 onAgentSettings={onAgentSettings}
                 onTools={onTools}
@@ -380,8 +388,8 @@ function ConnectedShaping({
                     Close saved direction
                   </button>
                   <WorkingBrief
-                    key={selected.id}
-                    workId={selected.id}
+                    key={proposalSource}
+                    workId={proposalSource!}
                     suggestion={suggestion}
                     onContinue={() => {
                       setBriefOpen(false);

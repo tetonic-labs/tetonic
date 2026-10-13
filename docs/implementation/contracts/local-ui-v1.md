@@ -61,6 +61,25 @@ Input is stored independently of the compact work title, up to 12,000 UTF-8 byte
 
 ### Guide continuity and attention
 
+A Guide conversation can contain several independent efforts. Workspace snapshots
+include `guide_plan_sources`, the IDs of conversation turns owning persisted
+proposals. The current proposal is the nearest such ancestor of the active turn;
+clients without this additive field retain the original root-only presentation.
+Unstarted proposal edits retain that source and its revision checks. After an
+effort starts, a new proposal is anchored to the current turn, with its own brief,
+review and execution receipt. The old effort is immutable through this capability;
+it remains inspectable on the map. No new conversation or worker is created by
+proposing. Context focus and original-message lookup stay conversation scoped.
+The UI reviews/starts the actual proposal source while keeping the complete chat
+and composer in place. Starting still requires the existing explicit owner action.
+
+The Guide delegates requests for implementation and external deliverables through
+the existing `work_plan` and registered execution path. Missing optional validation
+tools must be reported without substituting chat output for feasible file work.
+This is a model instruction contract, not a keyword router or a claim that every
+model will select the correct action. Answers and explicitly requested examples
+can still be delivered directly in conversation.
+
 The Guide is an exception to the legacy 64-ancestor/12,000-byte assembled-history
 limit above. Its original turns remain stored; `tetonic-context` selects recent
 and lexically relevant evidence into a 32,000-byte discussion envelope, retaining

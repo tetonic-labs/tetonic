@@ -148,6 +148,8 @@ pub(crate) struct Call {
 #[derive(Clone)]
 pub(crate) struct DirectorBinding {
     pub read_only: bool,
+    pub conversation: String,
+    pub previous_source: Option<String>,
     pub source: String,
     pub turn: String,
     pub revision: i64,
