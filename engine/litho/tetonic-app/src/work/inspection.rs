@@ -460,6 +460,9 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
     if reason.contains("Responses API rate limit reached") {
         return "OpenAI's API rate limit was reached. Wait briefly before trying again.";
     }
+    if reason.contains("hosted stream timed out") {
+        return "The model connection timed out before the response finished. Your conversation and saved work are preserved. Check Usage for any unconfirmed model usage before retrying.";
+    }
     if reason.contains("requested model residency unavailable") {
         "The local inference server could not confirm the requested model was loaded. Completed contributions are saved. Check the model server before starting more work."
     } else if reason.contains("hosted HTTP status 401") || reason.contains("hosted HTTP status 403")
@@ -493,5 +496,15 @@ mod failure_message_tests {
         assert!(message.contains("repeated unsuccessful tool calls"));
         assert!(message.contains("saved work are preserved"));
         assert!(!task_failure_message(Some("PRIVATE TOOL OUTPUT")).contains("PRIVATE"));
+    }
+
+    #[test]
+    fn hosted_timeout_explains_recovery_without_exposing_provider_text() {
+        let message = task_failure_message(Some(
+            "provider: hosted stream error: hosted stream timed out waiting for more data PRIVATE",
+        ));
+        assert!(message.contains("connection timed out"));
+        assert!(message.contains("unconfirmed model usage"));
+        assert!(!message.contains("PRIVATE"));
     }
 }

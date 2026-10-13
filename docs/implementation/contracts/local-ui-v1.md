@@ -140,10 +140,13 @@ agree to or dispatch work. `POST` on the same route accepts these strict command
   failed model output remains inspectable and cannot create assignments.
 - `revise`: `request_id`, `expected_revision`, `brief_revision`, `content`. Appends
   an edited draft with optimistic revision checks. Content has a title, summary,
-  proposed token total, open questions and 1–12 assignments. Each assignment has
+  proposed token total, open questions and 1–32 assignments. Each assignment has
   a unique key, instructions, agent key, deliverable, dependencies, requested tools
   and proposed token allocation. Reject missing references, duplicate keys,
-  cycles, oversized text and allocations exceeding the proposed total.
+  cycles, oversized text and allocations exceeding the proposed total. The entire
+  serialized plan remains limited to 48,000 bytes. Plan reads expose
+  `max_assignments` so the editor follows the engine's bound (12 for older engines
+  without this field); task count does not grant additional execution capacity.
 - `agree`: `request_id`, `revision`. Records agreement to the latest draft only
   while its brief is still current. Agreement is direction, **not execution
   authorization**, tool permission, spend reservation or a start command.
@@ -177,20 +180,28 @@ inputs; all contributions must succeed before the coordinator can finish.
 The existing task and cancel endpoints inspect/control this work. Canceling a
 child uses run-level cancellation, including its parent and siblings.
 
-The same tool also accepts `assignment_keys`, an ordered array of 1–12 distinct
+The same tool also accepts `assignment_keys`, an ordered array of 1–32 distinct
 agreed keys, instead of `assignment_key`. The model-facing schema advertises only
 the array form (one key for a single assignment); the old singular form remains
 accepted for compatibility. The host validates the entire selection
 before dispatch, then feeds each selected key through the existing dispatcher.
-The caller must list dependencies before their dependents; an unmet dependency
-blocks the group rather than launching prerequisite work implicitly. Every
+The host starts selected independent assignments concurrently and starts selected
+dependents after their prerequisites complete, regardless of array order. A
+prerequisite outside the selected group must already be completed; selection
+does not authorize unselected work. Every
 assignment retains its own pinned identity, latest eligible owner direction,
 derived grant, allocation and managed parent. This collects several contributions
-without an extra model call between each one; it does not add a scheduler.
+without an extra model call between each one, using the existing managed runtime
+and durable admission records. Saved agents can receive successive assignments;
+capacity stays held through finalization and is reused only when released.
 
-A group stops on a blocked assignment or human wait and returns all results
-collected so far, the stop message and current outstanding keys. Other ready work
-can still be selected in a later call. Completed-key retries read their receipts.
+A waiting/blocked branch does not impose a stage barrier on independent branches.
+The group returns collected results and outstanding keys; completed-key retries
+read their receipts. Shared cancellation, exhausted budgets or uncertain usage
+can still stop the entire run. The coordinator occupies an execution slot: the
+default team ceiling of four permits three concurrent workers, and six workers
+require seven slots plus sufficient organization/principal capacity. Raising the
+plan task bound does not raise these limits or change saved agent permissions.
 Parent cancellation drops the group wait and prevents subsequent dispatches.
 The coordinator's completion guard remains authoritative for the whole plan,
 including assignments outside the selected group. Single-key receipt shape is
@@ -412,6 +423,14 @@ All responses are JSON with `Cache-Control: no-store`. Errors have `{ "error": "
 Clients retain the same request ID after a lost response. Changed task input or agent selection under the same ID is rejected. Changed agent definitions under the same registration ID are rejected. Identical registration and admitted-task retries work even when Ollama is subsequently offline. A stored grant's expiry is never extended by retrying. Existing work with an attached run returns that run without redispatching. Pre-admission errors can leave a saved `not_started` request; retry uses its ID. Interrupted runs are not automatically resumed.
 
 Tasks expose `agent_key`, `agent_name`, and a curated `error` on failure (never raw provider bodies). Custom-agent work binds the registration key into the stored request ID (`<UUID>@<agent-key>`); legacy IDs still resolve to Local assistant. The unique work ID and stored request/input checks prevent rebinding on retries. Agent enumeration uses existing organization read authorization, including membership revalidation in the store. Schema v51 adds `local_provider_keys`, containing only provider identifiers and opaque OS credential references in the existing database. The existing migration backup policy applies.
+
+Hosted event streams have a two-minute response-header/idle limit and a separate
+15-minute total transport limit. Nonempty chunks renew only the idle timer;
+heartbeats cannot extend the total limit. The agent's own deadline and cancellation
+can stop the request sooner. The existing 8 MiB bound, exact endpoint grants,
+credential handling and no automatic transport retry remain in force. A timeout
+is shown as a model connection timeout, with a reminder to inspect unconfirmed
+usage before retrying; it does not silently release uncertain consumption.
 
 Task states: `not_started`, `starting`, `running`, `waiting_human`, `canceling`, `canceled`, `failed`, `completed`, `recovery_required`. Running is derived from a claimed/running task, not from clicking Send. The UI polls sequentially every 1.5 seconds, retains the last received state with a disconnected warning, and merges by task ID and run sequence. Browser closure does not stop the service's work. Stopping the service interrupts execution; recovery behavior remains owned by the engine.
 

@@ -9,6 +9,8 @@ use crate::{Action, EgressError, EgressEvent, EgressGuard};
 
 const MAX_BODY: usize = 8 * 1024 * 1024;
 
+mod stream;
+
 /// Runtime-only credential. Neither serializable nor printable in diagnostics.
 #[derive(Clone)]
 pub struct HostedCredential {
@@ -259,43 +261,34 @@ impl EgressGuard {
         credential: &C,
         on_chunk: &mut (dyn FnMut(&[u8]) -> Result<(), EgressError> + Send),
     ) -> Result<(), EgressError> {
-        tokio::time::timeout(Duration::from_secs(120), async {
-            let response = self
-                .hosted_request(
-                    url,
-                    reqwest::Method::POST,
-                    Some(body),
-                    &[],
-                    credential.as_ref(),
-                )
-                .await?;
-            if !response
-                .headers()
-                .get(reqwest::header::CONTENT_TYPE)
-                .and_then(|value| value.to_str().ok())
-                .is_some_and(|value| {
-                    value
-                        .split(';')
-                        .next()
-                        .is_some_and(|mime| mime.trim().eq_ignore_ascii_case("text/event-stream"))
-                })
-            {
-                return Err(failure("expected hosted event stream"));
-            }
-            let mut stream = response.bytes_stream();
-            let mut received = 0usize;
-            while let Some(chunk) = stream.next().await {
-                let chunk = chunk.map_err(|_| failure("hosted stream interrupted"))?;
-                received = received.saturating_add(chunk.len());
-                if received > MAX_BODY {
-                    return Err(failure("hosted stream exceeds 8 MiB"));
+        stream::receive(
+            async {
+                let response = self
+                    .hosted_request(
+                        url,
+                        reqwest::Method::POST,
+                        Some(body),
+                        &[],
+                        credential.as_ref(),
+                    )
+                    .await?;
+                if !response
+                    .headers()
+                    .get(reqwest::header::CONTENT_TYPE)
+                    .and_then(|value| value.to_str().ok())
+                    .is_some_and(|value| {
+                        value.split(';').next().is_some_and(|mime| {
+                            mime.trim().eq_ignore_ascii_case("text/event-stream")
+                        })
+                    })
+                {
+                    return Err(failure("expected hosted event stream"));
                 }
-                on_chunk(&chunk)?;
-            }
-            Ok(())
-        })
+                Ok(response.bytes_stream())
+            },
+            on_chunk,
+        )
         .await
-        .map_err(|_| failure("hosted stream timed out"))?
     }
 
     async fn hosted_request(
