@@ -2,6 +2,7 @@ import { PlanExecution } from './PlanExecution';
 import { PlanHandoff } from './PlanHandoff';
 import { GuidePlanCard } from './GuidePlanCard';
 import { ProposalHistory } from './ProposalHistory';
+import { GuideUnderstanding } from './GuideUnderstanding';
 import { useEffect, useRef, useState } from 'react';
 import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
@@ -304,7 +305,18 @@ export function PlanReview({
         disabled={disabled || stale}
       />
     ) : null;
-  if (conversationActive && !current && !readError) return null;
+  if (!readError && !current && (conversationActive || (inConversation && !view))) return null;
+  // A conversation is useful without a plan. Show retained understanding only
+  // when it exists; do not append a planning CTA to every ordinary answer.
+  if (inConversation && view && !current && !view.execution && !preparing && !readError) {
+    return view.understanding ? (
+      <GuideUnderstanding key={workId} brief={view.understanding} onEdit={onBrief} />
+    ) : view.brief_revision && onBrief ? (
+      <button type="button" className="px-text-button" onClick={onBrief}>
+        Saved direction & history
+      </button>
+    ) : null;
+  }
   return (
     <section className="tw-plan" aria-label="Work plan">
       {readError && (

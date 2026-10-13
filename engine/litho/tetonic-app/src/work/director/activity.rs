@@ -27,8 +27,10 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
                 if let Some(text) = arguments.as_str() {
                     arguments = serde_json::from_str(text).unwrap_or_default();
                 }
-                let Some(operation @ ("resources" | "work" | "inspect" | "propose" | "rebalance")) =
-                    arguments["operation"].as_str()
+                let Some(
+                    operation @ ("resources" | "work" | "inspect" | "propose" | "rebalance"
+                    | "remember"),
+                ) = arguments["operation"].as_str()
                 else {
                     // Keep malformed/unknown calls in the serial result order
                     // so their failure cannot settle the next visible check.

@@ -12,6 +12,57 @@ pub struct WorkBrief {
 }
 
 impl Store {
+    /// A conversation may retain its understanding without producing a plan.
+    /// Revision/start checks and the append share a transaction with the brief owner.
+    pub fn save_conversation_brief(
+        &self,
+        command: crate::SaveWorkBrief<'_>,
+        turn: &str,
+        expected_plan: i64,
+    ) -> Result<WorkBrief> {
+        let tx = Transaction::new_unchecked(&self.conn, TransactionBehavior::Immediate)?;
+        self.require_team_participant(command.actor, command.org, command.team)?;
+        let mut next = Some(turn.to_owned());
+        let mut found = false;
+        for _ in 0..64 {
+            let Some(id) = next else { break };
+            let item = self
+                .get_team_work_item(command.org, command.team, &id)?
+                .ok_or(StoreError::ControlAccessDenied)?;
+            if item.created_by != command.actor || item.purpose != crate::WorkPurpose::Explore {
+                return Err(StoreError::ControlAccessDenied);
+            }
+            if id == command.work {
+                found = true;
+                break;
+            }
+            next = item
+                .request_id
+                .split_once('#')
+                .map(|(_, parent)| parent.to_owned());
+        }
+        if !found || expected_plan < 0 {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let retry: bool = self.conn.query_row(
+            "SELECT EXISTS(SELECT 1 FROM work_brief_revisions WHERE org_id=?1 AND team_id=?2 AND work_id=?3 AND request_id=?4)",
+            params![command.org, command.team, command.work, command.request], |r| r.get(0))?;
+        if !retry {
+            let started: bool = self.conn.query_row(
+                "SELECT EXISTS(SELECT 1 FROM huddle_executions WHERE org_id=?1 AND team_id=?2 AND source_work_id=?3)",
+                params![command.org, command.team, command.work], |r| r.get(0))?;
+            let plans =
+                self.huddle_plans(command.actor, command.org, command.team, command.work)?;
+            if started || plans.first().map_or(0, |p| p.revision) != expected_plan {
+                return Err(StoreError::ControlResourceConflict);
+            }
+        }
+        // The existing owner validates exact retries, body and expected revision.
+        let saved = self.save_work_brief_in_transaction(command)?;
+        tx.commit()?;
+        Ok(saved)
+    }
+
     pub(crate) fn migrate_work_shaping_v53(&self) -> Result<()> {
         let applied: bool = self.conn.query_row(
             "SELECT EXISTS(SELECT 1 FROM schema_versions WHERE version=53)",
@@ -178,6 +229,99 @@ mod tests {
         .unwrap();
         db
     }
+    #[test]
+    fn conversation_notes_preserve_human_edits_and_never_create_a_plan() {
+        let db = seed(":memory:");
+        let save = |request, expected, body| crate::SaveWorkBrief {
+            actor: "owner",
+            org: "org",
+            team: "team",
+            work: "exploration",
+            request,
+            expected,
+            body,
+        };
+        let first = db
+            .save_conversation_brief(
+                save("turn-1", 0, "Compare two ideas; neither approved."),
+                "exploration",
+                0,
+            )
+            .unwrap();
+        assert_eq!(first.revision, 1);
+        assert!(db
+            .huddle_plans("owner", "org", "team", "exploration")
+            .unwrap()
+            .is_empty());
+        assert!(db
+            .get_team_work_item("org", "team", "exploration")
+            .unwrap()
+            .unwrap()
+            .run_id
+            .is_none());
+        assert_eq!(
+            db.save_conversation_brief(save("turn-1", 0, &first.body), "exploration", 0)
+                .unwrap(),
+            first
+        );
+        assert!(db
+            .save_conversation_brief(save("turn-1", 0, "Different retry"), "exploration", 0)
+            .is_err());
+        db.save_work_brief(save("owner-edit", 1, "Keep idea B; reject idea A."))
+            .unwrap();
+        assert!(db
+            .save_conversation_brief(save("late-turn", 1, "Revive A"), "exploration", 0)
+            .is_err());
+        assert_eq!(
+            db.work_briefs("owner", "org", "team", "exploration")
+                .unwrap()[0]
+                .body,
+            "Keep idea B; reject idea A."
+        );
+        assert!(db
+            .save_conversation_brief(save("wrong-plan", 2, "Change"), "exploration", 1)
+            .is_err());
+        db.create_team_work_item_for_purpose(
+            crate::CreateTeamWorkItem {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work_id: "other",
+                title: "Other conversation",
+                request_id: "other",
+                goal_id: None,
+            },
+            None,
+            crate::WorkPurpose::Explore,
+        )
+        .unwrap();
+        assert!(db
+            .save_conversation_brief(save("wrong-thread", 2, "Unrelated"), "other", 0)
+            .is_err());
+        db.create_team_work_item_for_purpose(
+            crate::CreateTeamWorkItem {
+                actor: "owner",
+                org: "org",
+                team: "team",
+                work_id: "followup",
+                title: "Follow-up",
+                request_id: "followup#exploration",
+                goal_id: None,
+            },
+            None,
+            crate::WorkPurpose::Explore,
+        )
+        .unwrap();
+        let next = db
+            .save_conversation_brief(
+                save("turn-2", 2, "B, with the owner's correction retained."),
+                "followup",
+                0,
+            )
+            .unwrap();
+        assert_eq!(next.revision, 3);
+    }
+
     #[test]
     fn brief_revisions_are_scoped_idempotent_and_never_launch_work() {
         let db = seed(":memory:");

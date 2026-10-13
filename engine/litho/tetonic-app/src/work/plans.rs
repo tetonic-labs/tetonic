@@ -63,6 +63,7 @@ pub struct PlanView {
     pub plans: Vec<HuddlePlan>,
     pub generation: Option<LocalTask>,
     pub brief_revision: i64,
+    pub understanding: Option<tetonic_memory::WorkBrief>,
     pub readiness: Vec<String>,
     pub execution_available: bool,
 }
@@ -129,11 +130,8 @@ impl WorkService {
     pub async fn plan_view(&self, id: &str) -> Result<PlanView, AppError> {
         let app_scope = self.services.authorized_scope().await?;
         let plans = self.plan_rows(id).await?;
-        let brief_revision = self
-            .work_briefs(id)
-            .await?
-            .first()
-            .map_or(0, |b| b.revision);
+        let understanding = self.work_briefs(id).await?.into_iter().next();
+        let brief_revision = understanding.as_ref().map_or(0, |b| b.revision);
         let generation = match plans.first() {
             Some(plan) => {
                 // A durable generation may exist before admission. Do not launch
@@ -250,6 +248,7 @@ impl WorkService {
             generation,
             brief_revision,
             readiness,
+            understanding,
             execution_available,
         })
     }

@@ -6,6 +6,32 @@ The release should prove that digital autonomous teams can carry out the person'
 
 ## Active schedule
 
+**October 13 current focus: refine the Guide as a product system.** The owner has
+locked the current MVP design and requested improvements to the Guide. Following
+feedback that the initial plan was too engineering-led, the [revised Guide plan](october-first-use-repair/guide-system-refinement-2026-10-13.md)
+proposes six product outcomes: useful exchanges, clearer thinking, easy delegation,
+understandable parallel work, manageable changes/problems, and usable results.
+GDE-001–006 have revised meanings; the previous GDE-007 proof work is embedded in
+every outcome. Start by improving actual conversation and idea development, then
+their handoff into useful work. Architecture ownership and checks support every
+slice; they are not separate product milestones. Wider release obligations remain
+open. This adds no calendar sprint, closes no gate and makes no new date promise.
+
+Initial implementation now retains useful discussion notes without creating a
+proposal, keeps them inspectable/editable in the conversation, and removes the
+automatic planning prompt after ordinary replies. GDE-001/002 remain in progress;
+automated state/transport/UI evidence is not live-model product acceptance.
+
+**October 13 preceding product direction.** The
+[revised product journey plan](october-first-use-repair/product-continuity-2026-10-13.md)
+replaces the rejected engine-first CONT backlog with six JRN tickets. An actual
+journey walkthrough was its original next step, followed by refinement
+of arriving/thinking, handoff, parallel supervision, intervention and results/return.
+Technical work supports those journeys; existing controls and execution obligations
+remain open, including the failed [large-project trial](october-first-use-repair/project-width-proof-2026-10-13.md).
+The Guide workstream above now supplies the immediate sequence for its overlapping
+journeys. The wider JRN obligations remain open. No additional map view is approved.
+
 **October 9 owner focus: return to MVP delivery.** Marketplace integration and
 adoption of an external connector-management platform are deferred. The recent
 catalog/provider discussion was exploration, not an implementation commitment.

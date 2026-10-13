@@ -258,6 +258,19 @@ latest brief through the server and label it as a draft, not execution authority
 The same 12,000-byte conversation ceiling includes the brief; saving a large brief
 does not guarantee enough room to send a follow-up. There is no silent truncation.
 
+October 13 addition: the plan read includes `understanding: WorkBrief | null`,
+the latest brief under the same authorized scope. Clients may omit this field
+when talking to an older host. The Guide can save it through its existing managed
+`work_plan` capability with `operation: "remember"`, `direction` (1–6,000 UTF-8
+bytes) and null `plan`, `work_id` and `allocations`. This is not a public mutation
+endpoint: the host binds the current conversation/turn and expected revisions.
+There is at most one distinct notes save per reply; identical retries return the
+original receipt. A stale brief/proposal or started execution prevents a new
+save. Notes do not create, agree or dispatch a plan. A same-reply proposal can use
+that reply's saved notes; intervening edits still conflict. Guide activity reports
+`remember` only from the actual tool lifecycle. Subsequent turns load these notes
+through the existing conversation-input path.
+
 The live Add agent form discovers installed models through the engine's guarded Ollama provider and lists only those reporting tool-calling support. Registration and new execution recheck this inventory. No model is downloaded. General-purpose agent definitions, instructions, selected model, and lower run limits are immutable and durable. Optional `configuration.preferences` holds typed `GeneralAgentPreferences`; these are data, not execution grants. This local owner host applies them only after checking its ceilings. Other general-harness hosts may ignore preferences. The legacy Local assistant retains its CLI-selected defaults.
 
 ## Hosted lab models and keys

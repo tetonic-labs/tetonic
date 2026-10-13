@@ -188,6 +188,31 @@ per Guide turn, with exact retries and unchanged scope/total enforced in storage
 The same managed Guide reply performs the correction; it does not start another
 inference run or dispatch work. See [proposal correction](../epics/v5-reconciliation/sprints/october-first-use-repair/guide-proposal-correction-2026-10-09.md).
 
+## Guide discussion understanding (October 13, 2026)
+
+The existing managed Guide capability, `work_plan`, also accepts `remember` with
+concise discussion notes. The model chooses whether retaining a decision or
+correction would help; no request classifier or conversation mode is introduced.
+The application binds the source conversation, active turn and expected revisions.
+`ResourceService` authorizes the write; `Store::save_conversation_brief` checks
+same-owner exploration lineage, brief/proposal revisions and absence of a started
+execution in the brief transaction. Exact retries return the original receipt.
+An intervening human edit conflicts rather than being overwritten. A proposal
+later in the same reply may build on that reply's own saved notes.
+
+This reuses append-only `work_brief_revisions`; it adds no table, context service,
+execution authority or HTTP mutation endpoint. The plan read and Guide inspection
+include the latest authorized brief as `understanding`. The conversation can
+show these notes through a collapsed disclosure and the existing brief editor.
+An ordinary answer without a proposal no longer creates a planning prompt in the
+conversation. Execution problems remain visible.
+
+These are model-authored notes, not verified facts or approval. Existing team
+authorization and conversation-history limits still apply; this does not add
+private per-user memory, long-history compaction or changes to running plans.
+Provider fixtures establish transport and state behavior, not conversational
+quality with a live model. See the [Guide workstream](../epics/v5-reconciliation/sprints/october-first-use-repair/guide-system-refinement-2026-10-13.md).
+
 ## Capability permissions (October 9, 2026)
 
 The local workspace now exposes additional permission ceilings in workspace

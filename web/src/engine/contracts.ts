@@ -92,6 +92,7 @@ export interface PlanView {
   generation: EngineTask | null;
   brief_revision: number;
   readiness: string[];
+  understanding?: WorkBrief | null;
   execution_available: boolean;
 }
 
@@ -180,7 +181,7 @@ export interface EngineTask {
 
 export interface GuideActivity {
   id: string;
-  operation: 'resources' | 'work' | 'inspect' | 'propose' | 'repair';
+  operation: 'resources' | 'work' | 'inspect' | 'propose' | 'repair' | 'remember';
   state:
     | 'requested'
     | 'completed'

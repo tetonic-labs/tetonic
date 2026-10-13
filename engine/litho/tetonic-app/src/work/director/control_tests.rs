@@ -5,6 +5,8 @@ use serde_json::json;
 mod allocations;
 #[path = "proposal_validation_tests.rs"]
 mod proposal_validation;
+#[path = "understanding_tests.rs"]
+mod understanding;
 
 fn plan(title: &str) -> tetonic_memory::PlanContent {
     serde_json::from_value(json!({"title":title,"summary":"Compare the supplied options.","token_budget":5096,"open_questions":[],"assignments":[

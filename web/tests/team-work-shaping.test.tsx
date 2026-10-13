@@ -94,6 +94,78 @@ afterEach(() => {
 });
 
 describe('shaping in the team-work map', () => {
+  it('keeps an ordinary answer in the conversation without prompting for a plan', async () => {
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([saved]);
+    vi.mocked(f.client.plan).mockResolvedValue({
+      plans: [],
+      brief_revision: 0,
+      generation: null,
+      understanding: null,
+      readiness: [],
+      execution_available: false,
+    });
+    f.view();
+    await screen.findByRole('textbox', { name: 'Continue the conversation' });
+    await waitFor(() => expect(f.client.plan).toHaveBeenCalled());
+    expect(screen.queryByText('Plan this with the Guide')).toBeNull();
+    expect(screen.queryByRole('region', { name: 'Working understanding' })).toBeNull();
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+
+  it('lets me inspect and correct remembered direction without losing my draft or launching work', async () => {
+    history.replaceState(null, '', `/#shape=${saved.id}`);
+    const f = fixture([saved]);
+    let brief = {
+      work_id: saved.id,
+      revision: 1,
+      body: 'Try a **small workshop**. The format is still undecided.',
+      request_id: 'guide-notes',
+      created_by: 'owner',
+    };
+    vi.mocked(f.client.plan).mockImplementation(async () => ({
+      plans: [],
+      brief_revision: brief.revision,
+      generation: null,
+      understanding: brief,
+      readiness: [],
+      execution_available: false,
+    }));
+    vi.mocked(f.client.briefs).mockResolvedValue([brief]);
+    const save = vi.spyOn(f.client, 'saveBrief').mockImplementation(async (id, request) => {
+      brief = {
+        ...brief,
+        work_id: id,
+        revision: 2,
+        body: request.body,
+        request_id: request.request_id,
+      };
+      return brief;
+    });
+    f.view();
+    const notes = await screen.findByRole('region', { name: 'Working understanding' });
+    expect(within(notes).queryByText('small workshop')).toBeNull();
+    const composer = screen.getByRole('textbox', { name: 'Continue the conversation' });
+    fireEvent.change(composer, { target: { value: 'What about a different audience?' } });
+    fireEvent.click(within(notes).getByRole('button', { name: /Our working understanding/ }));
+    expect(within(notes).getByText('small workshop')).toBeTruthy();
+    expect(within(notes).getByText(/Still a discussion/)).toBeTruthy();
+    fireEvent.click(within(notes).getByRole('button', { name: 'Edit', exact: true }));
+    const editor = await screen.findByRole('textbox', { name: 'Current understanding' });
+    await waitFor(() => expect(editor).toHaveProperty('value', brief.body));
+    fireEvent.change(editor, { target: { value: 'A workshop for beginners. Format undecided.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Save brief' }));
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Back to conversation' }));
+    expect(
+      await screen.findByRole('textbox', { name: 'Continue the conversation' }),
+    ).toHaveProperty('value', 'What about a different audience?');
+    fireEvent.click(await screen.findByRole('button', { name: /Our working understanding/ }));
+    expect(await screen.findByText('A workshop for beginners. Format undecided.')).toBeTruthy();
+    expect(f.submit).not.toHaveBeenCalled();
+    expect(screen.queryByText('Review proposal')).toBeNull();
+  });
+
   it('keeps execution issues visible without turning the conversation into a control panel', async () => {
     history.replaceState(null, '', `/#shape=${saved.id}`);
     const f = fixture([saved]);

@@ -1,5 +1,5 @@
 //! Conversation planning through the existing managed asynchronous tool boundary.
-//! This capability can inspect and propose work; it cannot agree, dispatch or grant.
+//! This capability can inspect, retain discussion notes and propose work; it cannot agree, dispatch or grant.
 use serde::Deserialize;
 use tetonic_domain::{ToolAdvertisement, ToolOutcome};
 
@@ -8,6 +8,9 @@ pub(crate) const CONTROL: &str = "work_plan";
 #[derive(Deserialize)]
 #[serde(tag = "operation", rename_all = "snake_case", deny_unknown_fields)]
 pub(crate) enum Command {
+    Remember {
+        direction: String,
+    },
     Rebalance {
         allocations: Vec<Allocation>,
     },
@@ -65,8 +68,16 @@ pub(crate) fn command(mut value: serde_json::Value) -> Result<Command, String> {
     }
     let parsed: Command = serde_json::from_value(value).map_err(|error| {
         let detail: String = error.to_string().chars().take(240).collect();
-        format!("Invalid work_plan arguments: {detail}. Propose requires direction and plan; reads use null direction and plan. Only work accepts a non-null work_id.")
+        format!("Invalid work_plan arguments: {detail}. Remember requires direction and null plan; propose requires direction and plan; reads use null direction and plan. Only work accepts a non-null work_id.")
     })?;
+    if let Command::Remember { direction } = &parsed {
+        if direction.trim().is_empty() || direction.len() > 6000 || direction.contains('\0') {
+            return Err(
+                "Keep the current understanding concise: 1–6000 bytes, without null characters."
+                    .into(),
+            );
+        }
+    }
     if let Command::Propose { direction, plan } = &parsed {
         if direction.trim().is_empty() || direction.len() > 12_000 || direction.contains('\0') {
             return Err("Provide a concise shared direction of at most 12000 bytes.".into());
@@ -105,12 +116,12 @@ impl DirectorBinding {
             "Complete plan object for propose; null for reads. Never stringify.".into();
         ToolAdvertisement {
             name: CONTROL.into(),
-            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's saved plan and readiness. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. rebalance: repair only assignment token budgets on the first rejected parsed proposal; provide allocations for every original assignment key, with null direction, plan and work_id. This retains every other field and the original total automatically. If the engine returns repair_needed, one correction is allowed: use rebalance for token allocations, or propose only for structural repair within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
+            description: "Guide-only workspace control. resources: inspect current saved agents, teams, skills, connectors, usage and execution ceilings before allocating work. work: list current workspace efforts, or inspect one recorded work_id and its result. inspect: this conversation's current understanding, saved plan and readiness. remember: retain a concise current understanding in direction, with null plan, work_id and allocations. Preserve relevant decisions, corrections and open questions; distinguish tentative ideas from settled choices. This replaces the conversation's notes, so preserve still-relevant context. Save at most once per reply when the understanding materially changes, not for every answer. Saving creates no plan and starts no work; changing direction makes an existing proposal need review. Started plans cannot be changed here. propose: save a real delegation proposal with shared direction and a complete plan using saved agent keys. One saved proposal per reply. rebalance: repair only assignment token budgets on the first rejected parsed proposal; provide allocations for every original assignment key, with null direction, plan and work_id. This retains every other field and the original total automatically. If the engine returns repair_needed, one correction is allowed: use rebalance for token allocations, or propose only for structural repair within this reply's existing budget. Preserve total allowance, shared direction, contributors, dependencies, tools and deliverables. On repair_failed, explain what needs the owner's input and stop proposing; never ask the owner to calculate coordination tokens. Does not dispatch or grant access. The owner starts the reviewed proposal inline.".into(),
             parameters: serde_json::json!({"type":"object","additionalProperties":false,
                 "required":["operation","direction","plan","work_id","allocations"],"properties":{
-                    "operation":{"type":"string","enum":["resources","work","inspect","propose","rebalance"]},
+                    "operation":{"type":"string","enum":["resources","work","inspect","remember","propose","rebalance"]},
                     "work_id":{"type":["string","null"],"description":"For work: a recorded work ID to inspect, or null to list efforts. Null for all other operations."},
-                    "direction":{"type":["string","null"],"description":"Required shared direction for propose: include the task context, constraints and decisions. Omit unrelated private discussion. Set null for read operations."},
+                    "direction":{"type":["string","null"],"description":"For remember: the complete concise working understanding, retaining relevant decisions and open questions. For propose: shared task context, constraints and decisions, omitting unrelated private discussion. Null for reads."},
                     "allocations":{"type":["array","null"],"description":"Only for rebalance: one allocation per original assignment key. Null otherwise.","items":{"type":"object","additionalProperties":false,"required":["assignment_key","token_budget"],"properties":{"assignment_key":{"type":"string"},"token_budget":{"type":"integer"}}}},
                     "plan":plan_schema}}),
         }

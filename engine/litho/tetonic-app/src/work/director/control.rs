@@ -17,7 +17,7 @@ pub(crate) struct Session {
     receiver: tokio::sync::mpsc::Receiver<Call>,
 }
 
-fn operation_id(turn: &str, kind: &str) -> String {
+pub(super) fn operation_id(turn: &str, kind: &str) -> String {
     use sha2::Digest;
     let digest = sha2::Sha256::digest(format!("{turn}/{kind}"));
     let mut bytes = [0; 16];
@@ -169,6 +169,9 @@ impl WorkService {
             ));
         }
         match command {
+            Command::Remember { direction } => {
+                self.remember_understanding(binding, direction).await
+            }
             Command::Rebalance { allocations } => {
                 self.director_rebalance(binding, call_id, allocations).await
             }
@@ -256,8 +259,9 @@ impl WorkService {
             }
             return Err(AppError::InvalidRequest("One proposal per reply. The saved proposal is unchanged; finish your response before further edits.".into()));
         }
+        let expected_brief = self.proposal_brief_revision(binding).await?;
         if view.plans.first().map_or(0, |p| p.revision) != binding.revision
-            || view.brief_revision != binding.brief_revision
+            || view.brief_revision != expected_brief
         {
             return Err(AppError::InvalidRequest("The owner changed the plan or direction during this reply. Inspect the current version and explain the conflict; do not overwrite their changes.".into()));
         }
@@ -266,7 +270,7 @@ impl WorkService {
             &self.services.host.credential, scope.organization().into(), scope.team().into(),
             GuideProposalDraft {
                 source: binding.source.clone(), turn: binding.turn.clone(), call: call_id.into(), request,
-                expected_plan: binding.revision, expected_brief: binding.brief_revision,
+                expected_plan: binding.revision, expected_brief,
                 generation_id: operation_id(&binding.turn, "proposal-origin"),
                 generation_input: format!("Guide conversation turn {}. Shared direction is stored in the linked brief revision.", binding.turn),
                 direction, content, rejected_arguments, validation_error,
@@ -316,6 +320,7 @@ impl WorkService {
             "conversation_id": source,
             "scope": {"organization": app_scope.organization(), "team": app_scope.team()},
         });
+        value["understanding"] = serde_json::json!(view.understanding);
         value["plan"] = serde_json::json!(view.plans.first().map(|p| serde_json::json!({
             "revision":p.revision,"brief_revision":p.brief_revision,"status":p.status,"content":p.content
         })));

@@ -211,7 +211,7 @@ export function WorkingBrief({
       )}
       {current && draft?.text === current.body && !draft.pending && onContinue && (
         <button className="tw-next-step" onClick={onContinue}>
-          Shape the team’s plan <span>Use this saved brief →</span>
+          Back to conversation
         </button>
       )}
       {error && <p role="alert">{error}</p>}

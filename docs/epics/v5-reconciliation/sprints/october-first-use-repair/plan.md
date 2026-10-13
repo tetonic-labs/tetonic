@@ -9,6 +9,30 @@ Classification: **additional required product scope; release-blocking corrective
 Baseline: 113a6a3e and the owner's fresh-workspace walkthrough on October 8.
 Release target: October 25. Feature freeze: October 18.
 
+October 13 current owner direction: preserve the current MVP design and improve
+the Guide as a complete product system. The owner rejected the first engineering-led
+breakdown. The [revised Guide proposal](guide-system-refinement-2026-10-13.md) now
+defines GDE-001–006 around useful help, clearer thinking, easy delegation,
+understandable ongoing work, simple course corrections and usable results. Begin
+with the actual conversation and idea-development experience. Each slice includes
+its UI behavior, engine support and journey proof. Architecture boundaries remain
+mandatory without becoming the product objectives; the rejected GDE-007 validation
+milestone is incorporated into each outcome.
+
+The first GDE-001/002 increment now retains discussion understanding through the
+existing versioned brief and exposes it quietly in the current conversation.
+Ordinary replies no longer prompt for a plan. Automated integration and UI checks
+support this slice; live conversational quality and the wider journey remain open.
+See the Guide workstream's implementation increment for boundaries and evidence.
+
+The preceding [product journey plan](product-continuity-2026-10-13.md) still supplies
+the broader experience obligations; the Guide workstream refines its overlapping
+tickets and supersedes its immediate sequence. Existing release obligations remain
+open. No new map/task view is approved, and the failed
+[large-project proof](project-width-proof-2026-10-13.md) remains a delivery dependency.
+This planning update adds no calendar sprint or acceptance claim. Refinement effort
+must be estimated against the existing freeze and target, not assumed to fit.
+
 ## Outcome
 
 A person opens Tetonic, understands where to begin, explores an uncertain idea or gives a clear request, connects the context it needs, and watches useful work progress. When collaboration helps, they can give an outcome to a visible team and receive combined work without manually directing every agent.

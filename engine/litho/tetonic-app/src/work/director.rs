@@ -5,6 +5,7 @@ pub(super) mod activity;
 mod context_budget;
 mod control;
 mod inspection;
+mod understanding;
 
 impl WorkService {
     pub(super) async fn director_input(
@@ -26,9 +27,9 @@ impl WorkService {
         let source = conversation_root(snapshot, turn);
         let mut context = observation(snapshot, turn, &app_scope);
         context["product"] = serde_json::json!({
-            "purpose":"Shape work here, delegate to saved agents/teams, follow parallel efforts on the map.",
+            "purpose":"Think through ideas, get useful answers, inspect ongoing work and delegate when ready.",
             "navigation":{"Agents":"Models, tools, working folders and per-run limits.","Teams":"Groups of saved agents.","Tools":"Workspace connections and skills.","Conversations":"Saved discussions and unstarted proposals.","Work":"Dispatched assignments and results.","Needs you":"Requests for human help."},
-            "authority":"Inspect and propose only; no launch, provider setup, grants or machine search. Conversation needs no folder or team."
+            "authority":"Inspect, retain discussion notes and propose; no launch, provider setup, grants or machine search. Conversation needs no folder or team."
         });
         context["local_access"] = serde_json::json!({
             "configured_folder":self.services.host.settings.workspace_root.as_ref().map(|p|p.to_string_lossy()),

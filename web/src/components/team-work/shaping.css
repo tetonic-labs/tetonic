@@ -20,6 +20,40 @@
 .px-shaping [hidden] {
   display: none;
 }
+.guide-understanding {
+  padding: 8px 0;
+  font-size: 13px;
+}
+.guide-understanding-heading {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.guide-understanding-heading button {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 0;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.guide-understanding-heading span,
+.guide-understanding small {
+  font-size: 11px;
+  opacity: 0.75;
+}
+.guide-understanding > div + div {
+  padding: 12px 0 8px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.guide-understanding-heading button:is(:hover, :focus-visible) {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
 .tw-plan {
   display: grid;
   gap: 16px;

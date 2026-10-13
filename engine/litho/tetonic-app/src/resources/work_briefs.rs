@@ -1,6 +1,43 @@
 use super::*;
 
 impl ResourceService {
+    pub(crate) async fn save_guide_brief(
+        &self,
+        credential: &str,
+        command: crate::resources::SaveWorkBrief,
+        turn: String,
+        expected_plan: i64,
+    ) -> Result<tetonic_memory::WorkBrief, ResourceError> {
+        let actor = self
+            .authority
+            .authorize(
+                credential,
+                &ResourceAction::ManageTeam {
+                    org_id: command.org.clone(),
+                    team_id: command.team.clone(),
+                },
+            )
+            .await?;
+        Ok(self
+            .store
+            .write(move |db| {
+                db.save_conversation_brief(
+                    tetonic_memory::SaveWorkBrief {
+                        actor: &actor.principal_id,
+                        org: &command.org,
+                        team: &command.team,
+                        work: &command.work,
+                        request: &command.request,
+                        expected: command.expected,
+                        body: &command.body,
+                    },
+                    &turn,
+                    expected_plan,
+                )
+            })
+            .await??)
+    }
+
     pub async fn work_briefs(
         &self,
         credential: &str,

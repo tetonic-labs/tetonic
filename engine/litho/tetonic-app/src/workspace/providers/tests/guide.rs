@@ -25,10 +25,21 @@ impl HostedTransport for PlanningTransport {
             1 => parity::completion(
                 self.provider,
                 "work_plan",
-                json!({"operation":"resources","direction":null,"plan":null,"work_id":null}),
-                "resources",
+                json!({"operation":"remember","direction":"Compare two workshop formats. Keep the scope small.","plan":null,"work_id":null}),
+                "understanding",
             ),
             2 => {
+                let receipt = parity::output(&body, self.provider, "understanding");
+                assert!(receipt.contains("Keep the scope small"), "{receipt}");
+                assert!(receipt.contains("\"work_launched\":false"), "{receipt}");
+                parity::completion(
+                    self.provider,
+                    "work_plan",
+                    json!({"operation":"resources","direction":null,"plan":null,"work_id":null}),
+                    "resources",
+                )
+            }
+            3 => {
                 let resources = parity::output(&body, self.provider, "resources");
                 assert!(
                     resources.contains("agents")
@@ -44,7 +55,7 @@ impl HostedTransport for PlanningTransport {
                     "work",
                 )
             }
-            3 => {
+            4 => {
                 let work = parity::output(&body, self.provider, "work");
                 assert!(work.contains("workspace_totals"), "{work}");
                 parity::completion(
@@ -56,8 +67,10 @@ impl HostedTransport for PlanningTransport {
                     "inspect",
                 )
             }
-            4 => {
-                assert!(parity::output(&body, self.provider, "inspect").contains("conversation_id"));
+            5 => {
+                let inspection = parity::output(&body, self.provider, "inspect");
+                assert!(inspection.contains("conversation_id"));
+                assert!(inspection.contains("Keep the scope small"));
                 parity::completion(
                     self.provider,
                     "work_plan",
@@ -75,7 +88,7 @@ impl HostedTransport for PlanningTransport {
                     "proposal",
                 )
             }
-            5 => {
+            6 => {
                 let receipt = parity::output(&body, self.provider, "proposal");
                 assert!(receipt.contains("Workshop comparison"), "{receipt}");
                 // Ordinary text must complete a conversational turn after tool use.
@@ -307,6 +320,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                         .map(|a| (a.operation.as_str(), a.state.as_str()))
                         .collect::<Vec<_>>(),
                     vec![
+                        ("remember", "completed"),
                         ("resources", "completed"),
                         ("work", "completed"),
                         ("inspect", "completed"),
@@ -315,6 +329,10 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                 );
                 let view = workspace.plan_view(&id).await.unwrap();
                 assert_eq!(view.plans[0].status, "draft");
+                assert_eq!(
+                    view.brief_revision, 2,
+                    "proposal follows notes saved in the same reply"
+                );
                 assert_eq!(
                     view.plans[0].content.as_ref().unwrap().title,
                     "Workshop comparison"
@@ -331,7 +349,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                     .unwrap();
                 assert_eq!(retry.run_id, task.run_id);
                 let calls = transport.calls.lock().unwrap().clone();
-                assert_eq!(calls.len(), 5);
+                assert_eq!(calls.len(), 6);
                 // Editing during inference does not mutate the active turn's limits.
                 match provider {
                     "openai" => assert_eq!(calls[1]["max_output_tokens"], 4056),
@@ -364,7 +382,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                         .is_err(),
                     "no local fallback after key removal"
                 );
-                assert_eq!(transport.calls.lock().unwrap().len(), 5);
+                assert_eq!(transport.calls.lock().unwrap().len(), 6);
                 assert_eq!(
                     workspace.snapshot().await.unwrap().tasks.len(),
                     1,

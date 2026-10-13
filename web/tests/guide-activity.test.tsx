@@ -2,6 +2,27 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { expect, it } from 'vitest';
 import { GuideActivity } from '../src/components/team-work/GuideActivity';
 
+it('reports saved understanding only after the engine confirms the notes', () => {
+  const view = render(
+    <GuideActivity
+      activities={[{ id: 'notes', operation: 'remember', state: 'requested' }]}
+      active
+      connected
+    />,
+  );
+  expect(screen.getByText('Keeping track of our direction…')).toBeTruthy();
+  expect(screen.queryByText('Updated our working understanding')).toBeNull();
+  view.rerender(
+    <GuideActivity
+      activities={[{ id: 'notes', operation: 'remember', state: 'completed' }]}
+      active={false}
+      connected
+    />,
+  );
+  expect(screen.getByText('Updated our working understanding')).toBeTruthy();
+  expect(screen.queryByText('Saved a team proposal for review')).toBeNull();
+});
+
 it('shows real operations and their receipts instead of a timed sequence of invented phases', () => {
   const view = render(<GuideActivity activities={[]} active connected />);
   expect(screen.getByRole('status').textContent).toContain('Thinking it through');

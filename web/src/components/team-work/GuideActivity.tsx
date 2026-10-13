@@ -3,6 +3,11 @@ import { useId, useState } from 'react';
 import { type GuideActivity as Activity } from '../../engine/contracts';
 
 const labels: Record<Activity['operation'], { pending: string; done: string; failed: string }> = {
+  remember: {
+    pending: 'Keeping track of our direction',
+    done: 'Updated our working understanding',
+    failed: 'Could not save our working understanding',
+  },
   resources: {
     pending: 'Checking agents, tools and budgets',
     done: 'Checked agents, tools and budgets',
@@ -14,9 +19,9 @@ const labels: Record<Activity['operation'], { pending: string; done: string; fai
     failed: 'Could not inspect work',
   },
   inspect: {
-    pending: 'Reviewing the plan and its readiness',
-    done: 'Reviewed the plan and its readiness',
-    failed: 'Could not inspect this plan',
+    pending: 'Checking our direction and any proposed work',
+    done: 'Checked our direction and any proposed work',
+    failed: 'Could not check the saved discussion',
   },
   propose: {
     pending: 'Saving the team proposal',
