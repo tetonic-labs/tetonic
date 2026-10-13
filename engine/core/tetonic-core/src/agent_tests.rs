@@ -7,6 +7,9 @@ use tetonic_tools::Tools;
 #[path = "tool_recovery_tests.rs"]
 mod tool_recovery;
 
+#[path = "context_window_tests.rs"]
+mod context_window;
+
 fn test_inv(user: &str) -> AgentInvocation {
     test_inv_explain(user, false)
 }

@@ -814,31 +814,39 @@ impl Agent {
         let tools_tokens = self.tools_tokens();
 
         let budget = self.budget();
-        let avail = budget.saturating_sub(system_tokens + tools_tokens);
+        // Keep the current request even when a large tool response displaces
+        // older history. A result without its task is not useful context.
+        let current_user = messages[prefix_len..]
+            .iter()
+            .rposition(|m| m.role == "user")
+            .map(|i| i + prefix_len);
+        let request_tokens = current_user.map_or(0, |i| self.message_tokens(&messages[i]));
+        let avail = budget.saturating_sub(system_tokens + tools_tokens + request_tokens);
 
-        // Keep the most recent messages (after the prefix) that fit; always keep
-        // at least the last one so the model has something to act on.
-        let mut kept_rev: Vec<Message> = Vec::new();
+        // A provider tool-call message and its result batch are indivisible.
+        // This remains a soft context target: keep the latest complete exchange
+        // even if it alone is oversized, as we previously did for one message.
+        let mut start = messages.len();
         let mut convo_tokens = 0usize;
-        for m in messages[prefix_len..].iter().rev() {
-            let t = self.message_tokens(m);
-            if convo_tokens + t > avail && !kept_rev.is_empty() {
+        while start > prefix_len {
+            let group_start = exchange_start(messages, start - 1, prefix_len);
+            let t = (group_start..start)
+                .filter(|i| Some(*i) != current_user)
+                .map(|i| self.message_tokens(&messages[i]))
+                .sum::<usize>();
+            if convo_tokens + t > avail && start < messages.len() {
                 break;
             }
             convo_tokens += t;
-            kept_rev.push(m.clone());
+            start = group_start;
         }
-        kept_rev.reverse();
-
-        let dropped = (messages.len() - prefix_len) - kept_rev.len();
-        let sent = if dropped == 0 {
-            messages.to_vec()
-        } else {
-            let mut s = Vec::with_capacity(kept_rev.len() + prefix_len);
-            s.extend_from_slice(prefix);
-            s.extend(kept_rev);
-            s
-        };
+        let mut sent = prefix.to_vec();
+        if let Some(i) = current_user.filter(|i| *i < start) {
+            sent.push(messages[i].clone());
+        }
+        sent.extend_from_slice(&messages[start..]);
+        convo_tokens += request_tokens;
+        let dropped = messages.len() - sent.len();
 
         let report = ContextReport {
             system_tokens,
@@ -887,7 +895,10 @@ impl Agent {
             // Not enough older history to compact; build_context will trim.
             return Ok(None);
         }
-        let end = messages.len() - keep_recent;
+        let end = exchange_start(messages, messages.len() - keep_recent, start);
+        if end <= start {
+            return Ok(None);
+        }
 
         let existing_summary = messages
             .get(1)
@@ -904,17 +915,17 @@ impl Agent {
             )
             .await?;
 
-        let system = messages[0].clone();
+        let prefix = messages[..start].to_vec();
         let recent: Vec<Message> = messages[end..].to_vec();
         let mut rebuilt = Vec::with_capacity(2 + recent.len());
-        rebuilt.push(system);
+        rebuilt.extend(prefix);
         rebuilt.push(Message::assistant(format!(
             "[Summary of earlier work in this session]\n{summary}"
         )));
         rebuilt.extend(recent);
 
         *messages = rebuilt;
-        *prefix_len = 1;
+        *prefix_len = start;
         Ok(Some(to_fold.len()))
     }
 
@@ -2321,6 +2332,15 @@ fn explain_cap_fallback(messages: &[Message], prefix_len: usize) -> Option<Strin
 fn content_looks_like_tool_json(content: &str) -> bool {
     let t = content.trim();
     t.starts_with('{') && t.contains("tool_calls")
+}
+
+/// Move a cut inside a contiguous tool-result batch back to its assistant call.
+/// Never detach provider-owned call IDs/continuation from their results.
+fn exchange_start(messages: &[Message], mut cut: usize, floor: usize) -> usize {
+    while cut > floor && messages.get(cut).is_some_and(|m| m.role == "tool") {
+        cut -= 1;
+    }
+    cut
 }
 
 #[cfg(test)]
