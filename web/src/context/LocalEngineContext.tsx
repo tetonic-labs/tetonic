@@ -7,6 +7,7 @@ import {
 } from '../engine/connection';
 import { connectionProblem, type ConnectionProblem } from '../engine/failure';
 import {
+  type GuideAttentionView,
   type EngineWorkspace,
   type AgentCatalog,
   type LocalWorkItem,
@@ -22,6 +23,7 @@ import { engineAgentToUI } from '../engine/projections/agents';
 import { mergeTasks, mergeWorkspace } from '../engine/projections/records';
 
 interface LocalEngineContextType {
+  guideAttention?: GuideAttentionView | null;
   isConnected: boolean;
   isConnecting: boolean;
   error: string | null;
@@ -90,6 +92,7 @@ export function LocalEngineProvider({
   const [catalog, setCatalog] = useState<AgentCatalog | null>(null);
   const [workItems, setWorkItems] = useState<LocalWorkItem[]>([]);
   const [approvals, setApprovals] = useState<LocalApprovalsInspection | null>(null);
+  const [guideAttention, setGuideAttention] = useState<GuideAttentionView | null>(null);
   const [digest, setDigest] = useState<LocalDigestResponse | null>(null);
   const [teams, setTeams] = useState<LocalTeamInfo[]>([]);
 
@@ -160,11 +163,12 @@ export function LocalEngineProvider({
     const version = ++pollVersion.current;
 
     try {
-      const [ws, items, apprv, tm] = await Promise.allSettled([
+      const [ws, items, apprv, tm, attention] = await Promise.allSettled([
         engine.snapshot(signal),
         engine.workItems(signal),
         engine.approvals(signal),
         engine.teams(signal),
+        engine.guideAttention?.(signal) ?? Promise.resolve(null),
       ]);
 
       if (
@@ -180,11 +184,13 @@ export function LocalEngineProvider({
       if (items.status === 'fulfilled') setWorkItems(items.value);
       if (apprv.status === 'fulfilled') setApprovals(apprv.value);
       if (tm.status === 'fulfilled') setTeams(tm.value);
+      if (attention.status === 'fulfilled') setGuideAttention(attention.value);
       const errors: Record<string, string> = {};
       for (const [name, result] of [
         ['Work details', items],
         ['Decisions', apprv],
         ['Teams', tm],
+        ['Guide updates', attention],
       ] as const)
         if (result.status === 'rejected')
           errors[name] =
@@ -380,6 +386,7 @@ export function LocalEngineProvider({
         setWorkspace(null);
         setWorkItems([]);
         setApprovals(null);
+        setGuideAttention(null);
         setTeams([]);
         setCatalog(null);
         setDigest(null);
@@ -438,6 +445,7 @@ export function LocalEngineProvider({
         catalog,
         workItems,
         approvals,
+        guideAttention,
         digest,
         teams,
         uiAgents,

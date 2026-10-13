@@ -82,6 +82,9 @@ pub struct LocalWorkspaceSnapshot {
 
 #[derive(Serialize)]
 pub struct LocalTask {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub tool_problems: Vec<LocalToolProblem>,
+    pub guide_background: bool,
     pub work_team: Option<WorkTeam>,
     pub human_questions: Vec<tetonic_memory::WorkHumanQuestion>,
     pub plan: Option<PlanTaskLink>,
@@ -106,6 +109,12 @@ pub struct GuideActivity {
     pub id: String,
     pub operation: String,
     pub state: String,
+}
+
+#[derive(Serialize)]
+pub struct LocalToolProblem {
+    pub tool: String,
+    pub sequence: i64,
 }
 
 #[derive(Serialize)]

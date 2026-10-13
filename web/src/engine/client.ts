@@ -1,4 +1,7 @@
 import type {
+  GuideContextView,
+  GuideAttentionView,
+  GuideAttentionSettings,
   BlackboardPage,
   WorkBrief,
   HuddlePlan,
@@ -193,6 +196,31 @@ export class LocalEngine {
   }
   briefs(id: string, signal?: AbortSignal) {
     return this.request<WorkBrief[]>(`/briefs/${encodeURIComponent(id)}`, undefined, signal);
+  }
+  guideContext(id: string, signal?: AbortSignal) {
+    return this.request<GuideContextView>(
+      `/guide-context/${encodeURIComponent(id)}`,
+      undefined,
+      signal,
+    );
+  }
+  guideAttention(signal?: AbortSignal) {
+    return this.request<GuideAttentionView>('/guide-attention', undefined, signal);
+  }
+  saveGuideAttention(settings: GuideAttentionSettings, requestId: string) {
+    return this.request<GuideAttentionSettings>('/guide-attention', {
+      settings,
+      request_id: requestId,
+    });
+  }
+  seeGuideUpdate(key: string) {
+    return this.request('/guide-attention/seen', { key });
+  }
+  focusGuide(id: string, revision: number, subjectId: string | null, requestId: string) {
+    return this.request(`/guide-context/${encodeURIComponent(id)}`, {
+      request_id: requestId,
+      command: { action: 'focus', subject_id: subjectId, expected_revision: revision },
+    });
   }
   startPlan(id: string, request: StartPlanRequest) {
     return this.request<PlanExecutionView>(`/plans/${encodeURIComponent(id)}/start`, request);

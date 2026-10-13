@@ -16,6 +16,8 @@ mod capability_policies;
 pub use capability_policies::{CapabilityScope, SaveCapabilityPolicy, ScopedCapabilityPolicy};
 mod conversations;
 mod director;
+pub use director::attention::SaveGuideAttention;
+pub use director::subjects::{GuideContextCommand, GuideContextMutation};
 mod inspection;
 pub use tetonic_memory::BlackboardQuery;
 pub(crate) mod plan_execution;

@@ -67,7 +67,13 @@ pub(crate) async fn inference_server_with_usage(
                 let request: Value =
                     serde_json::from_slice(&bytes[header_end..header_end + length]).unwrap();
                 captured.lock().unwrap().push(request);
-                std::future::pending::<()>().await;
+                // Hold only this inference connection. Discovery and another
+                // client's requests must still reach the fixture while it hangs.
+                tokio::spawn(async move {
+                    let mut closed = [0; 1];
+                    let _ = stream.read(&mut closed).await;
+                });
+                continue;
             }
             let response = if header.starts_with("POST /api/chat ") {
                 let request: Value =

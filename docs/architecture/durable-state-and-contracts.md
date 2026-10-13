@@ -51,13 +51,31 @@ Cross-area helpers deliberately use the caller's connection and transaction.
 | [`bind_new_context_artifact`](../../engine/strata/tetonic-memory/src/artifacts/context_artifacts.rs) | Current context access and immutable ownership binding. This does not make the external payload write atomic with SQLite or authorize rebinding an existing foreign artifact. |
 
 The [migration orchestrator](../../engine/strata/tetonic-memory/src/schema.rs)
-upgrades through schema 72 with its existing backup/ownership machinery. Version
+upgrades through schema 78 with its existing backup/ownership machinery. Version
 71 adds coordinator dispatch receipts. Version 72 protects their immutable
 checkpoint references from older writers that would discard those JSON fields;
 legacy completed receipts remain readable but cannot acquire guessed checkpoints.
 The ownership refactor itself added no migration. External filesystem changes, artifact
 publication and provider effects are not part of a SQLite transaction. Their
 existing managed finalization and recovery rules remain necessary.
+
+Schemas 77–78 add owner-private Guide subject/focus revisions, attention settings,
+incident receipts and assessment admissions. Subject revisions reference original
+turn IDs without copying transcripts; reads recheck participation and source
+ownership. Focus revisions never move work, change grants, or approve proposals.
+Settings and subject/focus writes use exact request retries and optimistic revisions.
+An incident claim and its full token reservation commit atomically. One outstanding
+assessment per owner scope is allowed, including a superseded incident whose run
+has not settled. Late completions cannot update newer incidents. Admissions remain
+reserved for their UTC day after failure/interruption; actual usage still comes
+from the existing provider ledger. No refund is inferred from missing usage.
+
+These records are retained with the local profile and included in normal backups;
+there is no new automatic history deletion. At most 256 pending incidents await
+model assessment; overflow remains inspectable unassessed evidence. The read view
+is explicitly partial above 100 incidents. Original work and audit history remain
+under their existing owners. Older binaries reject the newer schema rather than
+silently dropping these records; test upgrades on a separate profile.
 
 ## Trace one token allowance
 

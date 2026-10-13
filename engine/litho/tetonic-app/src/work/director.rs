@@ -2,9 +2,12 @@
 //! projections as the UI; private discussion bodies are never roster context.
 use super::*;
 pub(super) mod activity;
+pub(super) mod attention;
 mod context_budget;
 mod control;
+mod history;
 mod inspection;
+pub(super) mod subjects;
 mod understanding;
 
 impl WorkService {
@@ -26,6 +29,7 @@ impl WorkService {
         let app_scope = self.services.authorized_scope().await?;
         let source = conversation_root(snapshot, turn);
         let mut context = observation(snapshot, turn, &app_scope);
+        context["current_turn_id"] = turn.into();
         context["product"] = serde_json::json!({
             "purpose":"Think through ideas, get useful answers, inspect ongoing work and delegate when ready.",
             "navigation":{"Agents":"Models, tools, working folders and per-run limits.","Teams":"Groups of saved agents.","Tools":"Workspace connections and skills.","Conversations":"Saved discussions and unstarted proposals.","Work":"Dispatched assignments and results.","Needs you":"Requests for human help."},
@@ -49,6 +53,7 @@ impl WorkService {
             context["selected_team"] = serde_json::json!({"id":team.id,"name":team.name,"purpose":team.purpose,"roster_revision":team.revision,"agent_keys":team.agent_keys,"constraint":"Assign work only to this saved roster. Team membership grants no additional tools or access."});
         }
         let view = self.plan_view(source).await?;
+        context["discussion_context"] = self.guide_context_view(source).await?;
         if let Some(plan) = view.plans.first() {
             context["saved_plan"] = serde_json::json!({
                 "revision":plan.revision,"status":plan.status,"brief_revision":plan.brief_revision,
@@ -105,7 +110,8 @@ fn conversation_root<'a>(snapshot: &'a LocalWorkspaceSnapshot, turn: &'a str) ->
     // Follow the same recorded conversation lineage as the UI. A status question
     // in a plan discussion must not borrow counts or usage from a different plan.
     let mut source = turn;
-    for _ in 0..64 {
+    let mut seen = std::collections::HashSet::new();
+    while seen.insert(source) {
         match snapshot
             .tasks
             .iter()
@@ -271,6 +277,8 @@ mod tests {
                     }
                 }
                 snapshot.tasks.push(LocalTask {
+                    tool_problems: vec![],
+                    guide_background: false,
                     work_team: None,
                     id: "follow-up".into(),
                     parent_id: Some(private.into()),

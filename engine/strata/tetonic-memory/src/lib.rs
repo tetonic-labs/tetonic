@@ -53,6 +53,10 @@ pub mod payload_digest;
 pub use usage::execution_limits::{OrganizationExecutionLimits, TeamExecutionLimits};
 mod schema;
 mod sync_lock;
+pub use control::guide_attention::{
+    GuideAttentionItem, GuideAttentionSettings, GuideAttentionView, GuideSignal,
+};
+pub use control::guide_context::{GuideFocus, GuideSubject, GuideSubjectDraft};
 pub use control::huddle_execution::{
     AssignmentProgress, AssignmentState, HuddleDispatchCommand, HuddleDispatchReceipt,
     HuddleDispatchResult, HuddleExecution, HuddleProgress, PlanAgentPin,

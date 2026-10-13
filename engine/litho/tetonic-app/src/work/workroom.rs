@@ -123,6 +123,14 @@ impl WorkService {
         let planning_ids = self.planning_ids().await?;
         let mut result = Vec::with_capacity(items.len());
         for item in items {
+            if item.purpose == WorkPurpose::Explore
+                && self
+                    .guide_assessment_allowance(&item.work_id)
+                    .await?
+                    .is_some()
+            {
+                continue;
+            }
             if planning_ids.contains_key(&item.work_id) {
                 continue;
             }

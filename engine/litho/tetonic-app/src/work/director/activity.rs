@@ -29,7 +29,7 @@ pub(in crate::work) fn project(history: &[TranscriptEntry], active: bool) -> Vec
                 }
                 let Some(
                     operation @ ("resources" | "work" | "inspect" | "propose" | "rebalance"
-                    | "remember"),
+                    | "remember" | "history" | "context"),
                 ) = arguments["operation"].as_str()
                 else {
                     // Keep malformed/unknown calls in the serial result order

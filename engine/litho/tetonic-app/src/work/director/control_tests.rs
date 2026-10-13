@@ -3,6 +3,8 @@ use serde_json::json;
 
 #[path = "allocation_tests.rs"]
 mod allocations;
+#[path = "partner_tests.rs"]
+mod partner;
 #[path = "proposal_validation_tests.rs"]
 mod proposal_validation;
 #[path = "understanding_tests.rs"]
@@ -169,7 +171,16 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                     .unwrap();
                 assert_eq!(
                     tool["function"]["parameters"]["required"],
-                    json!(["operation", "direction", "plan", "work_id", "allocations"])
+                    json!([
+                        "operation",
+                        "direction",
+                        "plan",
+                        "work_id",
+                        "allocations",
+                        "query",
+                        "offset",
+                        "context"
+                    ])
                 );
                 assert_eq!(
                     tool["function"]["parameters"]["properties"]["plan"]["properties"]

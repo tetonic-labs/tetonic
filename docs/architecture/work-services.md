@@ -38,6 +38,7 @@ task dependencies. See [the Blackboard boundary and validation record](../epics/
 | Scoped agent configuration, providers and capability libraries | [`workspace/`](../../engine/litho/tetonic-app/src/workspace/mod.rs) |
 | Work submission and cancellation | [`work/submission.rs`](../../engine/litho/tetonic-app/src/work/submission.rs) |
 | Shaping, plans, continuation and human work questions | [`work/`](../../engine/litho/tetonic-app/src/work/mod.rs) |
+| Guide subjects, source retrieval and bounded event attention | [`work/director/`](../../engine/litho/tetonic-app/src/work/director.rs); subject/attention transactions in `tetonic-memory`, authorized packing in `tetonic-context` |
 | Product snapshots and task projections | [`work/inspection.rs`](../../engine/litho/tetonic-app/src/work/inspection.rs) |
 | Eligibility and parallel dispatch loop | [`team_work_controller.rs`](../../engine/litho/tetonic-app/src/team_work_controller.rs), using [`WorkService`'s host implementation](../../engine/litho/tetonic-app/src/work/plan_execution/controller.rs) |
 | Presentation notes, lead and roster metadata persistence | [`work_metadata.rs`](../../engine/strata/tetonic-memory/src/control/work_metadata.rs), through resource authorization |
@@ -50,6 +51,22 @@ preserve the old capability-management API while delegating to its scoped owner.
 They do not duplicate configuration or create another manager.
 
 ## Scope and authorization
+
+The Guide now packs authorized discussion history into a bounded context instead
+of rejecting long histories. `work_plan history` retrieves original evidence;
+`work_plan context` associates owner-private subjects across discussions. These
+records never grant access or retarget a proposal. The existing model decides
+when these operations help; no intent classifier or mandatory sequence is added.
+
+The local host calls `reconcile_guide_attention` every 15 seconds independently
+of browser polling. It observes durable work, usage and tool-result evidence,
+resolves disappeared incidents, and admits at most one optional bounded Guide
+assessment. Inference uses existing registered submission, budget accounting,
+managed cancellation and provider transport. Assessment receipts cannot dispatch
+workers. Foreground conversation yields background capacity through cancellation.
+Turning the setting off suppresses further admission and cancels pending analysis.
+The [local API contract](../implementation/contracts/local-ui-v1.md#guide-continuity-and-attention)
+describes limits and how the UI exposes these records.
 
 `LocalControl::application_scope` verifies the caller's credential, checks team
 access, and resolves the existing authorized participation context. Its returned

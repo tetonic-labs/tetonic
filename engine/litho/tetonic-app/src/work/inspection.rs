@@ -200,6 +200,12 @@ impl WorkService {
             )
             .await?;
         let mut task = LocalTask {
+            tool_problems: vec![],
+            guide_background: work.purpose == WorkPurpose::Explore
+                && self
+                    .guide_assessment_allowance(&work.work_id)
+                    .await?
+                    .is_some(),
             work_team,
             human_questions: vec![],
             plan,
@@ -365,6 +371,18 @@ impl WorkService {
                     &history,
                     matches!(task.state.as_str(), "starting" | "running"),
                 );
+            }
+            for entry in history.iter().filter(|e| e.role == "tool") {
+                if let (Some(tool), Some(status)) = (&entry.tool_name, &entry.tool_status) {
+                    if status == "ok" {
+                        task.tool_problems.retain(|p| p.tool != *tool);
+                    } else if !task.tool_problems.iter().any(|p| p.tool == *tool) {
+                        task.tool_problems.push(LocalToolProblem {
+                            tool: tool.clone(),
+                            sequence: entry.sequence,
+                        });
+                    }
+                }
             }
             task.messages = history
                 .into_iter()

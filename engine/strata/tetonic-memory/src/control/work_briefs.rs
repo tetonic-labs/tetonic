@@ -24,8 +24,11 @@ impl Store {
         self.require_team_participant(command.actor, command.org, command.team)?;
         let mut next = Some(turn.to_owned());
         let mut found = false;
-        for _ in 0..64 {
-            let Some(id) = next else { break };
+        let mut seen = std::collections::HashSet::new();
+        while let Some(id) = next {
+            if !seen.insert(id.clone()) {
+                return Err(StoreError::ControlAccessDenied);
+            }
             let item = self
                 .get_team_work_item(command.org, command.team, &id)?
                 .ok_or(StoreError::ControlAccessDenied)?;

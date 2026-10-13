@@ -1,0 +1,97 @@
+.guide-updates {
+  margin: 8px 0;
+}
+.guide-updates-toggle,
+.guide-update-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.guide-updates-toggle {
+  width: 100%;
+  justify-content: space-between;
+  padding: 9px 12px;
+}
+.guide-updates-toggle span,
+.guide-update-heading > span,
+.guide-updates small {
+  opacity: 0.7;
+  font-size: 0.78rem;
+}
+.guide-updates-list {
+  display: grid;
+  gap: 10px;
+  padding: 10px 0;
+}
+.guide-updates article {
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  border-left: 3px solid #b7873d;
+  border-radius: 8px;
+  padding: 12px 14px;
+  background: color-mix(in srgb, currentColor 3%, transparent);
+}
+.guide-updates article[data-kind='result'] {
+  border-left-color: #4e9272;
+}
+.guide-updates article[data-kind='blocked'],
+.guide-updates article[data-kind='human_request'] {
+  border-left-color: #bf655a;
+}
+.guide-updates article[data-resolved='true'] {
+  border-left-color: #88908e;
+}
+.guide-update-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin-bottom: 5px;
+}
+.guide-update-actions {
+  flex-wrap: wrap;
+  margin-top: 8px;
+}
+.guide-update-actions button {
+  font-size: 0.8rem;
+}
+.guide-attention-limits {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.guide-attention-limits label,
+.guide-context label {
+  display: grid;
+  gap: 6px;
+  font-size: 0.85rem;
+}
+.guide-attention-limits input,
+.guide-context select {
+  width: 100%;
+  border: 1px solid color-mix(in srgb, currentColor 20%, transparent);
+  border-radius: 6px;
+  padding: 8px 10px;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 4%, transparent);
+}
+.guide-attention-limits p {
+  grid-column: 1 / -1;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+.guide-context small {
+  display: block;
+  margin-top: 8px;
+  opacity: 0.7;
+}
+@media (max-width: 600px) {
+  .guide-attention-limits {
+    grid-template-columns: 1fr;
+  }
+}
+.guide-updates-list {
+  max-height: min(40vh, 400px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}

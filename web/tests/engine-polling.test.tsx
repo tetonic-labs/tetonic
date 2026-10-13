@@ -37,6 +37,12 @@ function fixture() {
   vi.spyOn(client, 'agentCatalog').mockResolvedValue(catalog);
   vi.spyOn(client, 'workItems').mockResolvedValue([]);
   vi.spyOn(client, 'teams').mockResolvedValue([]);
+  vi.spyOn(client, 'guideAttention').mockResolvedValue({
+    partial: false,
+    items: [],
+    reserved_today: 0,
+    settings: { revision: 0, enabled: false, daily_tokens: 0, assessment_tokens: 0 },
+  });
   vi.spyOn(client, 'approvals').mockResolvedValue({
     active_stops: [],
     pending_approvals: [],

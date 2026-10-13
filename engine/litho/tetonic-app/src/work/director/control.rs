@@ -101,6 +101,7 @@ impl WorkService {
                 serde_json::json!(agent_keys);
         }
         let binding = DirectorBinding {
+            read_only: self.guide_assessment_allowance(turn).await?.is_some(),
             source,
             turn: turn.into(),
             revision: view.plans.first().map_or(0, |p| p.revision),
@@ -168,7 +169,53 @@ impl WorkService {
                 "Only this active Guide reply can change its proposal.".into(),
             ));
         }
+        let read_only = match &command {
+            Command::Inspect {}
+            | Command::Resources {}
+            | Command::Work { .. }
+            | Command::History { .. } => true,
+            Command::Context { context } => matches!(
+                context.as_ref(),
+                super::subjects::GuideContextCommand::List { .. }
+                    | super::subjects::GuideContextCommand::Read { .. }
+            ),
+            _ => false,
+        };
+        if turn.guide_background && !read_only {
+            return Err(AppError::PolicyDenied("Background attention can inspect and explain; it cannot change discussion, proposals or work.".into()));
+        }
         match command {
+            Command::Context { context } => {
+                if let super::subjects::GuideContextCommand::Save { subject } = context.as_ref() {
+                    if !subject.source_turns.contains(&binding.turn) {
+                        return Err(AppError::InvalidRequest(
+                            "Include the current turn ID as evidence for this understanding."
+                                .into(),
+                        ));
+                    }
+                }
+                self.guide_context_command(
+                    &binding.source,
+                    super::subjects::GuideContextMutation {
+                        request_id: operation_id(&binding.turn, &format!("context/{call_id}")),
+                        command: *context,
+                    },
+                )
+                .await
+            }
+            Command::History {
+                work_id,
+                query,
+                offset,
+            } => {
+                self.director_history(
+                    binding,
+                    work_id.as_deref(),
+                    query.as_deref(),
+                    offset.unwrap_or(0),
+                )
+                .await
+            }
             Command::Remember { direction } => {
                 self.remember_understanding(binding, direction).await
             }

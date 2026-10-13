@@ -3,6 +3,16 @@ import { useId, useState } from 'react';
 import { type GuideActivity as Activity } from '../../engine/contracts';
 
 const labels: Record<Activity['operation'], { pending: string; done: string; failed: string }> = {
+  context: {
+    pending: 'Following our train of thought',
+    done: 'Checked our discussion context',
+    failed: 'Could not update the discussion context',
+  },
+  history: {
+    pending: 'Looking back at our discussion',
+    done: 'Checked the original discussion',
+    failed: 'Could not retrieve the earlier discussion',
+  },
   remember: {
     pending: 'Keeping track of our direction',
     done: 'Updated our working understanding',

@@ -161,6 +161,7 @@ export type EngineTaskState =
   | 'recovery_required';
 
 export interface EngineTask {
+  guide_background?: boolean;
   guide_activity?: GuideActivity[];
   work_team?: WorkTeam | null;
   human_questions?: WorkHumanQuestion[];
@@ -181,7 +182,15 @@ export interface EngineTask {
 
 export interface GuideActivity {
   id: string;
-  operation: 'resources' | 'work' | 'inspect' | 'propose' | 'repair' | 'remember';
+  operation:
+    | 'resources'
+    | 'work'
+    | 'inspect'
+    | 'propose'
+    | 'repair'
+    | 'remember'
+    | 'history'
+    | 'context';
   state:
     | 'requested'
     | 'completed'
@@ -190,6 +199,49 @@ export interface GuideActivity {
     | 'interrupted'
     | 'repair_needed'
     | 'repair_failed';
+}
+
+export interface GuideSubject {
+  id: string;
+  revision: number;
+  title: string;
+  understanding: string;
+  source_turns: string[];
+  work_ids: string[];
+}
+export interface GuideContextView {
+  focus: { revision: number; subject_id: string | null };
+  subject: GuideSubject | null;
+  subjects: Pick<GuideSubject, 'id' | 'revision' | 'title'>[];
+  partial: boolean;
+}
+
+export interface GuideAttentionSettings {
+  revision: number;
+  enabled: boolean;
+  daily_tokens: number;
+  assessment_tokens: number;
+}
+export interface GuideAttentionView {
+  observed_at?: string | null;
+  partial: boolean;
+  settings: GuideAttentionSettings;
+  reserved_today: number;
+  items: {
+    signal: {
+      key: string;
+      work_id: string;
+      signature: string;
+      kind: string;
+      title: string;
+      detail: string;
+    };
+    assessment_id: string | null;
+    state: string;
+    update: string | null;
+    observed_at: string;
+    seen: boolean;
+  }[];
 }
 
 export interface EngineWorkspace {

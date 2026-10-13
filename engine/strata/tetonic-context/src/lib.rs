@@ -1,3 +1,4 @@
+pub mod conversation;
 pub mod interfaces;
 pub mod pipeline;
 pub mod types;

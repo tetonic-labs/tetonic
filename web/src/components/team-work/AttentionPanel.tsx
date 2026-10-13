@@ -8,6 +8,7 @@ import { type EngineTask, type WorkHumanQuestion } from '../../engine/contracts'
 import { HumanQuestion } from './HumanQuestion';
 import { WorkStatus } from './WorkStatus';
 import { parentEffortTitle } from '../../lib/workSignals';
+import { GuideUpdates } from './GuideUpdates';
 
 export function AttentionPanel({
   records,
@@ -47,6 +48,7 @@ export function AttentionPanel({
     if (!questionOrder.current.includes(id)) questionOrder.current.push(id);
   return (
     <section className="attention-panel" aria-label="Attention inbox">
+      <GuideUpdates onWork={onWork} />
       <p className="operator-intro">
         {total
           ? `${total} ${total === 1 ? 'request' : 'requests'} for your attention. Other work can keep moving.`

@@ -65,6 +65,10 @@ impl WorkService {
             )));
         }
         let _admission = self.services.admission.lock().await;
+        let attention_allowance = self.guide_assessment_allowance(&id).await?;
+        if purpose == WorkPurpose::Explore && attention_allowance.is_none() {
+            self.yield_guide_attention().await?;
+        }
         let resources = self.services.local.resources();
         let registered = self.services.registered_agent(&agent_key).await?;
         let agent = self
@@ -168,6 +172,14 @@ impl WorkService {
         self.services
             .check_limits(agent.max_steps, agent.max_seconds, agent.max_tokens)?;
         let mut settings = self.services.agent_execution_settings(&agent).await?;
+        if let Some(allowance) = attention_allowance {
+            if !self.outstanding_attention().await?.contains(&id) {
+                return Err(AppError::Conflict(
+                    "This background assessment has been superseded.".into(),
+                ));
+            }
+            settings.reported_token_ceiling = Some(agent.max_tokens.min(allowance as u64));
+        }
         let work = resources
             .create_work_with_roster(
                 &self.services.host.credential,
@@ -244,7 +256,8 @@ impl WorkService {
             let allowance = setting
                 .token_limit
                 .unwrap_or(agent.max_tokens as i64)
-                .min(agent.max_tokens as i64);
+                .min(agent.max_tokens as i64)
+                .min(attention_allowance.unwrap_or(i64::MAX));
             resources
                 .authorize_work_budget(
                     &self.services.host.credential,
@@ -261,7 +274,7 @@ impl WorkService {
             settings.limits.max_input_bytes = conversations::CONVERSATION_LIMIT;
         }
         if purpose == WorkPurpose::Explore && !planning {
-            settings.limits.max_input_bytes = conversations::CONVERSATION_LIMIT + 18_000;
+            settings.limits.max_input_bytes = conversations::GUIDE_CONTEXT_LIMIT + 18_000;
         }
         let prepared = resources
             .prepare_general_revision(

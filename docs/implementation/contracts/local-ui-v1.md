@@ -59,6 +59,55 @@ Input is stored independently of the compact work title, up to 12,000 UTF-8 byte
 
 ## Exploration and working briefs — October 5, 2026
 
+### Guide continuity and attention
+
+The Guide is an exception to the legacy 64-ancestor/12,000-byte assembled-history
+limit above. Its original turns remain stored; `tetonic-context` selects recent
+and lexically relevant evidence into a 32,000-byte discussion envelope, retaining
+the current input and current understanding. The separate engine observation is
+bounded to 16,000 bytes. These are byte envelopes, not additional token authority;
+the saved model context and managed usage limits still apply. Other agents keep
+the legacy conversation limits. Each input is still limited to 12,000 UTF-8 bytes.
+
+`work_plan history` lists/searches eight original message excerpts per page or
+reads 4,000 characters from a specific message. IDs must belong to the current
+owner's discussion or a currently authorized subject's source references. Search
+is lexical; a miss does not prove absence. `work_plan context` can list, read,
+save and focus optional subjects; it neither launches work nor changes proposal
+targets. Notes have revision/source provenance and are never approval.
+
+| Endpoint | Contract |
+|---|---|
+| `GET /api/local/guide-context/{conversation}` | Current focus/revision, selected subject and up to 24 recent subject titles; `partial` indicates more. |
+| `POST /api/local/guide-context/{conversation}` | `{request_id, command}` with typed list/read/save/focus operation. Save/focus require current revisions; same request/value retries are idempotent. The UI uses focus for correcting an association. |
+| `GET /api/local/guide-attention` | Current settings, full reserved tokens today, and up to 100 incident receipts with explicit `partial`. Reading never launches inference. |
+| `POST /api/local/guide-attention` | `{request_id, settings:{revision,enabled,daily_tokens,assessment_tokens}}`. Default off; enabled per-assessment allowance 1,024–32,000 tokens, daily allowance up to 200,000, within host ceilings. |
+| `POST /api/local/guide-attention/seen` | `{key}` marks an update read only. It cannot resolve an incident or answer/approve work. |
+
+All endpoints retain the local token/host/origin/version contract and derive scope
+on the server. Mutations reject unknown fields. Settings persist per owner/org/team.
+The host reconciles every 15 seconds while running, even with no browser open.
+Signals cover owned execution work needing human input/recovery, failed tools,
+80% reported-token thresholds, and completed results. Tool/connection incidents
+coalesce by saved connection or work/tool until later evidence changes the incident.
+No heartbeat text, model latency or inferred failure fabricates an alert.
+
+One managed assessment can be outstanding. Its complete configured allowance is
+reserved for that UTC day, conservatively including interrupted/unknown usage;
+this is not a monetary cap. Engine budget/stop enforcement remains independent.
+Foreground discussion preempts background analysis. Assessment capabilities are
+read-only; derived summaries/recommendations live on the incident receipt, not in
+the person's active draft or proposal. Recovered/superseded incidents fence late
+replies, and restart reconciles old admissions without replaying unknown effects.
+Unassessed changes stay visible when disabled, exhausted, interrupted or outside
+the 256-item pending queue. `guide_background` tasks remain inspectable as managed
+execution but do not appear as user conversations or map work cards.
+
+The existing Guide and Needs you views share the same updates. Long text expands
+on demand, inspection opens the actual work, and read/unresolved states remain
+distinct. The engine must be running to observe changes; disconnected views say
+they contain last-known information. Browser polling is never an inference trigger.
+
 ### Work allowances and measured usage
 
 The workspace snapshot now includes `usage`, `budget_setting` and

@@ -5,6 +5,14 @@ use super::*;
 const MAX_BYTES: usize = 16_000;
 
 pub(super) fn bound(mut value: serde_json::Value) -> Result<String, AppError> {
+    if let Some(notes) = value.pointer_mut("/discussion_context/subject/understanding") {
+        if let Some(text) = notes.as_str() {
+            if text.len() > 1800 {
+                *notes=format!("{}… [excerpt; read this subject through work_plan context for its original understanding]",tetonic_context::conversation::excerpt(text,1800)).into();
+                value["discussion_context"]["subject_excerpt"] = true.into();
+            }
+        }
+    }
     let mut encoded = value.to_string();
     if encoded.len() <= MAX_BYTES {
         return Ok(encoded);
@@ -15,6 +23,7 @@ pub(super) fn bound(mut value: serde_json::Value) -> Result<String, AppError> {
     // Work is already ordered active-first. Drop low-priority tail entries first,
     // then proposal detail and inventory; never cut an ID or tool grant in half.
     for (path, label) in [
+        ("/discussion_context/subjects", "subjects"),
         ("/work", "work"),
         ("/saved_plan/assignments", "proposal_assignments"),
         ("/agents", "agents"),

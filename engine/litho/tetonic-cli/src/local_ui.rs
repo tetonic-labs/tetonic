@@ -141,6 +141,10 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
                 assets,
             });
             let connections = std::sync::Arc::new(tokio::sync::Semaphore::new(32));
+            let guide = state.workspace.clone();
+            let attention = tokio::task::spawn_local(async move {
+                guide.watch_guide_attention().await;
+            });
             loop {
                 tokio::select! {
                     result = listener.accept() => {
@@ -163,6 +167,7 @@ pub async fn dispatch(args: UiCli) -> anyhow::Result<()> {
                     _ = tokio::signal::ctrl_c() => break,
                 }
             }
+            attention.abort();
             Ok::<_, anyhow::Error>(())
         })
         .await
@@ -198,6 +203,12 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
         state
             .workspace
             .snapshot()
+            .await
+            .map(|v| serde_json::to_value(v).unwrap_or_default())
+    } else if method == hyper::Method::GET && path == "/api/local/guide-attention" {
+        state
+            .workspace
+            .guide_attention()
             .await
             .map(|v| serde_json::to_value(v).unwrap_or_default())
     } else if method == hyper::Method::GET && path == "/api/local/workspace-folders" {
@@ -283,6 +294,8 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 | "/api/local/provider-key/remove"
                 | "/api/local/budget-settings"
                 | "/api/local/blackboard/query"
+                | "/api/local/guide-attention"
+                | "/api/local/guide-attention/seen"
         )
     {
         if request
@@ -307,7 +320,32 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/workspace-folders" {
+        if path == "/api/local/guide-attention" {
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::work::SaveGuideAttention>(&body)
+            else {
+                return error(StatusCode::BAD_REQUEST, "Invalid Guide attention settings.");
+            };
+            state
+                .workspace
+                .save_guide_attention(payload)
+                .await
+                .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else if path == "/api/local/guide-attention/seen" {
+            #[derive(serde::Deserialize)]
+            #[serde(deny_unknown_fields)]
+            struct Seen {
+                key: String,
+            }
+            let Ok(payload) = serde_json::from_slice::<Seen>(&body) else {
+                return error(StatusCode::BAD_REQUEST, "Invalid update reference.");
+            };
+            state
+                .workspace
+                .see_guide_attention(payload.key)
+                .await
+                .map(|_| serde_json::json!({"seen":true,"resolved":false}))
+        } else if path == "/api/local/workspace-folders" {
             let Ok(payload) =
                 serde_json::from_slice::<tetonic_app::local_workspace::SaveWorkspaceFolders>(&body)
             else {
@@ -609,6 +647,44 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 .update_plan(id, payload)
                 .await
                 .map(|v| serde_json::to_value(v).unwrap_or_default())
+        } else {
+            return error(StatusCode::METHOD_NOT_ALLOWED, "Unsupported method.");
+        }
+    } else if let Some(id) = path.strip_prefix("/api/local/guide-context/") {
+        if method == hyper::Method::GET {
+            state.workspace.guide_context_view(id).await
+        } else if method == hyper::Method::POST {
+            if request
+                .headers()
+                .get("content-type")
+                .and_then(|v| v.to_str().ok())
+                != Some("application/json")
+            {
+                return error(StatusCode::UNSUPPORTED_MEDIA_TYPE, "JSON is required.");
+            }
+            let body = match tokio::time::timeout(
+                Duration::from_secs(5),
+                Limited::new(request.into_body(), 32_768).collect(),
+            )
+            .await
+            {
+                Ok(Ok(body)) => body.to_bytes(),
+                _ => {
+                    return error(
+                        StatusCode::PAYLOAD_TOO_LARGE,
+                        "Context update is too large or incomplete.",
+                    )
+                }
+            };
+            let Ok(payload) =
+                serde_json::from_slice::<tetonic_app::work::GuideContextMutation>(&body)
+            else {
+                return error(
+                    StatusCode::BAD_REQUEST,
+                    "Invalid discussion context update.",
+                );
+            };
+            state.workspace.update_guide_context(id, payload).await
         } else {
             return error(StatusCode::METHOD_NOT_ALLOWED, "Unsupported method.");
         }

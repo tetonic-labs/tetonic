@@ -17,6 +17,8 @@ mod guide_proposals;
 pub(crate) mod huddle_execution;
 pub(crate) mod huddle_plans;
 pub use guide_proposals::*;
+pub(crate) mod guide_attention;
+pub(crate) mod guide_context;
 pub(crate) mod human_controls;
 pub(crate) mod identity_store;
 pub(crate) mod local_provider_keys;

@@ -13,6 +13,8 @@ import { Portrait } from '../ui/Portrait';
 import { agentSetup } from '../../lib/agentCapabilities';
 import { GuideConversations } from './GuideConversations';
 import { GuideActivity } from './GuideActivity';
+import { GuideContext } from './GuideContext';
+import { GuideUpdates } from './GuideUpdates';
 import { submitChatOnEnter } from '../ui/chatKeyboard';
 import './shaping.css';
 
@@ -221,6 +223,16 @@ function ConnectedShaping({
         connected={isConnected}
       />
       {turn.error && <p role="alert">{turn.error}</p>}
+      {turn.state !== 'completed' &&
+        !taskIsActive(turn) &&
+        turn.guide_activity?.some(
+          (action) => action.operation === 'propose' && action.state === 'completed',
+        ) && (
+          <p>
+            A proposal was saved before this reply ended. Review the current version below; retrying
+            the conversation is not required to keep that work.
+          </p>
+        )}
       {turn.state === 'canceled' && <p>Reply stopped. Your discussion is saved.</p>}
       {turn.state === 'recovery_required' && (
         <p>
@@ -306,6 +318,7 @@ function ConnectedShaping({
         )}
       </div>
       {setupIssue && <p role="status">{setupIssue} Open Guide model to review its settings.</p>}
+      <GuideUpdates compact onWork={onWork} />
       <div
         className="px-shaping-body"
         data-handoff={hasHandoff}
@@ -319,6 +332,12 @@ function ConnectedShaping({
       >
         {selected ? (
           <>
+            <GuideContext
+              key={selected.id}
+              conversationId={selected.id}
+              sequence={latest?.sequence || 0}
+              active={active}
+            />
             {selected.turns.map(renderTurn)}
             {unstarted && (
               <div className="px-shaping-retry" role="status">

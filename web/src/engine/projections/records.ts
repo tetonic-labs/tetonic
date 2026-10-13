@@ -51,6 +51,7 @@ export function mergeWorkspace(previous: EngineWorkspace | null, next: EngineWor
 }
 
 export function workRecords(tasks: EngineTask[], items: LocalWorkItem[]): WorkRecord[] {
+  tasks = tasks.filter((task) => !task.guide_background);
   const parents = new Set(tasks.map((task) => task.parent_id).filter(Boolean));
   const records: WorkRecord[] = tasks
     .filter((task) => !parents.has(task.id))

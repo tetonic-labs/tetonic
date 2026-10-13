@@ -5,6 +5,7 @@ import { CapabilityPolicyEditor } from '../views/CapabilityPolicyEditor';
 import { WorkspaceFolders } from './WorkspaceFolders';
 import { useState } from 'react';
 import { ConnectionRecovery } from '../preload/ConnectionRecovery';
+import { GuideAttentionSettings } from './GuideAttentionSettings';
 
 export function WorkspaceSettings({
   dark,
@@ -49,6 +50,7 @@ export function WorkspaceSettings({
         client={engine.client}
         isConnected={engine.isConnected}
       />
+      <GuideAttentionSettings />
       {engine.isConnected && (
         <WorkspaceFolders
           client={engine.client}
