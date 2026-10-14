@@ -139,3 +139,7 @@ run; this authorization was used once.
 No engine or UI implementation changed during this qualification. Checks were
 the live hosted run, artifact/hash inspection, accounting settlement and restart
 preservation; no additional Rust or UI test suite was needed for this report.
+
+Follow-up: [offline execution-delivery diagnosis](execution-delivery-diagnosis-2026-10-14.md)
+traces the combined causes and proposed repairs without another model attempt.
+It distinguishes repeated transmission of history from unnecessary source rereads.
