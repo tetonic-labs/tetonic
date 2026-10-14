@@ -538,6 +538,22 @@ async fn agreed_plan_dispatches_two_agents_once_on_one_runtime_and_retains_scope
             .unwrap()
             .contains("COMBINED_RESULT"));
         assert_eq!(complete.assignments.len(), 2);
+        let first_input = &complete.assignments[0].input;
+        assert!(first_input.contains("Team output contracts"));
+        assert!(
+            first_input.contains("\"deliverable\":\"Risks\""),
+            "the first worker must know its peer's agreed output even before it runs"
+        );
+        assert!(
+            !first_input.contains("CHECK_CANARY"),
+            "peer instructions must not become this worker's instructions"
+        );
+        assert!(
+            !first_input.contains("CHECK_RESULT"),
+            "future peer evidence must not be invented"
+        );
+        assert!(first_input
+            .contains("Do not wait for a listed output unless your assignment depends on it"));
         assert!(complete.assignments[1]
             .input
             .contains("Dependency contributions"));

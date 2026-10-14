@@ -115,8 +115,12 @@ flowchart TD
    The first funded call reserves the smaller of the available work share and
    the supplied execution limit. Later calls reuse that attempt reservation.
 4. [`request sizing`](../../engine/atmos/tetonic-inference/src/request_budget.rs)
-   estimates messages, tools, schemas and private provider continuation. The
-   wrapper includes its per-call budget feedback in that estimate and requires
+   estimates messages, tools, schemas and private provider continuation. For
+   matching native Responses, Anthropic and Google assistant continuations it
+   counts the larger of native and portable representations once: those adapters
+   replace the portable projection, rather than sending both. Unknown/mismatched
+   continuation retains the conservative additive fallback. The wrapper includes
+   its per-call budget feedback in that estimate and requires
    256 tokens of completion headroom before recording a pending call. Output
    `max_tokens` is capped by the admitted remainder **minus estimated input**.
    Feedback is added only to the outgoing request, not saved into conversation

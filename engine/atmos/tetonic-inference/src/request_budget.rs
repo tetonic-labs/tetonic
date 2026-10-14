@@ -13,10 +13,25 @@ impl ChatRequest {
     pub fn estimated_input_tokens(&self) -> u64 {
         let mut tokens = 128_u64;
         for message in &self.messages {
-            tokens = tokens.saturating_add(12 + json_tokens(message));
-            if let Some(state) = &message.provider_state {
-                tokens = tokens.saturating_add(json_tokens(&state.items));
-            }
+            let portable = json_tokens(message);
+            let content = message.provider_state.as_ref().map_or(portable, |state| {
+                let native = json_tokens(&state.items);
+                if message.role == "assistant"
+                    && state.model == self.model
+                    && matches!(
+                        state.protocol,
+                        "openai-responses" | "anthropic-messages" | "google-generate-content"
+                    )
+                {
+                    // These adapters replace the portable assistant projection
+                    // with native continuation; they do not send both copies.
+                    // Keep the larger representation as conservative framing.
+                    portable.max(native)
+                } else {
+                    portable.saturating_add(native)
+                }
+            });
+            tokens = tokens.saturating_add(12 + content);
         }
         for tool in &self.tools {
             tokens = tokens.saturating_add(32 + json_tokens(tool));
@@ -33,6 +48,41 @@ mod tests {
     use super::*;
     use crate::{Message, ProviderMessageState};
     use serde_json::json;
+
+    #[test]
+    fn native_assistant_continuation_is_not_charged_as_two_copies() {
+        for protocol in [
+            "openai-responses",
+            "anthropic-messages",
+            "google-generate-content",
+        ] {
+            let text = "A substantial saved plan. ".repeat(800);
+            let mut message = Message::assistant(text.clone());
+            message.provider_state = Some(ProviderMessageState {
+                protocol,
+                model: "model".into(),
+                items: vec![json!({"text": text, "opaque": "private".repeat(100)})],
+                call_ids: vec![],
+            });
+            let portable = json_tokens(&message);
+            let native = json_tokens(&message.provider_state.as_ref().unwrap().items);
+            let mut request = ChatRequest {
+                model: "model".into(),
+                messages: vec![message],
+                ..Default::default()
+            };
+            assert_eq!(
+                request.estimated_input_tokens(),
+                128 + 12 + portable.max(native)
+            );
+            // Unknown or mismatched continuations retain the conservative fallback.
+            request.model = "another-model".into();
+            assert_eq!(
+                request.estimated_input_tokens(),
+                128 + 12 + portable + native
+            );
+        }
+    }
 
     #[test]
     fn sizes_tools_results_non_ascii_and_private_continuation() {

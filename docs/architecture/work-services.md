@@ -92,6 +92,14 @@ the shared application mutex covers admission/configuration changes, not model
 execution. The existing controller owns scheduling, and managed execution owns
 leases, cancellation and results.
 
+Worker input includes a compact catalog of the agreed plan's output contracts:
+assignment key, agent key and deliverable. It lets independent workers agree on
+interfaces such as filenames without asking the human to relay the plan. It does
+not include peers' full instructions, conversations or unfinished results. Only
+declared prerequisites contribute completed evidence; listing a planned output
+does not make it exist, introduce a dependency or grant access. The existing
+48 KB assembled-input limit remains enforced.
+
 ## Proposal allowance checks
 
 The application validates proposals before saving a Guide proposal, capturing a
