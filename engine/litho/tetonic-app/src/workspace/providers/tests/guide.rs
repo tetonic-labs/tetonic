@@ -159,7 +159,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                         tools: Some(vec![]),
                         max_steps: 6,
                         max_seconds: 30,
-                        max_tokens: 4096,
+                        max_tokens: 12288,
                     },
                 };
                 assert!(
@@ -249,7 +249,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                 assert_eq!(restored.definition_digest, changed.definition_digest);
                 assert_eq!(restored.provider, provider);
                 assert_eq!(restored.model, "fixture-model");
-                assert_eq!(restored.max_tokens, 4096);
+                assert_eq!(restored.max_tokens, 12288);
                 let transport = Arc::new(PlanningTransport {
                     provider,
                     calls: Mutex::default(),
@@ -352,9 +352,18 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                 assert_eq!(calls.len(), 6);
                 // Editing during inference does not mutate the active turn's limits.
                 match provider {
-                    "openai" => assert_eq!(calls[1]["max_output_tokens"], 4056),
-                    "anthropic" => assert_eq!(calls[1]["max_tokens"], 4056),
-                    "google" => assert_eq!(calls[1]["generationConfig"]["maxOutputTokens"], 4056),
+                    "openai" => {
+                        assert!((2048..12248)
+                            .contains(&calls[1]["max_output_tokens"].as_u64().unwrap()))
+                    }
+                    "anthropic" => {
+                        assert!((2048..12248).contains(&calls[1]["max_tokens"].as_u64().unwrap()))
+                    }
+                    "google" => assert!((2048..12248).contains(
+                        &calls[1]["generationConfig"]["maxOutputTokens"]
+                            .as_u64()
+                            .unwrap()
+                    )),
                     _ => unreachable!(),
                 }
                 assert!(calls[0].to_string().contains("ENGINE OBSERVATION"));

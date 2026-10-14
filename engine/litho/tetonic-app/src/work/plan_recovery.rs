@@ -260,7 +260,6 @@ impl WorkService {
             assembly.deliverable = "A combined result linked to the preserved contributions".into();
             assembly.depends_on.clear();
             assembly.tools.clear();
-            assembly.token_budget = assembly.token_budget.min(2000);
             remaining.push(assembly);
         }
         content.assignments = remaining;

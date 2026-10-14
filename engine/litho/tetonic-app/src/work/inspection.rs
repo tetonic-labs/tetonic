@@ -468,6 +468,12 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
     if reason == "stopping early: no progress over several steps (repeated or failing tool calls)" {
         return "The agent stopped after repeated unsuccessful tool calls. Your conversation and saved work are preserved. Review the activity before trying again or choosing another model.";
     }
+    if reason.contains("cannot fit the next request input and completion headroom") {
+        return "This assignment has too little allowance left to read its context and respond. The next model request was not sent. Saved work is preserved; review Usage and narrow or continue the unfinished work with an appropriate allowance.";
+    }
+    if reason.contains("work allocation token allowance exhausted by reported usage") {
+        return "Reported usage has exceeded a shared work allowance. Further model requests in this scope have stopped. Review Usage before continuing; saved contributions are preserved.";
+    }
     if reason.contains("token allowance") || reason.contains("complete token usage") {
         return "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.";
     }
@@ -509,6 +515,18 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
 #[cfg(test)]
 mod failure_message_tests {
     use super::task_failure_message;
+
+    #[test]
+    fn budget_preflight_explains_no_request_was_sent_and_shared_limits_are_distinct() {
+        assert!(task_failure_message(Some(
+            "work token allowance cannot fit the next request input and completion headroom"
+        ))
+        .contains("was not sent"));
+        assert!(task_failure_message(Some(
+            "work allocation token allowance exhausted by reported usage"
+        ))
+        .contains("shared work allowance"));
+    }
 
     #[test]
     fn progress_failure_is_actionable_without_exposing_internal_text() {

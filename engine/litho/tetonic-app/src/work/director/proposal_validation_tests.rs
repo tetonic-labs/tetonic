@@ -462,7 +462,7 @@ async fn structured_generation_cannot_capture_a_zero_coordination_proposal() {
                 .set_budget_settings(BudgetSettingsRequest {
                     request_id: uuid::Uuid::new_v4().to_string(),
                     expected_revision: 0,
-                    token_limit: Some(2000),
+                    token_limit: Some(12_288),
                 })
                 .await
                 .unwrap();
@@ -481,7 +481,7 @@ async fn structured_generation_cannot_capture_a_zero_coordination_proposal() {
             done(&workspace, &proposal.generation_id).await;
             assert!(calls.lock().unwrap()[0]["messages"]
                 .to_string()
-                .contains("must not exceed 2000 tokens"));
+                .contains("must not exceed 12288 tokens"));
             for _ in 0..2 {
                 let error = workspace
                     .update_plan(&source, PlanCommand::Capture { revision: 1 })

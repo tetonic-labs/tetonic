@@ -95,7 +95,7 @@ async fn hosted_reads_use_selected_tools_exact_folder_and_actual_provider_result
                         harness: "general".into(),
                         max_steps: 3,
                         max_seconds: 30,
-                        max_tokens: 1024,
+                        max_tokens: 8192,
                         tools: Some(vec![
                             if writable { "write_file" } else { "read_file" }.into()
                         ]),

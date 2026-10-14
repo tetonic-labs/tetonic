@@ -119,7 +119,7 @@ async fn registered_harness_rebuild_retains_audit_tools_usage_and_exact_continua
         .unwrap()
         .unwrap();
     assert_eq!(before[0].input_tokens + before[0].output_tokens, 60);
-    assert_eq!(before[0].held_tokens, 35);
+    assert_eq!(before[0].held_tokens, 9440);
     let rebuilt = f.harness(&reopened, Some(receipt.clone())).await;
     assert_eq!(rebuilt.history, receipt.audit_session_id);
     assert!(
@@ -188,7 +188,7 @@ async fn registered_harness_rebuild_retains_audit_tools_usage_and_exact_continua
         90,
         "reuse the original usage ledger after lease transfer"
     );
-    assert_eq!(after[0].held_tokens, 5);
+    assert_eq!(after[0].held_tokens, 9410);
     f.store()
         .write(move |db| db.settle_work_inference(&attempt.0))
         .await
@@ -201,7 +201,7 @@ async fn registered_harness_rebuild_retains_audit_tools_usage_and_exact_continua
         .unwrap()
         .unwrap();
     assert_eq!(
-        settled[0].released_tokens, 5,
+        settled[0].released_tokens, 9410,
         "only the unused original allowance is released"
     );
     assert_eq!(settled[0].held_tokens, 0);

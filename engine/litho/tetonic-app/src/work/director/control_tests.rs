@@ -54,8 +54,8 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
             {
                 let mut expected = plan(title);
                 if index == 1 {
-                    expected.token_budget = 4608;
-                    expected.assignments[0].token_budget = 512;
+                    expected.token_budget = 8192;
+                    expected.assignments[0].token_budget = 4096;
                 }
                 let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_behavior(
                     index == 0,
@@ -86,7 +86,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                         .set_budget_settings(BudgetSettingsRequest {
                             request_id: uuid::Uuid::new_v4().to_string(),
                             expected_revision: 0,
-                            token_limit: Some(4608),
+                            token_limit: Some(8192),
                         })
                         .await
                         .unwrap();
@@ -156,7 +156,7 @@ async fn guide_tool_creates_and_revises_the_same_durable_proposal_without_dispat
                         .unwrap()
                         .token_limit,
                     if index == 1 {
-                        4608
+                        8192
                     } else {
                         LOCAL_TOKEN_CEILING as i64
                     }

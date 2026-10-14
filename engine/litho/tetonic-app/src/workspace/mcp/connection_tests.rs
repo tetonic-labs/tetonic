@@ -173,7 +173,7 @@ async fn connection_lifecycle(tool_name: &str) {
                     harness: "general".into(),
                     max_steps: 4,
                     max_seconds: 30,
-                    max_tokens: 1024,
+                    max_tokens: 8192,
                     tools: Some(vec![tool.clone()]),
                 })
                 .await

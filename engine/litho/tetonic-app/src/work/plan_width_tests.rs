@@ -1,7 +1,7 @@
 //! Deterministic scheduler qualification, not evidence of model planning quality.
 use super::*;
 
-fn assignment(request: &Value) -> Option<tetonic_memory::PlanAssignment> {
+pub(super) fn assignment(request: &Value) -> Option<tetonic_memory::PlanAssignment> {
     request["messages"].as_array()?.iter().find_map(|m| {
         let input = m["content"].as_str()?;
         let (_, tail) = input.split_once("Your agreed assignment:\n")?;
@@ -99,7 +99,7 @@ async fn run_width(width: u32, scenario: u8) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let mut config = crate::host::HostConfiguration::default();
-            config.workspace_execution.max_tokens = 40_000;
+            config.workspace_execution.max_tokens = 120_000;
             config.workspace_execution.coordination_max_tokens = 20_000;
             let workspace = Rc::new(
                 LocalWorkspace::open_with_configuration(
@@ -171,7 +171,7 @@ async fn run_width(width: u32, scenario: u8) {
                     a.instructions =
                         format!("Complete contribution {i} using its prerequisite evidence.");
                     a.deliverable = format!("Reviewed contribution {i}");
-                    a.token_budget = 500;
+                    a.token_budget = 4000;
                     a.depends_on = match i {
                         0..=5 => vec![],
                         6..=17 => vec![format!("task-{}", i - 6)],
@@ -181,7 +181,7 @@ async fn run_width(width: u32, scenario: u8) {
                     a
                 })
                 .collect();
-            content.token_budget = 30_000;
+            content.token_budget = 100_000;
             workspace
                 .update_plan(
                     &source,
@@ -230,6 +230,25 @@ async fn run_width(width: u32, scenario: u8) {
             })
             .await
             .expect("wide plan did not settle");
+            if complete.state != "completed" {
+                let run = complete.root.as_ref().unwrap().run_id.clone().unwrap();
+                let reasons = workspace
+                    .services
+                    .keys
+                    .store
+                    .read(move |db| {
+                        db.load_run_snapshot(&run)
+                            .unwrap()
+                            .unwrap()
+                            .attempts
+                            .values()
+                            .filter_map(|a| a.failure_reason.clone())
+                            .collect::<Vec<_>>()
+                    })
+                    .await
+                    .unwrap();
+                panic!("Wide execution failures: {reasons:?}");
+            }
             assert_eq!(
                 complete.state,
                 "completed",

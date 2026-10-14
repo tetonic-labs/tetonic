@@ -94,7 +94,7 @@ impl Fixture {
                 "team".into(),
                 "work".into(),
                 "fund".into(),
-                100,
+                10_000,
             )
             .await
             .unwrap();
@@ -152,7 +152,7 @@ impl Fixture {
                 remaining: Default::default(),
             }),
             max_elapsed_seconds: 30,
-            reported_token_ceiling: Some(95),
+            reported_token_ceiling: Some(9500),
             workspace_root: Some(self.dir.path().join("workspace")),
             model: "qwen3.5:latest".into(),
             num_ctx: 8192,

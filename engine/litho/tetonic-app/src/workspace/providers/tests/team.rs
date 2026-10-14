@@ -110,7 +110,7 @@ async fn mixed_provider_teams_keep_saved_model_file_and_mcp_grants() {
                         harness: "general".into(),
                         max_steps: 4,
                         max_seconds: 30,
-                        max_tokens: 1024,
+                        max_tokens: 8192,
                         tools: Some(vec!["read_file".into(), tool.clone(), "run_shell".into()]),
                     })
                     .await

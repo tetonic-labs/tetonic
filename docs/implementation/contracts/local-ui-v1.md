@@ -151,24 +151,32 @@ Before inference, the application wraps its existing brokered provider and
 atomically binds a reservation to the managed execution attempt. It checks the
 live claim, lease, scope and work activation identity. It records the pending
 call before invoking the provider, refuses concurrent/unreported calls in that
-funded attempt, and narrows generated-output `max_tokens` to the remaining
-allowance. Complete reports reduce that remainder. Missing counts or overruns
+funded attempt, and narrows generated-output `max_tokens` to the admitted
+remainder minus estimated input. Before recording the pending call it requires
+room for that input (including tools and budget feedback) plus 256 output tokens.
+An unaffordable request is rejected without an unknown provider charge. Workers
+receive current allowance feedback on each outgoing call. Complete reports reduce
+the remainder. Missing counts or overruns
 fail the funded run before its returned tool calls execute. Cancellation or a
 crash retains the pending record and its hold. Only complete reports and durable
 terminal quiescence under the original lease fence release unused tokens.
 
 This is a **reported-token guardrail**, not a hard aggregate token or billing
-cap: prompt tokens can exceed the balance in the current call, and retries
+cap: input sizing is a conservative heuristic, actual prompt tokens can exceed
+the estimate in the current call, and retries
 inside a provider adapter are not separately metered here. Dollars, prices,
 shared organization/team periods, GPU time and cross-node reconciliation are
 not implemented. A crash between complete reporting and settlement conservatively
 retains the hold; automated reconciliation/manual release remains future work.
-The existing child-allocation ledger is reused. The application host now has a
-governed child entry, while plan dispatch in this local adapter remains disabled.
+The existing child-allocation ledger and governed child entry are reused by
+managed plan dispatch.
 At its first call, an attempt reserves the smaller of its host token ceiling and
 its available work share, leaving unreserved funds available for delegation.
-Known overruns close further spending across the work tree; unresolved calls
-retain their own hold. Dynamic reallocation is not implemented. Schema 58 adds
+Known worker overruns stop that worker without automatically closing unrelated
+branches. Every new call also checks actual shared spend and unresolved holds
+atomically; a reported ancestor overrun stops that scope. In-flight holds alone
+do not revoke already admitted calls. Future allocations account for reported
+overruns, and no allowance is silently raised. Dynamic reallocation is not implemented. Schema 58 adds
 child concurrency projections to the existing run journal, not another budget
 ledger. See [child execution evidence](../../epics/v5-reconciliation/sprints/october-1-coherent-workspace/child-execution-evidence-2026-10-05.md)
 for the execution profile and remaining product integration.

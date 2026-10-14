@@ -17,7 +17,7 @@ fn local_model_failure_is_actionable_without_exposing_provider_payloads() {
 
 #[tokio::test]
 async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_retry_and_restart() {
-    for report in [Some((10, 20)), None, Some((40, 20))] {
+    for report in [Some((10, 20)), None, Some((3000, 2000))] {
         let dir = tempfile::tempdir().unwrap();
         let database = dir.path().join("usage.db");
         let (url, calls, server) = crate::tui_mvp_tests::inference_server_with_usage(
@@ -38,7 +38,7 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                     .set_budget_settings(BudgetSettingsRequest {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         expected_revision: 0,
-                        token_limit: Some(50),
+                        token_limit: Some(4000),
                     })
                     .await
                     .unwrap();
@@ -58,7 +58,7 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                         let usage = workspace.snapshot().await.unwrap().usage;
                         if task.state == expected
                             && usage.len() == 1
-                            && (expected != "completed" || usage[0].released_tokens == 20)
+                            && (expected != "completed" || usage[0].released_tokens == 3970)
                         {
                             break;
                         }
@@ -71,7 +71,7 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                     .set_budget_settings(BudgetSettingsRequest {
                         request_id: uuid::Uuid::new_v4().to_string(),
                         expected_revision: 1,
-                        token_limit: Some(100),
+                        token_limit: Some(8000),
                     })
                     .await
                     .unwrap();
@@ -81,17 +81,21 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                     .unwrap();
                 assert_eq!(replay.state, expected);
                 assert_eq!(calls.lock().unwrap().len(), 1, "replay must not bill again");
-                assert_eq!(calls.lock().unwrap()[0]["options"]["num_predict"], 50);
+                assert!((256..4000).contains(
+                    &calls.lock().unwrap()[0]["options"]["num_predict"]
+                        .as_u64()
+                        .unwrap()
+                ));
                 drop(workspace);
                 let reopened = LocalWorkspace::open(database, "qwen3.5:latest".into(), url)
                     .await
                     .unwrap();
                 let snapshot = reopened.snapshot().await.unwrap();
-                assert_eq!(snapshot.budget_setting.token_limit, Some(100));
+                assert_eq!(snapshot.budget_setting.token_limit, Some(8000));
                 let usage = &snapshot.usage[0];
                 assert_eq!(
                     usage.budget.as_ref().unwrap().token_limit,
-                    50,
+                    4000,
                     "new default must not enlarge old work"
                 );
                 assert_eq!(usage.calls, 1);
@@ -104,9 +108,9 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                                 usage.held_tokens,
                                 usage.released_tokens
                             ),
-                            (10, 20, 0, 20)
+                            (10, 20, 0, 3970)
                         );
-                        assert_eq!(usage.budget.as_ref().unwrap().available_tokens, 20);
+                        assert_eq!(usage.budget.as_ref().unwrap().available_tokens, 3970);
                     }
                     None => {
                         assert_eq!(
@@ -115,13 +119,13 @@ async fn work_usage_counts_real_managed_calls_and_preserves_allowances_across_re
                                 usage.held_tokens,
                                 usage.released_tokens
                             ),
-                            (1, 50, 0)
+                            (1, 4000, 0)
                         );
                         assert_eq!(usage.budget.as_ref().unwrap().available_tokens, 0);
                     }
                     _ => {
                         assert!(usage.over_limit);
-                        assert_eq!(usage.input_tokens + usage.output_tokens, 60);
+                        assert_eq!(usage.input_tokens + usage.output_tokens, 5000);
                         assert_eq!(usage.released_tokens, 0);
                     }
                 }

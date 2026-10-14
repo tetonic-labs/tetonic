@@ -40,7 +40,7 @@ Cross-area helpers deliberately use the caller's connection and transaction.
 | [`authorize_work_budget` / `reserve_work_budget`](../../engine/strata/tetonic-memory/src/usage/work_budgets.rs) | Current manager authority, work lineage/stops, available balance, exact retry binding and insertion. Two writers cannot spend the same remaining allocation. |
 | [`create_work_delegation`](../../engine/strata/tetonic-memory/src/control/team_work.rs) | Validate parent authority, existing allocation and stop scope; create the child work/delegation and its inherited share together. Caller-supplied budget numbers do not create funding. |
 | [`derive_execution_grant`](../../engine/strata/tetonic-memory/src/control/delegated_grants.rs) | Validate the live parent attempt/lease, registered revision, allocation and grant chain; insert the child grant and immutable lineage together. Allocating money and granting execution are separate operations. |
-| [`begin_work_inference_with_limit`](../../engine/strata/tetonic-memory/src/usage/work_usage.rs) | Validate scope, current claim, activation, lease and open allocation; bind the attempt reservation and record the pending provider call before any inference request leaves the process. |
+| [`begin_work_inference_with_headroom`](../../engine/strata/tetonic-memory/src/usage/work_usage.rs) | Validate scope, claim, activation, lease, attempt share and ancestor spend/holds; reject input plus completion headroom that cannot fit, otherwise bind the reservation and record the pending call atomically before invoking inference. |
 | [`finish_work_inference` / `settle_work_inference`](../../engine/strata/tetonic-memory/src/usage/work_usage.rs) | Each is its own transaction. Recording a report is separate from releasing unused allowance. Settlement requires the original fence and durable terminal quiescence; unresolved reports or overruns retain the hold. |
 | [`set_team_budget_setting`](../../engine/strata/tetonic-memory/src/usage/work_usage.rs) | Manager authority, expected revision, exact request/actor/value retry check, setting and receipt. A stale write must not replace a newer setting. |
 | [`edit_organization_agent`](../../engine/strata/tetonic-memory/src/control/organization_agent_edits.rs) | Current authority, expected revision, immutable revision creation, current registration and edit receipt. Agent edits do not rewrite an already pinned execution. |
@@ -85,7 +85,8 @@ flowchart TD
     Fund --> Allocate["Child delegation shares the root budget, payer and stop scope"]
     Fund --> Admit["Managed admission: grant, claim, lease and capacity"]
     Allocate --> Admit
-    Admit --> Reserve["Before inference: reserve attempt share and persist pending call"]
+    Admit --> Preflight["Estimate input + completion headroom; check attempt and shared allowance"]
+    Preflight --> Reserve["If affordable: reserve attempt share and persist pending call"]
     Reserve --> Provider["Existing governed provider and controlled egress"]
     Provider --> Report["Persist provider input/output report or unknown usage"]
     Report --> Guard["Enforce remaining allowance before accepting more work"]
@@ -113,12 +114,24 @@ flowchart TD
    correlation and durably records the pending call before invoking the provider.
    The first funded call reserves the smaller of the available work share and
    the supplied execution limit. Later calls reuse that attempt reservation.
-4. The wrapper reduces generated-output `max_tokens` to the remaining share.
-   Complete provider reports count input and output. Partial/missing reports are
-   unknown. On bounded work, missing usage or a reported overrun stops the run
-   before its returned tool calls execute. A known overrun blocks further calls
-   across the allocated work tree, without discarding reports already in flight.
-5. [`registered` completion](../../engine/litho/tetonic-app/src/resources/registered/mod.rs)
+4. [`request sizing`](../../engine/atmos/tetonic-inference/src/request_budget.rs)
+   estimates messages, tools, schemas and private provider continuation. The
+   wrapper includes its per-call budget feedback in that estimate and requires
+   256 tokens of completion headroom before recording a pending call. Output
+   `max_tokens` is capped by the admitted remainder **minus estimated input**.
+   Feedback is added only to the outgoing request, not saved into conversation
+   history. A preflight rejection records no unknown provider charge.
+5. [`work budget obligations`](../../engine/strata/tetonic-memory/src/usage/work_budget_obligations.rs)
+   distinguishes future allocations from spend. Each call is capped by both its
+   attempt remainder and the ancestor allowances less reported usage and unresolved
+   calls. Unresolved calls conservatively hold their attempt's remaining share.
+   A worker overrun stops that worker; independent branches can proceed within
+   their shares and shared headroom. New allocations account for overruns spilling
+   through the nearest parent's unused capacity. A reported shared-scope overrun
+   closes that scope. In-flight holds alone do not revoke an already admitted
+   executor. Complete reports count input and output; partial/missing reports stay
+   unknown, and over-budget responses cannot execute their returned tool calls.
+6. [`registered` completion](../../engine/litho/tetonic-app/src/resources/registered/mod.rs)
    invokes settlement after managed completion. The store independently checks
    terminal state, quiescence and the original execution fence. If accounting
    cannot confirm release, it keeps the hold and emits a sanitized diagnostic.
@@ -145,8 +158,9 @@ flowchart TD
 
 ### Honest limits
 
-This is a provider-reported token guardrail, not a hard billing cap. Prompt tokens
-may exceed a remaining share during the current call; provider-internal retries
+This is a provider-reported token guardrail, not a hard billing cap. Input sizing
+uses a UTF-8-byte heuristic plus framing, not an exact vendor tokenizer. Actual
+prompt tokens may exceed the estimate during the current call; provider-internal retries
 are not separately metered here. Dollars, pricing, rolling organization/team
 periods, GPU accounting and distributed ledger reconciliation are not implemented.
 Unknown usage and a crash between reporting and settlement conservatively retain

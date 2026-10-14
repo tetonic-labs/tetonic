@@ -347,11 +347,17 @@ impl Store {
             params![org, team, work],
             |r| r.get(0),
         )?;
+        if delegated < 0 || reserved < 0 {
+            return Err(StoreError::ControlAccessDenied);
+        }
+        let reserved = reserved
+            .checked_add(self.work_budget_overflow(org, team, work)?)
+            .ok_or(StoreError::ControlAccessDenied)?;
         let available = limit
             .checked_sub(delegated)
             .and_then(|v| v.checked_sub(reserved))
-            .filter(|v| *v >= 0 && delegated >= 0 && reserved >= 0)
-            .ok_or(StoreError::ControlAccessDenied)?;
+            .ok_or(StoreError::ControlAccessDenied)?
+            .max(0);
         Ok(WorkBudget {
             org_id: org.into(),
             team_id: team.into(),

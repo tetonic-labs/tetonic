@@ -73,7 +73,7 @@ async fn local_shell_uses_owner_decisions_and_delivers_process_output() {
                         harness: "general".into(),
                         max_steps: 3,
                         max_seconds: 30,
-                        max_tokens: 1024,
+                        max_tokens: 8192,
                         tools: Some(vec!["run_shell".into()]),
                     })
                     .await

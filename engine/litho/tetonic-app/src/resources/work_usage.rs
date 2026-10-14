@@ -2,6 +2,9 @@
 use super::*;
 use tetonic_inference::{ChatRequest, ChatResponse, InferenceError, InferenceProvider, TokenSink};
 
+#[path = "work_usage_request.rs"]
+mod request_budget;
+
 pub(super) struct WorkUsageProvider {
     pub inner: Arc<dyn InferenceProvider>,
     pub store: SharedStore,
@@ -47,8 +50,10 @@ impl InferenceProvider for WorkUsageProvider {
         let key = call.clone();
         let model = req.model.clone();
         let own_limit = self.own_limit.map(|v| i64::try_from(v).unwrap_or(i64::MAX));
+        let input_estimate = request_budget::estimate(&req);
+        let minimum_call_tokens = input_estimate.saturating_add(request_budget::MIN_OUTPUT);
         let remaining = self.store.write(move |db| {
-            db.begin_work_inference_with_limit(
+            db.begin_work_inference_with_headroom(
                 tetonic_memory::BeginWorkInference {
                     actor: &actor,
                     org: &org,
@@ -62,14 +67,14 @@ impl InferenceProvider for WorkUsageProvider {
                     now: chrono::Utc::now().timestamp().max(0) as u64,
                 },
                 own_limit,
+                minimum_call_tokens,
             )
         }).await.map_err(|_| unavailable())?.map_err(|error| match error {
-            StoreError::InvalidControlResource(_) => InferenceError::Provider("Work token allowance reached, or earlier usage is unconfirmed. Review Usage before starting more work.".into()),
+            StoreError::InvalidControlResource(reason) => InferenceError::Provider(format!("Work token allowance stopped this request: {reason}. Review Usage before starting more work.")),
             _ => unavailable(),
         })?;
         if let Some(remaining) = remaining {
-            let cap = u32::try_from(remaining).unwrap_or(u32::MAX);
-            req.max_tokens = Some(req.max_tokens.map_or(cap, |v| v.min(cap)));
+            request_budget::apply(&mut req, remaining, input_estimate);
         }
         // Dropping this future on cancellation leaves a durable pending call.
         // The reader identifies it as unconfirmed after the owner stops/expires.

@@ -161,7 +161,7 @@ async fn every_hosted_provider_uses_selected_mcp_and_denies_ungranted_or_changed
                         harness: "general".into(),
                         max_steps: 3,
                         max_seconds: 30,
-                        max_tokens: 1024,
+                        max_tokens: 8192,
                         tools: Some(if selected { vec![tool.clone()] } else { vec![] }),
                     };
                     if selected {

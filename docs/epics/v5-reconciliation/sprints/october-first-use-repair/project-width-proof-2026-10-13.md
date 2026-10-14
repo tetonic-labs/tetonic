@@ -162,6 +162,10 @@ remain available on ports 18739 and 18740; the read-only polling helper was stop
 
 ## Remaining product findings
 
+Follow-up: [budget-aware execution and scoped exhaustion](budget-aware-execution-2026-10-13.md)
+implements and deterministically qualifies the budget fixes identified below.
+The live-run evidence and failed acceptance recorded here remain unchanged.
+
 - Context retention and cumulative usage are different resources. The Guide's
   original decomposition underbudgeted repeated source input. The later prompt
   explicitly requested focused source ranges and concise intermediates; this is

@@ -193,14 +193,14 @@ async fn configured_coordination_budget_reaches_planning_and_real_managed_team_e
             let source = seed(&workspace).await;
             let view = workspace.plan_view(&source).await.unwrap();
             let mut content = view.plans[0].content.clone().unwrap();
-            content.token_budget = 10000; // 2,000 workers + 8,000 coordination, above the old 4,096 cap.
+            content.token_budget = 16000; // 8,000 workers + 8,000 coordination, above the old 4,096 cap.
             assert!(workspace
                 .execution_readiness(&content, "Shared brief")
                 .await
                 .unwrap()
                 .is_empty());
             let mut excessive = content.clone();
-            excessive.token_budget = 12001;
+            excessive.token_budget = 18001;
             assert!(workspace
                 .execution_readiness(&excessive, "Shared brief")
                 .await

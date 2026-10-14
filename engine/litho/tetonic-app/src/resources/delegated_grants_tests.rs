@@ -150,7 +150,7 @@ async fn delegation_scenario_with_lifetime(
             "team".into(),
             "root".into(),
             "fund".into(),
-            100,
+            100_000,
         )
         .await
         .unwrap();
@@ -165,8 +165,8 @@ async fn delegation_scenario_with_lifetime(
                 child_work_id: "child".into(),
                 child_title: "Explain the work".into(),
                 request_id: "delegation-request".into(),
-                parent_budget_tokens: 100,
-                child_budget_tokens: 40,
+                parent_budget_tokens: 100_000,
+                child_budget_tokens: 40_000,
                 stop_scope: "inherit".into(),
                 peer_org: None,
                 peer_team: None,
@@ -220,7 +220,7 @@ async fn delegation_scenario_with_lifetime(
                     reported_token_ceiling: if scenario == Scenario::AuthorityOnly {
                         None
                     } else {
-                        Some(40)
+                        Some(40_000)
                     },
                     workspace_root: None,
                     model: "qwen3.5:latest".into(),
@@ -259,7 +259,7 @@ async fn delegation_scenario_with_lifetime(
                         response_schema: None,
                         hosted: None,
                         max_elapsed_seconds: 120,
-                        reported_token_ceiling: Some(40),
+                        reported_token_ceiling: Some(40_000),
                         workspace_root: None,
                         model: "qwen3.5:latest".into(),
                         num_ctx: 8192,
@@ -398,7 +398,7 @@ async fn delegation_scenario_with_lifetime(
                 response_schema: None,
                 hosted: None,
                 max_elapsed_seconds: 120,
-                reported_token_ceiling: Some(40),
+                reported_token_ceiling: Some(40_000),
                 workspace_root: None,
                 model: "qwen3.5:latest".into(),
                 num_ctx: if scenario == Scenario::QueuedRevoke {
@@ -427,7 +427,7 @@ async fn delegation_scenario_with_lifetime(
                     let mut changed = settings();
                     match change {
                         0 => changed.model = "substituted-model".into(),
-                        1 => changed.reported_token_ceiling = Some(41),
+                        1 => changed.reported_token_ceiling = Some(40_001),
                         _ => changed.num_ctx = 4096,
                     }
                     assert!(app
@@ -469,7 +469,7 @@ async fn delegation_scenario_with_lifetime(
                     "other-team".into(),
                     "other-root".into(),
                     "other-fund".into(),
-                    100,
+                    100_000,
                 )
                 .await
                 .unwrap();
@@ -484,8 +484,8 @@ async fn delegation_scenario_with_lifetime(
                         child_work_id: "other-child".into(),
                         child_title: "Explain the work".into(),
                         request_id: "delegation-request".into(),
-                        parent_budget_tokens: 100,
-                        child_budget_tokens: 40,
+                        parent_budget_tokens: 100_000,
+                        child_budget_tokens: 40_000,
                         stop_scope: "inherit".into(),
                         peer_org: None,
                         peer_team: None,
@@ -620,7 +620,7 @@ async fn delegation_scenario_with_lifetime(
                     .await
                     .unwrap()
                     .available_tokens,
-                20
+                20_000
             );
             if scenario == Scenario::Complete {
                 child_response.notify_one();
@@ -686,7 +686,10 @@ async fn delegation_scenario_with_lifetime(
                     60
                 );
                 assert_eq!(usage.iter().map(|row| row.held_tokens).sum::<i64>(), 0);
-                assert_eq!(usage.iter().map(|row| row.released_tokens).sum::<i64>(), 20);
+                assert_eq!(
+                    usage.iter().map(|row| row.released_tokens).sum::<i64>(),
+                    79_940
+                );
                 assert_eq!(requests.lock().unwrap().len(), 2);
                 return;
             }
@@ -738,7 +741,7 @@ async fn delegation_scenario_with_lifetime(
                 .unwrap()
                 .unwrap();
             let child_usage = usage.iter().find(|row| row.work_id == "child").unwrap();
-            assert_eq!(child_usage.held_tokens, 40);
+            assert_eq!(child_usage.held_tokens, 40_000);
             assert_eq!(child_usage.released_tokens, 0);
             assert!(requests.lock().unwrap().len() <= 2);
             return;
@@ -796,8 +799,8 @@ async fn delegation_scenario_with_lifetime(
             .as_ref()
             .is_none_or(|job| job.identity_id != child.identity.id)));
         assert_eq!(requests.lock().unwrap().len(), 1);
-        // The parent's unresolved in-flight inference retains its own 60-token
-        // reservation; the child's 40-token allocation is still separate.
+        // The parent's unresolved in-flight inference retains its own 60,000-token
+        // reservation; the child's 40,000-token allocation is still separate.
         assert_eq!(
             resources
                 .work_budget(child_secret, "org".into(), "team".into(), "root".into())

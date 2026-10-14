@@ -51,7 +51,7 @@ pub(crate) fn agent_request(name: &str, provider: &str, root: Option<String>) ->
         harness: "general".into(),
         max_steps: 3,
         max_seconds: 60,
-        max_tokens: 1024,
+        max_tokens: 8192,
         tools: Some(vec!["run_shell".into()]),
     }
 }

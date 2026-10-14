@@ -180,7 +180,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     harness: "general".into(),
                     max_steps: 2,
                     max_seconds: 30,
-                    max_tokens: 1024,
+                    max_tokens: 8192,
                     tools: None,
                 };
                 assert!(workspace.create_agent(input.clone()).await.is_err());
@@ -269,7 +269,7 @@ async fn hosted_agent_round_trip(with_folder: bool) {
                     "ambient tools must never reach hosted inference"
                 );
                 if provider == "openai" {
-                    assert_eq!(body["max_output_tokens"], 1024);
+                    assert!((256..8192).contains(&body["max_output_tokens"].as_u64().unwrap()));
                     assert_eq!(body["stream"], true);
                     assert_eq!(body["store"], false);
                     assert!(body.get("max_tokens").is_none());

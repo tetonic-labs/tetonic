@@ -339,7 +339,7 @@ async fn exercise(scenario: u8) {
                 }
             );
             assert!(content.assignments[0].depends_on.is_empty());
-            assert_eq!(content.token_budget, 5096);
+            assert_eq!(content.token_budget, 8096);
             assert_eq!(receipt.retained.len(), if scenario == 10 { 1 } else { 2 });
             assert_eq!(
                 receipt.review_before_repeat.len(),

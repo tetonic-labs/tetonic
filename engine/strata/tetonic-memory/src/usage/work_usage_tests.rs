@@ -5,6 +5,9 @@ use tetonic_domain::{ActivationBinding, ExecutionScope, RunSnapshot, TaskInputBi
 #[path = "work_usage_resume_tests.rs"]
 mod resume;
 
+#[path = "work_usage_isolation_tests.rs"]
+mod isolation;
+
 fn seed(db: &Store) {
     db.bootstrap_control("owner", "org", "Org").unwrap();
     db.create_team(&TeamRow {
@@ -197,7 +200,7 @@ fn parent_own_share_leaves_funded_capacity_for_later_delegation() {
 }
 
 #[test]
-fn one_branch_overrun_stops_new_tree_spend_but_keeps_inflight_reports() {
+fn coordinator_own_overrun_consumes_headroom_without_canceling_children() {
     let db = Store::open(":memory:").unwrap();
     seed(&db);
     limited(&db, "parent", 30).unwrap();
@@ -207,7 +210,11 @@ fn one_branch_overrun_stops_new_tree_spend_but_keeps_inflight_reports() {
     db.finish_work_inference("parent", Some(20), Some(15))
         .unwrap();
     db.finish_work_inference("child", Some(1), Some(2)).unwrap();
-    assert!(begin_child(&db, "child-again").is_err());
+    assert_eq!(begin_child(&db, "child-again").unwrap(), Some(47));
+    assert!(limited(&db, "parent-again", 100).is_err());
+    let budget = db.work_budget("owner", "org", "team", "work").unwrap();
+    assert_eq!(budget.reserved_tokens, 35);
+    assert_eq!(budget.available_tokens, 15);
     assert!(db
         .reserve_work_budget("owner", "org", "team", "child", "new-reservation", 1)
         .is_err());
@@ -222,7 +229,7 @@ fn one_branch_overrun_stops_new_tree_spend_but_keeps_inflight_reports() {
             child_title: "Help",
             request_id: "more-request",
             parent_budget_tokens: 100,
-            child_budget_tokens: 1,
+            child_budget_tokens: 16,
             stop_scope: "inherit",
             peer_org: None,
             peer_team: None

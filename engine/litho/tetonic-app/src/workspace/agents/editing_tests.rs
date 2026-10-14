@@ -47,7 +47,7 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
                     harness: "general".into(),
                     max_steps: 2,
                     max_seconds: 60,
-                    max_tokens: 1024,
+                    max_tokens: 8192,
                     tools: Some(vec!["read_file".into(), "run_shell".into()]),
                 },
             };

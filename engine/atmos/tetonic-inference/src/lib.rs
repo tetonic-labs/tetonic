@@ -21,6 +21,7 @@ pub mod hosted;
 mod placement;
 mod placement_engine;
 mod pooled;
+mod request_budget;
 mod residency;
 mod worker_eligibility;
 

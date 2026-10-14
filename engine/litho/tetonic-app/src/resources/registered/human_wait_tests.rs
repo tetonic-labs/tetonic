@@ -398,7 +398,7 @@ async fn rejected_saved_handoff_never_reacquires_execution_or_calls_model() {
             .unwrap()
             .unwrap()[0]
             .held_tokens,
-        35
+        9440
     );
     server.abort();
 }

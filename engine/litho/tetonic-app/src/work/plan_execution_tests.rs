@@ -23,6 +23,9 @@ mod execution_configuration;
 #[path = "plan_blackboard_tests.rs"]
 mod blackboard;
 
+#[path = "plan_budget_tests.rs"]
+mod budgets;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;
@@ -103,7 +106,9 @@ pub(crate) async fn scripted_server(
                     let (tool, args) = {
                         let mut calls = captured.lock().unwrap();
                         calls.push(request.clone());
-                        if matches!(scenario, 17 | 18) {
+                        if scenario == 19 {
+                            budgets::reply(child, &request)
+                        } else if matches!(scenario, 17 | 18) {
                             width::reply(child, &request)
                         } else if matches!(scenario, 14..=16) {
                             blackboard::reply(scenario, child, &request)
@@ -278,7 +283,12 @@ pub(crate) async fn scripted_server(
                         let _ = stream.read(&mut [0; 1]).await;
                         return;
                     }
-                    if scenario == 4 && child && tool == "finish" {
+                    if scenario == 19
+                        && child
+                        && width::assignment(&request).unwrap().key == "compare"
+                    {
+                        json!({"model":"qwen3.5:latest","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":tool,"arguments":args}}]},"done":true,"prompt_eval_count":4000,"eval_count":1})
+                    } else if scenario == 4 && child && tool == "finish" {
                         json!({"model":"qwen3.5:latest","message":{"role":"assistant","content":args["summary"]},"done":true,"prompt_eval_count":10,"eval_count":20})
                     } else {
                         json!({"model":"qwen3.5:latest","message":{"role":"assistant","content":"","tool_calls":[{"function":{"name":tool,"arguments":args}}]},"done":true,"prompt_eval_count":10,"eval_count":20})
@@ -393,18 +403,18 @@ async fn seed_roster_options(
         )
         .await
         .unwrap();
-    let mut content:PlanContent=serde_json::from_value(json!({"title":"Workshop options","summary":"Compare options, then check assumptions","token_budget":6096,"open_questions":[],"assignments":[
-        {"key":"compare","title":"Compare formats","instructions":"COMPARE_CANARY Compare formats","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"Comparison","token_budget":1000},
-        {"key":"check","title":"Check assumptions","instructions":"CHECK_CANARY Review the comparison","agent_key":worker.key,"depends_on":["compare"],"tools":[],"deliverable":"Risks","token_budget":1000}
+    let mut content:PlanContent=serde_json::from_value(json!({"title":"Workshop options","summary":"Compare options, then check assumptions","token_budget":12096,"open_questions":[],"assignments":[
+        {"key":"compare","title":"Compare formats","instructions":"COMPARE_CANARY Compare formats","agent_key":AGENT,"depends_on":[],"tools":[],"deliverable":"Comparison","token_budget":4000},
+        {"key":"check","title":"Check assumptions","instructions":"CHECK_CANARY Review the comparison","agent_key":worker.key,"depends_on":["compare"],"tools":[],"deliverable":"Risks","token_budget":4000}
     ]})).unwrap();
     if parallel {
         content.assignments[1].depends_on.clear();
     }
     if handoff {
-        content.token_budget = 10096;
-        content.assignments[0].token_budget = 2000;
+        content.token_budget = 16096;
+        content.assignments[0].token_budget = 4000;
         content.assignments[1].depends_on.clear();
-        content.assignments[1].token_budget = 2000;
+        content.assignments[1].token_budget = 4000;
         let mut wrap = content.assignments[1].clone();
         wrap.key = "wrap".into();
         wrap.title = "Prepare recommendation".into();
@@ -626,7 +636,7 @@ async fn stale_brief_and_no_coordination_budget_block_start_without_inference() 
             .content
             .clone()
             .unwrap();
-        content.token_budget = 2000;
+        content.token_budget = 8000;
         workspace
             .update_plan(
                 &source,

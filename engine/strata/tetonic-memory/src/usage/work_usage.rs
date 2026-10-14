@@ -161,6 +161,17 @@ impl Store {
         command: crate::BeginWorkInference<'_>,
         own_limit: Option<i64>,
     ) -> Result<Option<i64>> {
+        self.begin_work_inference_with_headroom(command, own_limit, 0)
+    }
+
+    /// Reject unaffordable input + minimum output before recording a pending
+    /// provider call. The estimate is host supplied, never an agent budget grant.
+    pub fn begin_work_inference_with_headroom(
+        &self,
+        command: crate::BeginWorkInference<'_>,
+        own_limit: Option<i64>,
+        minimum_call_tokens: i64,
+    ) -> Result<Option<i64>> {
         let crate::BeginWorkInference {
             actor,
             org,
@@ -173,7 +184,7 @@ impl Store {
             model,
             now,
         } = command;
-        if own_limit.is_some_and(|v| v <= 0) {
+        if own_limit.is_some_and(|v| v <= 0) || minimum_call_tokens < 0 {
             return Err(StoreError::InvalidControlResource(
                 "work token allowance".into(),
             ));
@@ -295,37 +306,36 @@ impl Store {
                 "work token allowance exhausted or usage unconfirmed".into(),
             ));
         }
+        let remaining = match (allowance, self.work_inference_headroom(org, team, work)?) {
+            (Some(limit), Some(shared)) => Some((limit - used).min(shared.max(0))),
+            (Some(limit), None) => Some(limit - used),
+            (None, shared) => shared.map(|v| v.max(0)),
+        };
+        if remaining.is_some_and(|remaining| remaining <= 0 || remaining < minimum_call_tokens) {
+            return Err(StoreError::InvalidControlResource(
+                format!("work token allowance cannot fit the next request input and completion headroom (need {minimum_call_tokens}, remaining {})", remaining.unwrap_or(0)),
+            ));
+        }
         self.conn.execute(
             "INSERT INTO work_usage_calls VALUES(?1,?2,?3,NULL,NULL,'pending',?4)",
             params![call, attempt, model, crate::util::now()],
         )?;
         tx.commit()?;
-        Ok(allowance.map(|limit| limit - used))
+        Ok(remaining)
     }
 
-    /// A reported overrun in any allocated branch closes further inference in
-    /// that tree. In-flight requests may still report usage; it is never hidden.
+    /// This also runs during live grant validation. An in-flight request holding
+    /// its last tokens must not revoke itself. Only reported overruns revoke a
+    /// scope; new calls additionally check headroom and unresolved usage above.
     pub(crate) fn require_bounded_work_reports(
         &self,
         org: &str,
         team: &str,
         work: &str,
     ) -> Result<()> {
-        let ancestors = self.work_ancestors(org, team, work)?;
-        let root = ancestors.last().ok_or(StoreError::ControlAccessDenied)?;
-        let exceeded:bool=self.conn.query_row(
-            "WITH RECURSIVE tree(work_id,depth) AS (
-                SELECT ?3,0 UNION ALL
-                SELECT d.child_work_id,t.depth+1 FROM tree t JOIN work_delegations d
-                ON d.parent_work_id=t.work_id AND d.org_id=?1 AND d.team_id=?2 WHERE t.depth<31
-            ) SELECT EXISTS(SELECT e.attempt_id FROM work_budget_executions e
-                JOIN tree t ON t.work_id=e.work_id JOIN work_usage_calls c ON c.attempt_id=e.attempt_id
-                WHERE e.org_id=?1 AND e.team_id=?2 AND e.allowance IS NOT NULL
-                GROUP BY e.attempt_id HAVING SUM(COALESCE(c.input_tokens,0)+COALESCE(c.output_tokens,0))>e.allowance)",
-            params![org,team,root],|r|r.get(0))?;
-        if exceeded {
+        if self.work_reported_overrun(org, team, work)? {
             return Err(StoreError::InvalidControlResource(
-                "work tree token allowance exceeded".into(),
+                "work allocation token allowance exhausted by reported usage".into(),
             ));
         }
         Ok(())
@@ -458,19 +468,25 @@ impl Store {
             }
             let released: i64=self.conn.query_row("SELECT COALESCE(SUM(released_tokens),0) FROM work_budget_executions WHERE org_id=?1 AND team_id=?2 AND work_id=?3",params![org,team,item.work_id],|r|r.get(0))?;
             let used = input.saturating_add(output);
+            // Child overruns are already consumed, not this work's unconfirmed
+            // provider calls. Keep them out of the UI's held-allowance figure.
+            let own_reserved: i64 = self.conn.query_row(
+                "SELECT COALESCE(SUM(tokens),0) FROM work_budget_reservations WHERE org_id=?1 AND team_id=?2 AND work_id=?3",
+                params![org, team, item.work_id], |r| r.get(0))?;
             let attempt_overrun: bool = self.conn.query_row("SELECT EXISTS(
                 SELECT e.attempt_id FROM work_budget_executions e JOIN work_usage_calls c ON c.attempt_id=e.attempt_id
                 WHERE e.org_id=?1 AND e.team_id=?2 AND e.work_id=?3 AND e.allowance IS NOT NULL
                 GROUP BY e.attempt_id HAVING SUM(COALESCE(c.input_tokens,0)+COALESCE(c.output_tokens,0))>e.allowance)",params![org,team,item.work_id],|r|r.get(0))?;
+            let shared_overrun = self.work_reported_overrun(org, team, &item.work_id)?;
             result.push(WorkUsage {
                 work_id: item.work_id,
                 title: item.title,
                 purpose: format!("{:?}", item.purpose).to_lowercase(),
-                held_tokens: budget
-                    .as_ref()
-                    .map_or(0, |b| b.reserved_tokens.saturating_sub(used).max(0)),
-                over_limit: attempt_overrun
-                    || budget.as_ref().is_some_and(|b| used > b.token_limit),
+                held_tokens: own_reserved
+                    .saturating_sub(released)
+                    .saturating_sub(used)
+                    .max(0),
+                over_limit: attempt_overrun || shared_overrun,
                 budget,
                 input_tokens: input,
                 output_tokens: output,

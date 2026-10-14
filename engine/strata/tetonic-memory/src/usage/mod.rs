@@ -7,6 +7,7 @@ pub(crate) mod compute_reservation;
 pub(crate) mod execution_limits;
 pub(crate) mod run_capacity;
 pub(crate) mod scheduler_decision;
+mod work_budget_obligations;
 pub(crate) mod work_budgets;
 pub(crate) mod work_usage;
 pub(crate) mod work_usage_resume;

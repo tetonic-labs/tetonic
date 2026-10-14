@@ -84,7 +84,7 @@ async fn shell_provider_parity_requires_a_live_exact_once_owner_decision() {
                             harness: "general".into(),
                             max_steps: 3,
                             max_seconds: 30,
-                            max_tokens: 1024,
+                            max_tokens: 8192,
                             tools: Some(if decision == "unselected" {
                                 vec![]
                             } else {

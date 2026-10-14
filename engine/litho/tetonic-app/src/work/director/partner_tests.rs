@@ -90,10 +90,43 @@ async fn long_discussion_retrieves_originals_and_links_subjects_without_dispatch
                 false,
             )
             .await;
-            let workspace =
-                LocalWorkspace::open(database.clone(), "qwen3.5:latest".into(), url.clone())
-                    .await
-                    .unwrap();
+            // Exercise the full retained-history ceiling with an explicitly
+            // funded Guide. Tiny fake usage reports do not make its input free.
+            let mut configuration = crate::host::HostConfiguration::default();
+            configuration.workspace_execution.max_tokens = 32_768;
+            let workspace = LocalWorkspace::open_with_configuration(
+                database.clone(),
+                "qwen3.5:latest".into(),
+                url.clone(),
+                None,
+                configuration,
+            )
+            .await
+            .unwrap();
+            let guide = workspace.guide_for_coordination().await.unwrap();
+            workspace
+                .update_agent(UpdateLocalAgent {
+                    agent_key: guide.key,
+                    expected_definition_digest: guide.definition_digest,
+                    configuration: CreateLocalAgent {
+                        request_id: uuid::Uuid::new_v4().to_string(),
+                        name: guide.name,
+                        purpose: guide.purpose,
+                        provider: guide.provider,
+                        model: guide.model,
+                        harness: "general".into(),
+                        max_steps: guide.max_steps,
+                        max_seconds: guide.max_seconds,
+                        max_tokens: 32_768,
+                        tools: Some(vec![]),
+                        workspace_root: None,
+                        expected_workspace_root: None,
+                        hosted_consent: false,
+                        hosted_tools_consent: false,
+                    },
+                })
+                .await
+                .unwrap();
             let mut ids = vec![];
             for i in 0..70 {
                 let id = uuid::Uuid::new_v4().to_string();

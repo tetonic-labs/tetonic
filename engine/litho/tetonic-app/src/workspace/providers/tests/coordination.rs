@@ -172,7 +172,7 @@ async fn seed(workspace: &LocalWorkspace, agents: &[LocalAgent]) -> String {
             json!({
                 "key":key,"title":key,"instructions":"Use only the granted tools for the workshop.",
                 "agent_key":agent.key,"depends_on":[],"tools":agent.tools,
-                "deliverable":"A source-backed contribution","token_budget":1500
+                "deliverable":"A source-backed contribution","token_budget":4000
             })
         })
         .collect();
@@ -181,7 +181,7 @@ async fn seed(workspace: &LocalWorkspace, agents: &[LocalAgent]) -> String {
             request: uuid::Uuid::new_v4().to_string(), expected: 0, brief_revision: 1,
             generation_id: uuid::Uuid::new_v4().to_string(), generation_input: "Fixture proposal".into(),
             content: Some(serde_json::from_value(json!({"title":"Workshop preparation",
-                "summary":"Read the brief and check availability independently.","token_budget":7096,
+                "summary":"Read the brief and check availability independently.","token_budget":12096,
                 "open_questions":[],"assignments":assignments})).unwrap()),
         },
     ).await.unwrap();
@@ -276,7 +276,7 @@ async fn hosted_coordinators_dispatch_parallel_tool_using_teams_without_ollama()
                                 tools: Some(tools),
                                 max_steps: 4,
                                 max_seconds: 30,
-                                max_tokens: 1500,
+                                max_tokens: 4000,
                             })
                             .await
                             .unwrap(),
