@@ -290,12 +290,37 @@ impl StagingArea {
         staging: &StagingArea,
         sets: &ReadWriteSets,
     ) -> Result<PathBuf, TransactionError> {
+        Self::materialize_overlay_cancellable(root, staging, sets, None)
+    }
+
+    pub fn materialize_overlay_cancellable(
+        root: &Path,
+        staging: &StagingArea,
+        sets: &ReadWriteSets,
+        cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
+    ) -> Result<PathBuf, TransactionError> {
         let overlay = staging.dir.join("verify_overlay");
+        // Refuse substituted staging ancestors before cleaning or populating.
+        let relative = overlay
+            .strip_prefix(root)
+            .map_err(|_| TransactionError::OutsideWorkspace(overlay.display().to_string()))?;
+        resolve_under_root(root, &relative.to_string_lossy())?;
+        if crate::fs_ops::is_symlink_or_reparse(&overlay) {
+            return Err(TransactionError::OutsideWorkspace(
+                overlay.display().to_string(),
+            ));
+        }
         if overlay.exists() {
             std::fs::remove_dir_all(&overlay).map_err(|e| TransactionError::Io(e.to_string()))?;
         }
-        copy_tree(root, &overlay, root)?;
+        let mut budget = CopyBudget {
+            cancel,
+            entries: 0,
+            bytes: 0,
+        };
+        copy_tree(root, &overlay, root, &mut budget)?;
         for op in sets.writes.values() {
+            budget.check()?;
             let dest = overlay.join(op.path.0.replace('/', std::path::MAIN_SEPARATOR_STR));
             match op.kind {
                 StagedOperationKind::Delete | StagedOperationKind::Rename => {
@@ -311,12 +336,33 @@ impl StagingArea {
                 }
                 _ => {
                     if let Some(cp) = &op.new_content_path {
+                        let relative = Path::new(cp)
+                            .strip_prefix(&staging.dir)
+                            .map_err(|_| TransactionError::OutsideWorkspace(cp.clone()))?;
+                        let source = resolve_under_root(&staging.dir, &relative.to_string_lossy())?;
+                        let mut input = crate::fs_ops::open_read_nofollow(&source)?;
+                        let bytes = input
+                            .metadata()
+                            .map_err(|e| TransactionError::Io(e.to_string()))?
+                            .len();
+                        budget.bytes = budget.bytes.saturating_add(bytes);
+                        budget.entries += 1;
+                        budget.check()?;
                         if let Some(parent) = dest.parent() {
                             std::fs::create_dir_all(parent)
                                 .map_err(|e| TransactionError::Io(e.to_string()))?;
                         }
-                        std::fs::copy(cp, &dest)
+                        let mut output = std::fs::File::create(&dest)
                             .map_err(|e| TransactionError::Io(e.to_string()))?;
+                        std::io::copy(&mut input, &mut output)
+                            .map_err(|e| TransactionError::Io(e.to_string()))?;
+                        drop(output);
+                        if op.new_digest.as_ref() != Some(&digest_file(&dest)?) {
+                            return Err(TransactionError::Other(format!(
+                                "staged content changed unexpectedly: {}",
+                                op.path.0
+                            )));
+                        }
                     }
                 }
             }
@@ -338,7 +384,31 @@ impl StagingArea {
     }
 }
 
-fn copy_tree(src_root: &Path, dst_root: &Path, from: &Path) -> Result<(), TransactionError> {
+struct CopyBudget<'a> {
+    cancel: Option<&'a tetonic_domain::work_scope::CancellationSignal>,
+    entries: usize,
+    bytes: u64,
+}
+
+impl CopyBudget<'_> {
+    fn check(&self) -> Result<(), TransactionError> {
+        if self.cancel.is_some_and(|s| s.is_canceled()) {
+            return Err(TransactionError::Other("staged check canceled".into()));
+        }
+        if self.entries > 20_000 || self.bytes > 256 * 1024 * 1024 {
+            return Err(TransactionError::SizeLimit("Verification copy exceeds 20,000 entries or 256 MiB. Use a smaller working folder.".into()));
+        }
+        Ok(())
+    }
+}
+
+fn copy_tree(
+    src_root: &Path,
+    dst_root: &Path,
+    from: &Path,
+    budget: &mut CopyBudget<'_>,
+) -> Result<(), TransactionError> {
+    budget.check()?;
     if from.is_file() {
         if let Some(parent) = dst_root.parent() {
             std::fs::create_dir_all(parent).map_err(|e| TransactionError::Io(e.to_string()))?;
@@ -350,16 +420,37 @@ fn copy_tree(src_root: &Path, dst_root: &Path, from: &Path) -> Result<(), Transa
     for entry in std::fs::read_dir(from).map_err(|e| TransactionError::Io(e.to_string()))? {
         let entry = entry.map_err(|e| TransactionError::Io(e.to_string()))?;
         let name = entry.file_name();
-        if name == ".git" || name == ".lokai" {
+        let lower = name.to_string_lossy().to_ascii_lowercase();
+        if matches!(
+            lower.as_str(),
+            ".git"
+                | ".lokai"
+                | ".tetonic"
+                | ".ssh"
+                | ".aws"
+                | ".gnupg"
+                | ".kube"
+                | ".env"
+                | ".git-credentials"
+        ) || lower.starts_with(".env.")
+        {
             continue;
         }
         let rel = rel_path(src_root, &entry.path())?;
         if is_excluded_artifact(&rel.0) {
             continue;
         }
+        budget.entries += 1;
+        let metadata = entry
+            .metadata()
+            .map_err(|e| TransactionError::Io(e.to_string()))?;
+        if metadata.is_file() {
+            budget.bytes = budget.bytes.saturating_add(metadata.len());
+        }
+        budget.check()?;
         let target = dst_root.join(name);
         if entry.path().is_dir() {
-            copy_tree(src_root, &target, &entry.path())?;
+            copy_tree(src_root, &target, &entry.path(), budget)?;
         } else {
             if let Some(parent) = target.parent() {
                 std::fs::create_dir_all(parent).map_err(|e| TransactionError::Io(e.to_string()))?;

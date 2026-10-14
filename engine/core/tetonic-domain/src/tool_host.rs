@@ -116,6 +116,17 @@ pub trait ToolHost: Send + Sync {
     }
 
     fn propose(&self, name: &str, args: &Value) -> Option<ToolProposal>;
+    /// Bind host-owned execution context before canonicalization and approval.
+    /// Runs on the owned blocking boundary; must not execute the requested effect.
+    /// The sink must check the same binding before execution, never rewrite an
+    /// already-issued capability to target different resources.
+    fn prepare_parameters(
+        &self,
+        _name: &str,
+        parameters: crate::execution::CanonicalActionParameters,
+    ) -> Result<crate::execution::CanonicalActionParameters, String> {
+        Ok(parameters)
+    }
     fn is_tool_allowed(&self, name: &str) -> bool;
     fn is_read_only(&self, name: &str) -> bool;
     /// Whether this named tool must be routed through the action broker.

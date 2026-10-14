@@ -17,6 +17,7 @@ mod parity;
 mod process_recovery_tests;
 mod shell;
 mod skills;
+mod staged_checks;
 mod team;
 mod tools;
 

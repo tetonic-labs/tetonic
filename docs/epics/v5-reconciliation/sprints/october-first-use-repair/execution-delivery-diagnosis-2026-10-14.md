@@ -311,3 +311,12 @@ unpaginated reads. Provider billing discounts and exact rejected-request token
 counts are unavailable. Current evidence supports an execution-integration
 diagnosis; it does not justify blaming weak local hardware or guaranteeing that
 one isolated context-size change will make the project pass.
+
+## Subsequent MVP repair: check pending work
+
+The [staged verification repair](staged-verification-2026-10-14.md) adds an
+explicit, governed shell view for testing pending file-tool edits and blocks
+publication after failed or invalidated checks. Ordinary workspace commands
+still see committed files. Created-agent repair/delivery paths passed with
+scripted OpenAI, Anthropic and Google responses and actual local commands;
+the original live project has not been rerun.

@@ -128,6 +128,11 @@ impl crate::Tools {
         cancel: Option<&tetonic_domain::work_scope::CancellationSignal>,
     ) -> Result<ToolOutcome, ToolError> {
         let a: RunShellArgs = Self::parse(args)?;
+        if a.view == crate::ShellView::Staged {
+            return Err(ToolError::Other(
+                "staged checks require an approved action capability".into(),
+            ));
+        }
         self.validate_shell_command(&a.command)?;
         let r = self
             .executor

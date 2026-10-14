@@ -27,6 +27,21 @@ Production wiring (`lokai-runtime::build_tools`) and `Tools::new` both use `Enfo
 
 ## Key API
 
+Registered agents use `run_shell({"command":"python check.py","view":"staged"})`
+to test pending `write_file`/`edit_file` changes in a disposable copy. The same
+shell grant, exact-action approval, capability consumer, process executor and
+cancellation apply. `ToolHost::prepare_parameters` binds the transaction, patch
+digest and copy directory **before** approval; the issued action is never
+rewritten. Failed checks block publication; repairs require a fresh passing
+check. Output names the checked patch and states that generated files are not
+published. Default `view: "workspace"` still runs against committed files.
+
+The copy excludes build/dependency caches and protected directories and is
+bounded to 20,000 entries/256 MiB. Commands must use relative workspace paths.
+This enables verification; it does not guarantee that the chosen tests cover
+the user's requirements. See `staged_shell.rs`, transaction `staged_check.rs`
+and app `workspace/providers/tests/staged_checks.rs` for the managed path.
+
 - `Tools::new`, `with_index`, `with_lsp`, `with_allowed_tools`, `with_enforcement_level`
 - `Tools::execute_authorized` — routes mutations/shell through sinks when `AuthorizedAction` is present
 - `Tools::run_verify_sink` / `run_command` — verify-before-finish via `ProcessSink`; with an open stage, cwd is the staged verify overlay (R10). Overlay cwd is bound at issue, not rewritten after consume.

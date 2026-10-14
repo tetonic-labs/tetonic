@@ -47,9 +47,9 @@ pub fn tool_defs() -> Vec<ToolDef> {
         ToolDef {
             name: "run_shell",
             description: if cfg!(windows) {
-                "Run a command with cmd.exe on Windows in the working folder, including installed command-line tools. Each command needs user approval. Commands have a time limit; do not start background or persistent services."
+                "Run a command with cmd.exe on Windows. Use view=staged to test pending write_file/edit_file changes before finishing: relative paths, disposable copy, generated files are not published. If that check fails or you edit afterward, repair and check again. Build caches/dependency folders are excluded. Default view=workspace runs on committed files and cannot verify pending edits. Each command needs approval and has a time limit; no background services."
             } else {
-                "Run a command with /bin/sh in the working folder, including installed command-line tools. Each command needs user approval. Commands have a time limit; do not start background or persistent services."
+                "Run a command with /bin/sh. Use view=staged to test pending write_file/edit_file changes before finishing: relative paths, disposable copy, generated files are not published. If that check fails or you edit afterward, repair and check again. Build caches/dependency folders are excluded. Default view=workspace runs on committed files and cannot verify pending edits. Each command needs approval and has a time limit; no background services."
             },
             parameters: schema_of::<RunShellArgs>(),
             mutating: true,

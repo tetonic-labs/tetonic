@@ -29,8 +29,8 @@ pub use recovery::{
 };
 pub use security::SecurityLimits;
 pub use service::{
-    clear_active_transaction, with_active_transaction, WorkspaceTransactionService,
-    WorkspaceTxnConfig,
+    clear_active_transaction, with_active_transaction, StagedCheckBinding, StagedCheckResult,
+    WorkspaceTransactionService, WorkspaceTxnConfig,
 };
 pub use staging::{ReadWriteSets, StagingArea};
 pub use txn_meta::TransactionMeta;

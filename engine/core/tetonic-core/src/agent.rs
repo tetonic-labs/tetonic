@@ -738,6 +738,22 @@ impl Agent {
             },
             None => None,
         };
+        let tool_name = name.to_string();
+        let params = self
+            .run_tools_blocking(move |tools| tools.prepare_parameters(&tool_name, params))
+            .await
+            .map_err(|e| {
+                Box::new(ToolOutcome::fail(
+                    format!("Cannot prepare {name}: {e}"),
+                    "denied",
+                ))
+            })?
+            .map_err(|e| {
+                Box::new(ToolOutcome::fail(
+                    format!("Cannot prepare {name}: {e}"),
+                    "denied",
+                ))
+            })?;
         let action = prepare_proposed_action(ProposedAction {
             action_id: ActionId::new(format!("mut_{call_id}")),
             session_id: tetonic_domain::ids::SessionId::new(

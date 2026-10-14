@@ -96,7 +96,15 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
             assert!(!old_calls[0]["messages"]
                 .to_string()
                 .contains("blue-lantern"));
-            assert!(!old_calls[0]["tools"].to_string().contains("run_shell"));
+            let tool_names = |call: &serde_json::Value| -> Vec<String> {
+                call["tools"]
+                    .as_array()
+                    .unwrap()
+                    .iter()
+                    .map(|tool| tool["function"]["name"].as_str().unwrap().to_string())
+                    .collect()
+            };
+            assert!(!tool_names(&old_calls[0]).contains(&"run_shell".into()));
             drop(workspace);
             let reopened = LocalWorkspace::open_with_workspace(
                 database,
@@ -133,9 +141,11 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
             assert!(new_calls[1]["messages"]
                 .to_string()
                 .contains("blue-lantern"));
-            assert!(new_calls[1]["tools"].to_string().contains("run_shell"));
-            assert!(new_calls[1]["tools"].to_string().contains("read_file"));
-            assert!(!new_calls[1]["tools"].to_string().contains("write_file"));
+            // Descriptions can mention another tool without granting it.
+            let selected = tool_names(&new_calls[1]);
+            assert!(selected.contains(&"run_shell".into()));
+            assert!(selected.contains(&"read_file".into()));
+            assert!(!selected.contains(&"write_file".into()));
             assert_eq!(
                 reopened
                     .services

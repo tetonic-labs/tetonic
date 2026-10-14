@@ -53,6 +53,7 @@ pub struct WorkspaceTransaction {
     limits: SecurityLimits,
     approval: Option<PatchApproval>,
     verification: Option<VerificationRecord>,
+    verification_required: bool,
     read_snapshot: std::collections::BTreeMap<WorkspacePath, tetonic_domain::ContentDigest>,
     _lock: Option<WriterLock>,
     _lease: std::fs::File,
@@ -65,6 +66,9 @@ pub struct WorkspaceTransaction {
 
 #[path = "draft.rs"]
 mod draft;
+#[path = "staged_check.rs"]
+mod staged_check;
+pub use staged_check::{StagedCheckBinding, StagedCheckResult};
 
 impl WorkspaceTransactionService {
     pub fn new(
@@ -236,6 +240,7 @@ impl WorkspaceTransactionService {
             limits: self.config.limits.clone(),
             approval: None,
             verification: None,
+            verification_required: false,
             read_snapshot: std::collections::BTreeMap::new(),
             _lock: None,
             _lease: lease,
@@ -290,6 +295,8 @@ impl WorkspaceTransaction {
                 | (TransactionState::ReadyToCommit, TransactionState::Aborted)
                 | (TransactionState::Rejected, TransactionState::Aborted)
                 | (TransactionState::Rejected, TransactionState::Staging)
+                | (TransactionState::ReadyToCommit, TransactionState::Staging)
+                | (TransactionState::ReadyToCommit, TransactionState::Verifying)
                 | (TransactionState::Rejected, TransactionState::Verifying)
                 | (TransactionState::Staged, TransactionState::Rejected)
                 | (TransactionState::ReadyToCommit, TransactionState::Conflict)
@@ -308,7 +315,14 @@ impl WorkspaceTransaction {
 
     fn enter_staging(&mut self) -> Result<(), TransactionError> {
         match self.state {
-            TransactionState::Created | TransactionState::Staged => {
+            TransactionState::Created
+            | TransactionState::Staged
+            | TransactionState::Rejected
+            | TransactionState::ReadyToCommit => {
+                // Evidence is for a specific patch. Editing it never carries a
+                // successful check forward, nor clears the requirement to check.
+                self.verification = None;
+                self.approval = None;
                 self.transition(TransactionState::Staging)
             }
             TransactionState::Staging => Ok(()),
@@ -495,6 +509,9 @@ impl WorkspaceTransaction {
     }
 
     pub fn begin_verification(&mut self) -> Result<PathBuf, TransactionError> {
+        self.verification_required = true;
+        self.approval = None;
+        self.verification = None;
         // Idempotent while Verifying so verify helpers may re-bind the overlay
         // cwd without a second Staged→Verifying transition (R10).
         if self.state != TransactionState::Verifying {
@@ -547,6 +564,11 @@ impl WorkspaceTransaction {
     }
 
     pub fn bind_approval(&mut self, approval: PatchApproval) -> Result<(), TransactionError> {
+        if self.verification_required && !self.verification.as_ref().is_some_and(|v| v.success) {
+            return Err(TransactionError::ApprovalInvalid(
+                "Pending edits need a successful staged check before delivery. Repair the failure and check again.".into(),
+            ));
+        }
         let preview = self.preview();
         if approval.transaction_id != self.id {
             return Err(TransactionError::ApprovalInvalid(
@@ -577,12 +599,12 @@ impl WorkspaceTransaction {
             return Ok(());
         }
         let preview = self.preview();
-        let verification_required = self.verification.is_some();
+        let verification_required = self.verification_required;
         let verification_passed = self
             .verification
             .as_ref()
             .map(|v| v.success)
-            .unwrap_or(true);
+            .unwrap_or(!verification_required);
         self.bind_approval(PatchApproval {
             transaction_id: preview.transaction_id,
             patch_digest: preview.patch_digest,

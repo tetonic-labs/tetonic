@@ -10,7 +10,7 @@ use tetonic_domain::{
 
 fn authorized(dir: &std::path::Path) -> tetonic_domain::AuthorizedAction {
     let wv = tetonic_transaction::version::capture_workspace_version(dir, &[]).unwrap();
-    let action = ProposedAction {
+    let action = tetonic_domain::prepare_proposed_action(ProposedAction {
         action_id: ActionId::new("mut_auth"),
         session_id: SessionId::new("s"),
         run_id: None,
@@ -38,12 +38,12 @@ fn authorized(dir: &std::path::Path) -> tetonic_domain::AuthorizedAction {
             sandbox_profile: None,
             expected_output_limits: None,
             schema_version: 1,
-            tool_name: None,
+            tool_name: Some("run_shell".into()),
             tool_arguments: Some(serde_json::json!({ "command": "approved script" })),
         },
         requested_capabilities: Default::default(),
         trace_context: Default::default(),
-    };
+    });
     tetonic_domain::AuthorizedAction {
         capability: IssuedCapability {
             capability_id: tetonic_domain::CapabilityId::new("cap_auth"),
@@ -155,7 +155,7 @@ fn authorized_process_cancellation_is_local_and_keeps_authority_checks() {
         std::thread::spawn(move || {
             tools.execute_authorized_cancellable(
                 "run_shell",
-                &serde_json::json!({"command":"unapproved caller text"}),
+                &serde_json::json!({"command":"approved script"}),
                 Some(&auth),
                 Some(&signal),
             )
@@ -182,7 +182,7 @@ fn authorized_process_cancellation_is_local_and_keeps_authority_checks() {
         !tools
             .execute_authorized_cancellable(
                 "run_shell",
-                &serde_json::json!({}),
+                &serde_json::json!({"command":"approved script"}),
                 Some(&auth),
                 Some(&scope.cancellation_signal())
             )

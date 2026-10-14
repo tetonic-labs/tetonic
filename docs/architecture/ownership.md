@@ -254,6 +254,28 @@ commits wait up to five seconds for ordinary writer-lock contention in the
 existing owned blocking worker, check cancellation while waiting and recheck
 file conflicts after acquiring the lock. Other errors are not retried.
 
+Agents with the shell grant can request `run_shell` with `view: "staged"` to
+check pending file-tool edits. The [tool adapter](../../engine/litho/tetonic-tools/src/staged_shell.rs)
+binds the transaction/patch and disposable working directory through
+`ToolHost::prepare_parameters`, on the existing owned blocking boundary before
+canonicalization, policy evaluation and owner approval. Composite hosts forward
+this preparation; the core loop does not materialize files or choose tools.
+The normal process executor, capability consumer, sandbox and cancellation
+signal execute the unchanged issued command. The
+[transaction service](../../engine/core/tetonic-transaction/src/staged_check.rs)
+owns the copy, exact-patch check, source-change detection and delivery gate.
+A failed check blocks commit; repairing the patch invalidates old evidence and
+requires a new passing check. Command-generated files remain disposable.
+Ordinary workspace shell calls retain their live-file semantics and explicitly
+warn when pending edits were not checked. This is not an automatic claim that
+an agent chose sufficient tests or that every deliverable has a test suite.
+Copies are bounded to 20,000 entries/256 MiB and exclude protected directories,
+credentials and build/dependency artifacts; tests requiring omitted dependencies
+must report that limitation rather than silently check the original files.
+Existing platform sandbox limitations still apply. See
+[provider-path regressions](../../engine/litho/tetonic-app/src/workspace/providers/tests/staged_checks.rs)
+for real created agents and local commands with scripted inference.
+
 [Offline delivery tests](../../engine/litho/tetonic-app/src/work/plan_context_tests.rs)
 exercise these boundaries through registered execution, the real usage ledger,
 temporary source files, staged inspection and finalization. They use scripted

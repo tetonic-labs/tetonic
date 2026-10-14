@@ -9,6 +9,13 @@ use tetonic_domain::{
 use crate::Tools;
 
 impl ToolHost for Tools {
+    fn prepare_parameters(
+        &self,
+        name: &str,
+        parameters: tetonic_domain::execution::CanonicalActionParameters,
+    ) -> Result<tetonic_domain::execution::CanonicalActionParameters, String> {
+        self.prepare_shell_view(name, parameters)
+    }
     fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
         if !self.is_tool_allowed(name) {
             return None;

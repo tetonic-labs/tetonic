@@ -169,6 +169,13 @@ pub(crate) struct RegisteredToolHost {
 }
 
 impl ToolHost for RegisteredToolHost {
+    fn prepare_parameters(
+        &self,
+        name: &str,
+        parameters: tetonic_domain::execution::CanonicalActionParameters,
+    ) -> Result<tetonic_domain::execution::CanonicalActionParameters, String> {
+        self.tools.prepare_parameters(name, parameters)
+    }
     fn limit_observation(
         &self,
         name: &str,

@@ -10,6 +10,13 @@ pub(crate) struct SkillToolHost {
     pub selected: HashSet<String>,
 }
 impl ToolHost for SkillToolHost {
+    fn prepare_parameters(
+        &self,
+        name: &str,
+        parameters: tetonic_domain::execution::CanonicalActionParameters,
+    ) -> Result<tetonic_domain::execution::CanonicalActionParameters, String> {
+        self.inner.prepare_parameters(name, parameters)
+    }
     fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
         if name.starts_with("skill_") {
             None

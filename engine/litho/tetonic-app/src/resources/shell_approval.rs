@@ -53,10 +53,11 @@ async fn approve(
     let (command, cwd, shell) = if is_shell {
         let root = root?;
         let cwd = params.working_directory.clone()?;
-        if std::path::Path::new(&cwd) != root {
+        let staged = tetonic_tools::staged_shell_directory(&root, &params);
+        if std::path::Path::new(&cwd) != root && staged.is_none() {
             return None;
         }
-        crate::approval::attach_shell_confinement(&mut request, &root);
+        crate::approval::attach_shell_confinement(&mut request, staged.as_deref().unwrap_or(&root));
         (
             String::from_utf8(params.script_bytes.clone()?).ok()?,
             cwd,

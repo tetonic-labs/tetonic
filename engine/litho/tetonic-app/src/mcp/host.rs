@@ -11,6 +11,13 @@ pub(crate) struct McpToolHost {
     pub runtime: tokio::runtime::Handle,
 }
 impl ToolHost for McpToolHost {
+    fn prepare_parameters(
+        &self,
+        name: &str,
+        parameters: tetonic_domain::execution::CanonicalActionParameters,
+    ) -> Result<tetonic_domain::execution::CanonicalActionParameters, String> {
+        self.inner.prepare_parameters(name, parameters)
+    }
     fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
         if name.starts_with("mcp_") {
             None

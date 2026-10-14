@@ -16,7 +16,9 @@ mod orchestration;
 mod retrieval;
 mod source_read;
 mod source_search;
+mod staged_shell;
 pub use memory::MemoryCredentialCheck;
+pub use staged_shell::staged_shell_directory;
 mod sink;
 mod types;
 mod workspace;
@@ -670,20 +672,7 @@ impl Tools {
                     return self.mutation.run_authorized(&self.ws, authorized);
                 }
                 "run_shell" => {
-                    let command = authorized
-                        .action
-                        .parameters
-                        .script_bytes
-                        .as_deref()
-                        .and_then(|bytes| std::str::from_utf8(bytes).ok())
-                        .unwrap_or("");
-                    if let Err(error) = self.validate_shell_command(command) {
-                        return crate::types::outcome_err(error);
-                    }
-                    return tool_outcome_from_execution(
-                        self.executor
-                            .run_process_sync_cancellable(authorized, cancel),
-                    );
+                    return self.run_authorized_shell(&args, authorized, cancel);
                 }
                 "read_file" | "list_dir" | "grep" | "glob" => {
                     if let Some(consumer) = self.capability_consumer.as_ref() {
@@ -702,10 +691,7 @@ impl Tools {
                     return self.mutation.run_authorized(&self.ws, authorized);
                 }
                 "run_shell" => {
-                    return tool_outcome_from_execution(
-                        self.executor
-                            .run_process_sync_cancellable(authorized, cancel),
-                    );
+                    return self.run_authorized_shell(&args, authorized, cancel);
                 }
                 _ => {}
             }
@@ -1083,7 +1069,15 @@ impl Tools {
     /// When staged mutations exist, runs against the staged verify-view (R10).
     /// Overlay cwd must already be on the issued action (see `apply_verify_overlay`).
     pub fn run_verify_sink(&self, authorized: &tetonic_domain::AuthorizedAction) -> (bool, String) {
-        let overlay = self.verification_overlay_if_staged().ok().flatten();
+        let overlay = match self.verification_overlay_if_staged() {
+            Ok(overlay) => overlay,
+            Err(error) => {
+                return (
+                    false,
+                    format!("Cannot prepare pending edits for verification: {error}"),
+                )
+            }
+        };
         let outcome = self.executor.run_process_sync(authorized);
         let (ok, output) = verify_result_from_execution(outcome);
         if overlay.is_some() {
@@ -1099,12 +1093,17 @@ impl Tools {
             } else {
                 format!("{cmd} {args}")
             };
-            let _ = self.finish_verification_run(
+            if let Err(error) = self.finish_verification_run(
                 &command,
                 ok,
                 &output,
                 if ok { Some(0) } else { Some(1) },
-            );
+            ) {
+                return (
+                    false,
+                    format!("{output}\nCannot accept verification: {error}"),
+                );
+            }
         }
         (ok, output)
     }
@@ -1133,7 +1132,15 @@ impl Tools {
                 "command cannot use a path outside this workspace".into(),
             );
         }
-        let overlay = self.verification_overlay_if_staged().ok().flatten();
+        let overlay = match self.verification_overlay_if_staged() {
+            Ok(overlay) => overlay,
+            Err(error) => {
+                return (
+                    false,
+                    format!("Cannot prepare pending edits for verification: {error}"),
+                )
+            }
+        };
         let cwd = overlay
             .clone()
             .unwrap_or_else(|| self.ws.root().to_path_buf());
@@ -1144,12 +1151,17 @@ impl Tools {
         );
         let r = exec.run_verify_with_signal(command, cancel);
         if overlay.is_some() {
-            let _ = self.finish_verification_run(
+            if let Err(error) = self.finish_verification_run(
                 command,
                 r.success,
                 &r.output,
                 if r.success { Some(0) } else { Some(1) },
-            );
+            ) {
+                return (
+                    false,
+                    format!("{}\nCannot accept verification: {error}", r.output),
+                );
+            }
         }
         (r.success, r.output)
     }
@@ -1185,3 +1197,5 @@ mod cancellation_tests;
 
 #[cfg(test)]
 mod staged_read_tests;
+#[cfg(test)]
+mod staged_shell_tests;
