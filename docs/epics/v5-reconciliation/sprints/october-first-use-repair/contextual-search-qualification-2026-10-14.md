@@ -72,3 +72,7 @@ requires actual committed artifacts and the independent validation/repair chain.
 
 Raw local trial evidence is retained in the ignored qualification profile at
 `.lokai/project-width-87372f80/context-search-*`.
+
+Follow-up: the owner subsequently authorized one larger reviewed project run.
+See [the twelve-assignment qualification](reviewed-project-qualification-2026-10-14.md)
+for its failed delivery outcome, exact usage and remaining engine blockers.
