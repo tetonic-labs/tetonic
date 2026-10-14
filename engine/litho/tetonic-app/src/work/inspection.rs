@@ -469,12 +469,15 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
         return "The agent stopped after repeated unsuccessful tool calls. Your conversation and saved work are preserved. Review the activity before trying again or choosing another model.";
     }
     if reason.contains("cannot fit the next request input and completion headroom") {
-        return "This assignment has too little allowance left to read its context and respond. The next model request was not sent. Completed work remains available, but uncommitted file changes may have been discarded. Review Usage and the actual outputs before narrowing or continuing the unfinished work with an appropriate allowance.";
+        return "This assignment has too little allowance left to read its context and respond. The next model request was not sent. Completed work remains available. Check activity for any retained, uncommitted draft; it is not a verified result. Review Usage and the actual outputs before narrowing or continuing unfinished work.";
     }
     if reason.contains("work allocation token allowance exhausted by reported usage") {
         return "Reported usage has exceeded a shared work allowance. Further model requests in this scope have stopped. Review Usage before continuing; saved contributions are preserved.";
     }
-    if reason.contains("token allowance") || reason.contains("complete token usage") {
+    if reason.contains("token allowance")
+        || reason.contains("complete token usage")
+        || reason.contains("reported token ceiling reached")
+    {
         return "Work stopped at its token allowance, or usage could not be confirmed. Open Usage to review the recorded amount and any held allowance.";
     }
     if reason.contains("Responses API quota unavailable")

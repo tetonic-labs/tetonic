@@ -13,6 +13,8 @@ pub(super) struct WorkUsageProvider {
     pub team: String,
     pub work: String,
     pub own_limit: Option<u64>,
+    /// Feedback from the ledger, not a second accounting authority. MAX is unknown.
+    pub remaining: std::sync::atomic::AtomicU64,
 }
 fn unavailable() -> InferenceError {
     InferenceError::Provider(
@@ -21,6 +23,15 @@ fn unavailable() -> InferenceError {
 }
 #[async_trait]
 impl InferenceProvider for WorkUsageProvider {
+    fn estimate_input_tokens(&self, request: &ChatRequest) -> u64 {
+        request_budget::estimate(request) as u64
+    }
+
+    fn remaining_token_allowance(&self) -> Option<u64> {
+        let remaining = self.remaining.load(std::sync::atomic::Ordering::Relaxed);
+        (remaining != u64::MAX).then_some(remaining)
+    }
+
     async fn fabric_snapshot(&self) -> tetonic_inference::FabricSnapshot {
         self.inner.fabric_snapshot().await
     }
@@ -94,6 +105,12 @@ impl InferenceProvider for WorkUsageProvider {
             .map_err(|_| unavailable())?
             .map_err(|_| unavailable())?;
         if let Some(limit) = remaining {
+            let left = input
+                .zip(output)
+                .and_then(|(i, o)| i.checked_add(o))
+                .map_or(0, |used| limit.saturating_sub(used).max(0) as u64);
+            self.remaining
+                .store(left, std::sync::atomic::Ordering::Relaxed);
             if response.is_ok() {
                 match input.zip(output).and_then(|(i,o)|i.checked_add(o)) {
                     None=>return Err(InferenceError::Provider("The model did not report complete token usage. Work stopped; its remaining allowance is held for review.".into())),

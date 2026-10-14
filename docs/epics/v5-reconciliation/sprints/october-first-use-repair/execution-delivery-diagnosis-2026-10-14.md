@@ -6,6 +6,49 @@ its retained messages, tool arguments/results, reported usage and attempt events
 **No new agent/model attempts were started. No engine settings or implementation
 were changed during this investigation.**
 
+Implementation follow-up on October 14: the investigation below is historical.
+The subsequent repair adds budget-aware working-context maintenance, useful
+observation pages, narrower assignment contracts, structured incomplete receipts,
+stopped-draft retention and cancellable commit contention handling. Current
+ownership is documented in [harness assembly](../../../../architecture/ownership.md#harness-assembly-and-action-enforcement).
+No hosted or local-model qualification attempt was restarted; development uses
+scripted loopback providers and isolated temporary stores/files only.
+
+The new offline delivery regression charges growing request inputs to the real
+ledger. Two registered workers each read ten source files, write their own
+output, inspect staged bytes and finalize within 80,000 tokens per worker.
+Compaction calls are included in the ledger totals. A negative variant exhausts
+allowance after writing and checks retained draft bytes, no published output,
+coordinator failure details and known-usage settlement. The initial offline
+regression also exposed a previously unreached bug: simultaneous independent
+commits failed on ordinary writer-lock contention. Managed finalization now
+waits briefly under cancellation and rechecks conflicts under the writer lock;
+actual conflicts still fail rather than overwriting another writer.
+
+Validation of this repair:
+
+- `cargo test --locked -p tetonic-app --lib`: 224 passed, 5 ignored. The
+  actual-model qualification fixtures remained ignored. Both new delivery and
+  budget-stop regressions passed; the latter also checks that retained drafts
+  identify the authorizing task and attempt, before finalization is reached.
+- `cargo test --locked -p tetonic-core -p tetonic-transaction -p tetonic-inference
+  -p tetonic-tools --lib --tests`: passed the selected unit/integration suites.
+  This preceded the final mutation-provenance fix, which the full app suite
+  exercises through the registered execution path.
+- `cargo test --locked -p tetonic-run --test managed_service_tests`: 48 passed,
+  covering managed cancellation, finalization and execution ownership.
+- `cargo run --locked -p tetonic-arch-gate -- verify package`: passed formatting,
+  all-target workspace Clippy, architecture and static quality checks.
+- No production engine restart, workspace modification or budget increase was
+  performed. These checks do not qualify the original project or model quality.
+
+Remaining limits: compression is model-generated and can lose nuance; the
+cost horizon is a heuristic rather than a reserved completion budget. A budget
+that cannot fit even the minimum useful context still stops. Draft restoration
+is manual review, not durable resumption of arbitrary effects. The separate
+ordinary-shell/staged-verification issue described below remains open. The
+original twelve-task project has not been rerun or requalified.
+
 ## Finding
 
 Parallel dispatch worked. The immediate failure was the execution harness's

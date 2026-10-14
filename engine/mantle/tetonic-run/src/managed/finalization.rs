@@ -341,7 +341,7 @@ impl super::service::ManagedRunService {
                                 if scope.is_canceled() {
                                     return Err("attempt canceled before commit started".into());
                                 }
-                                driver.commit_workspace()
+                                driver.commit_workspace_cancellable(&scope.cancellation_signal())
                             })
                             .await
                             .map_err(|e| e.to_string())

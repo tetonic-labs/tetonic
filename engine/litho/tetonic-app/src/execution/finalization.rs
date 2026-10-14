@@ -28,4 +28,22 @@ impl FinalizationEffectDriver for ToolsFinalizationDriver {
     fn commit_workspace(&self) -> Result<Option<tetonic_domain::CommitResult>, String> {
         self.0.commit_staged_if_any().map_err(|e| e.to_string())
     }
+
+    fn commit_workspace_cancellable(
+        &self,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<Option<tetonic_domain::CommitResult>, String> {
+        let result = self
+            .0
+            .commit_staged_cancellable(cancel)
+            .map_err(|e| e.to_string());
+        if result.is_err() {
+            // A failed finalization must not lose the draft produced by a
+            // completed loop. Recovery-required transactions remain protected.
+            if let Err(error) = self.0.abort_preserving_draft() {
+                tracing::warn!("could not retain stopped finalization draft: {error}");
+            }
+        }
+        result
+    }
 }

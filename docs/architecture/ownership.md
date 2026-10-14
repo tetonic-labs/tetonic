@@ -221,10 +221,43 @@ The core loop sizes batches of pageable observations through the optional
 `ToolHost::limit_observation` hook. `tetonic-tools` implements bounded file pages
 and search excerpts; composite hosts forward only their local tool names.
 Sizing narrows result volume, not scope or permissions. Normal argument checks,
-broker authorization and tool execution still follow. Original observations
-remain in conversation history; this is not memory compaction or a guarantee
-that an assignment fits its cumulative token allowance. See the
+broker authorization and tool execution still follow. The batch ceiling is
+24 KiB, further bounded to approximately half a small context window, with
+individual pages capped at 4 KiB. It does not shrink as cumulative spend rises.
+Original observations remain in the scoped audit. See the earlier
 [observation qualification](../epics/v5-reconciliation/sprints/october-first-use-repair/observation-budget-qualification-2026-10-14.md).
+
+The registered general harness enables [working-context maintenance](../../engine/core/tetonic-core/src/agent/context.rs).
+The loop uses the provider's request estimate (including metering-wrapper
+framing), its own reported-token ceiling and last confirmed ledger feedback.
+It starts compaction under cumulative-cost pressure as well as context-window
+pressure, checks that maintenance can pay back within subsequent calls, and
+caps summary output at 512–1024 tokens. Assignment/authority messages remain
+verbatim; the newest complete tool exchange retains native provider state.
+Older portable evidence becomes a factual assistant summary, not new authority.
+The summary call inherits the normal run/task/attempt and classification and
+passes through the same metering and egress path. This is working memory, not
+a knowledge graph or a guarantee of completion within any budget. The existing
+SQLite admission transaction remains the hard gate; cached headroom is advisory.
+
+Worker inputs carry their own output contract, direct inputs and direct
+consumers. The coordinator retains the full reviewed plan. Incomplete dispatch
+receipts include the scoped inspector's failure reason and bounded tool-problem
+references; they never become completed dependency evidence.
+
+Stopped managed edits can leave an inert [transaction draft artifact](../../engine/core/tetonic-transaction/src/draft.rs)
+under the workspace's protected `.lokai/artifacts` directory. It retains exact
+bytes, task/attempt provenance and a conservative secret classification, while
+normal abort removes live staging. This is local diagnostic retention, not
+automatic restore, a completed output or a new shared artifact API. Managed
+commits wait up to five seconds for ordinary writer-lock contention in the
+existing owned blocking worker, check cancellation while waiting and recheck
+file conflicts after acquiring the lock. Other errors are not retried.
+
+[Offline delivery tests](../../engine/litho/tetonic-app/src/work/plan_context_tests.rs)
+exercise these boundaries through registered execution, the real usage ledger,
+temporary source files, staged inspection and finalization. They use scripted
+loopback inference and do not establish real-model project quality.
 
 The enforcement responsibilities remain separate even when the host composes
 them together:

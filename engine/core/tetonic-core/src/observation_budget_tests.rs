@@ -105,6 +105,7 @@ async fn pages_share_one_allowance_without_dropping_evidence_or_breaking_native_
             Pages(effects.clone()),
             AgentConfig {
                 model: "model".into(),
+                num_ctx: 32_768,
                 reported_token_ceiling: low_budget.then_some(1200),
                 ..Default::default()
             },
@@ -133,10 +134,10 @@ async fn pages_share_one_allowance_without_dropping_evidence_or_breaking_native_
             6,
             "sizing must not prohibit evidence or verification reads"
         );
-        assert!(reads.iter().all(|v| v["args"]["bytes"] == 512));
+        assert!(reads.iter().all(|v| v["args"]["bytes"] == 3584));
         assert_eq!(
             observations.iter().map(|m| m.content.len()).sum::<usize>(),
-            3072
+            21504
         );
         assert_eq!(
             calls.last().unwrap()["tool"],

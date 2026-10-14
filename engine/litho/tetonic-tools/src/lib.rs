@@ -489,6 +489,17 @@ impl Tools {
         self.mutation.abort_staged_if_any()
     }
 
+    pub fn abort_preserving_draft(&self) -> Result<Option<std::path::PathBuf>, ToolError> {
+        self.mutation.abort_preserving_draft()
+    }
+
+    pub fn commit_staged_cancellable(
+        &self,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<Option<tetonic_domain::CommitResult>, ToolError> {
+        self.mutation.commit_staged_cancellable(cancel)
+    }
+
     /// Materialized verification overlay when staged mutations exist.
     pub fn verification_overlay_if_staged(&self) -> Result<Option<std::path::PathBuf>, ToolError> {
         self.mutation.verification_overlay_if_staged()

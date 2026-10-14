@@ -26,6 +26,9 @@ mod blackboard;
 #[path = "plan_budget_tests.rs"]
 mod budgets;
 
+#[path = "plan_context_tests.rs"]
+mod context_delivery;
+
 async fn settled_usage(workspace: &LocalWorkspace) -> Vec<tetonic_memory::WorkUsage> {
     // The run journal publishes the result before the registered executor's
     // completion watcher settles usage. Observe that separate durable boundary;
@@ -106,7 +109,9 @@ pub(crate) async fn scripted_server(
                     let (tool, args) = {
                         let mut calls = captured.lock().unwrap();
                         calls.push(request.clone());
-                        if scenario == 19 {
+                        if matches!(scenario, 20 | 21) {
+                            context_delivery::reply(&request, &calls)
+                        } else if scenario == 19 {
                             budgets::reply(child, &request)
                         } else if matches!(scenario, 17 | 18) {
                             width::reply(child, &request)
@@ -283,7 +288,18 @@ pub(crate) async fn scripted_server(
                         let _ = stream.read(&mut [0; 1]).await;
                         return;
                     }
-                    if scenario == 19
+                    if matches!(scenario, 20 | 21) {
+                        let mut response = context_delivery::response(&request, tool, args.clone());
+                        if scenario == 21
+                            && tool == "read_file"
+                            && matches!(args["path"].as_str(), Some("compare.txt" | "check.txt"))
+                        {
+                            // Exhaust the allowance only AFTER a real staged write.
+                            // The next iteration must stop and retain its draft.
+                            response["eval_count"] = request["options"]["num_predict"].clone();
+                        }
+                        response
+                    } else if scenario == 19
                         && child
                         && width::assignment(&request).unwrap().key == "compare"
                     {

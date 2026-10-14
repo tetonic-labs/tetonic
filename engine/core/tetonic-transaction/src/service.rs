@@ -63,6 +63,9 @@ pub struct WorkspaceTransaction {
     pub attempt_id: Option<AttemptId>,
 }
 
+#[path = "draft.rs"]
+mod draft;
+
 impl WorkspaceTransactionService {
     pub fn new(
         root: impl AsRef<Path>,
@@ -165,6 +168,33 @@ impl WorkspaceTransactionService {
         };
         *guard = None;
         Ok(Some(result))
+    }
+
+    /// Bounded contention handling for managed finalization. Only a lock miss,
+    /// before any journal/effect starts, may retry. Conflicts and all other
+    /// failures are returned unchanged. Call from an owned blocking worker.
+    pub fn commit_active_cancellable(
+        &self,
+        owner: &str,
+        data_class: DataClass,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<Option<CommitResult>, TransactionError> {
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            if cancel.is_canceled() {
+                return Err(TransactionError::Other(
+                    "attempt canceled before workspace commit".into(),
+                ));
+            }
+            match self.commit_active_if_any(owner, data_class) {
+                Err(TransactionError::LockContention(_))
+                    if std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                result => return result,
+            }
+        }
     }
 
     /// Abort and discard the active staged transaction, if any (R6-3 cancel/fail path).
@@ -567,7 +597,6 @@ impl WorkspaceTransaction {
         owner: &str,
         data_class: DataClass,
     ) -> Result<CommitResult, TransactionError> {
-        detect_conflicts(&self.root, &self.base_version, &self.sets)?;
         self.ensure_commit_approval()?;
         if self.state != TransactionState::ReadyToCommit
             && self.state != TransactionState::Staged
@@ -577,6 +606,9 @@ impl WorkspaceTransaction {
         }
         let preview = self.preview();
         let lock = WriterLock::acquire(&self.lokai_dir, &self.id, owner)?;
+        // Recheck after acquiring the writer lock. A peer may have committed
+        // while this transaction waited; never validate against stale files.
+        detect_conflicts(&self.root, &self.base_version, &self.sets)?;
         self._lock = Some(lock);
         self.transition(TransactionState::Committing)?;
         let backup_dir = self.lokai_dir.join("backups").join(&self.id.0);

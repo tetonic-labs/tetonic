@@ -24,6 +24,14 @@ pub(super) fn reply(child: bool, request: &Value) -> (&'static str, Value) {
     assert!(messages.contains("BUDGET_RESULT_check"));
     assert!(messages.contains("BUDGET_RESULT_follow"));
     assert!(
+        messages.contains("failure"),
+        "coordinator needs a structured failure receipt"
+    );
+    assert!(
+        messages.contains("token allowance"),
+        "worker's bounded cause must reach the coordinator"
+    );
+    assert!(
         !messages.contains("BUDGET_RESULT_compare"),
         "over-budget output must not become accepted evidence"
     );

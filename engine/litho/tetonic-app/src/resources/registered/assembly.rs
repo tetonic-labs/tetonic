@@ -183,6 +183,13 @@ impl crate::Application {
             .map_err(|_| resource_error(ResourceError::Storage))?
             .map_err(capacity_app_error)?;
         let failed = Arc::new(AtomicBool::new(false));
+        let abort_audit = crate::store_audit::scoped_execution_audit(
+            store.clone(),
+            prepared.authorization.scope.information_context_id.clone(),
+            history.clone(),
+            prepared.command.identity.id.0.clone(),
+            failed.clone(),
+        );
         let audit = crate::store_audit::scoped_execution_audit(
             store,
             prepared.authorization.scope.information_context_id.clone(),
@@ -213,6 +220,7 @@ impl crate::Application {
         });
         let provider: Arc<dyn tetonic_inference::InferenceProvider> = match work {
             Some((team, work)) => Arc::new(super::super::work_usage::WorkUsageProvider {
+                remaining: std::sync::atomic::AtomicU64::new(u64::MAX),
                 inner: provider,
                 store: kind_store.clone(),
                 actor: prepared.authorization.scope.principal_id.clone(),
@@ -243,6 +251,9 @@ impl crate::Application {
             ),
             data_class,
             reported_token_ceiling: settings.reported_token_ceiling,
+            // Preserve the newest complete tool exchange. Older evidence moves
+            // into the metered working summary before repeated input exhausts work.
+            keep_recent: 1,
             response_schema: settings.response_schema,
             ..Default::default()
         };
@@ -280,7 +291,11 @@ impl crate::Application {
             config,
         );
         let agent = agent.with_abort_staged(Arc::new(move || {
-            let _ = abort_tools.abort_staged_if_any();
+            match abort_tools.abort_preserving_draft() {
+                Ok(Some(path)) => abort_audit.note(&format!("Stopped workspace draft retained for inspection: {}. Not committed, verified or accepted; restoration requires review.", path.display())),
+                Ok(None) => {},
+                Err(error) => abort_audit.note(&format!("Stopped workspace draft could not be retained: {error}")),
+            }
         }));
         let (post_edit_snapshot, resolve_under_root, capture_workspace_version) =
             crate::execution::workspace_hooks::composition_capability_hooks();

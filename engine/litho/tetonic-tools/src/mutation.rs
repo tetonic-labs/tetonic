@@ -84,6 +84,15 @@ impl RepositoryMutationService {
         }
         match &authorized.action.kind {
             ActionKind::WriteFile => {
+                // Stamp provenance when the authorized effect starts, not only
+                // at finalization: failed loops never reach the finalizer.
+                if let Err(error) = self.transactions.with_active(|txn| {
+                    txn.task_id = authorized.capability.task_id.clone();
+                    txn.attempt_id = authorized.capability.attempt_id.clone();
+                    Ok(())
+                }) {
+                    return crate::types::outcome_err(map_txn_err(error));
+                }
                 let args = authorized
                     .action
                     .parameters
@@ -285,9 +294,28 @@ impl RepositoryMutationService {
             .map_err(map_txn_err)
     }
 
+    pub fn commit_staged_cancellable(
+        &self,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<Option<tetonic_domain::CommitResult>, ToolError> {
+        self.transactions
+            .commit_active_cancellable(
+                &format!("tetonic:{}", std::process::id()),
+                DataClass::RepositorySource,
+                cancel,
+            )
+            .map_err(map_txn_err)
+    }
+
     /// Discard staged workspace mutations without committing (R6-3 cancel/fail).
     pub fn abort_staged_if_any(&self) -> Result<bool, ToolError> {
         self.transactions.abort_active_if_any().map_err(map_txn_err)
+    }
+
+    pub fn abort_preserving_draft(&self) -> Result<Option<std::path::PathBuf>, ToolError> {
+        self.transactions
+            .abort_preserving_draft()
+            .map_err(map_txn_err)
     }
 
     pub fn verification_overlay_if_staged(&self) -> Result<Option<std::path::PathBuf>, ToolError> {

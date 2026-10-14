@@ -136,6 +136,15 @@ pub trait FinalizationEffectDriver: Send + Sync {
         _cancel: &tetonic_domain::work_scope::CancellationSignal,
     ) -> Result<(), (String, Option<String>)>;
     fn commit_workspace(&self) -> Result<Option<tetonic_domain::CommitResult>, String>;
+    fn commit_workspace_cancellable(
+        &self,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<Option<tetonic_domain::CommitResult>, String> {
+        if cancel.is_canceled() {
+            return Err("attempt canceled before workspace commit".into());
+        }
+        self.commit_workspace()
+    }
 }
 
 #[derive(Clone, Default)]

@@ -620,6 +620,20 @@ pub type TokenSink<'a> = dyn FnMut(&str) + Send + 'a;
 
 #[async_trait]
 pub trait InferenceProvider: Send + Sync {
+    /// Conservative sizing used by the loop before it spends on context
+    /// maintenance. Metering wrappers include any host-added request framing.
+    /// This is advisory; admission and actual usage remain authoritative.
+    fn estimate_input_tokens(&self, request: &ChatRequest) -> u64 {
+        request.estimated_input_tokens()
+    }
+
+    /// Last confirmed allowance after metering, if this provider is scoped to
+    /// an execution. Advisory only: concurrent work can reduce it before the
+    /// next atomic admission. Unknown usage must never be presented as free.
+    fn remaining_token_allowance(&self) -> Option<u64> {
+        None
+    }
+
     /// Stream a chat completion. Content deltas are pushed to `on_token` as they
     /// arrive; the assembled final message (including any tool calls) is returned.
     async fn chat(

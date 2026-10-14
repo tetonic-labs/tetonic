@@ -1,7 +1,7 @@
 use super::*;
 use tetonic_inference::hosted::{responses, HostedModelConfig};
 
-fn exchange() -> Vec<Message> {
+pub(super) fn exchange() -> Vec<Message> {
     vec![
         responses::response(serde_json::json!({"status":"completed","output":[
             {"type":"reasoning","id":"reason-1","summary":[],"encrypted_content":"opaque-test-state"},
@@ -90,44 +90,4 @@ fn compaction_cuts_before_a_tool_batch_not_between_its_results() {
     }
     assert_eq!(exchange_start(&history, history.len(), 1), history.len());
     assert_eq!(exchange_start(&history, 1, 1), 1);
-}
-
-#[tokio::test]
-async fn compaction_preserves_protected_prefix_and_complete_recent_exchange() {
-    let mut agent = agent();
-    agent.config.keep_recent = 2;
-    let mut history = vec![
-        Message::system("policy"),
-        Message::system("protected context"),
-        Message::user("old ".repeat(500)),
-    ];
-    history.extend(exchange());
-    let mut prefix_len = 2;
-    let mut tokens = 0;
-    assert_eq!(
-        agent
-            .maybe_compact(
-                &mut history,
-                &mut prefix_len,
-                0.5,
-                Some("Summarize"),
-                &mut tokens
-            )
-            .await
-            .unwrap(),
-        Some(1)
-    );
-    assert_eq!(prefix_len, 2);
-    assert_eq!(history[0].content, "policy");
-    assert_eq!(history[1].content, "protected context");
-    assert_eq!(history[3].provider_tool_call_ids(), ["a", "b"]);
-    responses::request(
-        &ChatRequest {
-            model: "model".into(),
-            messages: history,
-            ..Default::default()
-        },
-        &HostedModelConfig::responses("model", 100),
-    )
-    .unwrap();
 }

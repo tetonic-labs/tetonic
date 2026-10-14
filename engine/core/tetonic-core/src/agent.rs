@@ -54,6 +54,7 @@ pub struct Agent {
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
 }
 
+mod context;
 mod observations;
 mod waiting;
 
@@ -783,234 +784,6 @@ impl Agent {
         self.audit.as_deref()
     }
 
-    fn message_tokens(&self, m: &Message) -> usize {
-        // Memoized per message: a message is immutable once pushed, so we count it
-        // once and reuse the result every subsequent turn instead of re-tokenizing
-        // the whole history (which was O(n²) over a session).
-        m.cached_tokens(|| {
-            // content + any tool-call payload + a small per-message envelope overhead.
-            let mut t = self.tokenizer.count(&m.content) + 4;
-            if let Some(tc) = &m.tool_calls {
-                if let Ok(s) = serde_json::to_string(tc) {
-                    t += self.tokenizer.count(&s);
-                }
-            }
-            t
-        })
-    }
-
-    fn budget(&self) -> usize {
-        self.config
-            .num_ctx
-            .saturating_sub(self.config.context_reserve)
-    }
-
-    /// Token cost of the tool schemas. The schemas are fixed for the agent's life,
-    /// so this is computed once at construction and returned from cache here.
-    fn tools_tokens(&self) -> usize {
-        self.tools_token_count
-    }
-
-    /// Build the prompt as **protected prefix + volatile suffix (most recent
-    /// conversation that fits)**. The protected prefix is `messages[0..prefix_len]`
-    /// — the system prompt only — and is never trimmed. Compaction summaries
-    /// live in the volatile suffix and may be dropped under budget pressure
-    /// (SEC2-E2-020).
-    fn build_context(
-        &self,
-        messages: &[Message],
-        prefix_len: usize,
-    ) -> (Vec<Message>, ContextReport) {
-        let prefix = &messages[..prefix_len];
-        let system_tokens: usize = prefix.iter().map(|m| self.message_tokens(m)).sum();
-        let tools_tokens = self.tools_tokens();
-
-        let budget = self.budget();
-        // Keep the current request even when a large tool response displaces
-        // older history. A result without its task is not useful context.
-        let current_user = messages[prefix_len..]
-            .iter()
-            .rposition(|m| m.role == "user")
-            .map(|i| i + prefix_len);
-        let request_tokens = current_user.map_or(0, |i| self.message_tokens(&messages[i]));
-        let avail = budget.saturating_sub(system_tokens + tools_tokens + request_tokens);
-
-        // A provider tool-call message and its result batch are indivisible.
-        // This remains a soft context target: keep the latest complete exchange
-        // even if it alone is oversized, as we previously did for one message.
-        let mut start = messages.len();
-        let mut convo_tokens = 0usize;
-        while start > prefix_len {
-            let group_start = exchange_start(messages, start - 1, prefix_len);
-            let t = (group_start..start)
-                .filter(|i| Some(*i) != current_user)
-                .map(|i| self.message_tokens(&messages[i]))
-                .sum::<usize>();
-            if convo_tokens + t > avail && start < messages.len() {
-                break;
-            }
-            convo_tokens += t;
-            start = group_start;
-        }
-        let mut sent = prefix.to_vec();
-        if let Some(i) = current_user.filter(|i| *i < start) {
-            sent.push(messages[i].clone());
-        }
-        sent.extend_from_slice(&messages[start..]);
-        convo_tokens += request_tokens;
-        let dropped = messages.len() - sent.len();
-
-        let report = ContextReport {
-            system_tokens,
-            tools_tokens,
-            conversation_tokens: convo_tokens,
-            total_tokens: system_tokens + tools_tokens + convo_tokens,
-            budget,
-            dropped_messages: dropped,
-            estimated: self.tokenizer.estimated(),
-            data_class: Some(self.config.data_class),
-        };
-        (sent, report)
-    }
-
-    /// Claude-Code-style auto-compaction. When the full working set crosses the
-    /// configured fraction of the budget, summarize everything between the
-    /// protected prefix and the last `keep_recent` turns into a single brief,
-    /// then splice the history down to `[system, summary, ...recent]`. The
-    /// summary stays in the volatile suffix (`prefix_len` remains 1).
-    /// Returns the number of messages folded into the summary (if compaction happened).
-    async fn maybe_compact(
-        &self,
-        messages: &mut Vec<Message>,
-        prefix_len: &mut usize,
-        compaction_threshold: f32,
-        compaction_prompt: Option<&str>,
-        reported_tokens: &mut u64,
-    ) -> anyhow::Result<Option<usize>> {
-        let total: usize = messages
-            .iter()
-            .map(|m| self.message_tokens(m))
-            .sum::<usize>()
-            + self.tools_tokens();
-        let threshold = (self.budget() as f32 * compaction_threshold) as usize;
-        if total <= threshold {
-            return Ok(None);
-        }
-        let Some(compaction_prompt) = compaction_prompt else {
-            return Ok(None);
-        };
-
-        // Region to fold: everything after the system prompt, except the most recent turns.
-        let start = 1usize.max(*prefix_len);
-        let keep_recent = self.config.keep_recent;
-        if messages.len() <= start + keep_recent {
-            // Not enough older history to compact; build_context will trim.
-            return Ok(None);
-        }
-        let end = exchange_start(messages, messages.len() - keep_recent, start);
-        if end <= start {
-            return Ok(None);
-        }
-
-        let existing_summary = messages
-            .get(1)
-            .filter(|m| m.role == "assistant" && m.content.contains("[Summary of earlier work"))
-            .map(|m| m.content.clone())
-            .unwrap_or_default();
-        let to_fold: Vec<Message> = messages[start..end].to_vec();
-        let summary = self
-            .summarize(
-                &existing_summary,
-                &to_fold,
-                compaction_prompt,
-                reported_tokens,
-            )
-            .await?;
-
-        let prefix = messages[..start].to_vec();
-        let recent: Vec<Message> = messages[end..].to_vec();
-        let mut rebuilt = Vec::with_capacity(2 + recent.len());
-        rebuilt.extend(prefix);
-        rebuilt.push(Message::assistant(format!(
-            "[Summary of earlier work in this session]\n{summary}"
-        )));
-        rebuilt.extend(recent);
-
-        *messages = rebuilt;
-        *prefix_len = start;
-        Ok(Some(to_fold.len()))
-    }
-
-    /// Summarize folded turns (plus any prior summary) into a terse brief, using a
-    /// non-streaming, tool-free model call.
-    async fn summarize(
-        &self,
-        prior: &str,
-        msgs: &[Message],
-        compaction_prompt: &str,
-        reported_tokens: &mut u64,
-    ) -> anyhow::Result<String> {
-        let mut transcript = String::new();
-        if !prior.is_empty() {
-            transcript.push_str("Prior summary:\n");
-            transcript.push_str(prior);
-            transcript.push_str("\n\n");
-        }
-        for m in msgs {
-            let body = if m.content.trim().is_empty() {
-                m.tool_calls
-                    .as_ref()
-                    .and_then(|tc| serde_json::to_string(tc).ok())
-                    .unwrap_or_default()
-            } else {
-                m.content.clone()
-            };
-            transcript.push_str(&format!("[{}] {}\n", m.role, body));
-        }
-
-        let sys = Message::system(compaction_prompt);
-        let user = Message::user(format!("Summarize the session so far:\n\n{transcript}"));
-
-        if self.work_scope.is_canceled() {
-            anyhow::bail!("canceled");
-        }
-        if !self.execution_authorized().await {
-            anyhow::bail!("execution authorization denied");
-        }
-        let mut noop = |_: &str| {};
-        let resp = self
-            .provider
-            .chat(
-                ChatRequest {
-                    model: self.config.model.clone(),
-                    model_digest: None,
-                    messages: vec![sys, user],
-                    tools: Vec::new(),
-                    temperature: 0.2,
-                    num_ctx: Some(self.config.num_ctx as u32),
-                    max_tokens: None,
-                    draft_model: self.config.draft_model.clone(),
-                    draft_count: self.config.draft_count,
-                    keep_alive: None,
-                    fabric: Some(FabricCallMeta {
-                        session_id: self.config.session_id.clone(),
-                        agent_id: Some(self.config.agent_id.clone()),
-                        information_context_id: self.config.information_context_id.clone(),
-                        data_class: self.config.data_class,
-                        disclosure_tier: self.config.disclosure_tier,
-                        model_tier: self.config.model_tier.clone(),
-                        ..Default::default()
-                    }),
-                    response_format: None,
-                    outbound_scan: Default::default(),
-                },
-                &mut noop,
-            )
-            .await?;
-        add_reported_tokens(&resp.usage, reported_tokens);
-        Ok(resp.message.content)
-    }
-
     /// Take one user turn within an ongoing [`Conversation`], invoking `on_step`
     /// for each event. The conversation's history is preserved for the next turn,
     /// so repeated calls form a multi-turn chat that remembers prior context.
@@ -1299,52 +1072,10 @@ impl Agent {
                     reason: "canceled".into(),
                 };
             }
-            if !explain_turn {
-                match self
-                    .maybe_compact(
-                        &mut convo.messages,
-                        &mut convo.prefix_len,
-                        compaction_threshold,
-                        invocation.discipline.compaction_system_prompt.as_deref(),
-                        &mut reported_tokens,
-                    )
-                    .await
-                {
-                    Ok(Some(folded)) => {
-                        let note = format!(
-                            "auto-compacted {folded} older messages into a running summary"
-                        );
-                        if let Some(a) = self.audit() {
-                            a.note(&note);
-                        }
-                        on_step(Step::Note(note));
-                    }
-                    Ok(None) => {}
-                    Err(error) => {
-                        return CandidateOutcome::Failed {
-                            message: error.to_string(),
-                        };
-                    }
-                }
-            }
-            if token_ceiling_reached(self.config.reported_token_ceiling, reported_tokens) {
-                on_step(Step::Stopped("reported token ceiling reached".into()));
-                return CandidateOutcome::Limited {
-                    kind: LimitKind::EffortCap,
-                    message: "reported token ceiling reached".into(),
-                };
-            }
-
-            let context_timer =
-                tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Context);
-            let (sent, report) = self.build_context(&convo.messages, convo.prefix_len);
-            context_timer.finish(true);
-            on_step(Step::Context(report));
-
             let mut req = ChatRequest {
                 model: self.config.model.clone(),
                 model_digest: None,
-                messages: sent,
+                messages: vec![],
                 tools: if self.config.response_schema.is_some() {
                     vec![]
                 } else {
@@ -1384,6 +1115,50 @@ impl Agent {
                 response_format: self.config.response_schema.clone(),
                 outbound_scan: Default::default(),
             };
+            if !explain_turn {
+                match self
+                    .maybe_compact(
+                        &mut convo.messages,
+                        &mut convo.prefix_len,
+                        compaction_threshold,
+                        invocation.discipline.compaction_system_prompt.as_deref(),
+                        &mut reported_tokens,
+                        &req,
+                    )
+                    .await
+                {
+                    Ok(Some(folded)) => {
+                        let note = format!(
+                            "auto-compacted {folded} older messages into a running summary"
+                        );
+                        if let Some(a) = self.audit() {
+                            a.note(&note);
+                        }
+                        on_step(Step::Note(note));
+                    }
+                    Ok(None) => {}
+                    Err(error) => {
+                        return CandidateOutcome::Failed {
+                            message: error.to_string(),
+                        };
+                    }
+                }
+            }
+            if token_ceiling_reached(self.config.reported_token_ceiling, reported_tokens) {
+                on_step(Step::Stopped("reported token ceiling reached".into()));
+                return CandidateOutcome::Limited {
+                    kind: LimitKind::EffortCap,
+                    message: "reported token ceiling reached".into(),
+                };
+            }
+
+            let context_timer =
+                tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Context);
+            let (sent, report) = self.build_context(&convo.messages, convo.prefix_len);
+            context_timer.finish(true);
+            on_step(Step::Context(report));
+            req.messages = sent;
+
             tetonic_inference::stamp_request_classification(&mut req);
             step_index = step_index.saturating_add(1);
             let _infer_stage = tetonic_telemetry::enter_stage_child("infer");
@@ -1586,7 +1361,7 @@ impl Agent {
                             .is_some()
                 })
                 .count();
-            let page_bytes = observations::page_bytes(pages);
+            let page_bytes = observations::page_bytes(pages, self.budget());
             for (ordinal, tc) in tool_calls.into_iter().enumerate() {
                 // Includes in-loop finish/spawn paths as well as ordinary tools.
                 // Cancellation wins before finish can record a completed outcome.

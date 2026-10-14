@@ -10,6 +10,9 @@ mod tool_recovery;
 #[path = "context_window_tests.rs"]
 mod context_window;
 
+#[path = "context_budget_tests.rs"]
+mod context_budget;
+
 #[path = "observation_budget_tests.rs"]
 mod observation_budget;
 
@@ -249,7 +252,7 @@ async fn cancel_during_compaction_does_not_start_the_next_model_call() {
     let cancel = convo.cancel_handle();
     convo.messages.push(Message::system("system"));
     for _ in 0..8 {
-        convo.messages.push(Message::user("WORD ".repeat(800)));
+        convo.messages.push(Message::assistant("WORD ".repeat(800)));
     }
     struct CancelDuringSummary {
         calls: std::sync::Arc<std::sync::atomic::AtomicUsize>,

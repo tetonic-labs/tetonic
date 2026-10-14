@@ -723,6 +723,112 @@ fn abort_active_discards_staging() {
 }
 
 #[test]
+fn stopped_draft_preserves_exact_bytes_without_publishing_or_resuming() {
+    let (_d, root) = tmp_ws("retained-draft");
+    std::fs::write(root.join("a.txt"), "original").unwrap();
+    let service = svc(&root);
+    service
+        .with_active(|txn| {
+            txn.task_id = Some(tetonic_domain::TaskId::new("task"));
+            txn.attempt_id = Some(tetonic_domain::AttemptId::new("attempt"));
+            txn.stage_write_file("a.txt", "unfinished replacement\r\n", true)?;
+            txn.stage_write_file("new.txt", "unfinished new file", false)?;
+            Ok(())
+        })
+        .unwrap();
+    let path = service.abort_preserving_draft().unwrap().unwrap();
+    let draft: serde_json::Value = serde_json::from_slice(&std::fs::read(path).unwrap()).unwrap();
+    assert_eq!(draft["commit_succeeded"], false);
+    assert_eq!(draft["requires_review"], true);
+    assert_eq!(draft["task_id"], "task");
+    assert_eq!(draft["attempt_id"], "attempt");
+    let bytes: Vec<u8> = serde_json::from_value(draft["contents"][0]["bytes"].clone()).unwrap();
+    assert_eq!(bytes, b"unfinished replacement\r\n");
+    assert_eq!(
+        std::fs::read_to_string(root.join("a.txt")).unwrap(),
+        "original"
+    );
+    assert!(!root.join("new.txt").exists());
+    assert!(service.abort_preserving_draft().unwrap().is_none());
+    assert!(service
+        .commit_active_if_any("test", tetonic_domain::DataClass::RepositorySource)
+        .unwrap()
+        .is_none());
+    assert!(std::fs::read_dir(root.join(".lokai/staging"))
+        .unwrap()
+        .next()
+        .is_none());
+    // Startup must not replay an inert draft.
+    let _reopened = svc(&root);
+    assert_eq!(
+        std::fs::read_to_string(root.join("a.txt")).unwrap(),
+        "original"
+    );
+}
+
+#[test]
+fn managed_commit_waits_for_writer_and_rechecks_conflicts_and_cancellation() {
+    for scenario in ["release", "cancel", "conflict"] {
+        let (_d, root) = tmp_ws("managed-contention");
+        std::fs::write(root.join("shared.txt"), "original").unwrap();
+        let service = Arc::new(svc(&root));
+        service
+            .with_active(|txn| {
+                txn.stage_write_file("shared.txt", "our change", true)?;
+                Ok(())
+            })
+            .unwrap();
+        let other = WriterLock::acquire(
+            &root.join(".lokai"),
+            &tetonic_domain::TransactionId::new("peer"),
+            "peer",
+        )
+        .unwrap();
+        let scope = tetonic_domain::work_scope::WorkScope::default();
+        let cancel = scope.cancellation_signal();
+        let worker = service.clone();
+        let join = thread::spawn(move || {
+            worker.commit_active_cancellable("worker", DataClass::RepositorySource, &cancel)
+        });
+        thread::sleep(Duration::from_millis(80));
+        assert!(
+            !join.is_finished(),
+            "ordinary contention must wait, not fail the work"
+        );
+        match scenario {
+            "cancel" => scope.cancel(),
+            "conflict" => std::fs::write(root.join("shared.txt"), "peer change").unwrap(),
+            _ => {}
+        }
+        drop(other);
+        let result = join.join().unwrap();
+        match scenario {
+            "release" => {
+                assert!(result.unwrap().is_some());
+                assert_eq!(
+                    std::fs::read_to_string(root.join("shared.txt")).unwrap(),
+                    "our change"
+                );
+            }
+            "conflict" => {
+                assert!(matches!(result, Err(TransactionError::Conflict(_))));
+                assert_eq!(
+                    std::fs::read_to_string(root.join("shared.txt")).unwrap(),
+                    "peer change"
+                );
+            }
+            _ => {
+                assert!(result.unwrap_err().to_string().contains("canceled"));
+                assert_eq!(
+                    std::fs::read_to_string(root.join("shared.txt")).unwrap(),
+                    "original"
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn cross_process_commit_errors_clearly() {
     if std::env::var("LOKAI_CROSS_COMMIT_DIR").is_ok() {
         let dir = std::env::var("LOKAI_CROSS_COMMIT_DIR").unwrap();
