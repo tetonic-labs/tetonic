@@ -12,6 +12,7 @@ pub fn tool_outcome_from_execution(outcome: ExecutionOutcome) -> ToolOutcome {
             execution_id,
             ..
         } => ToolOutcome {
+            content_complete: true,
             ok,
             summary: summary.clone(),
             content: if summary.is_empty() {
@@ -30,6 +31,7 @@ pub fn tool_outcome_from_execution(outcome: ExecutionOutcome) -> ToolOutcome {
             reason,
             execution_id,
         } => ToolOutcome {
+            content_complete: true,
             ok: false,
             summary: "execution failed".into(),
             content: format!("ERROR: {reason}\nexecution_id={execution_id}"),
@@ -37,6 +39,7 @@ pub fn tool_outcome_from_execution(outcome: ExecutionOutcome) -> ToolOutcome {
             change: None,
         },
         ExecutionOutcome::Cancelled { execution_id } => ToolOutcome {
+            content_complete: true,
             ok: false,
             summary: "execution cancelled".into(),
             content: format!("ERROR: cancelled\nexecution_id={execution_id}"),

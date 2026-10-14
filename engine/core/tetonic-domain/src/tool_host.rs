@@ -13,6 +13,9 @@ pub struct ToolOutcome {
     pub ok: bool,
     pub summary: String,
     pub content: String,
+    /// Whether this observation includes all requested content. A successful
+    /// page can be incomplete; it must not be treated as a whole-file read.
+    pub content_complete: bool,
     pub error_kind: Option<String>,
     pub change: Option<FileChange>,
 }
@@ -48,6 +51,7 @@ impl ToolOutcome {
             ok: true,
             summary: summary.into(),
             content: content.into(),
+            content_complete: true,
             error_kind: None,
             change: None,
         }
@@ -59,6 +63,7 @@ impl ToolOutcome {
             ok: false,
             summary: format!("error: {message}"),
             content: format!("ERROR: {message}"),
+            content_complete: true,
             error_kind: Some(kind.into()),
             change: None,
         }

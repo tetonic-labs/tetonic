@@ -174,6 +174,7 @@ impl RepositoryMutationService {
                 let syntax_root = txn.staged_overlay_path()?;
                 if let Err(e) = check_python_syntax(&syntax_root, &a.path) {
                     return Ok(ToolOutcome {
+                        content_complete: true,
                         ok: false,
                         summary: format!("syntax error in {} after staged edit", a.path),
                         content: format!(
@@ -234,6 +235,7 @@ impl RepositoryMutationService {
                     let syntax_root = txn.staged_overlay_path()?;
                     if let Err(e) = check_python_syntax(&syntax_root, &a.path) {
                         return Ok(ToolOutcome {
+                            content_complete: true,
                             ok: false,
                             summary: format!("syntax error in {} after staged write", a.path),
                             content: format!("ERROR: {e}"),

@@ -5,6 +5,9 @@ execution, but this project did not deliver its requested files. Two specific
 defects found during the run are corrected in code; a successful live project
 with 5–10 agents and 10–30 assignments remains an open MVP requirement.
 
+Follow-up: [bounded source reading and the October 14 retests](source-reading-project-retest-2026-10-14.md).
+The reader was corrected, but the live project still did not qualify.
+
 ## What actually ran
 
 The existing isolated profile on port 18740 retained its database, saved agents,

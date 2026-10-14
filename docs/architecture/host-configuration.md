@@ -200,6 +200,19 @@ usage per call and, for local models, memory consumption. It is not compaction o
 durable memory; old history still falls out when the configured window fills.
 `max_tokens` and saved agent/plan budgets continue to cap cumulative reported use.
 
+Local `read_file` observations are also bounded independently of that history
+window: 2,048 source bytes by default and at most 4,096 per call. Larger requested
+`max_bytes` values are clamped. Large reads return explicit byte offsets, a source
+SHA-256 and continuation arguments; only the returned excerpt is evidence. An
+`expected_sha256` continuation rejects a changed source, and every page repeats
+the existing workspace and credential checks. Line ranges remain available.
+Partial pages do not count as whole-file reads or identical repeated reads in the
+generic runtime's progress monitor. This lives in `tetonic-tools`; the runtime
+receives a generic observation-completeness flag rather than parsing file text.
+It bounds source observations, not total tool-batch size or cumulative history,
+and currently still loads/hashes the authorized source file in memory. It is not
+summarization, durable memory, or pagination for MCP/shell results.
+
 ## Scope and remaining work
 
 This config supports the local UI/job hosts. Distributed storage, OTLP export,

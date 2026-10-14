@@ -265,6 +265,7 @@ impl ToolHost for EmptyToolHost {
         _cancel: &tetonic_domain::work_scope::CancellationSignal,
     ) -> ToolOutcome {
         ToolOutcome {
+            content_complete: true,
             ok: false,
             summary: format!("{name} not supported"),
             content: "empty host has no tools".into(),
@@ -492,6 +493,7 @@ impl Agent {
         }
         if self.tools.requires_action_broker(name) && self.action_broker.is_none() {
             return ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: format!("{name} denied"),
                 content: format!("ERROR: capability required for '{name}' (no action broker)"),
@@ -529,6 +531,7 @@ impl Agent {
                         )
                     };
                     return ToolOutcome {
+                        content_complete: true,
                         ok: false,
                         summary,
                         content,
@@ -555,6 +558,7 @@ impl Agent {
         // handing the effect to a blocking worker.
         if self.work_scope.is_canceled() {
             return ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: "canceled".into(),
                 content: "canceled".into(),
@@ -564,6 +568,7 @@ impl Agent {
         }
         if !self.execution_authorized().await {
             return ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: "execution authorization denied".into(),
                 content: "execution authorization denied".into(),
@@ -585,6 +590,7 @@ impl Agent {
         {
             Ok(outcome) => outcome,
             Err(AgentError::ToolExecutionPanicked) => ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: format!("{name_for_err} failed"),
                 content: "ERROR: tool execution task panicked".into(),
@@ -592,6 +598,7 @@ impl Agent {
                 change: None,
             },
             Err(e) => ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: format!("{name_for_err} denied"),
                 content: format!("ERROR: {e}"),
@@ -631,6 +638,7 @@ impl Agent {
                 .or(workspace_root.as_ref());
             let Some(dir) = candidate else {
                 return Err(Box::new(ToolOutcome {
+                    content_complete: true,
                     ok: false,
                     summary: format!("{name} denied"),
                     content: "ERROR: process working directory is missing".into(),
@@ -640,6 +648,7 @@ impl Agent {
             };
             if dir.as_os_str().is_empty() || !dir.is_absolute() {
                 return Err(Box::new(ToolOutcome {
+                    content_complete: true,
                     ok: false,
                     summary: format!("{name} denied"),
                     content: "ERROR: process working directory must be a non-empty absolute path"
@@ -715,6 +724,7 @@ impl Agent {
             Some(root) => match &self.capture_workspace_version {
                 Some(hook) => Some(hook(root, &relevant).map_err(|e| {
                     Box::new(ToolOutcome {
+                        content_complete: true,
                         ok: false,
                         summary: format!("{name} denied"),
                         content: format!("ERROR: workspace version: {e}"),
@@ -757,6 +767,7 @@ impl Agent {
 
         let capability = broker.evaluate_and_issue(&action).await.map_err(|e| {
             Box::new(ToolOutcome {
+                content_complete: true,
                 ok: false,
                 summary: format!("{name} denied"),
                 content: format!("ERROR: {e}"),
@@ -2013,7 +2024,8 @@ Fix the JSON to match the tool schema and call the tool again."
                         .get("start_line")
                         .map(|v| !v.is_null())
                         .unwrap_or(false)
-                    || args.get("end_line").map(|v| !v.is_null()).unwrap_or(false);
+                    || args.get("end_line").map(|v| !v.is_null()).unwrap_or(false)
+                    || args.get("offset_bytes").is_some_and(|v| !v.is_null());
                 let whole_file_read =
                     invocation.discipline.is_whole_file_tool(&name) && !has_slice_range;
 
@@ -2181,6 +2193,7 @@ Fix the JSON to match the tool schema and call the tool again."
                 let tool_timer =
                     tetonic_telemetry::StageTimer::start(tetonic_telemetry::PerfStage::Tool);
                 let outcome = self.execute_gated(&name, &args, &call_id).await;
+                let whole_file_read = whole_file_read && outcome.content_complete;
                 tool_timer.finish(outcome.ok);
                 tetonic_telemetry::fault::inject_fault("after_tool_execution");
 

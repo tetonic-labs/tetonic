@@ -101,6 +101,7 @@ impl ToolHost for CancelAwareHost {
             std::thread::sleep(std::time::Duration::from_millis(5));
         }
         ToolOutcome {
+            content_complete: true,
             ok: !cancel.is_canceled(),
             summary: "fixture".into(),
             content: String::new(),

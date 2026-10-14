@@ -130,16 +130,7 @@ impl HeuristicMonitor {
             if whole_file_read {
                 format!("{name}:whole:{}", path_arg.unwrap_or(""))
             } else {
-                format!(
-                    "{name}:partial:{}:{}:{}",
-                    path_arg.unwrap_or(""),
-                    args.get("start_line")
-                        .map(|v| v.to_string())
-                        .unwrap_or_default(),
-                    args.get("end_line")
-                        .map(|v| v.to_string())
-                        .unwrap_or_default(),
-                )
+                format!("{name}:partial:{args_json}")
             }
         } else if is_search {
             format!(
@@ -258,6 +249,7 @@ mod tests {
         };
         let mut m = HeuristicMonitor::new(&config, &silent());
         let fail = ToolOutcome {
+            content_complete: true,
             ok: false,
             summary: "fail".into(),
             content: "ERROR".into(),
@@ -279,5 +271,28 @@ mod tests {
         assert!(m.check_write_repeat("src/lib.rs").is_none());
         assert!(m.check_write_repeat("src/lib.rs").is_none());
         assert!(m.check_write_repeat("src/lib.rs").is_some());
+    }
+
+    #[test]
+    fn different_source_pages_are_progress_not_repeated_whole_file_reads() {
+        let config = AgentConfig::default();
+        let mut discipline = silent();
+        discipline.whole_file_tools = vec!["read_file".into()];
+        let mut monitor = HeuristicMonitor::new(&config, &discipline);
+        let mut page = ToolOutcome::ok("partial read", "evidence");
+        page.content_complete = false;
+        for offset in (0..16000).step_by(2000) {
+            let args = json!({"path":"source.md","offset_bytes":offset});
+            let report = monitor.record_tool_execution(
+                "read_file",
+                &args,
+                &args.to_string(),
+                Some("source.md"),
+                false,
+                &page,
+            );
+            assert!(!report.stuck);
+            assert!(report.append_to_model.is_empty());
+        }
     }
 }

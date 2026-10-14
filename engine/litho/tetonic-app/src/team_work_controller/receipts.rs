@@ -134,6 +134,7 @@ impl TeamWorkController {
             remaining.remove(key);
         }
         Ok(ToolOutcome {
+            content_complete: true,
             ok: result.ok,
             summary: result.summary,
             content: result.content,

@@ -38,6 +38,7 @@ pub(super) fn tool_result(name: &str, value: &Value) -> ToolOutcome {
     }
     let failed = value.get("isError") == Some(&Value::Bool(true));
     ToolOutcome {
+        content_complete: true,
         ok: !failed,
         summary: format!(
             "{name} {}",

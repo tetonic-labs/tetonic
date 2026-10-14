@@ -4063,6 +4063,7 @@ dependencies = [
  "schemars",
  "serde",
  "serde_json",
+ "sha2",
  "tempfile",
  "tetonic-domain",
  "tetonic-memory",

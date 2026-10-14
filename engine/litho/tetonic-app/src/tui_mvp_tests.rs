@@ -33,14 +33,16 @@ pub(crate) async fn inference_server_with_usage(
     let requests = Arc::new(Mutex::new(Vec::new()));
     let captured = requests.clone();
     let task = tokio::spawn(async move {
-        loop {
+        'connections: loop {
             let (mut stream, _) = listener.accept().await.unwrap();
             let mut bytes = Vec::new();
             let (header_end, length) = loop {
                 let mut buf = [0; 4096];
-                let n = stream.read(&mut buf).await.unwrap();
+                let n = stream.read(&mut buf).await.unwrap_or(0);
                 if n == 0 {
-                    return;
+                    // Cancellation can close a client before it sends headers.
+                    // Keep the fixture's discovery listener alive for other clients.
+                    continue 'connections;
                 }
                 bytes.extend_from_slice(&buf[..n]);
                 if let Some(end) = bytes.windows(4).position(|w| w == b"\r\n\r\n") {
@@ -58,8 +60,10 @@ pub(crate) async fn inference_server_with_usage(
             };
             while bytes.len() < header_end + length {
                 let mut buf = [0; 4096];
-                let n = stream.read(&mut buf).await.unwrap();
-                assert_ne!(n, 0);
+                let n = stream.read(&mut buf).await.unwrap_or(0);
+                if n == 0 {
+                    continue 'connections;
+                }
                 bytes.extend_from_slice(&buf[..n]);
             }
             let header = String::from_utf8_lossy(&bytes[..header_end]);

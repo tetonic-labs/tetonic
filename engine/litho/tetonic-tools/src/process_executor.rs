@@ -143,6 +143,7 @@ impl crate::Tools {
             summary = format!("{summary}; {audit}");
         }
         Ok(ToolOutcome {
+            content_complete: true,
             ok: r.success,
             summary,
             content: r.output,

@@ -511,6 +511,7 @@ where
         let handoff = SpawnHandoff::from_tracker(&agent_id, summary, &tracker);
         let content = handoff.to_tool_content();
         ToolOutcome {
+            content_complete: true,
             ok: true,
             summary: format!("spawn finished ({})", handoff.agent_id),
             content,

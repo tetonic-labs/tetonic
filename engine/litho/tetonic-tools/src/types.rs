@@ -72,6 +72,12 @@ pub struct ReadFileArgs {
     pub path: String,
     pub start_line: Option<usize>,
     pub end_line: Option<usize>,
+    /// Zero-based UTF-8 byte offset for the next page. Cannot be combined with line ranges.
+    pub offset_bytes: Option<usize>,
+    /// Maximum source bytes to return. Default 2048, maximum 4096.
+    pub max_bytes: Option<usize>,
+    /// Optional SHA-256 from an earlier page; rejects a changed source instead of mixing versions.
+    pub expected_sha256: Option<String>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

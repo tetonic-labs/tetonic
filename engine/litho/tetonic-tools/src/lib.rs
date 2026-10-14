@@ -14,6 +14,7 @@ mod host;
 mod memory;
 mod orchestration;
 mod retrieval;
+mod source_read;
 pub use memory::MemoryCredentialCheck;
 mod sink;
 mod types;
@@ -825,30 +826,7 @@ impl Tools {
             }
             workspace::read_to_string_nofollow(&path)?
         };
-        let byte_len = text.len();
-        let content = match (a.start_line, a.end_line) {
-            // Whole-file read: borrow `text` directly instead of cloning it.
-            (None, None) => truncate(&text),
-            (start, end) => {
-                let s = start.unwrap_or(1).max(1);
-                let e = end.unwrap_or(usize::MAX);
-                let selected = text
-                    .lines()
-                    .enumerate()
-                    .filter(|(i, _)| {
-                        let ln = i + 1;
-                        ln >= s && ln <= e
-                    })
-                    .map(|(i, l)| format!("{:>6}| {l}", i + 1))
-                    .collect::<Vec<_>>()
-                    .join("\n");
-                truncate(&selected)
-            }
-        };
-        Ok(ToolOutcome::ok(
-            format!("read {} ({} bytes)", a.path, byte_len),
-            content,
-        ))
+        source_read::page(&text, &a)
     }
 
     fn list_dir(&self, args: Value) -> Result<ToolOutcome, ToolError> {

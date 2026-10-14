@@ -10,7 +10,7 @@ pub fn tool_defs() -> Vec<ToolDef> {
     vec![
         ToolDef {
             name: "read_file",
-            description: "Read a UTF-8 text file (optionally a line range) from the workspace.",
+            description: "Read a bounded UTF-8 source page from the workspace (2048 bytes by default; at most 4096). Prefer relevant line ranges or grep over loading entire files. Large reads return exact continuation arguments and a SHA-256; unread content is not evidence. Request additional pages only when needed. Small files and line ranges are returned verbatim.",
             parameters: schema_of::<ReadFileArgs>(),
             mutating: false,
         },
