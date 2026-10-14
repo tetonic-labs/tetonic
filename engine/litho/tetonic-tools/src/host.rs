@@ -132,9 +132,9 @@ mod checkpoint_tests {
             "paging is not authorization"
         );
         assert!(tools.limit_observation("write_file", &args, 512).is_none());
-        let search = serde_json::json!({"pattern":"needle", "path":"../outside", "max_results":3});
+        let search = serde_json::json!({"pattern":"needle", "path":"../outside", "max_results":3,"context_lines":4});
         let capped = tools.limit_observation("grep", &search, 512).unwrap();
-        for key in ["pattern", "path", "max_results"] {
+        for key in ["pattern", "path", "max_results", "context_lines"] {
             assert_eq!(capped[key], search[key]);
         }
         assert_eq!(capped["max_bytes"], 512);

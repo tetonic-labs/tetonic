@@ -89,7 +89,10 @@ pub struct ListDirArgs {
 pub struct GrepArgs {
     pub pattern: String,
     pub path: Option<String>,
+    /// Maximum matching anchors (default 100, range 1..1000).
     pub max_results: Option<usize>,
+    /// Lines before and after each match (default 0, maximum 12). Overlaps merge.
+    pub context_lines: Option<usize>,
     /// Maximum returned search bytes (default 2048, maximum 4096, minimum 256).
     pub max_bytes: Option<usize>,
 }

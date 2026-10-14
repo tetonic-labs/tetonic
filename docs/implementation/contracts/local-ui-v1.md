@@ -414,8 +414,15 @@ Local source observations are bounded independently of inference provider.
 `read_file` returns 2,048 source bytes by default, clamped to 4,096; larger files
 have explicit byte continuations and a SHA-256 for changed-source detection.
 `grep` accepts `max_bytes` (256 minimum, 2,048 default, 4,096 maximum) and returns
-path/line-labelled excerpts around matches. Clipped or omitted search results
-are marked; use a targeted file read or narrower query for more evidence.
+path/line-labelled excerpts around matches. Optional `context_lines` (0–12,
+default 0) includes neighboring lines from the same live-file read; overlapping
+ranges merge. `:` marks a matching line, `-` a context line. `max_results`
+selects matching anchors (1–1,000, default 100); neighboring context may include
+additional matching lines. Context shares the same byte limit, with the match
+prioritized over neighbors when space is tight. Clipped or omitted material is
+marked; only the displayed text is evidence. Use a targeted file read or narrower
+query for more evidence. Search does not inspect staged edits; use `read_file`
+for that. These output limits do not bound whole-file memory use during scanning.
 The loop shares a nominal 6,144-byte observation allowance across opted-in
 read/search calls in one batch, including estimated framing and a small useful
 page floor. This is sizing guidance, not a total-context or token-spend ceiling.

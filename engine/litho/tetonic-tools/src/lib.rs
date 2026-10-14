@@ -860,23 +860,25 @@ impl Tools {
 
     fn grep(&self, args: Value) -> Result<ToolOutcome, ToolError> {
         let a: GrepArgs = Self::parse(args)?;
+        source_search::validate(&a)?;
         let base = self.ws.resolve(a.path.as_deref().unwrap_or("."))?;
         let re = regex::Regex::new(&a.pattern).map_err(|e| ToolError::BadArgs(e.to_string()))?;
         let limit = a.max_results.unwrap_or(DEFAULT_GREP_RESULTS);
 
-        let (tx, rx) = std::sync::mpsc::channel::<Vec<(String, usize, String)>>();
+        let (tx, rx) = std::sync::mpsc::channel::<Vec<source_search::SearchHit>>();
         let cancelled = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
         let total_hits = std::sync::Arc::new(std::sync::atomic::AtomicUsize::new(0));
 
         let ws = &self.ws;
         let reserved = self.reserved_files.clone();
         let re = &re;
+        let args = &a;
         let cancelled_flag = cancelled.clone();
         let total_hits_flag = total_hits.clone();
 
         struct GrepCollector {
-            tx: std::sync::mpsc::Sender<Vec<(String, usize, String)>>,
-            local: Vec<(String, usize, String)>,
+            tx: std::sync::mpsc::Sender<Vec<source_search::SearchHit>>,
+            local: Vec<source_search::SearchHit>,
         }
         impl Drop for GrepCollector {
             fn drop(&mut self) {
@@ -920,13 +922,9 @@ impl Tools {
                         return ignore::WalkState::Continue;
                     };
                     let rel = ws.display_rel(entry.path());
-                    for (i, line) in text.lines().enumerate() {
-                        if re.is_match(line) {
-                            collector
-                                .local
-                                .push((rel.clone(), i + 1, line.trim_end().to_string()));
-                        }
-                    }
+                    collector
+                        .local
+                        .extend(source_search::collect(&rel, &text, re, args));
                     if collector.local.len() >= 64 {
                         let current = total_hits
                             .fetch_add(collector.local.len(), std::sync::atomic::Ordering::Relaxed)
@@ -947,8 +945,13 @@ impl Tools {
             hits.extend(batch);
         }
 
-        hits.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        source_search::format_hits(&hits, re, &a)
+        hits.sort_by(|a, b| a.path.cmp(&b.path).then(a.line.cmp(&b.line)));
+        source_search::format_hits(
+            &hits,
+            re,
+            &a,
+            cancelled.load(std::sync::atomic::Ordering::Relaxed),
+        )
     }
 
     fn glob(&self, args: Value) -> Result<ToolOutcome, ToolError> {
