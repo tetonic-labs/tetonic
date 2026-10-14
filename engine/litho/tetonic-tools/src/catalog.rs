@@ -22,7 +22,7 @@ pub fn tool_defs() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "grep",
-            description: "Search file contents by regex (gitignore-aware) and return matching lines.",
+            description: "Find relevant source lines by regex (gitignore-aware). Returns bounded excerpts with path and line numbers, not full source evidence. Use read_file on relevant ranges; narrow the pattern or path if results are clipped.",
             parameters: schema_of::<GrepArgs>(),
             mutating: false,
         },

@@ -408,6 +408,22 @@ sampling, elicitation, and automatic blocked-task resumption remain outside this
 profile. The shared runtime supports granted reads for local and supported hosted
 models; no new native vendor harness is enabled here.
 
+#### Bounded source observations
+
+Local source observations are bounded independently of inference provider.
+`read_file` returns 2,048 source bytes by default, clamped to 4,096; larger files
+have explicit byte continuations and a SHA-256 for changed-source detection.
+`grep` accepts `max_bytes` (256 minimum, 2,048 default, 4,096 maximum) and returns
+path/line-labelled excerpts around matches. Clipped or omitted search results
+are marked; use a targeted file read or narrower query for more evidence.
+The loop shares a nominal 6,144-byte observation allowance across opted-in
+read/search calls in one batch, including estimated framing and a small useful
+page floor. This is sizing guidance, not a total-context or token-spend ceiling.
+Post-edit previews are also bounded and do not claim independent verification.
+These controls do not change saved grants, grant search with file access,
+truncate durable history, or bound MCP/shell output. Actual inference admission
+and usage settlement remain with the existing budget ledger.
+
 #### Startup-configured local connections
 
 The operator can attach an existing local Streamable HTTP MCP server to this local

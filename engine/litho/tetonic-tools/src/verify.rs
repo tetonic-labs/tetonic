@@ -313,12 +313,23 @@ pub fn format_post_edit_snapshot(change: &crate::FileChange) -> String {
     }
 
     let (start, end) = snapshot_window(&change.before, after, lines.len());
-    let body: String = lines[start..end]
+    let mut body: String = lines[start..end]
         .iter()
         .enumerate()
         .map(|(i, line)| format!("{:>6}| {line}", start + i + 1))
         .collect::<Vec<_>>()
         .join("\n");
+    // A few very long lines must not echo an entire generated artifact into
+    // the next model request. This preview is not an independent verification.
+    const MAX_PREVIEW_BYTES: usize = 1024;
+    if body.len() > MAX_PREVIEW_BYTES {
+        let mut end = MAX_PREVIEW_BYTES;
+        while !body.is_char_boundary(end) {
+            end -= 1;
+        }
+        body.truncate(end);
+        body.push_str("\n[Preview clipped. Use a targeted read to inspect more; this is not a verification result.]");
+    }
 
     let range_note = if start == 0 && end == lines.len() {
         String::new()
@@ -368,6 +379,19 @@ mod tests {
     use crate::{ChangeKind, FileChange};
     use std::fs;
     use std::path::PathBuf;
+
+    #[test]
+    fn post_edit_preview_bounds_long_unicode_lines_without_claiming_verification() {
+        let snapshot = format_post_edit_snapshot(&FileChange {
+            path: "generated.txt".into(),
+            kind: ChangeKind::Create,
+            before: None,
+            after: Some("資料🙂".repeat(10000)),
+        });
+        assert!(snapshot.len() < 1400);
+        assert!(snapshot.contains("Preview clipped"));
+        assert!(snapshot.contains("not a verification result"));
+    }
 
     fn tmp_dir(tag: &str) -> PathBuf {
         let dir = std::env::temp_dir().join(format!("lokai-verify-{tag}-{}", std::process::id()));

@@ -54,6 +54,7 @@ pub struct Agent {
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
 }
 
+mod observations;
 mod waiting;
 
 // Thread safety must follow from every field's trait bounds; never override
@@ -1575,6 +1576,17 @@ impl Agent {
             }
             // Calls can depend on earlier mutations and on per-call discipline.
             // Execute only after those checks, preserving the requested order.
+            let pages = tool_calls
+                .iter()
+                .filter(|call| {
+                    self.tools.is_read_only(&call.function.name)
+                        && self
+                            .tools
+                            .limit_observation(&call.function.name, &call.function.arguments, 4096)
+                            .is_some()
+                })
+                .count();
+            let page_bytes = observations::page_bytes(pages);
             for (ordinal, tc) in tool_calls.into_iter().enumerate() {
                 // Includes in-loop finish/spawn paths as well as ordinary tools.
                 // Cancellation wins before finish can record a completed outcome.
@@ -1591,7 +1603,7 @@ impl Agent {
                     };
                 }
                 let name = tc.function.name.clone();
-                let args = tc.function.arguments.clone();
+                let mut args = tc.function.arguments.clone();
                 let call_id = provider_call_ids
                     .get(ordinal)
                     .cloned()
@@ -1629,6 +1641,12 @@ impl Agent {
                     monitor.record_no_progress_event();
                     continue;
                 }
+                if self.tools.is_read_only(&name) {
+                    if let Some(bounded) = self.tools.limit_observation(&name, &args, page_bytes) {
+                        args = bounded;
+                    }
+                }
+                let args_json = serde_json::to_string(&args).unwrap_or_default();
                 on_step(Step::ToolCall {
                     call_id: call_id.clone(),
                     name: name.clone(),

@@ -62,7 +62,11 @@ pub(super) fn page(text: &str, args: &ReadFileArgs) -> Result<ToolOutcome, ToolE
     // Prefer complete lines, but make progress through a single giant line too.
     if end < requested_end {
         if let Some(newline) = text[start..end].rfind('\n') {
-            end = start + newline + 1;
+            // Do not return only a heading/blank line when the next paragraph
+            // fills most of the page. Byte cursors already support split lines.
+            if newline + 1 >= limit / 2 {
+                end = start + newline + 1;
+            }
         }
     }
     let complete = end == requested_end;
@@ -160,6 +164,20 @@ mod tests {
         let stale = tools.execute("read_file", &args);
         assert!(!stale.ok);
         assert!(stale.content.contains("Source changed"));
+    }
+
+    #[test]
+    fn a_short_heading_does_not_waste_the_following_page() {
+        let text = format!("Heading\n{}", "paragraph ".repeat(200));
+        let first = page(
+            &text,
+            &serde_json::from_value(json!({"path":"doc", "max_bytes":512})).unwrap(),
+        )
+        .unwrap();
+        assert_eq!(next(&first)["offset_bytes"], 512);
+        let second = page(&text, &serde_json::from_value(next(&first)).unwrap()).unwrap();
+        assert_eq!(next(&second)["offset_bytes"], 1024);
+        assert!(second.content.contains("starts on line 2"));
     }
 
     #[test]

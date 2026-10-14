@@ -10,6 +10,9 @@ mod tool_recovery;
 #[path = "context_window_tests.rs"]
 mod context_window;
 
+#[path = "observation_budget_tests.rs"]
+mod observation_budget;
+
 fn test_inv(user: &str) -> AgentInvocation {
     test_inv_explain(user, false)
 }

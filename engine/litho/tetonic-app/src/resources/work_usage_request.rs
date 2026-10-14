@@ -3,14 +3,12 @@ use tetonic_inference::{ChatRequest, Message};
 
 pub(super) const MIN_OUTPUT: i64 = 256;
 
-fn notice(remaining: i64, input: i64, output: u32) -> Message {
+fn notice(remaining: i64, input: i64, output: u32, further_calls: i64) -> Message {
     Message::system(format!(
-        "Current execution allowance: {remaining} tokens remain for this attempt, including repeated input and generated output. \
-         This request reserves approximately {input} input tokens; output is capped at {output} tokens. \
-         Before another action, account for reading this context again. If another request may not fit, finish through \
-         the existing completion tool only when the requested deliverable is actually complete. Otherwise use ask_human \
-         if available to report partial progress and the budget blocker; do not mark unfinished work complete. \
-         This allowance does not grant additional permissions."
+        "Current execution allowance: {remaining} tokens remain, including repeated input and output. \
+         Estimated input: {input}; output cap: {output}. About {further_calls} further calls of this size fit before their output. \
+         Prefer targeted reads; preserve room to produce, inspect and finish. Call the completion tool only for actually completed work. \
+         If blocked, use ask_human when available to report partial progress and the budget issue. This notice grants no permissions."
     ))
 }
 
@@ -19,7 +17,7 @@ pub(super) fn estimate(request: &ChatRequest) -> i64 {
     let mut with_feedback = request.clone();
     with_feedback
         .messages
-        .push(notice(i64::MAX, i64::MAX, u32::MAX));
+        .push(notice(i64::MAX, i64::MAX, u32::MAX, i64::MAX));
     i64::try_from(with_feedback.estimated_input_tokens()).unwrap_or(i64::MAX)
 }
 
@@ -28,7 +26,12 @@ pub(super) fn apply(request: &mut ChatRequest, remaining: i64, input: i64) {
     let cap = request.max_tokens.map_or(cap, |existing| existing.min(cap));
     request.max_tokens = Some(cap);
     // This modifies only the outgoing request, not the durable conversation.
-    request.messages.push(notice(remaining, input, cap));
+    request.messages.push(notice(
+        remaining,
+        input,
+        cap,
+        remaining.saturating_sub(input).max(0) / input.max(1),
+    ));
 }
 
 #[cfg(test)]

@@ -90,6 +90,8 @@ pub struct GrepArgs {
     pub pattern: String,
     pub path: Option<String>,
     pub max_results: Option<usize>,
+    /// Maximum returned search bytes (default 2048, maximum 4096, minimum 256).
+    pub max_bytes: Option<usize>,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]

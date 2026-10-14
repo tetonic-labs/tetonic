@@ -100,6 +100,13 @@ pub struct ToolAdvertisement {
 /// Named tool → [`ToolProposal`]; execute after the broker. Send + Sync + clone for concurrency.
 pub trait ToolHost: Send + Sync {
     fn clone_box(&self) -> Box<dyn ToolHost>;
+    /// Narrow a pageable, read-only observation without changing its target.
+    /// None means the tool does not implement bounded observations. This is a context
+    /// hint, never authorization; normal argument and effect checks still apply.
+    /// Implementations must preserve malformed arguments for normal validation.
+    fn limit_observation(&self, _name: &str, _args: &Value, _bytes: usize) -> Option<Value> {
+        None
+    }
     /// Trusted host attestation for process-loss-safe suspension. Return true
     /// only when completed calls are durable and there are no staged mutations,
     /// open sessions or other transient tool state that a restart would lose.

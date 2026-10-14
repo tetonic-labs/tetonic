@@ -11,6 +11,14 @@ pub(crate) struct McpToolHost {
     pub runtime: tokio::runtime::Handle,
 }
 impl ToolHost for McpToolHost {
+    fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
+        if name.starts_with("mcp_") {
+            None
+        } else {
+            self.inner.limit_observation(name, args, bytes)
+        }
+    }
+
     fn checkpoint_ready(&self) -> bool {
         // This adapter opens and closes a session for each invocation.
         // WorkScope proves quiescence; no remote session is carried across calls.

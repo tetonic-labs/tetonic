@@ -42,7 +42,9 @@ fn grep_is_parallel_safe_and_deterministically_ordered() {
 
     // Limit is respected.
     let limited = tools.execute("grep", &json!({ "pattern": "foo", "max_results": 1 }));
-    assert_eq!(limited.content.lines().count(), 1);
+    assert!(limited.content.starts_with("a.txt:1: foo\n"));
+    assert!(limited.content.contains("more matches omitted"));
+    assert!(!limited.content_complete);
 
     let _ = std::fs::remove_dir_all(&dir);
 }

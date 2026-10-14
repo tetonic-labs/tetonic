@@ -10,6 +10,14 @@ pub(crate) struct SkillToolHost {
     pub selected: HashSet<String>,
 }
 impl ToolHost for SkillToolHost {
+    fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
+        if name.starts_with("skill_") {
+            None
+        } else {
+            self.inner.limit_observation(name, args, bytes)
+        }
+    }
+
     fn clone_box(&self) -> Box<dyn ToolHost> {
         Box::new(self.clone())
     }

@@ -15,6 +15,7 @@ mod memory;
 mod orchestration;
 mod retrieval;
 mod source_read;
+mod source_search;
 pub use memory::MemoryCredentialCheck;
 mod sink;
 mod types;
@@ -947,15 +948,7 @@ impl Tools {
         }
 
         hits.sort_by(|a, b| a.0.cmp(&b.0).then(a.1.cmp(&b.1)));
-        hits.truncate(limit);
-        let lines: Vec<String> = hits
-            .iter()
-            .map(|(rel, n, line)| format!("{rel}:{n}: {line}"))
-            .collect();
-        Ok(ToolOutcome::ok(
-            format!("{} match(es) for /{}/", lines.len(), a.pattern),
-            truncate(&lines.join("\n")),
-        ))
+        source_search::format_hits(&hits, re, &a)
     }
 
     fn glob(&self, args: Value) -> Result<ToolOutcome, ToolError> {

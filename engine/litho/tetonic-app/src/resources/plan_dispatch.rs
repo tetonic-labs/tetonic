@@ -169,6 +169,15 @@ pub(crate) struct RegisteredToolHost {
 }
 
 impl ToolHost for RegisteredToolHost {
+    fn limit_observation(
+        &self,
+        name: &str,
+        args: &serde_json::Value,
+        bytes: usize,
+    ) -> Option<serde_json::Value> {
+        self.tools.limit_observation(name, args, bytes)
+    }
+
     fn checkpoint_ready(&self) -> bool {
         // Dispatch checkpoints do not yet quiesce/restore child executors. The
         // director also has its own turn state. Neither can opt into root waits.

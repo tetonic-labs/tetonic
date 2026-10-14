@@ -217,6 +217,15 @@ an agent loop, then enforce model/tool action boundaries throughout execution.
   [provider parity](../../engine/litho/tetonic-app/src/workspace/providers/tests/parity.rs),
   [independent shell approvals](../../engine/litho/tetonic-app/src/workspace/providers/tests/parallel_approval_tests.rs).
 
+The core loop sizes batches of pageable observations through the optional
+`ToolHost::limit_observation` hook. `tetonic-tools` implements bounded file pages
+and search excerpts; composite hosts forward only their local tool names.
+Sizing narrows result volume, not scope or permissions. Normal argument checks,
+broker authorization and tool execution still follow. Original observations
+remain in conversation history; this is not memory compaction or a guarantee
+that an assignment fits its cumulative token allowance. See the
+[observation qualification](../epics/v5-reconciliation/sprints/october-first-use-repair/observation-budget-qualification-2026-10-14.md).
+
 The enforcement responsibilities remain separate even when the host composes
 them together:
 

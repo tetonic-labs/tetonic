@@ -9,6 +9,33 @@ use tetonic_domain::{
 use crate::Tools;
 
 impl ToolHost for Tools {
+    fn limit_observation(&self, name: &str, args: &Value, bytes: usize) -> Option<Value> {
+        if !self.is_tool_allowed(name) {
+            return None;
+        }
+        let (requested, minimum) = match name {
+            "read_file" => (
+                serde_json::from_value::<crate::ReadFileArgs>(args.clone())
+                    .ok()?
+                    .max_bytes,
+                4,
+            ),
+            "grep" => (
+                serde_json::from_value::<crate::GrepArgs>(args.clone())
+                    .ok()?
+                    .max_bytes,
+                256,
+            ),
+            _ => return None,
+        };
+        if requested.is_some_and(|n| n < minimum) {
+            return None;
+        }
+        let mut bounded = args.clone();
+        bounded["max_bytes"] = serde_json::json!(requested.unwrap_or(2048).min(bytes.max(minimum)));
+        Some(bounded)
+    }
+
     fn checkpoint_ready(&self) -> bool {
         // WorkScope separately proves that no tool call is in flight. These
         // checks attest that rebuilding this host loses no retained tool state.
@@ -89,6 +116,48 @@ impl ToolHost for Tools {
 #[cfg(test)]
 mod checkpoint_tests {
     use super::*;
+
+    #[test]
+    fn observation_limit_only_narrows_valid_granted_pages() {
+        let directory = tempfile::tempdir().unwrap();
+        let tools = Tools::new(crate::Workspace::new(directory.path()).unwrap(), false);
+        let args = serde_json::json!({"path":"../outside","offset_bytes":23,"expected_sha256":"old","max_bytes":800});
+        let capped = tools.limit_observation("read_file", &args, 512).unwrap();
+        assert_eq!(capped["max_bytes"], 512);
+        for key in ["path", "offset_bytes", "expected_sha256"] {
+            assert_eq!(capped[key], args[key]);
+        }
+        assert!(
+            !tools.execute("read_file", &capped).ok,
+            "paging is not authorization"
+        );
+        assert!(tools.limit_observation("write_file", &args, 512).is_none());
+        let search = serde_json::json!({"pattern":"needle", "path":"../outside", "max_results":3});
+        let capped = tools.limit_observation("grep", &search, 512).unwrap();
+        for key in ["pattern", "path", "max_results"] {
+            assert_eq!(capped[key], search[key]);
+        }
+        assert_eq!(capped["max_bytes"], 512);
+        assert!(!tools.execute("grep", &capped).ok);
+        assert!(tools
+            .limit_observation(
+                "grep",
+                &serde_json::json!({"pattern":"x", "max_bytes":0}),
+                512
+            )
+            .is_none());
+        for invalid in [
+            serde_json::json!({"path":"a","max_bytes":"bad"}),
+            serde_json::json!({"path":"a","max_bytes":0}),
+        ] {
+            assert!(tools
+                .limit_observation("read_file", &invalid, 512)
+                .is_none());
+        }
+        let tools = tools.with_allowed_tools(std::collections::HashSet::new());
+        assert!(tools.limit_observation("read_file", &args, 512).is_none());
+        assert!(tools.limit_observation("grep", &search, 512).is_none());
+    }
 
     #[test]
     fn checkpoint_refuses_staged_mutations_and_retained_subprocess_state() {
