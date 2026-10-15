@@ -2,6 +2,11 @@
 
 Status: in progress. [Initial implementation and trial evidence](implementation-2026-10-08.md) covers part of EXP-001–003. The full journey and release gate remain unaccepted.
 
+[October 15 draft-inspection evidence](draft-inspection-2026-10-15.md) adds
+in-place review of stopped agents' pending files, with scoped persistence,
+offline behavioral tests and an isolated browser check. It does not close the
+large-project qualification or full-team recovery requirements.
+
 ## Setup and preservation
 
 Retain the original October 8 review database, artifacts and browser state. Run new trials in a separately identified empty workspace using the same product entry point, not a development fixture page. Record source revision, OS/hardware, provider/model, host and per-agent limits, granted folder/tool scope and starting data.

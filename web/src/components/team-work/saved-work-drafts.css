@@ -1,0 +1,87 @@
+.tw-saved-draft {
+  margin-block: 1rem;
+  border: 1px solid var(--brand-rule);
+  border-radius: 12px;
+  overflow: hidden;
+  background: color-mix(in srgb, var(--color-accent) 5%, transparent);
+}
+.tw-saved-draft-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 1rem;
+}
+.tw-saved-draft-heading p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  opacity: 0.75;
+}
+.tw-saved-draft button {
+  border: 1px solid var(--brand-rule);
+  border-radius: 8px;
+  background: var(--bg-surface);
+  padding: 0.5rem 0.75rem;
+  font-size: 0.8rem;
+}
+.tw-saved-draft button:not(:disabled):hover {
+  border-color: var(--color-accent);
+}
+.tw-saved-draft-heading > button {
+  color: var(--color-accent);
+  font-weight: 600;
+}
+.tw-saved-draft-body {
+  padding: 0 1rem 1rem;
+}
+.tw-saved-draft-files {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 0.4rem;
+}
+.tw-saved-draft-files button {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-align: left;
+}
+.tw-saved-draft-files span {
+  overflow-wrap: anywhere;
+}
+.tw-saved-draft-files small {
+  opacity: 0.7;
+}
+.tw-saved-draft-files button[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--color-accent) 14%, transparent);
+}
+.tw-saved-draft-text > strong {
+  display: block;
+  margin-block: 0.75rem;
+  overflow-wrap: anywhere;
+}
+.tw-saved-draft-text pre {
+  max-height: 22rem;
+  overflow: auto;
+  padding: 0.85rem;
+  font-size: 0.8rem;
+  line-height: 1.6;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--text-primary) 5%, transparent);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.tw-saved-draft-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+}
+.tw-saved-draft-pages span {
+  flex: 1;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}

@@ -231,13 +231,44 @@ impl crate::Application {
             }),
             None => provider,
         };
+        let run_id = if let Some(parent) = &prepared.delegation_parent {
+            parent.binding().run_id.clone()
+        } else {
+            tetonic_run::managed::activation::activation_run_id(
+                &prepared.authorization.scope,
+                &prepared
+                    .activation
+                    .as_ref()
+                    .ok_or(AppError::InferenceUnavailable)?
+                    .request_id,
+            )
+            .map_err(|_| AppError::InferenceUnavailable)?
+        };
+        let drafts = Arc::new(crate::execution::drafts::DraftRecorder {
+            tools: Arc::new(tools.clone()),
+            artifacts: Box::pin(prepared.contexts.bind_artifacts(
+                credential,
+                prepared.authorization.scope.information_context_id.clone(),
+                runtime.artifact_store().clone(),
+            ))
+            .await
+            .map_err(resource_error)?,
+            store: kind_store.clone(),
+            scope: prepared.authorization.scope.clone(),
+            history: history.clone(),
+            run_id,
+            runtime: tokio::runtime::Handle::current(),
+            audit: abort_audit,
+        });
         prepared.finalization = Some(tetonic_run::FinalizationPolicy {
             effect_driver: Some(Arc::new(
-                crate::execution::finalization::ToolsFinalizationDriver(Arc::new(tools.clone())),
+                crate::execution::finalization::ToolsFinalizationDriver {
+                    tools: Arc::new(tools.clone()),
+                    drafts: drafts.clone(),
+                },
             )),
             verify_cmd: None,
         });
-        let abort_tools = tools.clone();
         let config = tetonic_core::AgentConfig {
             model: settings.model,
             num_ctx: settings.num_ctx,
@@ -290,13 +321,7 @@ impl crate::Application {
             },
             config,
         );
-        let agent = agent.with_abort_staged(Arc::new(move || {
-            match abort_tools.abort_preserving_draft() {
-                Ok(Some(path)) => abort_audit.note(&format!("Stopped workspace draft retained for inspection: {}. Not committed, verified or accepted; restoration requires review.", path.display())),
-                Ok(None) => {},
-                Err(error) => abort_audit.note(&format!("Stopped workspace draft could not be retained: {error}")),
-            }
-        }));
+        let agent = agent.with_abort_staged(Arc::new(move || drafts.retain()));
         let (post_edit_snapshot, resolve_under_root, capture_workspace_version) =
             crate::execution::workspace_hooks::composition_capability_hooks();
         let agent = runtime

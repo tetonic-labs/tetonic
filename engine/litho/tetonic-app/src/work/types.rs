@@ -85,6 +85,8 @@ pub struct LocalWorkspaceSnapshot {
 #[derive(Serialize)]
 pub struct LocalTask {
     #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub saved_drafts: Vec<tetonic_memory::WorkspaceDraftReceipt>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
     pub tool_problems: Vec<LocalToolProblem>,
     pub guide_background: bool,
     pub work_team: Option<WorkTeam>,

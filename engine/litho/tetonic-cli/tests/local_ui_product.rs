@@ -15,6 +15,16 @@ impl Drop for Engine {
 }
 
 fn get(address: &str, path: &str, bearer: Option<&str>) -> (u16, String) {
+    request(address, path, bearer, "GET", "")
+}
+
+fn request(
+    address: &str,
+    path: &str,
+    bearer: Option<&str>,
+    method: &str,
+    body: &str,
+) -> (u16, String) {
     let mut stream = TcpStream::connect(address).unwrap();
     stream
         .set_read_timeout(Some(Duration::from_secs(10)))
@@ -24,7 +34,7 @@ fn get(address: &str, path: &str, bearer: Option<&str>) -> (u16, String) {
         .unwrap_or_default();
     write!(
         stream,
-        "GET {path} HTTP/1.1\r\nHost: {address}\r\n{auth}Connection: close\r\n\r\n"
+        "{method} {path} HTTP/1.1\r\nHost: {address}\r\n{auth}Content-Type: application/json\r\nContent-Length: {}\r\nConnection: close\r\n\r\n{body}", body.len()
     )
     .unwrap();
     let mut response = String::new();
@@ -94,4 +104,32 @@ fn built_product_and_authenticated_workspace_share_one_ephemeral_port() {
     assert_eq!(status, 200);
     assert!(snapshot.contains("\"tasks\":[]"));
     assert!(!snapshot.contains(token));
+    let draft = "/api/local/tasks/00000000-0000-4000-8000-000000000000/draft";
+    assert_eq!(request(&address, draft, None, "POST", "{}").0, 401);
+    for body in ["{}", r#"{"artifact_id":"draft","execute":true}"#] {
+        let (status, response) = request(&address, draft, Some(token), "POST", body);
+        assert_eq!(status, 400);
+        assert!(response.contains("Invalid draft request"));
+        assert!(response
+            .to_ascii_lowercase()
+            .contains("cache-control: no-store"));
+    }
+    let (status, response) = request(
+        &address,
+        draft,
+        Some(token),
+        "POST",
+        r#"{"artifact_id":"draft"}"#,
+    );
+    assert!((400..500).contains(&status));
+    assert!(
+        !response.contains("Invalid draft request"),
+        "valid reads must reach the work owner"
+    );
+    assert!(!response.contains(token));
+    let (_, snapshot) = get(&address, "/api/local/workspace", Some(token));
+    assert!(
+        snapshot.contains("\"tasks\":[]"),
+        "inspection cannot create work"
+    );
 }

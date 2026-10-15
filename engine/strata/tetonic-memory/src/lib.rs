@@ -11,6 +11,7 @@ use rusqlite::{params, Connection, OptionalExtension};
 use thiserror::Error;
 
 mod artifacts;
+pub use artifacts::workspace_drafts::WorkspaceDraftReceipt;
 mod context;
 mod control;
 mod execution;

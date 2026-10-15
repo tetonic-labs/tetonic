@@ -531,6 +531,7 @@ All responses are JSON with `Cache-Control: no-store`. Errors have `{ "error": "
 | POST | `/api/local/tasks` | `{ "request_id": "UUID", "input": "...", "agent_key": "..." }`; saves work and admits a bounded managed run for that agent. Omitted agent key selects the legacy Local assistant. Unknown fields are rejected. |
 | GET | `/api/local/tasks/<UUID>` | Current task state and authorized result. |
 | POST | `/api/local/tasks/<UUID>/cancel` | Requests cancellation of this profile's owned run; response reflects actual engine state. |
+| POST | `/api/local/tasks/<UUID>/draft` | Explicit read-only inspection of a saved uncommitted draft belonging to this exact work item; see below. |
 
 Clients retain the same request ID after a lost response. Changed task input or agent selection under the same ID is rejected. Changed agent definitions under the same registration ID are rejected. Identical registration and admitted-task retries work even when Ollama is subsequently offline. A stored grant's expiry is never extended by retrying. Existing work with an attached run returns that run without redispatching. Pre-admission errors can leave a saved `not_started` request; retry uses its ID. Interrupted runs are not automatically resumed.
 
@@ -547,6 +548,44 @@ usage before retrying; it does not silently release uncertain consumption.
 Task states: `not_started`, `starting`, `running`, `waiting_human`, `canceling`, `canceled`, `failed`, `completed`, `recovery_required`. Running is derived from a claimed/running task, not from clicking Send. The UI polls sequentially every 1.5 seconds, retains the last received state with a disconnected warning, and merges by task ID and run sequence. Browser closure does not stop the service's work. Stopping the service interrupts execution; recovery behavior remains owned by the engine.
 
 Final answers are read from the accepted artifact through the context-authorized artifact adapter, bounded to 64 KiB and digest-checked. A `finish` response need not contain assistant text in its transcript. Run inspection uses `DurableRunReader`, which cannot dispatch commands or perform startup recovery. Recovery remains exclusive to execution-supervisor startup.
+
+### Saved unfinished files — October 15, 2026
+
+Full task inspection can include `saved_drafts` receipts with `artifact_id`,
+`digest`, `run_id`, `task_id`, `attempt_id`, and `file_count`. They identify
+unaccepted pending edits, never completed contributions. Workspace summaries
+do not read their contents. Newly stopped transactions and failed finalization
+can create these receipts through the existing scoped artifact and audit owners;
+there is no new execution lifecycle or database table.
+
+`POST /api/local/tasks/<UUID>/draft` accepts
+`{ "artifact_id": "...", "file": 0, "offset": 0 }`. Omitting `file` returns only
+the file list. `file` is a zero-based list index and `offset` is a byte offset
+at a UTF-8 boundary. The response is
+`{ "artifact_id": "...", "files": [...], "page": null | {...} }`:
+
+- Each file has `path`, `operation`, `byte_count`, and `text_available`.
+- A text page has `file`, `content`, `offset`, and `next_offset` (null at end).
+  It contains at most 16 KiB, without splitting a character.
+- Binary content, deletion and mode-only entries may have no text preview.
+  Exact original bytes remain in protected local transaction storage.
+
+This uses the adapter's existing authentication and no-store headers. The body
+is limited to 8 KiB and five seconds; unknown fields are rejected. The work
+reader requires the exact task's receipt, current context/artifact permission,
+matching run/task/attempt, and the complete stored content digest. It rechecks
+access after reading. It rejects accepted or mismatched artifacts, changed
+bytes, invalid file indexes and invalid offsets. Payload reads are bounded to
+160 MiB; the artifact store's own stricter write limit still applies. Hashing
+and JSON projection run on a blocking worker.
+
+The existing inspector offers **Review saved draft** in place, with file
+selection and text paging. Reads do not invoke a model, consume agent budget,
+apply a patch, or restart an attempt. Disconnecting or changing connections
+clears the preview and cancels outstanding reads. Failed reads offer a read
+retry only. Previously retained raw drafts without scoped receipts are not
+migrated. If the inspection copy cannot be saved, audit notes report that
+limitation and the raw draft remains; the UI must not imply a verified result.
 
 ## Current limits
 

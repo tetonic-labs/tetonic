@@ -12,6 +12,7 @@ import type {
   PlanContinuation,
   PlanCommand,
   EngineTask,
+  WorkDraftView,
   EngineWorkspace,
   BudgetSetting,
   EngineAgent,
@@ -41,6 +42,19 @@ import { readEngineFailure, EngineRequestError, EngineConnectionError } from './
 
 export class LocalEngine {
   constructor(private token: string) {}
+  readWorkDraft(
+    work: string,
+    artifact_id: string,
+    file?: number,
+    offset = 0,
+    signal?: AbortSignal,
+  ) {
+    return this.request<WorkDraftView>(
+      `/tasks/${encodeURIComponent(work)}/draft`,
+      { artifact_id, file, offset },
+      signal,
+    );
+  }
   async request<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
     if (!this.token) throw new EngineConnectionError('missing');
     const deadline = new AbortController();

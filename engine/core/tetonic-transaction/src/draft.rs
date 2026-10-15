@@ -63,9 +63,19 @@ impl WorkspaceTransaction {
             "preview":preview, "contents":contents,
         });
         let directory = self.lokai_dir.join("artifacts");
+        crate::fs_ops::resolve_under_root(&self.root, ".lokai/artifacts")?;
         std::fs::create_dir_all(&directory).map_err(|e| TransactionError::Io(e.to_string()))?;
         let path = directory.join(format!("draft-{}.json", self.id.0));
         let temporary = path.with_extension("pending");
+        for candidate in [&path, &temporary] {
+            let relative = candidate
+                .strip_prefix(&self.root)
+                .map_err(|_| TransactionError::Other("draft outside workspace".into()))?;
+            crate::fs_ops::resolve_under_root(&self.root, &relative.to_string_lossy())?;
+            if crate::fs_ops::is_symlink_or_reparse(candidate) {
+                return Err(TransactionError::Other("draft path is a link".into()));
+            }
+        }
         std::fs::write(
             &temporary,
             serde_json::to_vec(&artifact).map_err(|e| TransactionError::Other(e.to_string()))?,

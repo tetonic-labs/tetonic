@@ -5,6 +5,7 @@
 //! these adapters supply host effects and projections, never a second lifecycle.
 pub mod attestation;
 pub mod audit;
+pub(crate) mod drafts;
 pub(crate) mod finalization;
 mod observer;
 mod service;

@@ -248,8 +248,19 @@ references; they never become completed dependency evidence.
 Stopped managed edits can leave an inert [transaction draft artifact](../../engine/core/tetonic-transaction/src/draft.rs)
 under the workspace's protected `.lokai/artifacts` directory. It retains exact
 bytes, task/attempt provenance and a conservative secret classification, while
-normal abort removes live staging. This is local diagnostic retention, not
-automatic restore, a completed output or a new shared artifact API. Managed
+normal abort removes live staging. The application
+[draft recorder](../../engine/litho/tetonic-app/src/execution/drafts.rs)
+validates the durable run/task/attempt and scoped audit binding, then seals a
+text inspection copy through the existing context-authorized artifact store.
+It records a receipt in the existing execution audit; it does not accept the
+artifact as a result. The [work reader](../../engine/litho/tetonic-app/src/work/drafts.rs)
+checks current access, exact provenance and content digest before returning
+bounded text pages. The existing work inspector exposes this only on request.
+These are reviewable pending edits, not automatic restore or completed output.
+Binary bytes remain in the original local draft; older drafts without a receipt
+are not backfilled. If scoped publication fails, the original draft remains and
+the audit reports the missing inspection copy without promising recovery.
+Managed
 commits wait up to five seconds for ordinary writer-lock contention in the
 existing owned blocking worker, check cancellation while waiting and recheck
 file conflicts after acquiring the lock. Other errors are not retried.

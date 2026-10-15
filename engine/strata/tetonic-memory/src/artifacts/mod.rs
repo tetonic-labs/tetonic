@@ -2,3 +2,4 @@
 
 pub(crate) mod context_artifacts;
 pub(crate) mod result_disposition;
+pub(crate) mod workspace_drafts;

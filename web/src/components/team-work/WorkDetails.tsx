@@ -9,6 +9,7 @@ import { HumanQuestion } from './HumanQuestion';
 import { WorkStatus } from './WorkStatus';
 import { approvalFor, workSignal } from '../../lib/workSignals';
 import { ApprovalRequests } from './ApprovalRequests';
+import { SavedWorkDrafts } from './SavedWorkDrafts';
 
 export function WorkDetails({
   work,
@@ -125,6 +126,7 @@ export function WorkDetails({
                 </div>
               )}
               {turn.error && <p role="alert">{turn.error}</p>}
+              <SavedWorkDrafts task={turn} />
               {turn.messages
                 .filter((m) => m.role === 'assistant')
                 .map((m) => (

@@ -3,6 +3,7 @@ import { useLocalEngine } from '../../context/LocalEngineContext';
 import { connectionDraftScope } from '../../engine/connection';
 import { waitingAfterAnswer } from '../../engine/projections/taskState';
 import { EngineRequestError } from '../../engine/failure';
+import { SavedWorkDrafts } from './SavedWorkDrafts';
 import { type PlanView, type StartPlanRequest } from '../../engine/contracts';
 import { stateLabels } from '../../engine/projections/records';
 import { FormattedMarkdown } from '../ui/FormattedMarkdown';
@@ -484,6 +485,7 @@ export function PlanExecution({
                     </span>
                   </summary>
                   {task?.error && <p role="alert">{task.error}</p>}
+                  {task && <SavedWorkDrafts task={task} />}
                   {response ? (
                     <FormattedMarkdown text={response} />
                   ) : (

@@ -219,6 +219,41 @@ async fn run_delivery(exhaust_after_write: bool) {
                     .filter(|e| e.file_name().to_string_lossy().starts_with("draft-"))
                     .collect();
                 assert_eq!(drafts.len(), 2);
+                for (index, task) in complete.assignments.iter().enumerate() {
+                    assert_eq!(task.saved_drafts.len(), 1);
+                    let draft = &task.saved_drafts[0];
+                    let review = workspace
+                        .read_work_draft(
+                            &task.id,
+                            crate::work::ReadWorkDraft {
+                                artifact_id: draft.artifact_id.clone(),
+                                file: Some(0),
+                                offset: 0,
+                            },
+                        )
+                        .await
+                        .unwrap();
+                    assert!(review
+                        .page
+                        .unwrap()
+                        .content
+                        .contains("verified source facts"));
+                    let sibling = &complete.assignments[1 - index];
+                    assert!(
+                        workspace
+                            .read_work_draft(
+                                &sibling.id,
+                                crate::work::ReadWorkDraft {
+                                    artifact_id: draft.artifact_id.clone(),
+                                    file: None,
+                                    offset: 0,
+                                }
+                            )
+                            .await
+                            .is_err(),
+                        "a sibling work ID cannot borrow another attempt's draft"
+                    );
+                }
                 for draft in drafts {
                     let value: Value =
                         serde_json::from_slice(&std::fs::read(draft.path()).unwrap()).unwrap();

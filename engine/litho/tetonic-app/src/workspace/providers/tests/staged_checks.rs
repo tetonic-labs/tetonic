@@ -193,6 +193,42 @@ async fn run(provider: &'static str, repair: bool) {
                     "a model's finish call is not a successful verification"
                 );
                 assert_eq!(
+                    result.saved_drafts.len(),
+                    1,
+                    "failed finalization must expose retained output"
+                );
+                let draft = &result.saved_drafts[0];
+                let calls_before = transport.calls.lock().unwrap().len();
+                let review = workspace
+                    .read_work_draft(
+                        &id,
+                        crate::work::ReadWorkDraft {
+                            artifact_id: draft.artifact_id.clone(),
+                            file: Some(0),
+                            offset: 0,
+                        },
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(review.files[0].path, "result.txt");
+                assert_eq!(review.page.unwrap().content, "broken\n");
+                assert_eq!(
+                    transport.calls.lock().unwrap().len(),
+                    calls_before,
+                    "inspection cannot restart inference"
+                );
+                assert!(workspace
+                    .read_work_draft(
+                        &id,
+                        crate::work::ReadWorkDraft {
+                            artifact_id: "unrelated-artifact".into(),
+                            file: None,
+                            offset: 0,
+                        }
+                    )
+                    .await
+                    .is_err());
+                assert_eq!(
                     std::fs::read_to_string(root.join("result.txt")).unwrap(),
                     "original\n"
                 );
@@ -205,6 +241,63 @@ async fn run(provider: &'static str, repair: bool) {
                             .to_string_lossy()
                             .starts_with("draft-")),
                     "rejected output remains available for review"
+                );
+                let artifact = draft.artifact_id.clone();
+                drop(workspace);
+                let reopened = LocalWorkspace::open_with_workspace(
+                    dir.path().join("state.db"),
+                    "offline".into(),
+                    "http://127.0.0.1:1".into(),
+                    Some(root.clone()),
+                )
+                .await
+                .unwrap();
+                let review = reopened
+                    .read_work_draft(
+                        &id,
+                        crate::work::ReadWorkDraft {
+                            artifact_id: artifact.clone(),
+                            file: Some(0),
+                            offset: 0,
+                        },
+                    )
+                    .await
+                    .unwrap();
+                assert_eq!(
+                    review.page.unwrap().content,
+                    "broken\n",
+                    "draft inspection survives a new engine instance"
+                );
+                let meta = reopened
+                    .services
+                    .host
+                    .app
+                    .host
+                    .runtime
+                    .artifact_store()
+                    .metadata(&tetonic_domain::ArtifactId::new(artifact.clone()))
+                    .await
+                    .unwrap();
+                if let tetonic_domain::artifact::ArtifactLocation::LocalFile(path) =
+                    meta.storage_location
+                {
+                    std::fs::write(path, b"tampered").unwrap();
+                } else {
+                    panic!("expected a local artifact");
+                }
+                assert!(
+                    reopened
+                        .read_work_draft(
+                            &id,
+                            crate::work::ReadWorkDraft {
+                                artifact_id: artifact,
+                                file: Some(0),
+                                offset: 0,
+                            }
+                        )
+                        .await
+                        .is_err(),
+                    "changed artifact bytes cannot masquerade as retained work"
                 );
             }
         })

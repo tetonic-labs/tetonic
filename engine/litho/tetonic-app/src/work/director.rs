@@ -307,6 +307,7 @@ mod tests {
                     }
                 }
                 snapshot.tasks.push(LocalTask {
+                    saved_drafts: vec![],
                     tool_problems: vec![],
                     guide_background: false,
                     work_team: None,

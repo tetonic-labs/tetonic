@@ -2,6 +2,7 @@
 mod assets;
 mod contract;
 mod requests;
+mod tasks;
 use clap::Parser;
 use contract::{application_error, authorized, error, local_origin};
 use http_body_util::{BodyExt, Full, Limited};
@@ -730,24 +731,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             return error(StatusCode::METHOD_NOT_ALLOWED, "Unsupported method.");
         }
     } else if let Some(id) = path.strip_prefix("/api/local/tasks/") {
-        if method == hyper::Method::POST {
-            let Some(id) = id.strip_suffix("/cancel") else {
-                return error(StatusCode::NOT_FOUND, "Unknown action.");
-            };
-            state
-                .workspace
-                .cancel(id)
-                .await
-                .map(|v| serde_json::to_value(v).unwrap_or_default())
-        } else if method == hyper::Method::GET {
-            state
-                .workspace
-                .task(id)
-                .await
-                .map(|v| serde_json::to_value(v).unwrap_or_default())
-        } else {
-            return error(StatusCode::METHOD_NOT_ALLOWED, "Unsupported method.");
-        }
+        return tasks::handle(state, id, request).await;
     } else if let Some(id) = path.strip_prefix("/api/local/approvals/") {
         if method == hyper::Method::POST {
             let Some(id) = id.strip_suffix("/resolve") else {

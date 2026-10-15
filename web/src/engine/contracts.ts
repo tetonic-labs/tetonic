@@ -161,6 +161,7 @@ export type EngineTaskState =
   | 'recovery_required';
 
 export interface EngineTask {
+  saved_drafts?: { artifact_id: string; file_count: number }[];
   guide_background?: boolean;
   guide_activity?: GuideActivity[];
   work_team?: WorkTeam | null;
@@ -178,6 +179,12 @@ export interface EngineTask {
   run_id: string | null;
   sequence: number;
   messages: EngineMessage[];
+}
+
+export interface WorkDraftView {
+  artifact_id: string;
+  files: { path: string; operation: string; byte_count: number; text_available: boolean }[];
+  page: { file: number; content: string; offset: number; next_offset: number | null } | null;
 }
 
 export interface GuideActivity {

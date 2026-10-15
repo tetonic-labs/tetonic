@@ -204,6 +204,7 @@ impl WorkService {
             )
             .await?;
         let mut task = LocalTask {
+            saved_drafts: vec![],
             tool_problems: vec![],
             guide_background: work.purpose == WorkPurpose::Explore
                 && self
@@ -354,6 +355,27 @@ impl WorkService {
             })
             .map(|a| a.audit_session_id.clone())
         {
+            if let Some(attempt) = attempt {
+                let scope = self.services.authorized_scope().await?;
+                let actor = scope.principal().to_owned();
+                let draft_context = context.clone();
+                let draft_history = history.clone();
+                task.saved_drafts = self
+                    .services
+                    .local
+                    .store()
+                    .read(move |db| db.workspace_drafts(&actor, &draft_context, &draft_history))
+                    .await
+                    .map_err(|_| AppError::InferenceUnavailable)?
+                    .map_err(|e| resource(e.into()))?
+                    .into_iter()
+                    .filter(|r| {
+                        r.run_id == snapshot.run_id.0
+                            && r.task_id == attempt.task_id.0
+                            && r.attempt_id == attempt.attempt_id.0
+                    })
+                    .collect();
+            }
             let history = contexts
                 .transcript_entries(
                     &self.services.host.credential,
@@ -469,7 +491,7 @@ pub(super) fn task_failure_message(reason: Option<&str>) -> &'static str {
         return "The agent stopped after repeated unsuccessful tool calls. Your conversation and saved work are preserved. Review the activity before trying again or choosing another model.";
     }
     if reason.contains("cannot fit the next request input and completion headroom") {
-        return "This assignment has too little allowance left to read its context and respond. The next model request was not sent. Completed work remains available. Check activity for any retained, uncommitted draft; it is not a verified result. Review Usage and the actual outputs before narrowing or continuing unfinished work.";
+        return "This assignment has too little allowance left to read its context and respond. The next model request was not sent. Completed work remains available. Any saved draft appears with this assignment and is not a verified result. Review its output and Usage before narrowing or continuing unfinished work.";
     }
     if reason.contains("work allocation token allowance exhausted by reported usage") {
         return "Reported usage has exceeded a shared work allowance. Further model requests in this scope have stopped. Review Usage before continuing; saved contributions are preserved.";
