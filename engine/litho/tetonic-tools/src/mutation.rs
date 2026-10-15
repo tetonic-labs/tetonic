@@ -172,7 +172,16 @@ impl RepositoryMutationService {
             ));
         }
         let path = refresh_mutating_path(ws, &ws.resolve(&a.path)?)?;
-        if tetonic_transaction::fs_ops::is_symlink_or_reparse(&path) || !path.is_file() {
+        let pending = !path.is_file()
+            && self
+                .transactions
+                .with_active_if_any(|txn| txn.read_staged_file(&a.path))
+                .map_err(map_txn_err)?
+                .flatten()
+                .is_some();
+        if tetonic_transaction::fs_ops::is_symlink_or_reparse(&path)
+            || (!path.is_file() && !pending)
+        {
             let sug = crate::workspace::find_similar_paths(ws.root(), &a.path).unwrap_or_default();
             return Err(ToolError::not_found(a.path, sug));
         }
@@ -180,8 +189,12 @@ impl RepositoryMutationService {
             .with_active(|txn| {
                 let (before, updated) =
                     txn.stage_edit_file(&a.path, &a.old_string, &a.new_string)?;
-                let syntax_root = txn.staged_overlay_path()?;
-                if let Err(e) = check_python_syntax(&syntax_root, &a.path) {
+                let syntax = if a.path.ends_with(".py") {
+                    check_python_syntax(&txn.staged_overlay_path()?, &a.path)
+                } else {
+                    Ok(())
+                };
+                if let Err(e) = syntax {
                     return Ok(ToolOutcome {
                         content_complete: true,
                         ok: false,
@@ -239,8 +252,9 @@ impl RepositoryMutationService {
         let existed = before.is_some();
         self.transactions
             .with_active(|txn| {
+                let before = txn.read_staged_file(&a.path)?.or(before);
                 txn.stage_write_file(&a.path, &a.content, existed)?;
-                if existed {
+                if existed && a.path.ends_with(".py") {
                     let syntax_root = txn.staged_overlay_path()?;
                     if let Err(e) = check_python_syntax(&syntax_root, &a.path) {
                         return Ok(ToolOutcome {

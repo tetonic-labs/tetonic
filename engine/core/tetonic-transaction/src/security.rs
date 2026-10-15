@@ -45,7 +45,12 @@ pub fn validate_path(root: &Path, rel: &str) -> Result<WorkspacePath, Transactio
             return Err(TransactionError::OutsideWorkspace(rel.to_string()));
         }
     }
-    Ok(WorkspacePath::new(norm))
+    // A file has one transaction entry, including when later tools use ./ or
+    // repeated separators. Validate the original spelling before normalizing.
+    let relative = resolved
+        .strip_prefix(root)
+        .map_err(|_| TransactionError::OutsideWorkspace(rel.to_string()))?;
+    Ok(WorkspacePath::new(relative.to_string_lossy()))
 }
 
 fn forbidden_component(component: &str) -> bool {

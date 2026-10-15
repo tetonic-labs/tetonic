@@ -6,6 +6,7 @@ struct CheckTransport {
     provider: &'static str,
     repair: bool,
     pack: bool,
+    new_file: bool,
     calls: Mutex<Vec<Value>>,
 }
 #[async_trait::async_trait]
@@ -39,8 +40,8 @@ impl HostedTransport for CheckTransport {
                 );
                 if self.repair {
                     (
-                        "write_file",
-                        json!({"path":"result.txt","content":"ready\n"}),
+                        "edit_file",
+                        json!({"path":"./result.txt","old_string":"broken","new_string":"ready"}),
                     )
                 } else {
                     (
@@ -67,7 +68,7 @@ impl HostedTransport for CheckTransport {
             6 if self.pack => {
                 let output = parity::output(&body, self.provider, "step-5");
                 assert!(
-                    output.contains("-original")
+                    (self.new_file || output.contains("-original"))
                         && output.contains("+ready")
                         && output.contains("check passed"),
                     "{output}"
@@ -102,24 +103,28 @@ impl HostedTransport for CheckTransport {
 #[tokio::test]
 async fn created_agents_check_repair_and_deliver_through_all_provider_adapters() {
     for provider in ["openai", "anthropic", "google"] {
-        run(provider, true, false).await;
-        run(provider, true, true).await;
+        for new_file in [false, true] {
+            run(provider, true, false, new_file).await;
+            run(provider, true, true, new_file).await;
+        }
     }
 }
 
 #[tokio::test]
 async fn model_claiming_done_after_failed_check_cannot_publish_pending_edits() {
-    run("openai", false, false).await;
-    run("openai", false, true).await;
+    run("openai", false, false, false).await;
+    run("openai", false, true, false).await;
 }
 
-async fn run(provider: &'static str, repair: bool, pack: bool) {
+async fn run(provider: &'static str, repair: bool, pack: bool, new_file: bool) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let dir = tempfile::tempdir().unwrap();
             let root = dir.path().join("files");
             std::fs::create_dir(&root).unwrap();
-            std::fs::write(root.join("result.txt"), "original\n").unwrap();
+            if !new_file {
+                std::fs::write(root.join("result.txt"), "original\n").unwrap();
+            }
             std::fs::write(root.join("instructions.txt"), "fixture instructions").unwrap();
             let mut workspace = LocalWorkspace::open_with_workspace(
                 dir.path().join("state.db"),
@@ -144,6 +149,7 @@ async fn run(provider: &'static str, repair: bool, pack: bool) {
                 provider,
                 repair,
                 pack,
+                new_file,
                 calls: Mutex::default(),
             });
             workspace.services.hosted_transport = Some(transport.clone());
@@ -171,7 +177,12 @@ async fn run(provider: &'static str, repair: bool, pack: bool) {
                     tools: Some(if pack {
                         vec![]
                     } else {
-                        vec!["write_file".into(), "read_file".into(), "run_shell".into()]
+                        vec![
+                            "write_file".into(),
+                            "edit_file".into(),
+                            "read_file".into(),
+                            "run_shell".into(),
+                        ]
                     }),
                     max_steps: 8,
                     max_seconds: 60,
@@ -217,8 +228,8 @@ async fn run(provider: &'static str, repair: bool, pack: bool) {
                 assert!(proposal.working_directory.ends_with("verify_overlay"));
                 assert_eq!(proposal.digest(), approval.proposal_digest);
                 assert_eq!(
-                    std::fs::read_to_string(root.join("result.txt")).unwrap(),
-                    "original\n",
+                    std::fs::read_to_string(root.join("result.txt")).ok(),
+                    (!new_file).then(|| "original\n".into()),
                     "check cannot publish before finalization"
                 );
                 workspace

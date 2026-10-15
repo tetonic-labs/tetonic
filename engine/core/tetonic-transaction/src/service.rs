@@ -387,9 +387,20 @@ impl WorkspaceTransaction {
     ) -> Result<(String, String), TransactionError> {
         self.enter_staging()?;
         let path = validate_path(&self.root, rel)?;
-        let (before, after) =
-            self.staging
-                .stage_edit(&self.root, &mut self.sets, &path, old, new)?;
+        let (before, after) = self
+            .staging
+            .prepare_edit(&self.root, &self.sets, &path, old, new)?;
+        // Check before changing pending bytes so a rejected edit leaves the
+        // previous draft intact. Use the bytes read as the initial baseline;
+        // subsequent edits retain the transaction's original baseline.
+        check_content_size(&self.limits, self.staged_bytes, after.len() as u64)?;
+        self.staging.stage_replace(
+            &self.root,
+            &mut self.sets,
+            &path,
+            after.as_bytes(),
+            Some(crate::fs_ops::digest_string(&before)),
+        )?;
         self.staged_bytes += after.len() as u64;
         self.approval = None;
         self.transition(TransactionState::Staged)?;

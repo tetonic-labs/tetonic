@@ -62,3 +62,41 @@ current saved-agent runtime.
 
 The running engine must be rebuilt/restarted to expose the new catalog entries.
 These offline checks do not replace the deferred real-model project qualification.
+
+## Follow-up: reliable draft repair
+
+The repair cycle exposed defects beneath the pack: `edit_file` required a live
+file and always edited live bytes, so newly staged files could not be repaired
+and successive edits could discard earlier changes. Repeated staging could also
+recapture a peer's newer file as its baseline, defeating conflict detection.
+Staging names flattened `/` to `_`, aliasing files such as `src/a.txt` and
+`src_a.txt`. Six regression tests reproduced these failures before the fix.
+
+Transaction-owned edits now use the validated pending version, preserve the
+original publication baseline, normalize lexical path aliases into one entry,
+and enforce file/transaction size limits before replacing pending content.
+Staged content names use path digests. Tampered drafts remain errors. Tool
+outcomes report the previous pending bytes, and ordinary non-Python edits no
+longer copy the whole workspace merely to call a Python-only syntax checker.
+Python syntax checks and explicit governed verification remain in place.
+
+The created-agent regression now repairs with `edit_file` instead of rewriting
+the whole file. It covers new and existing files through OpenAI, Anthropic and
+Google adapters, with both individual tool grants and the Build & verify pack.
+Those twelve scripted repair cases passed, as did the negative cases that refuse
+publication after a failed check. Transaction and tool regression suites also
+passed. A passing check is invalidated by a later edit and must be repeated.
+
+Final follow-up validation:
+
+- `cargo test --locked -p tetonic-app -p tetonic-tools -p tetonic-transaction
+  --lib --tests --quiet`: 598 passed, six previously ignored. Includes application
+  integration tests as well as provider, transaction and tool unit tests.
+- `cargo run --locked -p tetonic-arch-gate -- verify package`: passed formatting,
+  workspace/all-target Clippy, architecture and static quality checks.
+- `git diff --check`: passed.
+
+This changes transaction/tool behavior, not the Guide's prompt or the UI. No
+model API calls, paid qualification attempts, user-workspace writes, or production
+engine restarts were performed. The running engine needs a rebuild/restart to
+load this follow-up. Real-model large-project qualification remains deferred.

@@ -28,12 +28,14 @@ fn failed_check_can_be_repaired_and_fresh_edits_must_be_checked_again() {
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());
     assert!(!dir.path().join("result.txt").exists());
-    stage(&svc, "ready");
+    svc.with_active(|t| t.stage_edit_file("./result.txt", "broken", "ready"))
+        .unwrap();
     assert!(svc
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());
     assert!(check(&svc, "ready").success);
-    stage(&svc, "changed after checking");
+    svc.with_active(|t| t.stage_edit_file("result.txt", "ready", "changed after checking"))
+        .unwrap();
     assert!(svc
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());

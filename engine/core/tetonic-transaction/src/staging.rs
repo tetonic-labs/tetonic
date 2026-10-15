@@ -57,10 +57,37 @@ impl StagingArea {
         rel: &WorkspacePath,
         data: &[u8],
     ) -> Result<PathBuf, TransactionError> {
-        let safe = rel.0.replace('/', "_");
+        // Flattening separators aliases paths such as src/a.txt and src_a.txt.
+        let digest = digest_bytes(rel.0.as_bytes());
+        let safe = digest.0.trim_start_matches("sha256:");
         let path = self.content_dir.join(safe);
         std::fs::write(&path, data).map_err(|e| TransactionError::Io(e.to_string()))?;
         Ok(path)
+    }
+
+    /// Revise pending bytes without rebasing the original publication condition.
+    fn revise_pending_content(
+        &self,
+        sets: &mut ReadWriteSets,
+        rel: &WorkspacePath,
+        content: &[u8],
+    ) -> Result<bool, TransactionError> {
+        let Some(operation) = sets.writes.get_mut(rel) else {
+            return Ok(false);
+        };
+        if !matches!(
+            operation.kind,
+            StagedOperationKind::Create | StagedOperationKind::Replace | StagedOperationKind::Edit
+        ) {
+            return Err(TransactionError::Other(format!(
+                "cannot overwrite a pending {:?} operation: {}",
+                operation.kind, rel.0
+            )));
+        }
+        let content_path = self.store_content(rel, content)?;
+        operation.new_content_path = Some(content_path.display().to_string());
+        operation.new_digest = Some(digest_bytes(content));
+        Ok(true)
     }
 
     pub fn stage_create(
@@ -71,6 +98,9 @@ impl StagingArea {
         content: &[u8],
         base_digest: Option<ContentDigest>,
     ) -> Result<(), TransactionError> {
+        if self.revise_pending_content(sets, rel, content)? {
+            return Ok(());
+        }
         if is_excluded_artifact(&rel.0) {
             return Err(TransactionError::Other(format!(
                 "refusing to stage build artifact: {}",
@@ -105,6 +135,9 @@ impl StagingArea {
         content: &[u8],
         base_digest: Option<ContentDigest>,
     ) -> Result<(), TransactionError> {
+        if self.revise_pending_content(sets, rel, content)? {
+            return Ok(());
+        }
         if is_excluded_artifact(&rel.0) {
             return Err(TransactionError::Other(format!(
                 "refusing to stage build artifact: {}",
@@ -155,27 +188,30 @@ impl StagingArea {
         Ok(())
     }
 
-    pub fn stage_edit(
+    pub(crate) fn prepare_edit(
         &self,
         root: &Path,
-        sets: &mut ReadWriteSets,
+        sets: &ReadWriteSets,
         rel: &WorkspacePath,
         old: &str,
         new: &str,
     ) -> Result<(String, String), TransactionError> {
         let abs = resolve_under_root(root, &rel.0)?;
-        if crate::fs_ops::is_symlink_or_reparse(&abs) || !abs.is_file() {
-            return Err(TransactionError::Other(format!(
-                "file not found: {}",
-                rel.0
-            )));
-        }
-        let text = crate::fs_ops::read_to_string_nofollow(&abs)?;
+        let text = match crate::read_view::read_staged_file(root, self, sets, &rel.0)? {
+            Some(text) => text,
+            None => {
+                if !abs.is_file() {
+                    return Err(TransactionError::Other(format!(
+                        "file not found: {}",
+                        rel.0
+                    )));
+                }
+                crate::fs_ops::read_to_string_nofollow(&abs)?
+            }
+        };
         let outcome = crate::fuzzy_patch::apply_fuzzy_edit(&text, old, new)
             .map_err(TransactionError::Other)?;
-        let base_digest = digest_file(&abs)?;
         let updated = outcome.updated_text;
-        self.stage_replace(root, sets, rel, updated.as_bytes(), Some(base_digest))?;
         Ok((text, updated))
     }
 
