@@ -76,6 +76,7 @@ async fn hosted_reads_use_selected_tools_exact_folder_and_actual_provider_result
                         .await
                         .unwrap();
                     let input = CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         provider: provider.into(),
                         hosted_consent: true,
@@ -119,6 +120,7 @@ async fn hosted_reads_use_selected_tools_exact_folder_and_actual_provider_result
                     }
                     let agent = workspace
                         .create_agent(CreateLocalAgent {
+                            tool_pack_selection: None,
                             workspace_root: None,
                             hosted_tools_consent: true,
                             ..input

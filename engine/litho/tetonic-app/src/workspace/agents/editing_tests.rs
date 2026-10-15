@@ -31,10 +31,28 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
                 .into_iter()
                 .find(|a| a.key == AGENT)
                 .unwrap();
+            let pack = workspace
+                .save_tool_pack(SaveToolPack {
+                    request_id: uuid::Uuid::new_v4().to_string(),
+                    id: uuid::Uuid::new_v4().to_string(),
+                    expected_revision: 0,
+                    name: "File verification".into(),
+                    description: "Read and check".into(),
+                    tools: vec!["read_file".into(), "run_shell".into()],
+                })
+                .await
+                .unwrap();
             let request = UpdateLocalAgent {
                 agent_key: original.key.clone(),
                 expected_definition_digest: original.definition_digest.clone(),
                 configuration: CreateLocalAgent {
+                    tool_pack_selection: Some(ToolPackSelection {
+                        packs: vec![crate::workspace::tool_packs::ToolPackRef {
+                            id: pack.id.clone(),
+                            revision: 1,
+                        }],
+                        excluded_tools: vec![],
+                    }),
                     workspace_root: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
                     name: "Robin".into(),
@@ -48,7 +66,7 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
                     max_steps: 2,
                     max_seconds: 60,
                     max_tokens: 8192,
-                    tools: Some(vec!["read_file".into(), "run_shell".into()]),
+                    tools: Some(vec![]),
                 },
             };
             let id = uuid::Uuid::new_v4().to_string();
@@ -72,6 +90,30 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
             assert_eq!(changed.id, original.id);
             assert_eq!(changed.key, original.key);
             assert_eq!(changed.tools, vec!["read_file", "run_shell"]);
+            assert_eq!(changed.tool_packs, vec![pack.clone()]);
+            workspace
+                .save_tool_pack(SaveToolPack {
+                    request_id: uuid::Uuid::new_v4().to_string(),
+                    id: pack.id.clone(),
+                    expected_revision: 1,
+                    name: pack.name.clone(),
+                    description: pack.description.clone(),
+                    tools: vec!["list_dir".into()],
+                })
+                .await
+                .unwrap();
+            assert_eq!(
+                workspace
+                    .services
+                    .agents()
+                    .await
+                    .unwrap()
+                    .into_iter()
+                    .find(|a| a.key == original.key)
+                    .unwrap()
+                    .tool_packs,
+                vec![pack]
+            );
             assert_eq!(
                 workspace
                     .update_agent(request.clone())
@@ -124,6 +166,7 @@ async fn edits_keep_identity_preserve_old_execution_and_run_new_tools_after_reop
                 .unwrap();
             assert_eq!(profile.name, "Robin");
             assert_eq!(profile.definition_digest, changed.definition_digest);
+            assert_eq!(profile.tool_packs, changed.tool_packs);
             let next_id = uuid::Uuid::new_v4().to_string();
             reopened
                 .submit(next_id.clone(), "After edit".into())

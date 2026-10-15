@@ -61,6 +61,7 @@ async fn managed_tool_execution(tool_name: &str) {
                 workspace.discover_mcp("calendar").await.unwrap();
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         provider: "ollama".into(),
                         hosted_consent: false,

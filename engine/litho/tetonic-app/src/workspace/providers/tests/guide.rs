@@ -146,6 +146,7 @@ async fn hosted_guide_settings_persist_and_all_providers_save_scoped_proposals_w
                     agent_key: original.key.clone(),
                     expected_definition_digest: original.definition_digest.clone(),
                     configuration: CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         name: original.name.clone(),

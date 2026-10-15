@@ -5,7 +5,8 @@ use crate::workspace::{resource, validate_request_id, WorkspaceServices, AGENT, 
 pub use crate::workspace::{
     CreateLocalAgent, FolderInspection, ImportSkill, LocalAgent, LocalAgentCatalog,
     LocalModelCatalog, LocalProvider, RemoveProviderKey, RevokeSkill, SaveMcpConnection,
-    SaveProviderKey, SaveWorkspaceFolders, UpdateLocalAgent, WorkspaceFolderCatalog,
+    SaveProviderKey, SaveToolPack, SaveWorkspaceFolders, ToolPack, ToolPackRef, ToolPackSelection,
+    UpdateLocalAgent, WorkspaceFolderCatalog,
 };
 use serde::{Deserialize, Serialize};
 use tetonic_domain::{ExecutionScope, RunState, TaskState};

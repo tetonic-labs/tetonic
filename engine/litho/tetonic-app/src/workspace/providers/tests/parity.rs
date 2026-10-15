@@ -148,7 +148,25 @@ async fn every_hosted_provider_uses_selected_mcp_and_denies_ungranted_or_changed
                         })
                         .await
                         .unwrap();
+                    let pack = workspace
+                        .save_tool_pack(SaveToolPack {
+                            request_id: uuid::Uuid::new_v4().to_string(),
+                            id: uuid::Uuid::new_v4().to_string(),
+                            expected_revision: 0,
+                            name: "Calendar research".into(),
+                            description: "Pinned search".into(),
+                            tools: vec![tool.clone()],
+                        })
+                        .await
+                        .unwrap();
                     let input = CreateLocalAgent {
+                        tool_pack_selection: selected.then(|| ToolPackSelection {
+                            packs: vec![ToolPackRef {
+                                id: pack.id,
+                                revision: 1,
+                            }],
+                            excluded_tools: vec![],
+                        }),
                         workspace_root: None,
                         provider: provider.into(),
                         hosted_consent: true,
@@ -162,7 +180,7 @@ async fn every_hosted_provider_uses_selected_mcp_and_denies_ungranted_or_changed
                         max_steps: 3,
                         max_seconds: 30,
                         max_tokens: 8192,
-                        tools: Some(if selected { vec![tool.clone()] } else { vec![] }),
+                        tools: Some(vec![]),
                     };
                     if selected {
                         assert!(

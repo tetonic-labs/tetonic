@@ -1,3 +1,4 @@
+import { ToolPackLibrary } from '../views/ToolPackLibrary';
 import { McpConnectionEditor } from '../views/McpConnectionEditor';
 import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
 import { SkillDetails } from '../views/SkillDetails';
@@ -132,6 +133,17 @@ export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {
   return (
     <ToolsView
       resources={resources}
+      packs={
+        ready &&
+        catalog && (
+          <ToolPackLibrary
+            client={engine.client}
+            catalog={catalog}
+            agents={workspace?.agents}
+            onChanged={engine.refresh}
+          />
+        )
+      }
       library={
         <WorkspaceCapabilityLibrary
           mcpSupported={!!catalog?.mcp_management && isConnected}

@@ -1,6 +1,12 @@
 //! Compatibility entry points delegate capability management to its scoped owner.
 use super::*;
 impl WorkService {
+    pub async fn tool_packs(&self) -> Result<Vec<ToolPack>, AppError> {
+        self.services.tool_packs().await
+    }
+    pub async fn save_tool_pack(&self, input: SaveToolPack) -> Result<ToolPack, AppError> {
+        self.services.save_tool_pack(input).await
+    }
     pub async fn folder_catalog(&self) -> Result<WorkspaceFolderCatalog, AppError> {
         self.services.folder_catalog().await
     }

@@ -148,6 +148,7 @@ async fn seed_board(workspace: &LocalWorkspace, follow_on: bool) -> String {
                 agent_key: agent.key,
                 expected_definition_digest: agent.definition_digest,
                 configuration: CreateLocalAgent {
+                    tool_pack_selection: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
                     name: agent.name,
                     purpose: agent.purpose,
@@ -731,6 +732,7 @@ async fn blackboard_permissions_fence_audiences_retries_revocation_and_foreign_w
                     agent_key: agent.key,
                     expected_definition_digest: agent.definition_digest,
                     configuration: CreateLocalAgent {
+                        tool_pack_selection: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         name: agent.name,
                         purpose: agent.purpose,

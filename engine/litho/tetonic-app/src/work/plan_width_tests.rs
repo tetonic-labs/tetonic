@@ -141,6 +141,7 @@ async fn run_width(width: u32, scenario: u8) {
             for n in 2..6 {
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        tool_pack_selection: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         name: format!("Worker {n}"),
                         purpose: "Complete the assigned contribution.".into(),

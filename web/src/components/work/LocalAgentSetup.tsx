@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { ToolPackLibrary } from '../views/ToolPackLibrary';
 import { WorkspaceCapabilityLibrary } from '../views/WorkspaceCapabilityLibrary';
 import { AgentCreateForm } from '../views/AgentCreateForm';
 import type { AgentDraft } from '../../lib/agentConfiguration';
@@ -66,6 +67,7 @@ export function LocalAgentSetup({
       expected_workspace_root: draft.expectedWorkspaceRoot,
       workspace_root: draft.workspaceRoot,
       tools: draft.tools || [],
+      tool_pack_selection: draft.toolPackSelection,
       name: draft.name,
       purpose: draft.purpose,
       model: draft.model,
@@ -141,15 +143,26 @@ export function LocalAgentSetup({
         permissionsClient: client,
         catalog,
         library: (
-          <WorkspaceCapabilityLibrary
-            mcpSupported={!!catalog?.mcp_management}
-            client={client}
-            supported={Array.isArray(catalog.skills)}
-            onChanged={async () => {
-              const updated = await client.agentCatalog();
-              if (active.current) setCatalog(updated);
-            }}
-          />
+          <>
+            <ToolPackLibrary
+              client={client}
+              catalog={catalog}
+              agents={workspace.agents}
+              onChanged={async () => {
+                const updated = await client.agentCatalog();
+                if (active.current) setCatalog(updated);
+              }}
+            />
+            <WorkspaceCapabilityLibrary
+              mcpSupported={!!catalog?.mcp_management}
+              client={client}
+              supported={Array.isArray(catalog.skills)}
+              onChanged={async () => {
+                const updated = await client.agentCatalog();
+                if (active.current) setCatalog(updated);
+              }}
+            />
+          </>
         ),
         saving,
         error,

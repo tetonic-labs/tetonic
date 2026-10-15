@@ -3,6 +3,7 @@ mod assets;
 mod contract;
 mod requests;
 mod tasks;
+mod tool_packs;
 use clap::Parser;
 use contract::{application_error, authorized, error, local_origin};
 use http_body_util::{BodyExt, Full, Limited};
@@ -200,7 +201,13 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
     if request.uri().query().is_some() {
         return error(StatusCode::BAD_REQUEST, "Unexpected query parameters.");
     }
-    let result = if method == hyper::Method::GET && path == "/api/local/workspace" {
+    let result = if method == hyper::Method::GET && path == "/api/local/tool-packs" {
+        state
+            .workspace
+            .tool_packs()
+            .await
+            .map(|v| serde_json::json!(v))
+    } else if method == hyper::Method::GET && path == "/api/local/workspace" {
         state
             .workspace
             .snapshot()
@@ -283,6 +290,7 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
             "/api/local/tasks"
                 | "/api/local/work-teams"
                 | "/api/local/capability-policies"
+                | "/api/local/tool-packs"
                 | "/api/local/agents"
                 | "/api/local/agents/update"
                 | "/api/local/workspace-folders"
@@ -321,7 +329,9 @@ async fn handle(state: &State, request: Request<Incoming>) -> Response<Full<Byte
                 )
             }
         };
-        if path == "/api/local/guide-attention" {
+        if path == "/api/local/tool-packs" {
+            tool_packs::save(state, &body).await
+        } else if path == "/api/local/guide-attention" {
             let Ok(payload) =
                 serde_json::from_slice::<tetonic_app::work::SaveGuideAttention>(&body)
             else {

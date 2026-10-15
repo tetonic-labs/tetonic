@@ -37,6 +37,7 @@ pub(crate) mod secret_overrides;
 pub(crate) mod team_admin;
 pub(crate) mod team_store;
 pub(crate) mod team_work;
+pub(crate) mod tool_packs;
 pub(crate) mod trust;
 pub(crate) mod work_briefs;
 pub(crate) mod work_metadata;

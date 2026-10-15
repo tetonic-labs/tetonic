@@ -176,6 +176,7 @@ async fn owner_adds_folder_without_restart_and_existing_agents_keep_their_scope(
                 assert_eq!(before.workspace_root, agent.workspace_root);
             }
             let mut input = CreateLocalAgent {
+                tool_pack_selection: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "Reader".into(),
                 purpose: "Read notes".into(),
@@ -335,6 +336,7 @@ async fn folder_edits_are_pinned_durable_and_checked_against_host_scope() {
             );
             assert_eq!((catalog.default_steps, catalog.default_seconds), (16, 300));
             let mut input = CreateLocalAgent {
+                tool_pack_selection: None,
                 request_id: uuid::Uuid::new_v4().to_string(),
                 name: "Reader".into(),
                 purpose: "Read the supplied notes".into(),

@@ -12,6 +12,7 @@ pub use profiles::LocalAgentRuntimeProfile;
 
 #[derive(Clone, Serialize)]
 pub struct LocalAgent {
+    pub tool_packs: Vec<ToolPack>,
     pub definition_digest: String,
     pub editable: bool,
     pub tool_disclosure: Option<crate::resources::ToolDisclosure>,
@@ -34,6 +35,7 @@ pub struct LocalAgent {
 
 #[derive(Serialize)]
 pub struct LocalAgentCatalog {
+    pub tool_packs: Vec<ToolPack>,
     pub mcp_management: bool,
     pub skills: Vec<tetonic_memory::WorkspaceSkill>,
     pub mcp_connections: Vec<crate::mcp::McpConnectionView>,
@@ -57,6 +59,8 @@ pub struct LocalAgentCatalog {
 #[derive(Clone, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct CreateLocalAgent {
+    #[serde(default)]
+    pub tool_pack_selection: Option<ToolPackSelection>,
     #[serde(default = "local_provider")]
     pub provider: String,
     #[serde(default)]
@@ -115,6 +119,7 @@ impl WorkspaceServices {
         let skills = self.workspace_skills()?;
         tools.extend(skills.iter().filter(|s| s.enabled).map(|s| s.id.clone()));
         Ok(LocalAgentCatalog {
+            tool_packs: self.tool_packs().await?,
             workspace_folders,
             folder_management: self.owner_folder_registration,
             default_steps: self.host.settings.limits.max_steps.min(16),
@@ -196,7 +201,7 @@ impl WorkspaceServices {
 
     pub async fn create_agent(&self, input: CreateLocalAgent) -> Result<LocalAgent, AppError> {
         let app_scope = self.authorized_scope().await?;
-        let config = self.agent_configuration(input.clone())?;
+        let config = self.resolved_agent_configuration(input.clone()).await?;
         let key = format!("local-agent-{}", input.request_id);
         let resources = self.local.resources();
         // An identical retry must still work if Ollama has since gone offline.
@@ -353,6 +358,12 @@ impl WorkspaceServices {
             .map_err(|_| AppError::InvalidRequest("Invalid stored agent tools.".into()))?
             .unwrap_or_default();
         Ok(LocalAgent {
+            tool_packs: config
+                .get("tool_packs")
+                .map(|v| serde_json::from_value(v.clone()))
+                .transpose()
+                .map_err(|_| AppError::InvalidRequest("Invalid stored tool packs.".into()))?
+                .unwrap_or_default(),
             definition_digest: stored.identity.bound_definition_digest.clone(),
             editable: key != COORDINATOR,
             tool_disclosure: prefs.tool_disclosure,

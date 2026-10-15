@@ -23,6 +23,7 @@ mod capability_policies;
 mod huddle_plans;
 mod membership;
 mod team_work;
+mod tool_packs;
 mod work_briefs;
 mod work_budgets;
 pub(crate) mod work_director;

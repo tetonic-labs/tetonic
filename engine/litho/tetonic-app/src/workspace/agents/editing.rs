@@ -14,7 +14,9 @@ pub struct UpdateLocalAgent {
 impl WorkspaceServices {
     pub async fn update_agent(&self, input: UpdateLocalAgent) -> Result<LocalAgent, AppError> {
         let app_scope = self.authorized_scope().await?;
-        let config = self.agent_configuration(input.configuration.clone())?;
+        let config = self
+            .resolved_agent_configuration(input.configuration.clone())
+            .await?;
         let _admission = self.admission.lock().await;
         let current = self.registered_agent(&input.agent_key).await?;
         let agent = self.agent_profile(input.agent_key.clone(), &current)?;
@@ -33,6 +35,11 @@ impl WorkspaceServices {
                     .tools
                     .as_ref()
                     .is_some_and(|t| !t.is_empty())
+                || input
+                    .configuration
+                    .tool_pack_selection
+                    .as_ref()
+                    .is_some_and(|s| !s.packs.is_empty())
                 || input.configuration.hosted_tools_consent
                 || input.configuration.workspace_root.is_some()
                 || input.configuration.expected_workspace_root.is_some())

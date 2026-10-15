@@ -14,6 +14,9 @@ struct Envelope {
 #[derive(Deserialize)]
 #[serde(deny_unknown_fields)]
 struct GeneralConfiguration {
+    /// Informational provenance; requested_tools remains the exact execution selection.
+    #[serde(default, rename = "tool_packs")]
+    _tool_packs: Vec<tetonic_memory::ToolPack>,
     instructions: String,
     #[serde(default)]
     requested_tools: Vec<String>,

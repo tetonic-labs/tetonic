@@ -528,6 +528,7 @@ async fn selected_roster_limits_schema_and_rejection_does_not_save_a_brief() {
             .unwrap();
     let outsider = workspace
         .create_agent(CreateLocalAgent {
+            tool_pack_selection: None,
             workspace_root: None,
             provider: "ollama".into(),
             hosted_consent: false,

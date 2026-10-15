@@ -38,6 +38,7 @@ pub use control::delegated_grants::{
 pub use control::local_work_notes::LocalWorkData;
 pub use control::organization_agent_edits::AgentEdit;
 pub use control::organization_agents::RegisteredAgent;
+pub use control::tool_packs::{SaveToolPack, ToolPack};
 pub use control::work_metadata::WorkMetadataPatch;
 pub use control::work_teams::{SaveWorkTeam, WorkTeam, WorkTeamSelection};
 pub use control::workspace_folders::{SaveWorkspaceFolders, WorkspaceFolders};

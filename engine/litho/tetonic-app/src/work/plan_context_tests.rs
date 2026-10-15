@@ -135,6 +135,7 @@ async fn run_delivery(exhaust_after_write: bool) {
             for assignment in &mut content.assignments {
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         expected_workspace_root: None,
                         request_id: uuid::Uuid::new_v4().to_string(),

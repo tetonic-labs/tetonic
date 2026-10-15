@@ -58,6 +58,7 @@ function resourceStatus(resource: ToolkitResource, ready: boolean) {
 export function ToolsView({
   resources,
   library,
+  packs,
   ready,
   workspaceRoot,
   mcpSupported,
@@ -66,6 +67,7 @@ export function ToolsView({
 }: {
   resources: ToolkitResource[];
   library?: ReactNode;
+  packs?: ReactNode;
   ready: boolean;
   workspaceRoot?: string | null;
   mcpSupported: boolean;
@@ -190,6 +192,7 @@ export function ToolsView({
         </section>
       ) : (
         <>
+          {!resource && packs}
           <div className="tl-controls">
             <label className="tl-search">
               <Search size={17} />

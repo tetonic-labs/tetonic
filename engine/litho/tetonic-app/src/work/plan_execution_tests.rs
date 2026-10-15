@@ -350,6 +350,7 @@ async fn seed_roster_options(
     let secret = &workspace.services.host.credential;
     let worker = workspace
         .create_agent(CreateLocalAgent {
+            tool_pack_selection: None,
             workspace_root: None,
             provider: "ollama".into(),
             hosted_consent: false,

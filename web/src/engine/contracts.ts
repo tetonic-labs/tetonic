@@ -297,7 +297,31 @@ export interface WorkUsage {
   over_limit: boolean;
 }
 
+export interface ToolPack {
+  org_id: string;
+  team_id: string;
+  id: string;
+  revision: number;
+  name: string;
+  description: string;
+  tools: string[];
+  builtin: boolean;
+}
+export interface ToolPackSelection {
+  packs: { id: string; revision: number }[];
+  excluded_tools: string[];
+}
+export interface SaveToolPack {
+  request_id: string;
+  id: string;
+  expected_revision: number;
+  name: string;
+  description: string;
+  tools: string[];
+}
+
 export interface EngineAgent {
+  tool_packs?: ToolPack[];
   definition_digest?: string;
   editable?: boolean;
   tool_disclosure?: {
@@ -334,6 +358,7 @@ export interface WorkspaceSkill {
 }
 
 export interface AgentCatalog {
+  tool_packs?: ToolPack[];
   folder_management?: boolean;
   workspace_folders?: string[];
   default_steps?: number;
@@ -407,7 +432,8 @@ export interface ProviderModelCatalog {
   capabilities_verified: boolean;
 }
 
-export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key'> & {
+export type CreateEngineAgent = Omit<EngineAgent, 'id' | 'key' | 'tool_packs'> & {
+  tool_pack_selection?: ToolPackSelection;
   request_id: string;
   tools?: string[];
   hosted_tools_consent?: boolean;

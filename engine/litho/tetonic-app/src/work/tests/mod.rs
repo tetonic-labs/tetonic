@@ -168,6 +168,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 assert!(profile.tool_restriction.is_none());
             }
             let input = CreateLocalAgent {
+                tool_pack_selection: None,
                 workspace_root: None,
                 provider: "ollama".into(),
                 hosted_consent: false,
@@ -186,6 +187,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             for tools in [None, Some(vec![])] {
                 let agent = workspace
                     .create_agent(CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         tools,
@@ -212,6 +214,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             ] {
                 assert!(workspace
                     .create_agent(CreateLocalAgent {
+                        tool_pack_selection: None,
                         workspace_root: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         tools: Some(tools),
@@ -222,6 +225,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
             }
             assert!(workspace
                 .create_agent(CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     provider: "openai".into(),
                     hosted_consent: true,
@@ -234,6 +238,7 @@ async fn tool_grants_are_explicit_and_unsupported_selections_are_rejected() {
                 .is_err());
             let reader = workspace
                 .create_agent(CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     request_id: uuid::Uuid::new_v4().to_string(),
                     tools: Some(vec!["read_file".into(), "read_file".into()]),
@@ -367,6 +372,7 @@ async fn local_agents_persist_validate_and_execute_the_selected_definition() {
                     .await
                     .unwrap();
             let input = CreateLocalAgent {
+                tool_pack_selection: None,
                 workspace_root: None,
                 provider: "ollama".into(),
                 hosted_consent: false,
@@ -386,26 +392,31 @@ async fn local_agents_persist_validate_and_execute_the_selected_definition() {
             assert_eq!(catalog.models, vec!["qwen3.5:latest"]);
             for invalid in [
                 CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     max_steps: catalog.max_steps + 1,
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     max_seconds: catalog.max_seconds + 1,
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     max_tokens: catalog.max_tokens + 1,
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     harness: "coding".into(),
                     ..input.clone()
                 },
                 CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     model: "not-installed".into(),
                     ..input.clone()
@@ -421,6 +432,7 @@ async fn local_agents_persist_validate_and_execute_the_selected_definition() {
             );
             assert!(workspace
                 .create_agent(CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     name: "Changed".into(),
                     ..input.clone()
@@ -793,6 +805,7 @@ async fn sprint2_autonomy_and_review_lifecycle() {
 
             // 1. Tool scoping: create agent with scoped tools
             let agent_input = CreateLocalAgent {
+                tool_pack_selection: None,
                 workspace_root: None,
                 provider: "ollama".into(),
                 hosted_consent: false,

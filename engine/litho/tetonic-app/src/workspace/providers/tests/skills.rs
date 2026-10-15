@@ -44,13 +44,16 @@ async fn saved_skill_grants_use_all_frontier_tool_paths_and_revoke_during_execut
                 let transport = Arc::new(SkillTransport { provider, tool: skill.id.clone(), calls: Mutex::default(), wait: revoke_running });
                 workspace.services.hosted_transport = Some(transport.clone());
                 workspace.save_provider_key(SaveProviderKey { provider: provider.into(), api_key: "disposable-test-key".into() }).await.unwrap();
+                let pack = workspace.save_tool_pack(SaveToolPack {request_id: uuid::Uuid::new_v4().to_string(), id: uuid::Uuid::new_v4().to_string(), expected_revision: 0,
+                    name: "Evidence skills".into(), description: "Scoped instructions".into(), tools: vec![skill.id.clone()]}).await.unwrap();
                 let input = CreateLocalAgent {
+                    tool_pack_selection: selected.then(|| ToolPackSelection {packs: vec![ToolPackRef { id: pack.id, revision: 1 }], excluded_tools: vec![]}),
                     workspace_root: None,
                     provider: provider.into(), hosted_consent: true, hosted_tools_consent: true,
                     expected_workspace_root: None, request_id: uuid::Uuid::new_v4().to_string(),
                     name: "Researcher".into(), purpose: "Research using the granted skill".into(), model: "configured-model".into(), harness: "general".into(),
                     max_steps: 3, max_seconds: 30, max_tokens: 8192,
-                    tools: Some(if selected { vec![skill.id.clone()] } else { vec![] }),
+                    tools: Some(vec![]),
                 };
                 let agent = workspace.create_agent(input).await.unwrap();
                 assert!(agent.hosted_workspace.is_none(), "skills don't need a folder");

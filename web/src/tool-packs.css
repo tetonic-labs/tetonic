@@ -1,0 +1,209 @@
+.tool-packs {
+  margin: 12px 0 22px;
+  color: var(--text-primary);
+}
+.tp-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+.tp-heading h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 14px;
+  font-weight: 650;
+}
+.tool-packs .canvas-secondary,
+.tool-packs .canvas-primary,
+.tp-update button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 9px 13px;
+  font-size: 12px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+.tp-update button {
+  border: 1px solid var(--brand-rule);
+  border-radius: 6px;
+  background: var(--bg-surface);
+}
+.tp-heading p,
+.tp-card p,
+.tp-footnote {
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 6px 0;
+  opacity: 0.8;
+}
+.tp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 210px), 1fr));
+  gap: 10px;
+}
+.tp-card {
+  padding: 14px;
+  border: 1px solid var(--brand-rule, var(--color-border));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--bg-surface) 55%, transparent);
+}
+.tp-card[data-selected='true'] {
+  border-color: var(--color-accent);
+  background: color-mix(in srgb, var(--color-accent) 10%, transparent);
+}
+.tp-choice,
+.tp-card-title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  cursor: pointer;
+}
+.tp-card-title {
+  justify-content: space-between;
+}
+.tp-choice small,
+.tp-card small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+  margin-top: 3px;
+}
+.tp-choice input,
+.tp-tool-list input,
+.tp-members input {
+  accent-color: var(--color-accent);
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+}
+.tp-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.tp-actions button,
+.tp-link {
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tp-actions button:not(.canvas-primary),
+.tp-link {
+  padding: 5px 0;
+  border: 0;
+  background: transparent;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: inherit;
+}
+.tool-packs button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.tool-packs :focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 3px;
+}
+.tp-members {
+  list-style: none;
+  padding: 8px 0 0;
+  margin: 0;
+}
+.tp-members label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 5px 0;
+  overflow-wrap: anywhere;
+}
+.tp-update {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--brand-rule, var(--color-border));
+  font-size: 12px;
+}
+.tp-update button {
+  margin: 8px 8px 0 0;
+}
+.tp-notice {
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--color-accent) 12%, transparent);
+  padding: 8px 10px;
+  border-radius: 7px;
+  font-size: 12px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.tp-editor {
+  border: 1px solid var(--brand-rule, var(--color-border));
+  border-radius: 12px;
+  padding: 18px;
+}
+.tp-editor > label {
+  display: grid;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 12px;
+}
+.tp-editor input:not([type='checkbox']) {
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid color-mix(in srgb, currentColor 18%, transparent);
+  border-radius: 7px;
+  background: color-mix(in srgb, var(--bg-surface) 60%, transparent);
+  color: inherit;
+  font: inherit;
+}
+.tp-editor > .tp-heading {
+  font-size: 12px;
+  flex-wrap: wrap;
+}
+.tp-tool-list {
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.tp-tool-list fieldset {
+  border: 0;
+  margin: 0 0 12px;
+  padding: 0;
+  min-width: 0;
+}
+.tp-tool-list legend {
+  font-size: 11px;
+  font-weight: 650;
+  opacity: 0.7;
+  margin-bottom: 5px;
+}
+.tp-tool-list label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 7px 4px;
+  font-size: 12px;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.tp-tool-list small {
+  display: block;
+  font-size: 11px;
+  opacity: 0.7;
+}
+@media (max-width: 550px) {
+  .tp-heading {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}

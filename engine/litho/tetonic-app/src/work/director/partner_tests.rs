@@ -109,6 +109,7 @@ async fn long_discussion_retrieves_originals_and_links_subjects_without_dispatch
                     agent_key: guide.key,
                     expected_definition_digest: guide.definition_digest,
                     configuration: CreateLocalAgent {
+                        tool_pack_selection: None,
                         request_id: uuid::Uuid::new_v4().to_string(),
                         name: guide.name,
                         purpose: guide.purpose,

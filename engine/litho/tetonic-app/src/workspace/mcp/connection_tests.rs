@@ -161,6 +161,7 @@ async fn connection_lifecycle(tool_name: &str) {
             );
             let agent = workspace
                 .create_agent(CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     provider: "ollama".into(),
                     hosted_consent: false,

@@ -351,6 +351,44 @@ The live Add agent form discovers installed models through the engine's guarded 
 
 ## Hosted lab models and keys
 
+### Workspace tool packs
+
+`GET /api/local/tool-packs` lists built-in and workspace-defined packs without
+performing model discovery. The same list is included as `agent-catalog.tool_packs`.
+Each pack contains `org_id`, `team_id`, `id`, `revision`, `name`, `description`,
+`tools` (exact capability IDs) and `builtin`. Built-in revision 1 packs are Read
+files (`read_file`, `list_dir`, `grep`, `glob`), Edit files (those four plus
+`write_file`, `edit_file`) and Terminal (`run_shell`). They remain visible when
+unavailable; a pack does not register a folder or connect a service.
+
+`POST /api/local/tool-packs` accepts `request_id` (UUID), `id` (UUID),
+`expected_revision` (0 to create), `name`, `description` and `tools`.
+Authenticated workspace owners can save at most 128 available member IDs per
+pack. Current host-supported tools, approved MCP manifest IDs and enabled skill
+IDs use the same catalog. Internal Guide/dispatch tools are not available here.
+No nested packs or executable package installation is supported. Built-ins are
+immutable; customization creates a separate pack. Stale saves and changed
+retries conflict; identical retries return the saved revision. SQLite schema 79
+preserves immutable versions and uses the existing pre-migration backup path.
+
+Agent create/update optionally accepts `tool_pack_selection`:
+`{"packs":[{"id":"<pack UUID or builtin ID>","revision":1}],"excluded_tools":[]}`.
+With packs, the request's `tools` are individual additions. The engine resolves
+the exact workspace revisions and computes the deduplicated union minus
+exclusions; only pack members may be excluded. It then applies existing runtime
+profile, folder, hosted disclosure and limit validation. Without packs, `tools`
+keeps its existing meaning. Omitted selections grant no new access.
+
+Agent responses and immutable configurations include `tool_packs` snapshots for
+provenance. `requested_tools` remains the exact execution selection. Editing a
+library pack never alters existing agents or running work. The editor previews
+new versions, preserves exclusions and individual additions, and applies an
+update only when the agent is saved. Removing a pack in the editor removes its
+members unless another selected pack supplies them; individual additions remain.
+Current policy, folder, MCP and skill revocation still apply independently of
+these snapshots. Native vendor harnesses and indexed/LSP coding-tool wiring are
+not introduced by packs.
+
 Add agent offers Ollama, OpenAI, Anthropic, and Google. Hosted models run through Tetonic's general harness on this machine. This does **not** launch Codex or Claude Code. The UI distinguishes this limitation; external CLI harnesses require a separate sandbox/approval/cancellation adapter.
 
 Hosted creation requires `provider` (`openai`, `anthropic` or `google`), a tool-capable text `model` ID, and `hosted_consent: true`. These preferences become part of the immutable agent definition. Older requests default to `ollama`, with no hosted consent. The editor now discovers account-visible model IDs through the authenticated provider-models endpoint, with refresh, error and manual-ID states. Listing a model does not certify its text/tool capabilities. The legacy assistant remains local.

@@ -15,10 +15,12 @@ pub use tetonic_memory::SaveWorkspaceFolders;
 mod mcp;
 pub(crate) mod providers;
 mod skills;
+mod tool_packs;
 pub use agents::{CreateLocalAgent, LocalAgent, LocalAgentCatalog, UpdateLocalAgent};
 pub use mcp::SaveMcpConnection;
 pub use providers::{LocalModelCatalog, LocalProvider, RemoveProviderKey, SaveProviderKey};
 pub use skills::{ImportSkill, RevokeSkill};
+pub use tool_packs::{SaveToolPack, ToolPack, ToolPackRef, ToolPackSelection};
 #[derive(Clone)]
 pub(crate) struct WorkspaceServices {
     pub(crate) local: LocalControl,

@@ -104,6 +104,33 @@ fn built_product_and_authenticated_workspace_share_one_ephemeral_port() {
     assert_eq!(status, 200);
     assert!(snapshot.contains("\"tasks\":[]"));
     assert!(!snapshot.contains(token));
+    let packs_path = "/api/local/tool-packs";
+    assert_eq!(get(&address, packs_path, None).0, 401);
+    let (status, packs) = get(&address, packs_path, Some(token));
+    assert_eq!(status, 200);
+    assert!(packs.contains("builtin:read-files"));
+    assert!(packs.contains("builtin:edit-files"));
+    assert!(packs.contains("builtin:terminal"));
+    let pack_request = serde_json::json!({
+        "request_id": uuid::Uuid::new_v4().to_string(),
+        "id": uuid::Uuid::new_v4().to_string(), "expected_revision": 0,
+        "name": "Collaboration", "description": "Shared work", "tools": ["blackboard"]
+    })
+    .to_string();
+    assert_eq!(
+        request(&address, packs_path, None, "POST", &pack_request).0,
+        401
+    );
+    let (status, saved) = request(&address, packs_path, Some(token), "POST", &pack_request);
+    assert_eq!(status, 200, "{saved}");
+    assert!(saved.contains("Collaboration"));
+    assert_eq!(
+        request(&address, packs_path, Some(token), "POST", &pack_request).0,
+        200
+    );
+    assert!(get(&address, packs_path, Some(token))
+        .1
+        .contains("Collaboration"));
     let draft = "/api/local/tasks/00000000-0000-4000-8000-000000000000/draft";
     assert_eq!(request(&address, draft, None, "POST", "{}").0, 401);
     for body in ["{}", r#"{"artifact_id":"draft","execute":true}"#] {

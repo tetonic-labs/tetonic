@@ -6,6 +6,11 @@ impl WorkspaceServices {
         mut input: CreateLocalAgent,
     ) -> Result<serde_json::Value, AppError> {
         validate_request_id(&input.request_id)?;
+        if input.tool_pack_selection.is_some() {
+            return Err(AppError::InvalidRequest(
+                "Resolve packs before validating agent configuration.".into(),
+            ));
+        }
         input.name = input.name.trim().into();
         input.purpose = input.purpose.trim().into();
         if input.name.is_empty()

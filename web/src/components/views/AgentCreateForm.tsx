@@ -1,4 +1,7 @@
 import { useId, useState, type ReactNode } from 'react';
+import { AgentToolPacks } from './AgentToolPacks';
+import { packRequest } from '../../lib/toolPacks';
+import type { ToolPack } from '../../engine/contracts';
 import { AgentSkills } from './AgentSkills';
 import { AgentFolderSetup } from './AgentFolderSetup';
 import { CapabilityPolicyEditor } from './CapabilityPolicyEditor';
@@ -87,6 +90,7 @@ export function AgentCreateForm({
         : 'ollama'),
   );
   const [selectedTools, setSelectedTools] = useState<string[]>(agent?.tools || []);
+  const [selectedPacks, setSelectedPacks] = useState<ToolPack[]>(agent?.tool_packs || []);
   const [folderChoice, setFolderChoice] = useState<string | undefined>(
     agent?.workspace_root || undefined,
   );
@@ -242,7 +246,7 @@ export function AgentCreateForm({
                   usesFolder && connected.catalog.workspace_folders
                     ? workingFolder || undefined
                     : undefined,
-                tools: selectedTools,
+                ...packRequest(selectedPacks, selectedTools),
               }
             : {}),
           name: name.trim(),
@@ -476,10 +480,9 @@ export function AgentCreateForm({
           <legend>
             Tools & skills{' '}
             <span>
-              {configuration.toolIds.length +
-                configuration.resourceIds.length +
-                selectedTools.filter((name) => name.startsWith('mcp_') || name.startsWith('skill_'))
-                  .length}{' '}
+              {connected
+                ? selectedTools.length
+                : configuration.toolIds.length + configuration.resourceIds.length}{' '}
               selected
             </span>
           </legend>
@@ -533,29 +536,36 @@ export function AgentCreateForm({
               )}
             </div>
           )}
+          {connected && (
+            <AgentToolPacks
+              catalog={connected.catalog}
+              packs={selectedPacks}
+              tools={selectedTools}
+              supported={supportedTools}
+              disabled={connected.saving}
+              onChange={(packs, tools) => {
+                setSelectedPacks(packs);
+                setSelectedTools(tools);
+              }}
+            />
+          )}
           <div className="agent-tool-grid">
             {tools.map((tool) => {
               const group = agentToolGroups[tool.id] || [];
               const availableTools = group.filter((name) => supportedTools.includes(name));
-              const selected = configuration.toolIds.includes(tool.id);
+              const selected = connected
+                ? group.some((id) => selectedTools.includes(id))
+                : configuration.toolIds.includes(tool.id);
               const described = selected
                 ? selectedTools.filter((name) => group.includes(name))
                 : availableTools;
               return (
-                <label
-                  className="agent-tool-choice"
-                  key={tool.id}
-                  data-selected={configuration.toolIds.includes(tool.id)}
-                >
+                <label className="agent-tool-choice" key={tool.id} data-selected={selected}>
                   <input
                     type="checkbox"
                     aria-label={tool.name}
-                    checked={configuration.toolIds.includes(tool.id)}
-                    disabled={
-                      !!connected &&
-                      !configuration.toolIds.includes(tool.id) &&
-                      !availableTools.length
-                    }
+                    checked={selected}
+                    disabled={!!connected && !selected && !availableTools.length}
                     onChange={(event) => {
                       if (connected)
                         setSelectedTools(

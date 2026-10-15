@@ -11,6 +11,7 @@ export interface AgentConfiguration {
   limits: { maxSteps: number; maxSeconds: number; maxTokens: number };
 }
 export interface AgentDraft {
+  toolPackSelection?: import('../engine/contracts').ToolPackSelection;
   /** Exact connected tool names selected at click time, never a permission grant. */
   tools?: string[];
   provider?: string;
@@ -27,7 +28,11 @@ export interface AgentDraft {
 
 // Requested preview configuration, never an execution grant or an installed-tool inventory.
 export const agentTools: { id: AgentToolId; name: string; description: string }[] = [
-  { id: 'blackboard', name: 'Blackboard', description: 'Collaborate with permitted agents on shared work' },
+  {
+    id: 'blackboard',
+    name: 'Blackboard',
+    description: 'Collaborate with permitted agents on shared work',
+  },
   { id: 'read_file', name: 'Read files', description: 'Read within a working folder' },
   { id: 'write_file', name: 'Write files', description: 'Create and change files' },
   { id: 'run_shell', name: 'Terminal', description: 'Run workspace commands' },

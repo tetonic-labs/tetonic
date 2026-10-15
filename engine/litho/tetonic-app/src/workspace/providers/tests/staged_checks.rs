@@ -108,6 +108,7 @@ async fn run(provider: &'static str, repair: bool) {
             workspace.services.hosted_transport = Some(transport.clone());
             let agent = workspace
                 .create_agent(CreateLocalAgent {
+                    tool_pack_selection: None,
                     workspace_root: None,
                     expected_workspace_root: workspace
                         .agent_catalog()

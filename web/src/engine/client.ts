@@ -18,6 +18,8 @@ import type {
   EngineAgent,
   WorkspaceSkill,
   AgentCatalog,
+  ToolPack,
+  SaveToolPack,
   WorkspaceFolders,
   McpConnection,
   EngineProvider,
@@ -118,6 +120,12 @@ export class LocalEngine {
     token_limit: number | null;
   }) {
     return this.request<BudgetSetting>('/budget-settings', input);
+  }
+  toolPacks(signal?: AbortSignal) {
+    return this.request<ToolPack[]>('/tool-packs', undefined, signal);
+  }
+  saveToolPack(input: SaveToolPack) {
+    return this.request<ToolPack>('/tool-packs', input);
   }
   agentCatalog(signal?: AbortSignal) {
     return this.request<AgentCatalog>('/agent-catalog', undefined, signal);

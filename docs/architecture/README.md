@@ -60,6 +60,12 @@ the product-work path shown above. The web entry point is
 
 ## Boundaries that matter
 
+- Workspace tool packs are versioned selections owned by `WorkspaceServices`
+  and authenticated `ResourceService` calls, stored in `tetonic-memory`.
+  Agent saves resolve exact pack revisions, individual additions and exclusions
+  into the existing requested-tool list and immutable agent definition. Runtime
+  execution uses that pinned list and current permissions, never a mutable pack
+  lookup. The library and agent editor share this same path.
 - A saved agent has stable identity and versioned configuration. Configuration
   expresses preferences and requested capabilities; activation still checks
   current grants, scope, host limits and the pinned revision.
