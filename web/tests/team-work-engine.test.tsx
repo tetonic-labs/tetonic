@@ -139,10 +139,10 @@ function fixture(tasks: EngineTask[] = []) {
     data = { ...data, tasks: data.tasks.map((t) => (t.id === id ? task : t)) };
     return task;
   });
-  const view = () =>
+  const view = (readyForTutorial = false) =>
     render(
       <LocalEngineProvider client={client}>
-        <TeamWorkspace />
+        <TeamWorkspace readyForTutorial={readyForTutorial} />
       </LocalEngineProvider>,
     );
   return {
@@ -165,6 +165,22 @@ afterEach(() => {
 });
 
 describe('one connected team workspace', () => {
+  it('opens the real Guide editor from the introduction without dispatching work', async () => {
+    const f = fixture();
+    f.setData({
+      ...f.getData(),
+      shaping_agent_key: 'guide',
+      agents: [agent, { ...agent, key: 'guide', id: 'guide-id', name: 'The Guide' }],
+    });
+    f.view(true);
+    fireEvent.click(await screen.findByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Set up the Guide' }));
+    expect(await screen.findByRole('heading', { name: 'Edit The Guide.' })).toBeTruthy();
+    expect(screen.queryByRole('dialog')).toBeNull();
+    expect(f.submit).not.toHaveBeenCalled();
+  });
+
   it('edits the selected agent from Agents and returns to its saved profile', async () => {
     const f = fixture();
     const create = vi.spyOn(f.client, 'createAgent');

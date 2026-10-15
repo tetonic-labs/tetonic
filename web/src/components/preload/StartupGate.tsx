@@ -8,7 +8,11 @@ export type { PreloadPhase } from './flockMotion';
 import './preload.css';
 
 /** Only the first connection owns the entry screen. Later outages stay in the workspace. */
-export function StartupGate({ children }: { children: ReactNode }) {
+export function StartupGate({
+  children,
+}: {
+  children: ReactNode | ((entered: boolean) => ReactNode);
+}) {
   const {
     workspace,
     isConnected,
@@ -59,7 +63,7 @@ export function StartupGate({ children }: { children: ReactNode }) {
     <>
       {(ready || entered) && (
         <div ref={contentRef} inert={!entered} aria-hidden={!entered || undefined}>
-          {children}
+          {typeof children === 'function' ? children(entered) : children}
         </div>
       )}
       {!entered && (

@@ -34,6 +34,7 @@ import { UsagePanel } from './UsagePanel';
 import { ProjectBlackboard } from './ProjectBlackboard';
 import { WorkContextPanel } from './WorkContextPanel';
 import { WorkspaceWelcome } from './WorkspaceWelcome';
+import { FirstUseTutorial } from './FirstUseTutorial';
 import './team-work.css';
 import './engine-workspace.css';
 import './work-journey.css';
@@ -69,11 +70,13 @@ function route(): { panel: Panel; project?: string } {
     project: hash.get('project') || undefined,
   };
 }
-export function TeamWorkspace() {
+export function TeamWorkspace({ readyForTutorial = false }: { readyForTutorial?: boolean }) {
   useLocalEngine();
-  return <ConnectedTeamWorkspace key={connectionDraftScope()} />;
+  return (
+    <ConnectedTeamWorkspace key={connectionDraftScope()} readyForTutorial={readyForTutorial} />
+  );
 }
-function ConnectedTeamWorkspace() {
+function ConnectedTeamWorkspace({ readyForTutorial }: { readyForTutorial: boolean }) {
   const engine = useLocalEngine();
   const { workspace, workItems, isConnected, isConnecting, readErrors, lastUpdated } = engine;
   const { records, conversations, projects, entries } = useMemo(
@@ -642,6 +645,10 @@ function ConnectedTeamWorkspace() {
           </section>
         )}
       </main>
+      <FirstUseTutorial
+        enabled={readyForTutorial && isConnected && !!workspace}
+        onSetupGuide={() => open({ kind: 'agents', id: workspace?.shaping_agent_key, edit: true })}
+      />
     </div>
   );
 }

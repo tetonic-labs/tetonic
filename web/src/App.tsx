@@ -6,9 +6,7 @@ import { StartupGate } from './components/preload/StartupGate';
 export function App() {
   return (
     <LocalEngineProvider>
-      <StartupGate>
-        <TeamWorkspace />
-      </StartupGate>
+      <StartupGate>{(entered) => <TeamWorkspace readyForTutorial={entered} />}</StartupGate>
     </LocalEngineProvider>
   );
 }
