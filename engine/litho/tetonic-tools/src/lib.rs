@@ -9,6 +9,7 @@ use std::sync::Arc;
 use serde::Deserialize;
 use serde_json::Value;
 
+mod build_tools;
 mod catalog;
 mod host;
 mod memory;
@@ -421,6 +422,8 @@ impl Tools {
         matches!(
             name,
             "read_file"
+                | "read_files"
+                | "inspect_changes"
                 | "list_dir"
                 | "grep"
                 | "glob"
@@ -439,7 +442,16 @@ impl Tools {
     fn tool_requires_capability(name: &str) -> bool {
         matches!(
             name,
-            "read_file" | "list_dir" | "grep" | "glob" | "edit_file" | "write_file" | "run_shell"
+            "read_file"
+                | "read_files"
+                | "inspect_changes"
+                | "list_dir"
+                | "grep"
+                | "glob"
+                | "edit_file"
+                | "write_file"
+                | "run_shell"
+                | "run_checks"
         )
     }
 
@@ -588,7 +600,7 @@ impl Tools {
     pub fn defs(&self) -> Vec<ToolDef> {
         let mut defs = tool_defs();
         if !self.allow_shell {
-            defs.retain(|d| d.name != "run_shell");
+            defs.retain(|d| !matches!(d.name, "run_shell" | "run_checks"));
         }
         if self.has_index() {
             defs.extend(index_tool_defs());
@@ -671,10 +683,18 @@ impl Tools {
                 "edit_file" | "write_file" => {
                     return self.mutation.run_authorized(&self.ws, authorized);
                 }
-                "run_shell" => {
-                    return self.run_authorized_shell(&args, authorized, cancel);
+                "run_shell" | "run_checks" => {
+                    return self.run_authorized_shell(name, &args, authorized, cancel);
                 }
-                "read_file" | "list_dir" | "grep" | "glob" => {
+                "read_file" | "read_files" | "inspect_changes" | "list_dir" | "grep" | "glob" => {
+                    if authorized.action.kind != tetonic_domain::ActionKind::ReadFile
+                        || authorized.action.parameters.tool_name.as_deref() != Some(name)
+                        || authorized.action.parameters.tool_arguments.as_ref() != Some(&args)
+                    {
+                        return crate::types::outcome_err(ToolError::Other(
+                            "read capability does not match this invocation".into(),
+                        ));
+                    }
                     if let Some(consumer) = self.capability_consumer.as_ref() {
                         if let Err(e) = consumer.authorize(authorized) {
                             return crate::types::outcome_err(ToolError::Other(format!(
@@ -690,14 +710,17 @@ impl Tools {
                 "edit_file" | "write_file" => {
                     return self.mutation.run_authorized(&self.ws, authorized);
                 }
-                "run_shell" => {
-                    return self.run_authorized_shell(&args, authorized, cancel);
+                "run_shell" | "run_checks" => {
+                    return self.run_authorized_shell(name, &args, authorized, cancel);
                 }
                 _ => {}
             }
         }
         let result = match name {
             "read_file" => self.read_file(args),
+            "read_files" => self.read_files(args, cancel),
+            "inspect_changes" => self.inspect_changes(args),
+            "run_checks" => Err(ToolError::ShellNotApproved),
             "list_dir" => self.list_dir(args),
             "grep" => self.grep(args),
             "glob" => self.glob(args),
@@ -1199,3 +1222,6 @@ mod cancellation_tests;
 mod staged_read_tests;
 #[cfg(test)]
 mod staged_shell_tests;
+
+#[cfg(test)]
+mod build_tools_tests;

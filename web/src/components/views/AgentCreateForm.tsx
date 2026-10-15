@@ -634,13 +634,15 @@ export function AgentCreateForm({
               {compatibilityIssue}
             </p>
           )}
-          {connected && selectedTools.includes('run_shell') && (
-            <p className="agent-field-note">
-              Terminal runs local commands and installed command-line tools. Each command appears in
-              Needs you for your approval. The working folder is not a security boundary on every
-              operating system; any isolation gaps are shown with the command.
-            </p>
-          )}
+          {connected &&
+            selectedTools.some((tool) => tool === 'run_shell' || tool === 'run_checks') && (
+              <p className="agent-field-note">
+                Terminal and verification tools run local commands and installed command-line tools.
+                Each command appears in Needs you for your approval. The working folder is not a
+                security boundary on every operating system; any isolation gaps are shown with the
+                command.
+              </p>
+            )}
           {connected && (
             <AgentMcpTools
               connections={connected.catalog.mcp_connections || []}

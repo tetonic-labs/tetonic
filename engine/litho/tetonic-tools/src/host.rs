@@ -27,6 +27,18 @@ impl ToolHost for Tools {
                     .max_bytes,
                 4,
             ),
+            "read_files" => (
+                serde_json::from_value::<crate::ReadFilesArgs>(args.clone())
+                    .ok()?
+                    .max_bytes,
+                16,
+            ),
+            "inspect_changes" => (
+                serde_json::from_value::<crate::InspectChangesArgs>(args.clone())
+                    .ok()?
+                    .max_bytes,
+                4,
+            ),
             "grep" => (
                 serde_json::from_value::<crate::GrepArgs>(args.clone())
                     .ok()?
@@ -60,8 +72,10 @@ impl ToolHost for Tools {
     fn propose(&self, name: &str, args: &Value) -> Option<ToolProposal> {
         let kind = match name {
             "edit_file" | "write_file" => ActionKind::WriteFile,
-            "run_shell" => ActionKind::ExecuteShell,
-            "read_file" | "list_dir" | "grep" | "glob" => ActionKind::ReadFile,
+            "run_shell" | "run_checks" => ActionKind::ExecuteShell,
+            "read_file" | "read_files" | "inspect_changes" | "list_dir" | "grep" | "glob" => {
+                ActionKind::ReadFile
+            }
             _ => return None,
         };
         let resolved_path = args
@@ -84,14 +98,11 @@ impl ToolHost for Tools {
     }
 
     fn requires_action_broker(&self, name: &str) -> bool {
-        matches!(
-            name,
-            "read_file" | "list_dir" | "grep" | "glob" | "edit_file" | "write_file" | "run_shell"
-        )
+        Tools::tool_requires_capability(name)
     }
 
     fn requires_user_approval(&self, name: &str) -> bool {
-        matches!(name, "run_shell") || name.starts_with("lsp_")
+        matches!(name, "run_shell" | "run_checks") || name.starts_with("lsp_")
     }
 
     fn advertisements(&self) -> Vec<ToolAdvertisement> {

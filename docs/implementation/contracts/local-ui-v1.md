@@ -358,8 +358,12 @@ performing model discovery. The same list is included as `agent-catalog.tool_pac
 Each pack contains `org_id`, `team_id`, `id`, `revision`, `name`, `description`,
 `tools` (exact capability IDs) and `builtin`. Built-in revision 1 packs are Read
 files (`read_file`, `list_dir`, `grep`, `glob`), Edit files (those four plus
-`write_file`, `edit_file`) and Terminal (`run_shell`). They remain visible when
-unavailable; a pack does not register a folder or connect a service.
+`write_file`, `edit_file`) and Terminal (`run_shell`). Build & verify
+(`builtin:build-verify`, revision 1) contains `read_file`, `read_files`, `list_dir`,
+`grep`, `glob`, `write_file`, `edit_file`, `inspect_changes`, and `run_checks`.
+It does not grant the general `run_shell` tool. The earlier built-in revisions
+keep their original membership. Packs remain visible when unavailable; selecting
+one does not register a folder, relax policy, or connect a service.
 
 `POST /api/local/tool-packs` accepts `request_id` (UUID), `id` (UUID),
 `expected_revision` (0 to create), `name`, `description` and `tools`.
@@ -397,7 +401,7 @@ Keys are entered in a password field and submitted only to the authenticated loo
 
 The host constructs a sealed `RegisteredHostedInference` after owner consent and key checks. This binding is not accepted as caller-supplied execution authority. Its route and disclosure mode are included in the activation fingerprint. The prompt-only route strips ambient host file access and refuses tools other than finish and artifact bindings. It includes only explicit instructions, the submitted request, and prior turns in the same conversation, not unrelated team history, recall or workspace context. General governed contexts retain their existing Secret floor; explicit owner-approved hosted routes use a SensitiveSource ceiling. Actual secret findings still block hosted transmission, both in broker scanning and an exact wire-payload scan. There is no fallback to another provider.
 
-All four providers share the host-supported file tools (`read_file`, `list_dir`, `grep`, `glob`, `outline`, `search_code`, `edit_file`, `write_file`) and discovered MCP read tools. Every hosted agent with selected tools requires `hosted_tools_consent: true`. File tools also require `expected_workspace_root` equal to the catalog's canonical `workspace_root`; MCP-only agents need no folder. This input confirms the folder shown to the owner and never selects a host path.
+All four providers share the host-supported workspace tools (`read_file`, `read_files`, `list_dir`, `grep`, `glob`, `edit_file`, `write_file`, `inspect_changes`, `run_checks`, `run_shell`) and discovered MCP tools. The current saved-agent host does not inject the code-index dependencies needed by `outline` or `search_code`. Every hosted agent with selected tools requires `hosted_tools_consent: true`. File tools also require `expected_workspace_root` equal to the catalog's canonical `workspace_root`; MCP-only agents need no folder. This input confirms the folder shown to the owner and never selects a host path.
 
 The host persists version-1 `tool_disclosure` in immutable preferences: provider, exact inference endpoint, sorted selected tool IDs, and optional canonical workspace. MCP IDs already pin endpoint and full manifest. Activation rechecks this binding and includes it in the existing fingerprint; the independent job grants, ActionBroker, jailed tool host, secret scanner and finalization driver still decide execution. Selected bounded file writes use the existing staged-write/finalization path. Shell, recall and artifact-input bindings are not enabled. Old OpenAI folder approvals retain only their originally selected read tools and cannot silently become approvals for another provider, MCP or writes.
 
@@ -468,6 +472,38 @@ Post-edit previews are also bounded and do not claim independent verification.
 These controls do not change saved grants, grant search with file access,
 truncate durable history, or bound MCP/shell output. Actual inference admission
 and usage settlement remain with the existing budget ledger.
+
+#### Build & verify tools
+
+`read_files` accepts `files` (one to four `read_file` argument objects) and an
+optional total `max_bytes` (default 2,048, maximum 4,096, at least four bytes per
+file). The source allowance is divided across the requested files; per-file
+framing is additional. It uses the same workspace, protected-path, staged-read,
+range and hash checks as `read_file`. Results label each file complete, partial,
+or failed. Partial pages include `read_file` continuations; failed or omitted
+content is never treated as read. A batch with any error returns `ok: false`
+while retaining successful observations. It requires its own selected grant.
+
+`inspect_changes` reads only the current agent transaction. It shows pending
+paths, a compact single-hunk text diff per changed text file, and the actual last
+check receipt (or that checking is still needed). It is not Git status and does
+not capture shell changes. If the live baseline changed, it reports the conflict
+instead of inventing a diff. Optional `max_bytes` (default 2,048, maximum 4,096),
+`offset_bytes`, and `expected_sha256` page the report; a changed patch or receipt
+invalidates continuation. Inspection does not create or commit a transaction.
+Report construction still reads the changed files; the page limit bounds model
+output, not total file memory use.
+
+`run_checks` takes only an explicit `command`. It requests the existing shell
+capability with its own tool identity and original arguments, always binds the
+pending patch and its disposable verification directory before approval, and
+uses the existing process executor, cancellation, audit and transaction receipt.
+It needs pending file-tool edits; use Terminal for checks against live files.
+A failed check prevents delivery until repaired and rechecked. Subsequent edits
+invalidate a passing receipt. Command-generated files are not published and
+build/dependency caches are excluded from the copy. A successful command records
+only that check's result; it does not certify overall task correctness. Exact
+command approval and any platform confinement-gap disclosure still apply.
 
 #### Startup-configured local connections
 

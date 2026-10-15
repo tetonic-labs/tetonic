@@ -66,6 +66,8 @@ pub struct WorkspaceTransaction {
 
 #[path = "draft.rs"]
 mod draft;
+#[path = "inspection.rs"]
+mod inspection;
 #[path = "staged_check.rs"]
 mod staged_check;
 pub use staged_check::{StagedCheckBinding, StagedCheckResult};

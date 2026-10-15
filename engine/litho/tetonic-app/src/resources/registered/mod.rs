@@ -51,7 +51,14 @@ pub struct RegisteredHostedInference {
     pub(crate) tool_disclosure: Option<super::ToolDisclosure>,
 }
 
-pub(crate) const HOSTED_READ_TOOLS: &[&str] = &["read_file", "list_dir", "grep", "glob"];
+pub(crate) const HOSTED_READ_TOOLS: &[&str] = &[
+    "read_file",
+    "read_files",
+    "inspect_changes",
+    "list_dir",
+    "grep",
+    "glob",
+];
 
 pub struct RegisteredAgentSubmission {
     pub run_id: tetonic_domain::RunId,
@@ -236,6 +243,9 @@ fn supported_registered_tool(tool: &str) -> bool {
         tool,
         "finish"
             | "run_shell"
+            | "run_checks"
+            | "read_files"
+            | "inspect_changes"
             | "dispatch_assignment"
             | "ask_human"
             | "blackboard"

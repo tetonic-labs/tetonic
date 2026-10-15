@@ -5,6 +5,7 @@ use super::*;
 struct CheckTransport {
     provider: &'static str,
     repair: bool,
+    pack: bool,
     calls: Mutex<Vec<Value>>,
 }
 #[async_trait::async_trait]
@@ -18,10 +19,18 @@ impl HostedTransport for CheckTransport {
                 "write_file",
                 json!({"path":"result.txt","content":"broken\n"}),
             ),
-            2 | 4 => (
-                "run_shell",
-                json!({"view":"staged", "command": if cfg!(windows) { "findstr ready result.txt" } else { "grep -x ready result.txt" }}),
-            ),
+            2 | 4 => {
+                let command = if cfg!(windows) {
+                    "findstr ready result.txt"
+                } else {
+                    "grep -x ready result.txt"
+                };
+                if self.pack {
+                    ("run_checks", json!({"command":command}))
+                } else {
+                    ("run_shell", json!({"view":"staged", "command":command}))
+                }
+            }
             3 => {
                 let output = parity::output(&body, self.provider, "step-2");
                 assert!(
@@ -46,9 +55,37 @@ impl HostedTransport for CheckTransport {
                     output.contains("exit code: 0") && output.contains("ready"),
                     "{output}"
                 );
+                if self.pack {
+                    ("inspect_changes", json!({}))
+                } else {
+                    (
+                        "finish",
+                        json!({"summary":"Delivered result.txt after repairing and checking its exact pending contents."}),
+                    )
+                }
+            }
+            6 if self.pack => {
+                let output = parity::output(&body, self.provider, "step-5");
+                assert!(
+                    output.contains("-original")
+                        && output.contains("+ready")
+                        && output.contains("check passed"),
+                    "{output}"
+                );
+                (
+                    "read_files",
+                    json!({"files":[{"path":"result.txt","start_line":1,"end_line":1},{"path":"instructions.txt"}]}),
+                )
+            }
+            7 if self.pack => {
+                let output = parity::output(&body, self.provider, "step-6");
+                assert!(
+                    output.contains("ready") && output.contains("fixture instructions"),
+                    "{output}"
+                );
                 (
                     "finish",
-                    json!({"summary":"Delivered result.txt after repairing and checking its exact pending contents."}),
+                    json!({"summary":"Delivered checked result after inspecting the diff and pending source."}),
                 )
             }
             _ => panic!("unexpected fixture request {n}"),
@@ -65,22 +102,25 @@ impl HostedTransport for CheckTransport {
 #[tokio::test]
 async fn created_agents_check_repair_and_deliver_through_all_provider_adapters() {
     for provider in ["openai", "anthropic", "google"] {
-        run(provider, true).await;
+        run(provider, true, false).await;
+        run(provider, true, true).await;
     }
 }
 
 #[tokio::test]
 async fn model_claiming_done_after_failed_check_cannot_publish_pending_edits() {
-    run("openai", false).await;
+    run("openai", false, false).await;
+    run("openai", false, true).await;
 }
 
-async fn run(provider: &'static str, repair: bool) {
+async fn run(provider: &'static str, repair: bool, pack: bool) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let dir = tempfile::tempdir().unwrap();
             let root = dir.path().join("files");
             std::fs::create_dir(&root).unwrap();
             std::fs::write(root.join("result.txt"), "original\n").unwrap();
+            std::fs::write(root.join("instructions.txt"), "fixture instructions").unwrap();
             let mut workspace = LocalWorkspace::open_with_workspace(
                 dir.path().join("state.db"),
                 "offline".into(),
@@ -103,12 +143,19 @@ async fn run(provider: &'static str, repair: bool) {
             let transport = Arc::new(CheckTransport {
                 provider,
                 repair,
+                pack,
                 calls: Mutex::default(),
             });
             workspace.services.hosted_transport = Some(transport.clone());
             let agent = workspace
                 .create_agent(CreateLocalAgent {
-                    tool_pack_selection: None,
+                    tool_pack_selection: pack.then(|| ToolPackSelection {
+                        packs: vec![ToolPackRef {
+                            id: "builtin:build-verify".into(),
+                            revision: 1,
+                        }],
+                        excluded_tools: vec![],
+                    }),
                     workspace_root: None,
                     expected_workspace_root: workspace
                         .agent_catalog()
@@ -121,11 +168,11 @@ async fn run(provider: &'static str, repair: bool) {
                     provider: provider.into(),
                     model: "fixture-model".into(),
                     harness: "general".into(),
-                    tools: Some(vec![
-                        "write_file".into(),
-                        "read_file".into(),
-                        "run_shell".into(),
-                    ]),
+                    tools: Some(if pack {
+                        vec![]
+                    } else {
+                        vec!["write_file".into(), "read_file".into(), "run_shell".into()]
+                    }),
                     max_steps: 8,
                     max_seconds: 60,
                     max_tokens: 12288,
@@ -134,6 +181,10 @@ async fn run(provider: &'static str, repair: bool) {
                 })
                 .await
                 .unwrap();
+            if pack {
+                assert!(agent.tools.iter().any(|t| t == "run_checks"));
+                assert!(!agent.tools.iter().any(|t| t == "run_shell"));
+            }
             let id = uuid::Uuid::new_v4().to_string();
             workspace
                 .submit_for_agent(id.clone(), "Produce and check the result".into(), agent.key)

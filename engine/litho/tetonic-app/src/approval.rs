@@ -40,7 +40,7 @@ pub fn approval_detail(req: &ApprovalRequest) -> String {
 }
 
 pub fn is_shell_approval(req: &ApprovalRequest) -> bool {
-    req.kind == "run_shell" || req.tool == "run_shell"
+    req.kind == "run_shell" || matches!(req.tool.as_str(), "run_shell" | "run_checks")
 }
 
 /// Attach predicted OS-confinement gaps so the prompt can show them (AUDIT H1-2).

@@ -40,6 +40,12 @@ fn builtins(org: &str, team: &str) -> Vec<ToolPack> {
             ],
         ),
         (
+            "builtin:build-verify",
+            "Build & verify",
+            "Read efficiently, make changes, inspect the diff and check pending edits before delivery. Commands require approval.",
+            vec!["read_file", "read_files", "list_dir", "grep", "glob", "write_file", "edit_file", "inspect_changes", "run_checks"],
+        ),
+        (
             "builtin:terminal",
             "Terminal",
             "Run commands through the existing governed terminal tool.",

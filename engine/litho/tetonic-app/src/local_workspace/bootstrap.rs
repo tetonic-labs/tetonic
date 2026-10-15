@@ -84,6 +84,9 @@ impl LocalWorkspace {
             if has_workspace || !configuration.lock_agent_folders {
                 [
                     "read_file",
+                    "read_files",
+                    "inspect_changes",
+                    "run_checks",
                     "list_dir",
                     "grep",
                     "glob",
@@ -107,6 +110,7 @@ impl LocalWorkspace {
             .is_some_and(|(workspace, database)| !database.starts_with(workspace.root()));
         if !shell_ready && (has_workspace || configuration.lock_agent_folders) {
             allowed_tools.remove("run_shell");
+            allowed_tools.remove("run_checks");
         }
 
         let requested_tools: Vec<String> = if has_workspace {

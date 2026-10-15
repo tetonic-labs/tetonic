@@ -4,9 +4,10 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { AgentToolPacks } from '../src/components/views/AgentToolPacks';
 import { ToolPackLibrary } from '../src/components/views/ToolPackLibrary';
 import { LocalAgentSetup } from '../src/components/work/LocalAgentSetup';
+import { isFolderTool } from '../src/lib/agentCapabilities';
 import { LocalEngine } from '../src/engine/client';
 import type { AgentCatalog, EngineAgent, ToolPack } from '../src/engine/contracts';
-import { changePack, packRequest } from '../src/lib/toolPacks';
+import { changePack, packRequest, packToolLabel } from '../src/lib/toolPacks';
 
 const pack: ToolPack = {
   org_id: 'org',
@@ -282,4 +283,49 @@ it('selecting a pack requires fresh hosted tool consent for the full effective s
     expected_workspace_root: 'C:/work',
     tool_pack_selection: { packs: [{ id: 'read', revision: 1 }], excluded_tools: [] },
   });
+});
+
+it('selects Build & verify as exact tools without granting a general terminal', () => {
+  const build: ToolPack = {
+    ...pack,
+    id: 'builtin:build-verify',
+    builtin: true,
+    name: 'Build & verify',
+    description: 'Read, change, inspect and check pending edits.',
+    tools: [
+      'read_file',
+      'read_files',
+      'list_dir',
+      'grep',
+      'glob',
+      'write_file',
+      'edit_file',
+      'inspect_changes',
+      'run_checks',
+    ],
+  };
+  const onChange = vi.fn();
+  const available = { ...catalog, tools: build.tools, tool_packs: [build] };
+  render(
+    <AgentToolPacks
+      catalog={available}
+      packs={[]}
+      tools={[]}
+      supported={build.tools}
+      disabled={false}
+      onChange={onChange}
+    />,
+  );
+  fireEvent.click(screen.getByRole('checkbox', { name: 'Use Build & verify pack' }));
+  expect(onChange).toHaveBeenCalledWith([build], build.tools);
+  expect(packRequest([build], build.tools)).toEqual({
+    tools: [],
+    toolPackSelection: { packs: [{ id: build.id, revision: 1 }], excluded_tools: [] },
+  });
+  fireEvent.click(screen.getByRole('button', { name: 'View tools' }));
+  for (const tool of ['read_files', 'inspect_changes', 'run_checks']) {
+    expect(isFolderTool(tool)).toBe(true);
+    expect(screen.getByText(packToolLabel(tool, available))).toBeTruthy();
+  }
+  expect(onChange.mock.calls[0][1]).not.toContain('run_shell');
 });

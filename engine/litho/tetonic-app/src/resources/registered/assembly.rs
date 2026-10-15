@@ -123,7 +123,10 @@ impl crate::Application {
             .collect();
         allowed.insert("finish".into());
         let mut tools = match workspace {
-            Some(workspace) => tetonic_tools::Tools::new(workspace, allowed.contains("run_shell")),
+            Some(workspace) => tetonic_tools::Tools::new(
+                workspace,
+                allowed.contains("run_shell") || allowed.contains("run_checks"),
+            ),
             None => tetonic_tools::Tools::without_repository()
                 .map_err(|_| AppError::WorkspaceUnavailable)?,
         }

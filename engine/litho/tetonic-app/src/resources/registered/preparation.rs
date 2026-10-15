@@ -289,7 +289,7 @@ impl crate::Application {
             .job_spec
             .capability_bindings
             .iter()
-            .any(|tool| tool == "run_shell")
+            .any(|tool| matches!(tool.as_str(), "run_shell" | "run_checks"))
             && !approved_environment
             && !work.as_ref().is_some_and(|(team, _)| {
                 tetonic_memory::team_participation_context_id(
@@ -303,7 +303,7 @@ impl crate::Application {
             })
         {
             return Err(AppError::PolicyDenied(
-                "run_shell requires an owner-scoped work approval profile.".into(),
+                "run_shell/run_checks require an owner-scoped work approval profile.".into(),
             ));
         }
         let repository_requested = settings

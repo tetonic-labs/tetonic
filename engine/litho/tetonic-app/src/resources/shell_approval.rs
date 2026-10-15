@@ -49,7 +49,7 @@ async fn approve(
     if params.digest.is_empty() {
         return None;
     }
-    let is_shell = request.tool == "run_shell";
+    let is_shell = matches!(request.tool.as_str(), "run_shell" | "run_checks");
     let (command, cwd, shell) = if is_shell {
         let root = root?;
         let cwd = params.working_directory.clone()?;

@@ -150,3 +150,40 @@ async fn packs_pin_exact_tools_across_providers_and_never_bypass_consent_or_avai
         })
         .await;
 }
+
+#[test]
+fn build_pack_is_versioned_and_does_not_change_existing_default_grants() {
+    let packs = builtins("org", "team");
+    let pack = packs
+        .iter()
+        .find(|p| p.id == "builtin:build-verify")
+        .unwrap();
+    assert_eq!(pack.revision, 1);
+    assert!(pack.builtin);
+    for tool in [
+        "read_files",
+        "inspect_changes",
+        "run_checks",
+        "edit_file",
+        "write_file",
+    ] {
+        assert!(pack.tools.iter().any(|t| t == tool));
+    }
+    assert!(!pack.tools.iter().any(|t| t == "run_shell"));
+    assert_eq!(
+        packs
+            .iter()
+            .find(|p| p.id == "builtin:read-files")
+            .unwrap()
+            .tools,
+        ["read_file", "list_dir", "grep", "glob"]
+    );
+    assert_eq!(
+        packs
+            .iter()
+            .find(|p| p.id == "builtin:terminal")
+            .unwrap()
+            .tools,
+        ["run_shell"]
+    );
+}

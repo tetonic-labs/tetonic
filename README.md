@@ -52,7 +52,7 @@ The repository contains both the emerging team workspace and the underlying Rust
 | Team execution       | A coordinator dispatches agreed assignments to registered agents using their saved configuration and grants. Independent assignments can run in parallel, subject to dependencies and limits. |
 | Human involvement    | Workers can raise questions during a bounded run. The owner can answer, inspect results, amend upcoming assignments, and cancel work.                                    |
 | Visibility           | Work map, conversation history, individual contributions, and provider-reported token usage with held and remaining allowances.                                          |
-| Tools and connections | Select supported local tools, manage MCP connections, create/import workspace skills and grant them to agents. Registered team contributors reuse the governed tool path with their configured provider. Host, grant and approval restrictions still apply. |
+| Tools and connections | Start with a tool pack such as **Build & verify**, customize a pack from available tools, manage MCP connections, and create/import workspace skills. Grant selections to individual agents. Registered team contributors reuse the governed tool path with their configured provider. Host, grant and approval restrictions still apply. |
 
 **Start with a bounded trial:** compare two proposals, ask for an independent critique, or synthesize a brief and review its assumptions. Then add the specific tools or connections your next task needs and verify their access before delegating it.
 

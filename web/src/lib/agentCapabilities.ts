@@ -2,15 +2,19 @@ import { type AgentCatalog, type EngineAgent } from '../engine/contracts';
 
 // Product groupings describe a selection; they never expand a saved grant.
 export const agentToolGroups: Record<string, readonly string[]> = {
-  read_file: ['read_file', 'list_dir', 'grep', 'glob'],
+  read_file: ['read_file', 'read_files', 'inspect_changes', 'list_dir', 'grep', 'glob'],
   write_file: ['write_file', 'edit_file'],
-  run_shell: ['run_shell'],
+  run_shell: ['run_shell', 'run_checks'],
   blackboard: ['blackboard'],
 };
-export const isFolderTool = (id: string) => id !== 'blackboard' && Object.values(agentToolGroups).some(group => group.includes(id));
+export const isFolderTool = (id: string) =>
+  id !== 'blackboard' && Object.values(agentToolGroups).some((group) => group.includes(id));
 const toolDescriptions: Record<string, string> = {
   blackboard: 'Share messages with permitted agents in the same effort',
   read_file: 'Read file contents',
+  read_files: 'Read several file sections at once',
+  inspect_changes: 'Inspect pending changes and check results',
+  run_checks: 'Check pending edits with your approval',
   list_dir: 'Browse folders',
   grep: 'Search file contents',
   glob: 'Find files by name',

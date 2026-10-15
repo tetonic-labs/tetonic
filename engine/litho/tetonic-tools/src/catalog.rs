@@ -1,13 +1,28 @@
 //! Tool catalogue and operator-card prompt lines.
 
-use crate::types::EditFileArgs;
 use crate::types::{
     schema_of, FindDefinitionArgs, FindMentionsArgs, FinishArgs, GlobArgs, GrepArgs, ListDirArgs,
     OutlineArgs, ReadFileArgs, RecallArgs, RunShellArgs, SearchCodeArgs, ToolDef, WriteFileArgs,
 };
+use crate::types::{EditFileArgs, InspectChangesArgs, ReadFilesArgs, RunChecksArgs};
 
 pub fn tool_defs() -> Vec<ToolDef> {
     vec![
+        ToolDef {
+            name: "read_files",
+            description: "Read up to four specific files or line ranges in one call. Shares a total source budget (default 2048, maximum 4096 bytes) across files, plus per-file framing. Uses pending edits when present. Each partial read includes a read_file continuation; errors and unread content are not evidence. Prefer targeted ranges over whole files.",
+            parameters: schema_of::<ReadFilesArgs>(), mutating: false,
+        },
+        ToolDef {
+            name: "inspect_changes",
+            description: "Inspect this agent's pending file-tool edits, actual changed lines and the last requested check result. Bounded report pages include a hash and continuation. Read-only; does not publish edits, inspect Git, or claim shell changes were staged. A passed command is not proof of overall correctness.",
+            parameters: schema_of::<InspectChangesArgs>(), mutating: false,
+        },
+        ToolDef {
+            name: "run_checks",
+            description: "Run an explicit verification command against this agent's pending file-tool edits in a disposable workspace copy. Requires the same command approval and confinement as Terminal. Use relative paths; generated files are not published and dependency/build caches are excluded. Needs pending edits; for checks of live files use run_shell. Failure blocks delivery until repaired and checked again; later edits invalidate the passing result.",
+            parameters: schema_of::<RunChecksArgs>(), mutating: true,
+        },
         ToolDef {
             name: "read_file",
             description: "Read a bounded UTF-8 source page from the workspace (2048 bytes by default; at most 4096). Prefer relevant line ranges or grep over loading entire files. Large reads return exact continuation arguments and a SHA-256; unread content is not evidence. Request additional pages only when needed. Small files and line ranges are returned verbatim.",
@@ -164,6 +179,15 @@ Index tools still work if LSP fails.\n",
 pub fn validate_tool_args(name: &str, args: &serde_json::Value) -> Result<(), String> {
     let args = crate::types::coerce_args(args).map_err(|e| e.to_string())?;
     match name {
+        "read_files" => serde_json::from_value::<ReadFilesArgs>(args)
+            .map(|_| ())
+            .map_err(|e| e.to_string()),
+        "inspect_changes" => serde_json::from_value::<InspectChangesArgs>(args)
+            .map(|_| ())
+            .map_err(|e| e.to_string()),
+        "run_checks" => serde_json::from_value::<RunChecksArgs>(args)
+            .map(|_| ())
+            .map_err(|e| e.to_string()),
         "read_file" => serde_json::from_value::<ReadFileArgs>(args)
             .map(|_| ())
             .map_err(|e| e.to_string()),

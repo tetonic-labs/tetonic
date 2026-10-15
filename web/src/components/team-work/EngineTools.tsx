@@ -7,7 +7,16 @@ import { toolDescription } from '../../lib/agentCapabilities';
 import { ToolsView, type ToolkitResource } from '../views/ToolsView';
 
 const internalTools = new Set(['finish', 'dispatch_assignment', 'ask_human']);
-const fileTools = new Set(['read_file', 'write_file', 'edit_file', 'list_dir', 'grep', 'glob']);
+const fileTools = new Set([
+  'read_file',
+  'read_files',
+  'inspect_changes',
+  'write_file',
+  'edit_file',
+  'list_dir',
+  'grep',
+  'glob',
+]);
 const mcpConnectionId = (tool: string) => tool.slice(4, tool.lastIndexOf('_'));
 
 export function EngineTools({ onAgent }: { onAgent: (key: string) => void }) {

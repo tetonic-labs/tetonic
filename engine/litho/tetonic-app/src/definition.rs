@@ -437,7 +437,7 @@ the completion tool when done."
         handoff_tool: None,
         host_tools: vec![],
         expand_tool: Some("expand_context".into()),
-        whole_file_tools: vec!["read_file".into()],
+        whole_file_tools: vec!["read_file".into(), "read_files".into()],
         search_tools: vec!["search_code".into()],
         compaction_system_prompt: Some(
             "You compress a coding agent's session log. Produce a terse brief capturing: \

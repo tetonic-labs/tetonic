@@ -11,10 +11,11 @@ pub fn staged_shell_directory(
     root: &std::path::Path,
     params: &CanonicalActionParameters,
 ) -> Option<std::path::PathBuf> {
-    if params.tool_name.as_deref() != Some("run_shell") {
-        return None;
-    }
-    let args: RunShellArgs = serde_json::from_value(params.tool_arguments.clone()?).ok()?;
+    let args = shell_args(
+        params.tool_name.as_deref()?,
+        params.tool_arguments.as_ref()?,
+    )
+    .ok()?;
     if args.view != ShellView::Staged {
         return None;
     }
@@ -30,12 +31,11 @@ impl Tools {
         name: &str,
         mut params: CanonicalActionParameters,
     ) -> Result<CanonicalActionParameters, String> {
-        if name != "run_shell" {
+        if !matches!(name, "run_shell" | "run_checks") {
             return Ok(params);
         }
-        let args: RunShellArgs =
-            serde_json::from_value(params.tool_arguments.clone().unwrap_or_default())
-                .map_err(|e| e.to_string())?;
+        let args = shell_args(name, &params.tool_arguments.clone().unwrap_or_default())
+            .map_err(|e| e.to_string())?;
         self.validate_shell_command(&args.command)
             .map_err(|e| e.to_string())?;
         if args.view == ShellView::Staged {
@@ -59,13 +59,14 @@ impl Tools {
 
     pub(crate) fn run_authorized_shell(
         &self,
+        name: &str,
         args: &serde_json::Value,
         authorized: &AuthorizedAction,
         cancel: Option<&CancellationSignal>,
     ) -> ToolOutcome {
         let run = || -> Result<ToolOutcome, ToolError> {
             let params = &authorized.action.parameters;
-            let a: RunShellArgs = Self::parse(args.clone())?;
+            let a = shell_args(name, args)?;
             self.validate_shell_command(&a.command)?;
             let now = std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -74,7 +75,7 @@ impl Tools {
             tetonic_domain::validate_authorized_action(authorized, now)
                 .map_err(|e| ToolError::Other(format!("shell capability denied: {e}")))?;
             if authorized.action.kind != tetonic_domain::ActionKind::ExecuteShell
-                || params.tool_name.as_deref() != Some("run_shell")
+                || params.tool_name.as_deref() != Some(name)
                 || params.tool_arguments.as_ref() != Some(args)
                 || params.script_bytes.as_deref() != Some(a.command.as_bytes())
             {
@@ -144,5 +145,21 @@ impl Tools {
             })
         };
         run().unwrap_or_else(outcome_err)
+    }
+}
+
+// Preserve the requested tool name and original arguments in the capability.
+// Only interpret run_checks as a staged view; never rewrite issued parameters.
+fn shell_args(name: &str, args: &serde_json::Value) -> Result<RunShellArgs, ToolError> {
+    match name {
+        "run_shell" => Tools::parse(args.clone()),
+        "run_checks" => {
+            let check: crate::RunChecksArgs = Tools::parse(args.clone())?;
+            Ok(RunShellArgs {
+                command: check.command,
+                view: ShellView::Staged,
+            })
+        }
+        _ => Err(ToolError::ShellNotApproved),
     }
 }

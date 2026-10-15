@@ -35,6 +35,9 @@ impl ToolDisclosure {
 /// shell confinement depends on the host OS and requires command approval.
 pub const WORKSPACE_TOOLS: &[&str] = &[
     "read_file",
+    "read_files",
+    "inspect_changes",
+    "run_checks",
     "list_dir",
     "grep",
     "glob",

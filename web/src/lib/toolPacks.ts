@@ -42,6 +42,9 @@ export function packToolLabel(id: string, catalog: AgentCatalog): string {
     (
       {
         read_file: 'Read a file',
+        read_files: 'Read several file sections',
+        inspect_changes: 'Inspect pending changes',
+        run_checks: 'Check pending edits',
         list_dir: 'List a folder',
         grep: 'Search file contents',
         glob: 'Find files',

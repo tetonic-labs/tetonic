@@ -6,6 +6,8 @@ use tetonic_domain::{CandidateOutcome, ExecutionScope, RunState};
 async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scoped_audit() {
     for scenario in [
         "success",
+        "batch",
+        "inspect",
         "write",
         "audit-failure",
         "egress-denied",
@@ -32,6 +34,10 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         let resources = local.resources();
         let tool = if scenario == "write" {
             "write_file"
+        } else if scenario == "batch" {
+            "read_files"
+        } else if scenario == "inspect" {
+            "inspect_changes"
         } else {
             "read_file"
         };
@@ -131,6 +137,10 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         ));
         let arguments = if scenario == "write" {
             serde_json::json!({"path":"result.txt", "content":"registered workspace write"})
+        } else if scenario == "batch" {
+            serde_json::json!({"files":[{"path":"fixture.txt"}]})
+        } else if scenario == "inspect" {
+            serde_json::json!({})
         } else {
             serde_json::json!({"path":"fixture.txt"})
         };
@@ -331,7 +341,12 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
         {
             let requests = requests.lock().unwrap();
             match scenario {
-                "success" => {
+                "success" | "batch" | "inspect" => {
+                    let expected = if scenario == "inspect" {
+                        "No pending"
+                    } else {
+                        "cobalt orchard"
+                    };
                     assert_eq!(snapshot.state, RunState::Succeeded);
                     assert!(
                         matches!(result.outcome, CandidateOutcome::Completed { .. }),
@@ -344,13 +359,10 @@ async fn registered_workspace_job_uses_production_runtime_broker_tools_and_scope
                         .unwrap()
                         .iter()
                         .any(|m| m["role"] == "tool"
-                            && m["content"]
-                                .as_str()
-                                .unwrap_or_default()
-                                .contains("cobalt orchard")));
+                            && m["content"].as_str().unwrap_or_default().contains(expected)));
                     assert!(transcript
                         .iter()
-                        .any(|(_, role, text)| role == "tool" && text.contains("cobalt orchard")));
+                        .any(|(_, role, text)| role == "tool" && text.contains(expected)));
                     let raw = rusqlite::Connection::open(&database).unwrap();
                     let reservations: i64 = raw
                         .query_row("SELECT COUNT(*) FROM compute_reservations", [], |r| {

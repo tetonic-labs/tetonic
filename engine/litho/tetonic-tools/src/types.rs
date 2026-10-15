@@ -67,7 +67,7 @@ pub struct ToolDef {
     pub mutating: bool,
 }
 
-#[derive(Debug, Deserialize, JsonSchema)]
+#[derive(Debug, serde::Serialize, Deserialize, JsonSchema)]
 pub struct ReadFileArgs {
     pub path: String,
     pub start_line: Option<usize>,
@@ -78,6 +78,32 @@ pub struct ReadFileArgs {
     pub max_bytes: Option<usize>,
     /// Optional SHA-256 from an earlier page; rejects a changed source instead of mixing versions.
     pub expected_sha256: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct ReadFilesArgs {
+    /// One to four specific files/ranges. Each uses the same paging and hash checks as read_file.
+    pub files: Vec<ReadFileArgs>,
+    /// Total source byte allowance across all files (default 2048, maximum 4096).
+    pub max_bytes: Option<usize>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct InspectChangesArgs {
+    pub offset_bytes: Option<usize>,
+    /// Maximum report bytes per page (default 2048, maximum 4096).
+    pub max_bytes: Option<usize>,
+    /// Hash of the earlier report. Refuse to mix pages if changes or verification changed.
+    pub expected_sha256: Option<String>,
+}
+
+#[derive(Debug, Deserialize, JsonSchema)]
+#[serde(deny_unknown_fields)]
+pub struct RunChecksArgs {
+    /// Explicit check command, with paths relative to the working folder. Requires shell approval.
+    pub command: String,
 }
 
 #[derive(Debug, Deserialize, JsonSchema)]
