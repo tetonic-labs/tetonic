@@ -7,6 +7,7 @@ struct CheckTransport {
     repair: bool,
     pack: bool,
     new_file: bool,
+    premature: bool,
     calls: Mutex<Vec<Value>>,
 }
 #[async_trait::async_trait]
@@ -15,7 +16,50 @@ impl HostedTransport for CheckTransport {
         let mut calls = self.calls.lock().unwrap();
         calls.push(body.clone());
         let n = calls.len();
-        let (tool, args) = match n {
+        if (self.premature && n == 3) || (!self.repair && n >= 4) {
+            if n == 3 {
+                let output = parity::output(&body, self.provider, "step-2");
+                assert!(
+                    output.contains("Check failed") && output.contains("exit code: 1"),
+                    "{output}"
+                );
+            } else {
+                let output = parity::output(&body, self.provider, &format!("step-{}", n - 1));
+                assert!(
+                    output.contains("successful staged check before delivery"),
+                    "{output}"
+                );
+            }
+            return Ok(parity::completion(
+                self.provider,
+                "finish",
+                json!({"summary":"Model claims completion despite a failing check"}),
+                &format!("step-{n}"),
+            ));
+        }
+        if self.premature && n == 4 {
+            let output = parity::output(&body, self.provider, "step-3");
+            assert!(
+                output.contains("successful staged check before delivery"),
+                "{output}"
+            );
+            assert!(
+                !output.contains("invalid arguments"),
+                "readiness is not a schema error: {output}"
+            );
+        }
+        let step = if self.premature && n > 3 { n - 1 } else { n };
+        let prior_id = |step: usize| {
+            format!(
+                "step-{}",
+                if self.premature && step >= 3 {
+                    step + 1
+                } else {
+                    step
+                }
+            )
+        };
+        let (tool, args) = match step {
             1 => (
                 "write_file",
                 json!({"path":"result.txt","content":"broken\n"}),
@@ -33,11 +77,13 @@ impl HostedTransport for CheckTransport {
                 }
             }
             3 => {
-                let output = parity::output(&body, self.provider, "step-2");
-                assert!(
-                    output.contains("Check failed") && output.contains("exit code: 1"),
-                    "{output}"
-                );
+                if !self.premature {
+                    let output = parity::output(&body, self.provider, "step-2");
+                    assert!(
+                        output.contains("Check failed") && output.contains("exit code: 1"),
+                        "{output}"
+                    );
+                }
                 if self.repair {
                     (
                         "edit_file",
@@ -51,7 +97,7 @@ impl HostedTransport for CheckTransport {
                 }
             }
             5 => {
-                let output = parity::output(&body, self.provider, "step-4");
+                let output = parity::output(&body, self.provider, &prior_id(4));
                 assert!(
                     output.contains("exit code: 0") && output.contains("ready"),
                     "{output}"
@@ -66,7 +112,7 @@ impl HostedTransport for CheckTransport {
                 }
             }
             6 if self.pack => {
-                let output = parity::output(&body, self.provider, "step-5");
+                let output = parity::output(&body, self.provider, &prior_id(5));
                 assert!(
                     (self.new_file || output.contains("-original"))
                         && output.contains("+ready")
@@ -79,7 +125,7 @@ impl HostedTransport for CheckTransport {
                 )
             }
             7 if self.pack => {
-                let output = parity::output(&body, self.provider, "step-6");
+                let output = parity::output(&body, self.provider, &prior_id(6));
                 assert!(
                     output.contains("ready") && output.contains("fixture instructions"),
                     "{output}"
@@ -104,19 +150,27 @@ impl HostedTransport for CheckTransport {
 async fn created_agents_check_repair_and_deliver_through_all_provider_adapters() {
     for provider in ["openai", "anthropic", "google"] {
         for new_file in [false, true] {
-            run(provider, true, false, new_file).await;
-            run(provider, true, true, new_file).await;
+            run(provider, true, false, new_file, false).await;
+            run(provider, true, true, new_file, false).await;
         }
     }
 }
 
 #[tokio::test]
 async fn model_claiming_done_after_failed_check_cannot_publish_pending_edits() {
-    run("openai", false, false, false).await;
-    run("openai", false, true, false).await;
+    run("openai", false, false, false, false).await;
+    run("openai", false, true, false, false).await;
 }
 
-async fn run(provider: &'static str, repair: bool, pack: bool, new_file: bool) {
+#[tokio::test]
+async fn premature_completion_can_repair_and_deliver_in_the_original_attempt() {
+    for provider in ["openai", "anthropic", "google"] {
+        run(provider, true, false, false, true).await;
+        run(provider, true, true, true, true).await;
+    }
+}
+
+async fn run(provider: &'static str, repair: bool, pack: bool, new_file: bool, premature: bool) {
     tokio::task::LocalSet::new()
         .run_until(async {
             let dir = tempfile::tempdir().unwrap();
@@ -150,6 +204,7 @@ async fn run(provider: &'static str, repair: bool, pack: bool, new_file: bool) {
                 repair,
                 pack,
                 new_file,
+                premature,
                 calls: Mutex::default(),
             });
             workspace.services.hosted_transport = Some(transport.clone());
@@ -244,6 +299,10 @@ async fn run(provider: &'static str, repair: bool, pack: bool, new_file: bool) {
                     .unwrap();
             }
             let result = settled(&workspace, &id).await;
+            assert!(
+                transport.calls.lock().unwrap().len() <= 8,
+                "repair cannot increase the existing step allowance"
+            );
             if repair {
                 assert_eq!(result.state, "completed", "{:?}", result.error);
                 assert_eq!(

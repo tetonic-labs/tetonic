@@ -7,6 +7,9 @@ use tetonic_tools::Tools;
 #[path = "tool_recovery_tests.rs"]
 mod tool_recovery;
 
+#[path = "completion_tests.rs"]
+mod completion;
+
 #[path = "context_window_tests.rs"]
 mod context_window;
 

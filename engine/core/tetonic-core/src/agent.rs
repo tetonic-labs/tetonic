@@ -54,6 +54,7 @@ pub struct Agent {
     brain: Option<Arc<dyn tetonic_domain::Brain>>,
 }
 
+mod completion;
 mod context;
 mod observations;
 mod waiting;
@@ -1265,8 +1266,17 @@ impl Agent {
                     .messages
                     .last()
                     .map(|m| m.content.trim())
-                    .unwrap_or("");
+                    .unwrap_or("")
+                    .to_string();
                 if explain_turn && !answer_text.is_empty() {
+                    match self
+                        .completion_ready(convo, &mut monitor, None, &mut on_step)
+                        .await
+                    {
+                        Ok(true) => {}
+                        Ok(false) => continue 'steps,
+                        Err(outcome) => return outcome,
+                    }
                     on_step(Step::Answer(answer_text.to_string()));
                     on_step(Step::Stopped("answered".into()));
                     return CandidateOutcome::Completed {
@@ -1324,14 +1334,15 @@ impl Agent {
                 };
             }
 
-            // A resumable host boundary must be the only call in its response.
+            // Completion and resumable host boundaries must be standalone.
             // Reject the whole batch before any ordinary effect, so no skipped
             // tail can later be mistaken for a completed or replayable action.
             if tool_calls.len() > 1
                 && tool_calls.iter().any(|tc| {
-                    (self.durable_waits
-                        && invocation.discipline.handoff_tool.as_deref()
-                            == Some(tc.function.name.as_str()))
+                    tc.function.name == invocation.completion_tool
+                        || (self.durable_waits
+                            && invocation.discipline.handoff_tool.as_deref()
+                                == Some(tc.function.name.as_str()))
                         || (self.config.attempt_id.is_some()
                             && self.context_compiler.is_none()
                             && self.turn_instructions.is_none()
@@ -1340,13 +1351,20 @@ impl Agent {
                                 .is_host_tool(tc.function.name.as_str()))
                 })
             {
+                let completion_batch = tool_calls
+                    .iter()
+                    .any(|c| c.function.name == invocation.completion_tool);
+                let (feedback, kind) = if completion_batch {
+                    ("No calls in this batch were executed. Complete any remaining actions first, then submit completion as a single tool call.", "completion_batch")
+                } else {
+                    ("No calls in this batch were executed. Submit the host handoff as a single tool call.", "handoff_batch")
+                };
                 for (ordinal, call) in tool_calls.iter().enumerate() {
                     let id = provider_call_ids
                         .get(ordinal)
                         .cloned()
                         .unwrap_or_else(|| format!("tc_{:x}_{}", convo.nonce, convo.call_no));
                     convo.call_no += 1;
-                    let feedback = "No calls in this batch were executed. Submit the host handoff as a single tool call.";
                     if let Some(audit) = self.audit() {
                         audit.tool_call(
                             &id,
@@ -1354,14 +1372,28 @@ impl Agent {
                             &call.function.arguments.to_string(),
                             false,
                             feedback,
-                            Some("handoff_batch"),
+                            Some(kind),
                         );
                         audit.tool_message(&call.function.name, &id, feedback);
                     }
+                    on_step(Step::ToolResult {
+                        call_id: id.clone(),
+                        name: call.function.name.clone(),
+                        ok: false,
+                        summary: feedback.into(),
+                    });
                     convo.messages.push(
                         Message::tool(call.function.name.clone(), feedback.to_string())
                             .with_tool_call_id(id),
                     );
+                }
+                if monitor.record_control_result(false) {
+                    let note = monitor.stuck_reason();
+                    on_step(Step::Stopped(note.into()));
+                    return CandidateOutcome::Limited {
+                        kind: LimitKind::NoProgress,
+                        message: note.into(),
+                    };
                 }
                 continue 'steps;
             }
@@ -1551,6 +1583,19 @@ Fix the JSON to match the tool schema and call the tool again."
                         continue;
                     }
 
+                    match self
+                        .completion_ready(
+                            convo,
+                            &mut monitor,
+                            Some((&name, &call_id, &args_json)),
+                            &mut on_step,
+                        )
+                        .await
+                    {
+                        Ok(true) => {}
+                        Ok(false) => continue 'steps,
+                        Err(outcome) => return outcome,
+                    }
                     if let Some(a) = self.audit() {
                         a.tool_call(&call_id, &name, &args_json, true, &summary, None);
                     }
@@ -2091,6 +2136,22 @@ Fix the JSON to match the tool schema and call the tool again."
 
         if explain_turn {
             if let Some(ans) = explain_cap_fallback(&convo.messages, convo.prefix_len) {
+                match self
+                    .completion_ready(convo, &mut monitor, None, &mut on_step)
+                    .await
+                {
+                    Ok(false) => {
+                        on_step(Step::Stopped(
+                            "effort cap reached with unfinished work".into(),
+                        ));
+                        return CandidateOutcome::Limited {
+                            kind: LimitKind::EffortCap,
+                            message: "effort cap reached with unfinished work".into(),
+                        };
+                    }
+                    Err(outcome) => return outcome,
+                    Ok(true) => {}
+                }
                 on_step(Step::Answer(ans.clone()));
                 on_step(Step::Stopped(
                     "answered at effort cap (synthesized from context)".into(),

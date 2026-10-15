@@ -71,7 +71,7 @@ pub fn tool_defs() -> Vec<ToolDef> {
         },
         ToolDef {
             name: "finish",
-            description: "Signal the task is complete. For questions, explanations, or plans, provide the complete, detailed answer in `summary`. For code edits, summarize the changes.",
+            description: "Signal the task is complete, as the only tool call in this response, after reviewing results and resolving failed checks. For questions, explanations, or plans, provide the complete, detailed answer in `summary`. For code edits, summarize the changes.",
             parameters: schema_of::<FinishArgs>(),
             mutating: false,
         },

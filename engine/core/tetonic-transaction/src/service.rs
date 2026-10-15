@@ -576,12 +576,18 @@ impl WorkspaceTransaction {
         Ok(())
     }
 
-    pub fn bind_approval(&mut self, approval: PatchApproval) -> Result<(), TransactionError> {
+    /// Inspect verification without granting approval or publishing changes.
+    pub fn check_verification_ready(&self) -> Result<(), TransactionError> {
         if self.verification_required && !self.verification.as_ref().is_some_and(|v| v.success) {
             return Err(TransactionError::ApprovalInvalid(
                 "Pending edits need a successful staged check before delivery. Repair the failure and check again.".into(),
             ));
         }
+        Ok(())
+    }
+
+    pub fn bind_approval(&mut self, approval: PatchApproval) -> Result<(), TransactionError> {
+        self.check_verification_ready()?;
         let preview = self.preview();
         if approval.transaction_id != self.id {
             return Err(TransactionError::ApprovalInvalid(

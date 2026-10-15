@@ -105,7 +105,8 @@ pub use secrets::{
 pub use sinks::{CapabilityConsumer, CapabilityError, MutationSink, PolicyEvaluator, ProcessSink};
 pub use suspension::{AttemptSuspension, ResumeAttempt, SuspendAttempt, SuspensionReason};
 pub use tool_host::{
-    ChangeKind, FileChange, ToolAdvertisement, ToolHost, ToolOutcome, ToolProposal,
+    ChangeKind, CompletionBlocker, FileChange, ToolAdvertisement, ToolHost, ToolOutcome,
+    ToolProposal,
 };
 pub use trust::WorkerTrust;
 pub use workspace::{

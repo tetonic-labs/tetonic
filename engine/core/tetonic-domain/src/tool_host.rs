@@ -97,9 +97,36 @@ pub struct ToolAdvertisement {
     pub parameters: Value,
 }
 
+/// A known reason work cannot finish yet, without an effect or file change.
+#[derive(Debug, Clone)]
+pub struct CompletionBlocker {
+    pub message: String,
+    pub kind: String,
+}
+
+impl CompletionBlocker {
+    pub fn new(message: impl std::fmt::Display, kind: impl Into<String>) -> Self {
+        Self {
+            message: message.to_string(),
+            kind: kind.into(),
+        }
+    }
+}
+
 /// Named tool → [`ToolProposal`]; execute after the broker. Send + Sync + clone for concurrency.
 pub trait ToolHost: Send + Sync {
     fn clone_box(&self) -> Box<dyn ToolHost>;
+    /// Read-only readiness check before the loop accepts any completion claim.
+    /// Stateful hosts report known blockers so the same attempt can repair them
+    /// within its existing allowance. Composite hosts must forward this check.
+    /// This must not run effects, approve or publish work; finalization remains
+    /// authoritative and must revalidate its own conditions.
+    fn check_completion(
+        &self,
+        _cancel: &crate::work_scope::CancellationSignal,
+    ) -> Result<(), CompletionBlocker> {
+        Ok(())
+    }
     /// Narrow a pageable, read-only observation without changing its target.
     /// None means the tool does not implement bounded observations. This is a context
     /// hint, never authorization; normal argument and effect checks still apply.

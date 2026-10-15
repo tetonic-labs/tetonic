@@ -9,6 +9,16 @@ use tetonic_domain::{
 use crate::Tools;
 
 impl ToolHost for Tools {
+    fn check_completion(
+        &self,
+        _cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<(), tetonic_domain::CompletionBlocker> {
+        self.mutation
+            .transaction_service()
+            .with_active_if_any(|txn| txn.check_verification_ready())
+            .map(|_| ())
+            .map_err(|e| tetonic_domain::CompletionBlocker::new(e, "verification_required"))
+    }
     fn prepare_parameters(
         &self,
         name: &str,

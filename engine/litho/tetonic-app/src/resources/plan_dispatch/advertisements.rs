@@ -8,7 +8,7 @@ pub(crate) fn coordinator(keys: &[String]) -> Vec<ToolAdvertisement> {
         .expect("completion tool");
     vec![ToolAdvertisement {
         name: "finish".into(),
-        description: "Return the final synthesis in summary after all contributions arrive. Preserve source citations and the requested length.".into(),
+        description: "Return the final synthesis in summary after all contributions arrive, as the only tool call in this response. Preserve source citations and the requested length.".into(),
         parameters: finish.parameters,
     }, ToolAdvertisement {
         name: DISPATCH.into(),

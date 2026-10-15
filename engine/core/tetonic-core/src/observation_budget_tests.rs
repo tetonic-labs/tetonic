@@ -75,9 +75,12 @@ impl InferenceProvider for BatchProvider {
         requests.push(req);
         let output = if first {
             (0..6).map(|n| json!({"type":"function_call","call_id":format!("page-{n}"),"name":"observe","arguments":json!({"key":n,"bytes":1000000}).to_string()})).collect::<Vec<_>>()
-        } else {
+        } else if requests.len() == 2 {
             vec![
                 json!({"type":"function_call","call_id":"deliver","name":"deliver","arguments":"{}"}),
+            ]
+        } else {
+            vec![
                 json!({"type":"function_call","call_id":"finish","name":"finish","arguments":"{\"summary\":\"actual work receipt\"}"}),
             ]
         };
@@ -128,7 +131,11 @@ async fn pages_share_one_allowance_without_dropping_evidence_or_breaking_native_
             .iter()
             .any(|m| m.content.contains("ASSIGNED WORK MUST REMAIN VISIBLE")));
         let observations: Vec<_> = last.messages.iter().filter(|m| m.role == "tool").collect();
-        assert_eq!(observations.len(), 6, "never erase earlier results to fit");
+        assert_eq!(
+            observations.len(),
+            7,
+            "never erase earlier results or delivery receipt to fit"
+        );
         assert_eq!(
             reads.len(),
             6,
@@ -136,7 +143,11 @@ async fn pages_share_one_allowance_without_dropping_evidence_or_breaking_native_
         );
         assert!(reads.iter().all(|v| v["args"]["bytes"] == 3584));
         assert_eq!(
-            observations.iter().map(|m| m.content.len()).sum::<usize>(),
+            observations
+                .iter()
+                .filter(|m| m.tool_name.as_deref() == Some("observe"))
+                .map(|m| m.content.len())
+                .sum::<usize>(),
             21504
         );
         assert_eq!(

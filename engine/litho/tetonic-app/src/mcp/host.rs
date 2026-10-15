@@ -11,6 +11,12 @@ pub(crate) struct McpToolHost {
     pub runtime: tokio::runtime::Handle,
 }
 impl ToolHost for McpToolHost {
+    fn check_completion(
+        &self,
+        cancel: &tetonic_domain::work_scope::CancellationSignal,
+    ) -> Result<(), tetonic_domain::CompletionBlocker> {
+        self.inner.check_completion(cancel)
+    }
     fn prepare_parameters(
         &self,
         name: &str,

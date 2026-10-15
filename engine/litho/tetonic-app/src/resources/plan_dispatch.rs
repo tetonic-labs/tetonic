@@ -6,6 +6,8 @@ use tetonic_domain::{AuthorizedAction, ToolAdvertisement, ToolHost, ToolOutcome,
 
 pub(crate) mod advertisements;
 pub(crate) mod blackboard;
+#[cfg(test)]
+mod completion_tests;
 mod group;
 
 pub(crate) const DISPATCH: &str = "dispatch_assignment";
@@ -169,6 +171,28 @@ pub(crate) struct RegisteredToolHost {
 }
 
 impl ToolHost for RegisteredToolHost {
+    fn check_completion(
+        &self,
+        cancel: &CancellationSignal,
+    ) -> Result<(), tetonic_domain::CompletionBlocker> {
+        if let Some(dispatch) = &self.dispatch {
+            let remaining = dispatch.remaining.lock().map_err(|_| {
+                tetonic_domain::CompletionBlocker::new(
+                    "Cannot confirm plan completion",
+                    "completion_unavailable",
+                )
+            })?;
+            if !remaining.is_empty() {
+                let mut keys: Vec<_> = remaining.iter().cloned().collect();
+                keys.sort();
+                return Err(tetonic_domain::CompletionBlocker::new(
+                    format!("The plan still needs contributions from: {}. Dispatch ready assignments before finishing. Never claim uncompleted work is done.", keys.join(", ")),
+                    "incomplete_work",
+                ));
+            }
+        }
+        self.tools.check_completion(cancel)
+    }
     fn prepare_parameters(
         &self,
         name: &str,
@@ -285,19 +309,6 @@ impl ToolHost for RegisteredToolHost {
                 .as_ref()
                 .ok_or("Plan dispatch is unavailable")?;
             return group::keys(args.clone(), &dispatch.assignment_keys).map(|_| ());
-        }
-        if name == "finish" {
-            if let Some(dispatch) = &self.dispatch {
-                let remaining = dispatch
-                    .remaining
-                    .lock()
-                    .map_err(|_| "Cannot confirm plan completion")?;
-                if !remaining.is_empty() {
-                    let mut keys: Vec<_> = remaining.iter().cloned().collect();
-                    keys.sort();
-                    return Err(format!("The plan still needs contributions from: {}. Dispatch ready assignments before finishing. Never claim uncompleted work is done.",keys.join(", ")));
-                }
-            }
         }
         self.tools.validate_tool_args(name, args)
     }

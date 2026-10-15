@@ -10,6 +10,12 @@ pub(crate) struct SkillToolHost {
     pub selected: HashSet<String>,
 }
 impl ToolHost for SkillToolHost {
+    fn check_completion(
+        &self,
+        cancel: &CancellationSignal,
+    ) -> Result<(), tetonic_domain::CompletionBlocker> {
+        self.inner.check_completion(cancel)
+    }
     fn prepare_parameters(
         &self,
         name: &str,

@@ -23,7 +23,12 @@ fn failed_check_can_be_repaired_and_fresh_edits_must_be_checked_again() {
     let dir = tempfile::tempdir().unwrap();
     let svc = WorkspaceTransactionService::new(dir.path(), WorkspaceTxnConfig::default()).unwrap();
     stage(&svc, "broken");
+    assert!(
+        svc.with_active(|t| t.check_verification_ready()).is_ok(),
+        "no check has been requested yet"
+    );
     assert!(!check(&svc, "ready").success);
+    assert!(svc.with_active(|t| t.check_verification_ready()).is_err());
     assert!(svc
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());
@@ -34,8 +39,17 @@ fn failed_check_can_be_repaired_and_fresh_edits_must_be_checked_again() {
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());
     assert!(check(&svc, "ready").success);
+    assert!(svc.with_active(|t| t.check_verification_ready()).is_ok());
+    assert!(
+        !dir.path().join("result.txt").exists(),
+        "readiness cannot publish work"
+    );
     svc.with_active(|t| t.stage_edit_file("result.txt", "ready", "changed after checking"))
         .unwrap();
+    assert!(
+        svc.with_active(|t| t.check_verification_ready()).is_err(),
+        "an edit invalidates readiness until rechecked"
+    );
     assert!(svc
         .commit_active_if_any("test", DataClass::RepositorySource)
         .is_err());
